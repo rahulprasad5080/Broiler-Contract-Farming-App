@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, SafeAreaView, ImageBackground } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, SafeAreaView, ImageBackground, Platform, StatusBar } from 'react-native';
 import { useAuth } from '../../context/AuthContext';
 import { Colors } from '../../constants/Colors';
 import { Layout } from '../../constants/Layout';
@@ -125,7 +125,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: Layout.spacing.lg,
-    paddingVertical: Layout.spacing.md,
+    paddingTop: Platform.OS === 'android' ? (StatusBar.currentHeight || 0) + 10 : Layout.spacing.md,
+    paddingBottom: Layout.spacing.md,
+    backgroundColor: '#FFF',
     borderBottomWidth: 1,
     borderBottomColor: Colors.border,
   },
