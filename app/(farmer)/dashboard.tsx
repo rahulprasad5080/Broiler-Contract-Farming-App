@@ -5,6 +5,8 @@ import { Colors } from '../../constants/Colors';
 import { Layout } from '../../constants/Layout';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 
+import { BottomTabs } from '../../components/ui/BottomTabs';
+
 export default function FarmerDashboard() {
   const { user, signOut } = useAuth();
 
@@ -109,20 +111,7 @@ export default function FarmerDashboard() {
         </View>
       </ScrollView>
 
-      <View style={styles.tabBar}>
-        <TouchableOpacity style={styles.tabItem}>
-          <Ionicons name="grid" size={24} color={Colors.primary} />
-          <Text style={[styles.tabLabel, { color: Colors.primary }]}>Dashboard</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.tabItem}>
-          <Ionicons name="checkmark-circle-outline" size={24} color={Colors.textSecondary} />
-          <Text style={styles.tabLabel}>Daily Tasks</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.tabItem}>
-          <Ionicons name="person-outline" size={24} color={Colors.textSecondary} />
-          <Text style={styles.tabLabel}>Profile</Text>
-        </TouchableOpacity>
-      </View>
+      <BottomTabs activeTab="dashboard" role="farmer" />
     </SafeAreaView>
   );
 }
