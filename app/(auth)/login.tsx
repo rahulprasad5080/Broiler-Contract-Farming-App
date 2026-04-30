@@ -24,8 +24,8 @@ import { useAuth } from '../../context/AuthContext';
 const loginSchema = z.object({
   email: z
     .string()
-    .min(1, 'Email is required')
-    .email('Enter a valid email address'),
+    .min(1, 'Email or Mobile is required'),
+    // .email('Enter a valid email address'),
 
   password: z
     .string()
@@ -46,8 +46,13 @@ export default function LoginScreen() {
     defaultValues: { email: '', password: '' },
   });
 
-  const onSubmit = (data: LoginForm) => {
-    signIn(data.email, data.password);
+  const onSubmit = async (data: LoginForm) => {
+    try {
+      await signIn(data.email, data.password);
+      // Success is handled by the useEffect in AuthContext
+    } catch (error) {
+      alert('Login failed. Please check your credentials.');
+    }
   };
 
   return (

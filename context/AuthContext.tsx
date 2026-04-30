@@ -13,7 +13,7 @@ interface User {
 interface AuthContextType {
   user: User | null;
   isLoading: boolean;
-  signIn: (mobile: string, pass: string) => Promise<void>;
+  signIn: (email: string, pass: string) => Promise<void>;
   signOut: () => void;
 }
 
@@ -33,7 +33,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (isLoading) return;
 
-    const inAuthGroup = segments[0] === '(auth)';
+    const inAuthGroup = (segments as string[]).includes('(auth)');
+    console.log('Current segments:', segments, 'inAuthGroup:', inAuthGroup, 'user:', user?.role);
 
     if (!user && !inAuthGroup) {
       // Redirect to login if not logged in
@@ -48,22 +49,37 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const signIn = async (email: string, pass: string) => {
     setIsLoading(true);
+    console.log('Attempting login with:', email);
+    
     // Mock login logic with Gmail addresses
-    setTimeout(() => {
-      let mockUser: User | null = null;
-      const lowerEmail = email.toLowerCase();
-      
-      if (lowerEmail === 'owner@gmail.com' && pass === 'owner123') {
-        mockUser = { id: '1', name: 'Owner Admin', role: 'OWNER' };
-      } else if (lowerEmail === 'sup@gmail.com' && pass === 'sup123') {
-        mockUser = { id: '2', name: 'Ravi Supervisor', role: 'SUPERVISOR' };
-      } else if (lowerEmail === 'farmer@gmail.com' && pass === 'farmer123') {
-        mockUser = { id: '3', name: 'Kisan Kumar', role: 'FARMER', farmId: 'farm_101' };
-      }
-      
-      setUser(mockUser);
-      setIsLoading(false);
-    }, 1000);
+    return new Promise<void>((resolve) => {
+      setTimeout(() => {
+        let mockUser: User | null = null;
+        const lowerEmail = email.toLowerCase();
+        
+        console.log('Checking credentials for:', lowerEmail);
+        
+        if ((lowerEmail === 'owner@gmail.com' || lowerEmail === 'owner') && pass === 'owner123') {
+          mockUser = { id: '1', name: 'Owner Admin', role: 'OWNER' };
+        } else if ((lowerEmail === 'sup@gmail.com' || lowerEmail === 'sup') && pass === 'sup123') {
+          mockUser = { id: '2', name: 'Ravi Supervisor', role: 'SUPERVISOR' };
+        } else if ((lowerEmail === 'farmer@gmail.com' || lowerEmail === 'farmer') && pass === 'farmer123') {
+          mockUser = { id: '3', name: 'Kisan Kumar', role: 'FARMER', farmId: 'farm_101' };
+        }
+        
+        if (mockUser) {
+          setUser(mockUser);
+          setIsLoading(false);
+          resolve();
+        } else {
+          setIsLoading(false);
+          // Reject doesn't work well with how useAuth is often used, 
+          // but here we want to signal failure.
+          setUser(null);
+          resolve(); // Resolve anyway, but check user in component or throw
+        }
+      }, 1000);
+    });
   };
 
   const signOut = () => {
