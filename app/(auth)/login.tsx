@@ -19,11 +19,6 @@ export default function LoginScreen() {
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <View style={styles.topBar}>
-        <MaterialCommunityIcons name="tractor" size={24} color={Colors.primary} />
-        <Text style={styles.topBarTitle}>Broiler Manager</Text>
-      </View>
-
       <ScrollView contentContainerStyle={styles.scrollContent}>
         <KeyboardAvoidingView 
           behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
