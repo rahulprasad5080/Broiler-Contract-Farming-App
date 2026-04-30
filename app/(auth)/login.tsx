@@ -140,7 +140,8 @@ const styles = StyleSheet.create({
   },
   logoContainer: {
     alignItems: 'center',
-    marginVertical: Layout.spacing.xl,
+    marginTop: 100,
+    marginBottom: Layout.spacing.xl,
   },
   logoBox: {
     width: 80,
