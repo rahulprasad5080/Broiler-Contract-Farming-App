@@ -1,7 +1,8 @@
 import React from 'react';
-import { View, Text, StyleSheet, SafeAreaView, TouchableOpacity, ScrollView, Platform, StatusBar } from 'react-native';
-import { Colors } from '../../../../../constants/Colors';
-import { Layout } from '../../../../../constants/Layout';
+import { Platform, SafeAreaView, ScrollView, StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+
+import { Colors } from '@/constants/Colors';
+import { Layout } from '@/constants/Layout';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 
