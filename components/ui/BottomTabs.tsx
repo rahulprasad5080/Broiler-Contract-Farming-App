@@ -9,6 +9,7 @@ export function BottomTabs({ state, descriptors, navigation }: BottomTabBarProps
   const tabs: { name: string; label: string; icon: keyof typeof Ionicons.glyphMap }[] = [
     { name: 'dashboard', label: 'Dashboard', icon: 'grid' },
     { name: 'tasks', label: 'Tasks', icon: 'checkmark-circle-outline' },
+    { name: 'manage', label: 'Manage', icon: 'briefcase-outline' },
     { name: 'reports', label: 'Reports', icon: 'stats-chart-outline' },
     { name: 'profile', label: 'Profile', icon: 'person-outline' },
   ];

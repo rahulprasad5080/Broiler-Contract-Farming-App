@@ -8,7 +8,7 @@ export default function OwnerLayout() {
       screenOptions={{ headerShown: false }}
     >
       <Tabs.Screen name="dashboard" />
-      <Tabs.Screen name="tasks" />
+      <Tabs.Screen name="manage" />
       <Tabs.Screen name="reports" />
       <Tabs.Screen name="profile" />
     </Tabs>
