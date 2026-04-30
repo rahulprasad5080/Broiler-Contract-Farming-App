@@ -1,85 +1,119 @@
 import { Ionicons } from '@expo/vector-icons';
-import React, { useState } from 'react';
-import { Image, KeyboardAvoidingView, Platform, SafeAreaView, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { zodResolver } from '@hookform/resolvers/zod';
+import React from 'react';
+import { useForm } from 'react-hook-form';
+import {
+  Image,
+  KeyboardAvoidingView,
+  Platform,
+  SafeAreaView,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from 'react-native';
+import { z } from 'zod';
+import { FormInput } from '../../components/ui/FormInput';
 import { Colors } from '../../constants/Colors';
 import { Layout } from '../../constants/Layout';
 import { useAuth } from '../../context/AuthContext';
 
+// ─── Zod Schema ───────────────────────────────────────────────────────────────
+
+const loginSchema = z.object({
+  email: z
+    .string()
+    .min(1, 'Email is required')
+    .email('Enter a valid email address'),
+
+  password: z
+    .string()
+    .min(1, 'Password is required')
+    .min(6, 'Password must be at least 6 characters'),
+});
+
+// TypeScript type auto-generated from schema — no manual type needed!
+type LoginForm = z.infer<typeof loginSchema>;
+
+// ─── Screen ───────────────────────────────────────────────────────────────────
+
 export default function LoginScreen() {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [showPassword, setShowPassword] = useState(false);
   const { signIn, isLoading } = useAuth();
 
-  const handleLogin = () => {
-    if (email && password) {
-      signIn(email, password);
-    }
+  const { control, handleSubmit } = useForm<LoginForm>({
+    resolver: zodResolver(loginSchema),
+    defaultValues: { email: '', password: '' },
+  });
+
+  const onSubmit = (data: LoginForm) => {
+    signIn(data.email, data.password);
   };
 
   return (
     <SafeAreaView style={styles.safeArea}>
       <ScrollView contentContainerStyle={styles.scrollContent}>
-        <KeyboardAvoidingView 
+        <KeyboardAvoidingView
           behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
           style={styles.container}
         >
+          {/* ── Logo ──────────────────────────────────────── */}
           <View style={styles.logoContainer}>
             <View style={styles.logoBox}>
-              <Image source={require('../../assets/egg.png')} style={styles.logoImage} resizeMode="contain" />
+              <Image
+                source={require('../../assets/egg.png')}
+                style={styles.logoImage}
+                resizeMode="contain"
+              />
             </View>
             <Text style={styles.welcomeTitle}>Welcome Back</Text>
             <Text style={styles.welcomeSubtitle}>Manage your farm's efficiency</Text>
           </View>
 
+          {/* ── Card ──────────────────────────────────────── */}
           <View style={styles.card}>
-            <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>Email Address</Text>
-              <View style={styles.inputWrapper}>
-                <Ionicons name="mail-outline" size={20} color={Colors.textSecondary} style={styles.inputIcon} />
-                <TextInput
-                  style={styles.input}
-                  placeholder="name@gmail.com"
-                  keyboardType="email-address"
-                  autoCapitalize="none"
-                  value={email}
-                  onChangeText={setEmail}
-                />
-              </View>
-            </View>
+            {/* Email — no 'rules' prop needed, Zod handles it */}
+            <FormInput<LoginForm>
+              control={control}
+              name="email"
+              label="Email Address"
+              leftIcon="mail-outline"
+              placeholder="name@gmail.com"
+              keyboardType="email-address"
+              autoCapitalize="none"
+            />
 
-            <View style={styles.inputGroup}>
-              <View style={styles.labelRow}>
-                <Text style={styles.inputLabel}>Password</Text>
+            {/* Password */}
+            <FormInput<LoginForm>
+              control={control}
+              name="password"
+              label="Password"
+              leftIcon="lock-closed-outline"
+              placeholder="········"
+              isPassword
+              rightLabel={
                 <TouchableOpacity>
                   <Text style={styles.forgotText}>Forgot?</Text>
                 </TouchableOpacity>
-              </View>
-              <View style={styles.inputWrapper}>
-                <Ionicons name="lock-closed-outline" size={20} color={Colors.textSecondary} style={styles.inputIcon} />
-                <TextInput
-                  style={styles.input}
-                  placeholder="........"
-                  secureTextEntry={!showPassword}
-                  value={password}
-                  onChangeText={setPassword}
-                />
-                <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
-                  <Ionicons name={showPassword ? "eye-off-outline" : "eye-outline"} size={20} color={Colors.textSecondary} />
-                </TouchableOpacity>
-              </View>
-            </View>
+              }
+            />
 
-            <TouchableOpacity 
-              style={[styles.loginButton, isLoading && styles.buttonDisabled]} 
-              onPress={handleLogin}
+            {/* Login Button */}
+            <TouchableOpacity
+              style={[styles.loginButton, isLoading && styles.buttonDisabled]}
+              onPress={handleSubmit(onSubmit)}
               disabled={isLoading}
             >
-              <Text style={styles.loginButtonText}>{isLoading ? 'Logging in...' : 'Login'}</Text>
-              {!isLoading && <Ionicons name="arrow-forward" size={20} color="#FFF" style={{ marginLeft: 8 }} />}
+              <Text style={styles.loginButtonText}>
+                {isLoading ? 'Logging in...' : 'Login'}
+              </Text>
+              {!isLoading && (
+                <Ionicons name="arrow-forward" size={20} color="#FFF" style={{ marginLeft: 8 }} />
+              )}
             </TouchableOpacity>
           </View>
 
+          {/* ── Help ──────────────────────────────────────── */}
           <View style={styles.helpContainer}>
             <Text style={styles.helpText}>Need help with your account? </Text>
             <TouchableOpacity>
@@ -87,6 +121,7 @@ export default function LoginScreen() {
             </TouchableOpacity>
           </View>
 
+          {/* ── Info Cards ────────────────────────────────── */}
           <View style={styles.infoCardsRow}>
             <View style={styles.infoCard}>
               <View style={[styles.infoIconBox, { backgroundColor: '#E3F2FD' }]}>
@@ -102,6 +137,7 @@ export default function LoginScreen() {
             </View>
           </View>
 
+          {/* ── Footer ────────────────────────────────────── */}
           <View style={styles.footer}>
             <Text style={styles.footerText}>v1.0.0 Secure Node  •  Privacy First</Text>
           </View>
@@ -111,24 +147,12 @@ export default function LoginScreen() {
   );
 }
 
+// ─── Styles ───────────────────────────────────────────────────────────────────
+
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
     backgroundColor: '#FFF',
-  },
-  topBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: Layout.spacing.lg,
-    paddingVertical: Layout.spacing.md,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.border,
-  },
-  topBarTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: Colors.primary,
-    marginLeft: 8,
   },
   scrollContent: {
     flexGrow: 1,
@@ -181,42 +205,10 @@ const styles = StyleSheet.create({
     borderColor: Colors.border,
     ...Layout.cardShadow,
   },
-  inputGroup: {
-    marginBottom: Layout.spacing.lg,
-  },
-  labelRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  inputLabel: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: Colors.text,
-    marginBottom: 8,
-  },
   forgotText: {
     fontSize: 12,
     color: Colors.primary,
     fontWeight: '600',
-  },
-  inputWrapper: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: Colors.border,
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    backgroundColor: '#F9FAFB',
-  },
-  inputIcon: {
-    marginRight: 10,
-  },
-  input: {
-    flex: 1,
-    height: 48,
-    fontSize: 15,
-    color: Colors.text,
   },
   loginButton: {
     backgroundColor: Colors.primary,
@@ -288,15 +280,4 @@ const styles = StyleSheet.create({
     fontSize: 11,
     color: Colors.textSecondary,
   },
-  mockHint: {
-    marginTop: 10,
-    backgroundColor: Colors.neutral,
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 4,
-  },
-  hintText: {
-    fontSize: 10,
-    color: Colors.textSecondary,
-  }
 });
