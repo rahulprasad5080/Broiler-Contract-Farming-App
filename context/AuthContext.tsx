@@ -1,4 +1,5 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import React, { createContext, useContext, useEffect, useState } from 'react';
 import { useRouter, useSegments } from 'expo-router';
 
 export type UserRole = 'OWNER' | 'SUPERVISOR' | 'FARMER' | null;
@@ -17,6 +18,8 @@ interface AuthContextType {
   signOut: () => void;
 }
 
+const AUTH_KEY = '@murgi_auth_user'; // AsyncStorage key
+
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
@@ -25,11 +28,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const segments = useSegments();
   const router = useRouter();
 
+  // ── App start par saved session load karo ──────────────────────────────────
   useEffect(() => {
-    // Check for existing session here
-    setIsLoading(false);
+    const loadUser = async () => {
+      try {
+        const savedUser = await AsyncStorage.getItem(AUTH_KEY);
+        if (savedUser) {
+          setUser(JSON.parse(savedUser));
+        }
+      } catch (e) {
+        console.warn('Failed to load user from storage:', e);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    loadUser();
   }, []);
 
+  // ── Route guard ────────────────────────────────────────────────────────────
   useEffect(() => {
     if (isLoading) return;
 
@@ -37,28 +53,26 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     console.log('Current segments:', segments, 'inAuthGroup:', inAuthGroup, 'user:', user?.role);
 
     if (!user && !inAuthGroup) {
-      // Redirect to login if not logged in
       router.replace('/(auth)/login');
     } else if (user && inAuthGroup) {
-      // Redirect to dashboard based on role
       if (user.role === 'OWNER') router.replace('/(owner)/dashboard');
       else if (user.role === 'SUPERVISOR') router.replace('/(supervisor)/dashboard');
       else if (user.role === 'FARMER') router.replace('/(farmer)/dashboard');
     }
   }, [user, segments, isLoading]);
 
+  // ── Sign In ────────────────────────────────────────────────────────────────
   const signIn = async (email: string, pass: string) => {
     setIsLoading(true);
     console.log('Attempting login with:', email);
-    
-    // Mock login logic with Gmail addresses
+
     return new Promise<void>((resolve) => {
-      setTimeout(() => {
+      setTimeout(async () => {
         let mockUser: User | null = null;
         const lowerEmail = email.toLowerCase();
-        
+
         console.log('Checking credentials for:', lowerEmail);
-        
+
         if ((lowerEmail === 'owner@gmail.com' || lowerEmail === 'owner') && pass === 'owner123') {
           mockUser = { id: '1', name: 'Owner Admin', role: 'OWNER' };
         } else if ((lowerEmail === 'sup@gmail.com' || lowerEmail === 'sup') && pass === 'sup123') {
@@ -66,23 +80,33 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         } else if ((lowerEmail === 'farmer@gmail.com' || lowerEmail === 'farmer') && pass === 'farmer123') {
           mockUser = { id: '3', name: 'Kisan Kumar', role: 'FARMER', farmId: 'farm_101' };
         }
-        
+
         if (mockUser) {
+          // ✅ AsyncStorage me save karo
+          try {
+            await AsyncStorage.setItem(AUTH_KEY, JSON.stringify(mockUser));
+          } catch (e) {
+            console.warn('Failed to save user to storage:', e);
+          }
           setUser(mockUser);
           setIsLoading(false);
           resolve();
         } else {
           setIsLoading(false);
-          // Reject doesn't work well with how useAuth is often used, 
-          // but here we want to signal failure.
           setUser(null);
-          resolve(); // Resolve anyway, but check user in component or throw
+          resolve();
         }
       }, 1000);
     });
   };
 
-  const signOut = () => {
+  // ── Sign Out ───────────────────────────────────────────────────────────────
+  const signOut = async () => {
+    try {
+      await AsyncStorage.removeItem(AUTH_KEY);
+    } catch (e) {
+      console.warn('Failed to remove user from storage:', e);
+    }
     setUser(null);
   };
 
