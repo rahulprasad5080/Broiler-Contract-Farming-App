@@ -1,48 +1,51 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
+import { BottomTabBarProps } from '@react-navigation/bottom-tabs';
 import { Colors } from '../../constants/Colors';
 
-type TabType = 'dashboard' | 'tasks' | 'reports' | 'profile';
-
-interface BottomTabsProps {
-  activeTab: TabType;
-  role: 'owner' | 'farmer' | 'supervisor';
-}
-
-export function BottomTabs({ activeTab, role }: BottomTabsProps) {
-  const router = useRouter();
-
-  const tabs: { id: TabType; label: string; icon: keyof typeof Ionicons.glyphMap; route: string }[] = [
-    { id: 'dashboard', label: 'Dashboard', icon: 'grid', route: `/( ${role} )/dashboard` },
-    { id: 'tasks', label: 'Tasks', icon: 'checkmark-circle-outline', route: `/( ${role} )/tasks` },
-    { id: 'reports', label: 'Reports', icon: 'stats-chart-outline', route: `/( ${role} )/reports` },
-    { id: 'profile', label: 'Profile', icon: 'person-outline', route: `/( ${role} )/profile` },
+export function BottomTabs({ state, descriptors, navigation }: BottomTabBarProps) {
+  // Navigation states se data nikalna
+  const tabs: { name: string; label: string; icon: keyof typeof Ionicons.glyphMap }[] = [
+    { name: 'dashboard', label: 'Dashboard', icon: 'grid' },
+    { name: 'tasks', label: 'Tasks', icon: 'checkmark-circle-outline' },
+    { name: 'reports', label: 'Reports', icon: 'stats-chart-outline' },
+    { name: 'profile', label: 'Profile', icon: 'person-outline' },
   ];
-
-  const handlePress = (route: string) => {
-    // Clean route for expo-router (remove spaces if any)
-    const cleanRoute = route.replace(/\s/g, '');
-    router.replace(cleanRoute as any);
-  };
 
   return (
     <View style={styles.tabBar}>
       {tabs.map((tab) => {
-        const isActive = activeTab === tab.id;
+        // Check if this tab exists in the current navigator state
+        const route = state.routes.find(r => r.name === tab.name);
+        if (!route) return null;
+
+        const isFocused = state.index === state.routes.indexOf(route);
+
+        const onPress = () => {
+          const event = navigation.emit({
+            type: 'tabPress',
+            target: route.key,
+            canPreventDefault: true,
+          });
+
+          if (!isFocused && !event.defaultPrevented) {
+            navigation.navigate(route.name);
+          }
+        };
+
         return (
           <TouchableOpacity
-            key={tab.id}
+            key={tab.name}
             style={styles.tabItem}
-            onPress={() => handlePress(tab.route)}
+            onPress={onPress}
           >
             <Ionicons
               name={tab.icon}
               size={24}
-              color={isActive ? Colors.primary : Colors.textSecondary}
+              color={isFocused ? Colors.primary : Colors.textSecondary}
             />
-            <Text style={[styles.tabLabel, { color: isActive ? Colors.primary : Colors.textSecondary }]}>
+            <Text style={[styles.tabLabel, { color: isFocused ? Colors.primary : Colors.textSecondary }]}>
               {tab.label}
             </Text>
           </TouchableOpacity>
@@ -54,16 +57,12 @@ export function BottomTabs({ activeTab, role }: BottomTabsProps) {
 
 const styles = StyleSheet.create({
   tabBar: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
+    flexDirection: 'row',
     height: 65,
     backgroundColor: '#FFF',
-    flexDirection: 'row',
     borderTopWidth: 1,
     borderTopColor: '#E5E8EB',
-    paddingBottom: 10,
+    paddingBottom: Platform.OS === 'ios' ? 20 : 10,
     elevation: 8,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: -2 },

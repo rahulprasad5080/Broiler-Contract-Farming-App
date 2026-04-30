@@ -10,7 +10,6 @@ export default function ReportsScreen() {
         <Text style={styles.title}>Supervisor Reports</Text>
         <Text style={styles.subtitle}>Consolidated farm metrics.</Text>
       </View>
-      <BottomTabs activeTab="reports" role="supervisor" />
     </SafeAreaView>
   );
 }

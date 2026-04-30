@@ -10,7 +10,6 @@ export default function ReportsScreen() {
         <Text style={styles.title}>Reports Page</Text>
         <Text style={styles.subtitle}>This page is under development.</Text>
       </View>
-      <BottomTabs activeTab="reports" role="owner" />
     </SafeAreaView>
   );
 }

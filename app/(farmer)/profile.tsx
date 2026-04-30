@@ -20,7 +20,6 @@ export default function ProfileScreen() {
           <Text style={styles.logoutText}>Logout</Text>
         </TouchableOpacity>
       </View>
-      <BottomTabs activeTab="profile" role="farmer" />
     </SafeAreaView>
   );
 }

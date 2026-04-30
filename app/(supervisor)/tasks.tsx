@@ -10,7 +10,6 @@ export default function TasksScreen() {
         <Text style={styles.title}>Supervisor Tasks</Text>
         <Text style={styles.subtitle}>Supervision duties and farm visits.</Text>
       </View>
-      <BottomTabs activeTab="tasks" role="supervisor" />
     </SafeAreaView>
   );
 }

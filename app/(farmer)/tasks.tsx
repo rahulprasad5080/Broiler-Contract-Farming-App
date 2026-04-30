@@ -10,7 +10,6 @@ export default function TasksScreen() {
         <Text style={styles.title}>Farmer Tasks</Text>
         <Text style={styles.subtitle}>Daily activities will appear here.</Text>
       </View>
-      <BottomTabs activeTab="tasks" role="farmer" />
     </SafeAreaView>
   );
 }

@@ -10,7 +10,6 @@ export default function ReportsScreen() {
         <Text style={styles.title}>Farmer Reports</Text>
         <Text style={styles.subtitle}>Batch reports and performance.</Text>
       </View>
-      <BottomTabs activeTab="reports" role="farmer" />
     </SafeAreaView>
   );
 }

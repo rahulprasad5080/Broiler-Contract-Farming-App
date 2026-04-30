@@ -5,8 +5,6 @@ import { Colors } from '../../constants/Colors';
 import { Layout } from '../../constants/Layout';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 
-import { BottomTabs } from '../../components/ui/BottomTabs';
-
 export default function SupervisorDashboard() {
   const { user, signOut } = useAuth();
 
@@ -103,7 +101,6 @@ export default function SupervisorDashboard() {
         <Ionicons name="add" size={32} color="#FFF" />
       </TouchableOpacity>
 
-      <BottomTabs activeTab="dashboard" role="supervisor" />
     </SafeAreaView>
   );
 }

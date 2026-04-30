@@ -4,7 +4,6 @@ import { useAuth } from '../../context/AuthContext';
 import { Colors } from '../../constants/Colors';
 import { Layout } from '../../constants/Layout';
 import { Ionicons, MaterialCommunityIcons, FontAwesome5 } from '@expo/vector-icons';
-import { BottomTabs } from '../../components/ui/BottomTabs';
 
 export default function OwnerDashboard() {
   const { user, signOut } = useAuth();
@@ -129,7 +128,6 @@ export default function OwnerDashboard() {
         <Ionicons name="add" size={32} color="#FFF" />
       </TouchableOpacity>
 
-      <BottomTabs activeTab="dashboard" role="owner" />
     </SafeAreaView>
   );
 }

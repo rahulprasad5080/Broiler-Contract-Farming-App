@@ -5,8 +5,6 @@ import { Colors } from '../../constants/Colors';
 import { Layout } from '../../constants/Layout';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 
-import { BottomTabs } from '../../components/ui/BottomTabs';
-
 export default function FarmerDashboard() {
   const { user, signOut } = useAuth();
 
@@ -111,7 +109,6 @@ export default function FarmerDashboard() {
         </View>
       </ScrollView>
 
-      <BottomTabs activeTab="dashboard" role="farmer" />
     </SafeAreaView>
   );
 }

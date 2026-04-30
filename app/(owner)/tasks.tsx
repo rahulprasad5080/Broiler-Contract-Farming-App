@@ -10,7 +10,6 @@ export default function TasksScreen() {
         <Text style={styles.title}>Tasks Page</Text>
         <Text style={styles.subtitle}>This page is under development.</Text>
       </View>
-      <BottomTabs activeTab="tasks" role="owner" />
     </SafeAreaView>
   );
 }
