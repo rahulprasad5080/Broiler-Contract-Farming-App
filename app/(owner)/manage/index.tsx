@@ -1,9 +1,9 @@
 import React from 'react';
 import { View, Text, StyleSheet, SafeAreaView, TouchableOpacity, ScrollView } from 'react-native';
-import { Colors } from '../../../../constants/Colors';
-import { Layout } from '../../../../constants/Layout';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
+import { Colors } from '@/constants/Colors';
+import { Layout } from '@/constants/Layout';
 
 export default function ManageIndexScreen() {
   const router = useRouter();
