@@ -1,6 +1,6 @@
-import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import { Ionicons } from '@expo/vector-icons';
 import React, { useState } from 'react';
-import { KeyboardAvoidingView, Platform, SafeAreaView, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { Image, KeyboardAvoidingView, Platform, SafeAreaView, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { Colors } from '../../constants/Colors';
 import { Layout } from '../../constants/Layout';
 import { useAuth } from '../../context/AuthContext';
@@ -26,7 +26,7 @@ export default function LoginScreen() {
         >
           <View style={styles.logoContainer}>
             <View style={styles.logoBox}>
-              <MaterialCommunityIcons name="egg-off" size={40} color={Colors.secondary} />
+              <Image source={require('../../assets/egg.png')} style={styles.logoImage} resizeMode="contain" />
             </View>
             <Text style={styles.welcomeTitle}>Welcome Back</Text>
             <Text style={styles.welcomeSubtitle}>Manage your farm's efficiency</Text>
@@ -144,13 +144,24 @@ const styles = StyleSheet.create({
     marginBottom: Layout.spacing.xl,
   },
   logoBox: {
-    width: 80,
-    height: 80,
-    backgroundColor: '#C8E6C9',
-    borderRadius: 20,
+    width: 110,
+    height: 110,
+    backgroundColor: Colors.surface,
+    borderRadius: 24,
+    borderWidth: 2.5,
+    borderColor: Colors.primary,
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: Layout.spacing.md,
+    shadowColor: Colors.primary,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 6,
+  },
+  logoImage: {
+    width: 80,
+    height: 80,
   },
   welcomeTitle: {
     fontSize: 26,
