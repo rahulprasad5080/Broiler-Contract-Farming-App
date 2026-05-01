@@ -79,6 +79,17 @@ export default function InventoryScreen() {
   const [costPerUnit, setCostPerUnit] = useState('');
   const [purchaseDate, setPurchaseDate] = useState('');
 
+  // Allocation form
+  const [allocFarm, setAllocFarm] = useState('');
+  const [allocBatch, setAllocBatch] = useState('');
+  const [allocItem, setAllocItem] = useState('');
+  const [allocQty, setAllocQty] = useState('');
+
+  // Transfer form
+  const [transBatch, setTransBatch] = useState('');
+  const [transItem, setTransItem] = useState('');
+  const [transQty, setTransQty] = useState('');
+
   const tabs: { key: TabKey; label: string }[] = [
     { key: 'purchase', label: 'Purchase' },
     { key: 'allocation', label: 'Allocation' },
@@ -208,11 +219,59 @@ export default function InventoryScreen() {
               />
               <Text style={styles.formCardTitle}>Stock Allocation</Text>
             </View>
-            <Text style={styles.formDesc}>
-              Assign feed or medication to a specific farm house or batch.
-            </Text>
-            <TouchableOpacity style={styles.outlineBtn}>
-              <Text style={styles.outlineBtnText}>Start Allocation</Text>
+
+            <View style={styles.formRow}>
+              <View style={styles.formHalf}>
+                <Text style={styles.formLabel}>Target Farm</Text>
+                <View style={styles.inputBox}>
+                  <TextInput
+                    style={styles.textInput}
+                    placeholder="Select Farm"
+                    placeholderTextColor={Colors.textSecondary}
+                    value={allocFarm}
+                    onChangeText={setAllocFarm}
+                  />
+                </View>
+              </View>
+              <View style={[styles.formHalf, { marginLeft: 12 }]}>
+                <Text style={styles.formLabel}>Target Batch</Text>
+                <View style={styles.inputBox}>
+                  <TextInput
+                    style={styles.textInput}
+                    placeholder="Batch ID"
+                    placeholderTextColor={Colors.textSecondary}
+                    value={allocBatch}
+                    onChangeText={setAllocBatch}
+                  />
+                </View>
+              </View>
+            </View>
+
+            <Text style={styles.formLabel}>Item</Text>
+            <View style={styles.inputBox}>
+              <TextInput
+                style={styles.textInput}
+                placeholder="Select item to allocate"
+                placeholderTextColor={Colors.textSecondary}
+                value={allocItem}
+                onChangeText={setAllocItem}
+              />
+            </View>
+
+            <Text style={styles.formLabel}>Quantity</Text>
+            <View style={styles.inputBox}>
+              <TextInput
+                style={styles.textInput}
+                placeholder="0"
+                placeholderTextColor={Colors.textSecondary}
+                value={allocQty}
+                onChangeText={setAllocQty}
+                keyboardType="numeric"
+              />
+            </View>
+
+            <TouchableOpacity style={styles.primaryBtn}>
+              <Text style={styles.primaryBtnText}>Allocate Stock</Text>
             </TouchableOpacity>
           </View>
         )}
@@ -228,11 +287,43 @@ export default function InventoryScreen() {
               />
               <Text style={styles.formCardTitle}>Stock Transfer</Text>
             </View>
-            <Text style={styles.formDesc}>
-              Move stock between warehouses or separate farm locations.
-            </Text>
+
+            <Text style={styles.formLabel}>Target Batch / Farm</Text>
+            <View style={styles.inputBox}>
+              <TextInput
+                style={styles.textInput}
+                placeholder="Destination Batch ID"
+                placeholderTextColor={Colors.textSecondary}
+                value={transBatch}
+                onChangeText={setTransBatch}
+              />
+            </View>
+
+            <Text style={styles.formLabel}>Item to Transfer</Text>
+            <View style={styles.inputBox}>
+              <TextInput
+                style={styles.textInput}
+                placeholder="Select item"
+                placeholderTextColor={Colors.textSecondary}
+                value={transItem}
+                onChangeText={setTransItem}
+              />
+            </View>
+
+            <Text style={styles.formLabel}>Quantity</Text>
+            <View style={styles.inputBox}>
+              <TextInput
+                style={styles.textInput}
+                placeholder="0"
+                placeholderTextColor={Colors.textSecondary}
+                value={transQty}
+                onChangeText={setTransQty}
+                keyboardType="numeric"
+              />
+            </View>
+
             <TouchableOpacity style={styles.outlineBtn}>
-              <Text style={styles.outlineBtnText}>Move Stock</Text>
+              <Text style={styles.outlineBtnText}>Transfer Stock</Text>
             </TouchableOpacity>
           </View>
         )}

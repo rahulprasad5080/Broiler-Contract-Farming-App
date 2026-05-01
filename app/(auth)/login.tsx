@@ -77,14 +77,14 @@ export default function LoginScreen() {
 
           {/* ── Card ──────────────────────────────────────── */}
           <View style={styles.card}>
-            {/* Email — no 'rules' prop needed, Zod handles it */}
+            {/* Email / Mobile */}
             <FormInput<LoginForm>
               control={control}
               name="email"
-              label="Email Address"
-              leftIcon="mail-outline"
-              placeholder="name@gmail.com"
-              keyboardType="email-address"
+              label="Mobile Number or Email"
+              leftIcon="call-outline"
+              placeholder="9999999999 or name@gmail.com"
+              keyboardType="default"
               autoCapitalize="none"
             />
 

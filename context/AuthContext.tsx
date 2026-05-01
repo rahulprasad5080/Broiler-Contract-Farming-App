@@ -73,11 +73,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
         console.log('Checking credentials for:', lowerEmail);
 
-        if ((lowerEmail === 'owner@gmail.com' || lowerEmail === 'owner') && pass === 'owner123') {
+        if ((lowerEmail === 'owner@gmail.com' || lowerEmail === 'owner' || lowerEmail === '9999999999') && pass === 'owner123') {
           mockUser = { id: '1', name: 'Owner Admin', role: 'OWNER' };
-        } else if ((lowerEmail === 'sup@gmail.com' || lowerEmail === 'sup') && pass === 'sup123') {
+        } else if ((lowerEmail === 'sup@gmail.com' || lowerEmail === 'sup' || lowerEmail === '8888888888') && pass === 'sup123') {
           mockUser = { id: '2', name: 'Ravi Supervisor', role: 'SUPERVISOR' };
-        } else if ((lowerEmail === 'farmer@gmail.com' || lowerEmail === 'farmer') && pass === 'farmer123') {
+        } else if ((lowerEmail === 'farmer@gmail.com' || lowerEmail === 'farmer' || lowerEmail === '7777777777') && pass === 'farmer123') {
           mockUser = { id: '3', name: 'Kisan Kumar', role: 'FARMER', farmId: 'farm_101' };
         }
 
