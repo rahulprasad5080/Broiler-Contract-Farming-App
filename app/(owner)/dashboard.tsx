@@ -79,7 +79,7 @@ export default function OwnerDashboard() {
             { label: 'Inventory', icon: 'box', provider: FontAwesome5, route: '/(owner)/manage/inventory' },
             { label: 'Daily Entry', icon: 'clipboard-list', provider: FontAwesome5, route: '/(owner)/manage/daily-entry' },
             { label: 'Reports', icon: 'chart-bar', provider: FontAwesome5, route: '/(owner)/reports' },
-            { label: 'Users', icon: 'user-friends', provider: FontAwesome5, route: null },
+            { label: 'Users', icon: 'user-friends', provider: FontAwesome5, route: '/(owner)/manage/users' },
             { label: 'Settings', icon: 'cog', provider: FontAwesome5, route: null },
           ].map((item, idx) => (
             <TouchableOpacity

@@ -8,6 +8,7 @@ export default function ManageLayout() {
       <Stack.Screen name="batches" />
       <Stack.Screen name="inventory" />
       <Stack.Screen name="daily-entry" />
+      <Stack.Screen name="users" />
     </Stack>
   );
 }
