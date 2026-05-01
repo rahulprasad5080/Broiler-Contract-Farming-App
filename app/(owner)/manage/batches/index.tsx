@@ -217,7 +217,7 @@ export default function BatchManagementScreen() {
               </TouchableOpacity>
               <TouchableOpacity
                 style={styles.viewButton}
-                onPress={() => router.push('/(owner)/manage/batches/create')}
+                onPress={() => router.push('/(owner)/manage/batches/performance')}
               >
                 <Text style={styles.viewButtonText}>View Details</Text>
               </TouchableOpacity>
