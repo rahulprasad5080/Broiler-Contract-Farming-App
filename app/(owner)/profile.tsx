@@ -1,20 +1,20 @@
+import { FontAwesome5, Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import React, { useState } from 'react';
 import {
-  View,
-  Text,
-  StyleSheet,
-  SafeAreaView,
-  TouchableOpacity,
-  ScrollView,
-  Platform,
-  StatusBar,
-  Switch,
   Alert,
+  Platform,
+  SafeAreaView,
+  ScrollView,
+  StatusBar,
+  StyleSheet,
+  Switch,
+  Text,
+  TouchableOpacity,
+  View,
 } from 'react-native';
-import { Ionicons, MaterialCommunityIcons, FontAwesome5 } from '@expo/vector-icons';
-import { useAuth } from '../../context/AuthContext';
 import { Colors } from '../../constants/Colors';
 import { Layout } from '../../constants/Layout';
+import { useAuth } from '../../context/AuthContext';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 const getInitials = (name: string) =>
@@ -201,27 +201,6 @@ export default function ProfileScreen() {
             item={{ icon: 'file-chart-outline', iconLib: 'MaterialCommunityIcons', label: 'Export Reports', sub: 'PDF & CSV available', chevron: true }}
           />
         </View>
-
-        {/* ── Preferences Section ── */}
-        <Text style={styles.sectionTitle}>Preferences</Text>
-        <View style={styles.menuCard}>
-          <MenuRow
-            item={{ icon: 'notifications-outline', iconLib: 'Ionicons', label: 'Notifications', sub: 'Alerts & reminders', toggle: true }}
-            toggleValue={notificationsOn}
-            onToggle={setNotificationsOn}
-          />
-          <View style={styles.menuDivider} />
-          <MenuRow
-            item={{ icon: 'moon-outline', iconLib: 'Ionicons', label: 'Dark Mode', sub: 'Change app appearance', toggle: true }}
-            toggleValue={darkModeOn}
-            onToggle={setDarkModeOn}
-          />
-          <View style={styles.menuDivider} />
-          <MenuRow
-            item={{ icon: 'language-outline', iconLib: 'Ionicons', label: 'Language', sub: 'English (EN)', chevron: true }}
-          />
-        </View>
-
         {/* ── Support Section ── */}
         <Text style={styles.sectionTitle}>Support</Text>
         <View style={styles.menuCard}>
