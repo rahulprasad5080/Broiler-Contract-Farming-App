@@ -14,7 +14,7 @@ interface User {
 interface AuthContextType {
   user: User | null;
   isLoading: boolean;
-  signIn: (email: string, pass: string) => Promise<void>;
+  signIn: (identifier: string, pass: string) => Promise<void>;
   signOut: () => void;
 }
 
@@ -62,22 +62,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [user, segments, isLoading]);
 
   // ── Sign In ────────────────────────────────────────────────────────────────
-  const signIn = async (email: string, pass: string) => {
+  const signIn = async (identifier: string, pass: string) => {
     setIsLoading(true);
-    console.log('Attempting login with:', email);
+    console.log('Attempting login with:', identifier);
 
     return new Promise<void>((resolve) => {
       setTimeout(async () => {
         let mockUser: User | null = null;
-        const lowerEmail = email.toLowerCase();
+        const lowerIdentifier = identifier.toLowerCase();
 
-        console.log('Checking credentials for:', lowerEmail);
+        console.log('Checking credentials for:', lowerIdentifier);
 
-        if ((lowerEmail === 'owner@gmail.com' || lowerEmail === 'owner' || lowerEmail === '9999999999') && pass === 'owner123') {
+        if (lowerIdentifier === '9999999999' && pass === 'owner123') {
           mockUser = { id: '1', name: 'Owner Admin', role: 'OWNER' };
-        } else if ((lowerEmail === 'sup@gmail.com' || lowerEmail === 'sup' || lowerEmail === '8888888888') && pass === 'sup123') {
+        } else if (lowerIdentifier === '8888888888' && pass === 'sup123') {
           mockUser = { id: '2', name: 'Ravi Supervisor', role: 'SUPERVISOR' };
-        } else if ((lowerEmail === 'farmer@gmail.com' || lowerEmail === 'farmer' || lowerEmail === '7777777777') && pass === 'farmer123') {
+        } else if (lowerIdentifier === '7777777777' && pass === 'farmer123') {
           mockUser = { id: '3', name: 'Kisan Kumar', role: 'FARMER', farmId: 'farm_101' };
         }
 

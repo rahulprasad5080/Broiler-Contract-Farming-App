@@ -22,10 +22,10 @@ import { useAuth } from '../../context/AuthContext';
 // ─── Zod Schema ───────────────────────────────────────────────────────────────
 
 const loginSchema = z.object({
-  email: z
+  mobile: z
     .string()
-    .min(1, 'Email or Mobile is required'),
-    // .email('Enter a valid email address'),
+    .min(1, 'Mobile number is required')
+    .regex(/^[0-9]{10}$/, 'Enter a valid 10-digit mobile number'),
 
   password: z
     .string()
@@ -43,12 +43,12 @@ export default function LoginScreen() {
 
   const { control, handleSubmit } = useForm<LoginForm>({
     resolver: zodResolver(loginSchema),
-    defaultValues: { email: '', password: '' },
+    defaultValues: { mobile: '', password: '' },
   });
 
   const onSubmit = async (data: LoginForm) => {
     try {
-      await signIn(data.email, data.password);
+      await signIn(data.mobile, data.password);
       // Success is handled by the useEffect in AuthContext
     } catch (error) {
       alert('Login failed. Please check your credentials.');
@@ -80,11 +80,11 @@ export default function LoginScreen() {
             {/* Email / Mobile */}
             <FormInput<LoginForm>
               control={control}
-              name="email"
-              label="Mobile Number or Email"
+              name="mobile"
+              label="Mobile Number"
               leftIcon="call-outline"
-              placeholder="9999999999 or name@gmail.com"
-              keyboardType="default"
+              placeholder="Enter your mobile number"
+              keyboardType="phone-pad"
               autoCapitalize="none"
             />
 
