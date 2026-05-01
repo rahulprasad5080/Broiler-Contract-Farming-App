@@ -76,7 +76,7 @@ export default function OwnerDashboard() {
           {[
             { label: 'Add Farm', icon: 'warehouse', provider: FontAwesome5, route: '/(owner)/manage/farms' },
             { label: 'New Batch', icon: 'file-medical', provider: FontAwesome5, route: '/(owner)/manage/batches' },
-            { label: 'Inventory', icon: 'box', provider: FontAwesome5, route: null },
+            { label: 'Inventory', icon: 'box', provider: FontAwesome5, route: '/(owner)/manage/inventory' },
             { label: 'Reports', icon: 'chart-bar', provider: FontAwesome5, route: null },
             { label: 'Users', icon: 'user-friends', provider: FontAwesome5, route: null },
             { label: 'Settings', icon: 'cog', provider: FontAwesome5, route: null },

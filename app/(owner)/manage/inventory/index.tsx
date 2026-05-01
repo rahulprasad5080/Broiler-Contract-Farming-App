@@ -1,156 +1,481 @@
-import React from 'react';
-import { View, Text, StyleSheet, SafeAreaView, TouchableOpacity, ScrollView, Platform, StatusBar } from 'react-native';
+import React, { useState } from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  SafeAreaView,
+  TouchableOpacity,
+  ScrollView,
+  Platform,
+  StatusBar,
+  TextInput,
+} from 'react-native';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { Colors } from '@/constants/Colors';
 import { Layout } from '@/constants/Layout';
 
-export default function InventoryDashboardScreen() {
+// ─── Types ────────────────────────────────────────────────────────────────────
+type TabKey = 'purchase' | 'allocation' | 'transfer';
+
+type ActivityItem = {
+  id: string;
+  icon: 'cart-outline' | 'layers-outline' | 'swap-horizontal-outline';
+  iconBg: string;
+  iconColor: string;
+  title: string;
+  subtitle: string;
+  amount: string;
+  amountColor: string;
+  meta: string;
+};
+
+// ─── Mock Data ─────────────────────────────────────────────────────────────────
+const ACTIVITY: ActivityItem[] = [
+  {
+    id: '1',
+    icon: 'cart-outline',
+    iconBg: '#E8F5E9',
+    iconColor: Colors.primary,
+    title: '50x Broiler Finisher',
+    subtitle: 'Purchase • Oct 24, 2023',
+    amount: '+$1,250',
+    amountColor: Colors.primary,
+    meta: 'Confirmed',
+  },
+  {
+    id: '2',
+    icon: 'layers-outline',
+    iconBg: '#EDE7F6',
+    iconColor: '#7B1FA2',
+    title: '10x Feed Bags',
+    subtitle: 'Allocated to House A • Oct 23',
+    amount: '-$250',
+    amountColor: Colors.tertiary,
+    meta: 'Batch B-202',
+  },
+  {
+    id: '3',
+    icon: 'swap-horizontal-outline',
+    iconBg: '#FFF3E0',
+    iconColor: '#E65100',
+    title: '5x Vaccines',
+    subtitle: 'Transfer • Oct 22',
+    amount: 'Internal',
+    amountColor: Colors.textSecondary,
+    meta: 'WH-1 to WH-2',
+  },
+];
+
+// ─── Component ────────────────────────────────────────────────────────────────
+export default function InventoryScreen() {
   const router = useRouter();
 
-  // Mock data for Phase 1
-  const stockSummary = [
-    { id: '1', item: 'Starter Feed', qty: '2,500', unit: 'kg', type: 'Feed' },
-    { id: '2', item: 'Finisher Feed', qty: '1,200', unit: 'kg', type: 'Feed' },
-    { id: '3', item: 'Ross 308 Chicks', qty: '0', unit: 'birds', type: 'Chick' },
-    { id: '4', item: 'Multivitamins', qty: '15', unit: 'liters', type: 'Medicine' },
-  ];
+  const [activeTab, setActiveTab] = useState<TabKey>('purchase');
 
-  const recentTransactions = [
-    { id: '1', type: 'Purchase', item: 'Starter Feed', qty: '1000 kg', date: '12 Oct', farm: '-' },
-    { id: '2', type: 'Allocation', item: 'Ross 308 Chicks', qty: '5000 birds', date: '11 Oct', farm: 'Green Valley' },
-    { id: '3', type: 'Purchase', item: 'Multivitamins', qty: '20 liters', date: '10 Oct', farm: '-' },
+  // Purchase form
+  const [itemName, setItemName] = useState('');
+  const [quantity, setQuantity] = useState('');
+  const [costPerUnit, setCostPerUnit] = useState('');
+  const [purchaseDate, setPurchaseDate] = useState('');
+
+  const tabs: { key: TabKey; label: string }[] = [
+    { key: 'purchase', label: 'Purchase' },
+    { key: 'allocation', label: 'Allocation' },
+    { key: 'transfer', label: 'Transfer' },
   ];
 
   return (
     <SafeAreaView style={styles.safeArea}>
+      {/* ── Header ── */}
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-          <Ionicons name="arrow-back" size={24} color={Colors.text} />
+        <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
+          <Ionicons name="arrow-back" size={24} color={Colors.primary} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Inventory Dashboard</Text>
+        <Text style={styles.headerTitle}>Broiler Manager</Text>
       </View>
-      
-      <ScrollView contentContainerStyle={styles.container}>
-        
-        {/* Action Buttons */}
-        <View style={styles.actionRow}>
-          <TouchableOpacity 
-            style={[styles.actionCard, { backgroundColor: '#E8F5E9', borderColor: '#C8E6C9' }]}
-            onPress={() => router.push('/(owner)/manage/inventory/purchase')}
-          >
-            <View style={[styles.iconCircle, { backgroundColor: '#C8E6C9' }]}>
-              <Ionicons name="cart-outline" size={24} color={Colors.primary} />
-            </View>
-            <Text style={[styles.actionText, { color: Colors.primary }]}>Add Purchase</Text>
-          </TouchableOpacity>
 
-          <TouchableOpacity 
-            style={[styles.actionCard, { backgroundColor: '#E3F2FD', borderColor: '#BBDEFB' }]}
-            onPress={() => router.push('/(owner)/manage/inventory/allocate')}
-          >
-            <View style={[styles.iconCircle, { backgroundColor: '#BBDEFB' }]}>
-              <MaterialCommunityIcons name="truck-delivery-outline" size={24} color="#1976D2" />
-            </View>
-            <Text style={[styles.actionText, { color: '#1976D2' }]}>Allocate Stock</Text>
-          </TouchableOpacity>
+      <ScrollView
+        contentContainerStyle={styles.container}
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+      >
+        {/* ── Value Banner ── */}
+        <View style={styles.valueBanner}>
+          <Text style={styles.bannerLabel}>Current Inventory Value</Text>
+          <Text style={styles.bannerValue}>$142,850.00</Text>
+          <View style={styles.bannerTrend}>
+            <Ionicons name="trending-up-outline" size={16} color="#A5D6A7" />
+            <Text style={styles.bannerTrendText}>+12.5% from last month</Text>
+          </View>
         </View>
 
-        {/* Current Stock */}
-        <Text style={styles.sectionTitle}>Current Godown Stock</Text>
-        <View style={styles.stockGrid}>
-          {stockSummary.map((stock) => (
-            <View key={stock.id} style={styles.stockCard}>
-              <View style={styles.stockHeader}>
-                <Text style={styles.stockItemName}>{stock.item}</Text>
-                <View style={styles.typeBadge}>
-                  <Text style={styles.typeText}>{stock.type}</Text>
-                </View>
-              </View>
-              <Text style={styles.stockQty}>
-                {stock.qty} <Text style={styles.stockUnit}>{stock.unit}</Text>
+        {/* ── Tab Bar ── */}
+        <View style={styles.tabBar}>
+          {tabs.map((t) => (
+            <TouchableOpacity
+              key={t.key}
+              style={[styles.tab, activeTab === t.key && styles.tabActive]}
+              onPress={() => setActiveTab(t.key)}
+              activeOpacity={0.8}
+            >
+              <Text
+                style={[
+                  styles.tabLabel,
+                  activeTab === t.key && styles.tabLabelActive,
+                ]}
+              >
+                {t.label}
               </Text>
-            </View>
+            </TouchableOpacity>
           ))}
         </View>
 
-        {/* Recent Transactions */}
-        <Text style={[styles.sectionTitle, { marginTop: Layout.spacing.lg }]}>Recent Transactions</Text>
-        <View style={styles.transactionList}>
-          {recentTransactions.map((tx) => (
-            <View key={tx.id} style={styles.txCard}>
-              <View style={[styles.txIconBox, { backgroundColor: tx.type === 'Purchase' ? '#E8F5E9' : '#E3F2FD' }]}>
-                <Ionicons 
-                  name={tx.type === 'Purchase' ? "arrow-down-circle-outline" : "arrow-up-circle-outline"} 
-                  size={24} 
-                  color={tx.type === 'Purchase' ? Colors.primary : "#1976D2"} 
-                />
+        {/* ── Purchase Tab ── */}
+        {activeTab === 'purchase' && (
+          <View style={styles.formCard}>
+            <View style={styles.formCardHeader}>
+              <Ionicons name="cart-outline" size={20} color={Colors.primary} />
+              <Text style={styles.formCardTitle}>New Purchase</Text>
+            </View>
+
+            <Text style={styles.formLabel}>Item Name</Text>
+            <View style={styles.inputBox}>
+              <TextInput
+                style={styles.textInput}
+                placeholder="e.g. Broiler Starter Feed"
+                placeholderTextColor={Colors.textSecondary}
+                value={itemName}
+                onChangeText={setItemName}
+              />
+            </View>
+
+            <View style={styles.formRow}>
+              <View style={styles.formHalf}>
+                <Text style={styles.formLabel}>Quantity (Bags)</Text>
+                <View style={styles.inputBox}>
+                  <TextInput
+                    style={styles.textInput}
+                    placeholder="0"
+                    placeholderTextColor={Colors.textSecondary}
+                    value={quantity}
+                    onChangeText={setQuantity}
+                    keyboardType="numeric"
+                  />
+                </View>
               </View>
-              <View style={styles.txContent}>
-                <View style={styles.txRow}>
-                  <Text style={styles.txItem}>{tx.item}</Text>
-                  <Text style={[styles.txType, { color: tx.type === 'Purchase' ? Colors.primary : "#1976D2" }]}>
-                    {tx.type}
-                  </Text>
+              <View style={[styles.formHalf, { marginLeft: 12 }]}>
+                <Text style={styles.formLabel}>Cost per Unit</Text>
+                <View style={[styles.inputBox, styles.prefixRow]}>
+                  <Text style={styles.prefix}>$</Text>
+                  <TextInput
+                    style={[styles.textInput, { flex: 1 }]}
+                    placeholder="0.00"
+                    placeholderTextColor={Colors.textSecondary}
+                    value={costPerUnit}
+                    onChangeText={setCostPerUnit}
+                    keyboardType="decimal-pad"
+                  />
                 </View>
-                <View style={styles.txRow}>
-                  <Text style={styles.txQty}>{tx.qty}</Text>
-                  <Text style={styles.txDate}>{tx.date}</Text>
-                </View>
-                {tx.type === 'Allocation' && (
-                  <Text style={styles.txFarm}>To: {tx.farm}</Text>
-                )}
               </View>
             </View>
-          ))}
+
+            <Text style={styles.formLabel}>Purchase Date</Text>
+            <View style={styles.inputBox}>
+              <TextInput
+                style={styles.textInput}
+                placeholder="mm/dd/yyyy"
+                placeholderTextColor={Colors.textSecondary}
+                value={purchaseDate}
+                onChangeText={setPurchaseDate}
+              />
+            </View>
+
+            <TouchableOpacity style={styles.primaryBtn}>
+              <Text style={styles.primaryBtnText}>Register Purchase</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+
+        {/* ── Allocation Tab ── */}
+        {activeTab === 'allocation' && (
+          <View style={styles.formCard}>
+            <View style={styles.formCardHeader}>
+              <MaterialCommunityIcons
+                name="layers-outline"
+                size={20}
+                color={Colors.primary}
+              />
+              <Text style={styles.formCardTitle}>Stock Allocation</Text>
+            </View>
+            <Text style={styles.formDesc}>
+              Assign feed or medication to a specific farm house or batch.
+            </Text>
+            <TouchableOpacity style={styles.outlineBtn}>
+              <Text style={styles.outlineBtnText}>Start Allocation</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+
+        {/* ── Transfer Tab ── */}
+        {activeTab === 'transfer' && (
+          <View style={styles.formCard}>
+            <View style={styles.formCardHeader}>
+              <Ionicons
+                name="swap-horizontal-outline"
+                size={20}
+                color={Colors.primary}
+              />
+              <Text style={styles.formCardTitle}>Stock Transfer</Text>
+            </View>
+            <Text style={styles.formDesc}>
+              Move stock between warehouses or separate farm locations.
+            </Text>
+            <TouchableOpacity style={styles.outlineBtn}>
+              <Text style={styles.outlineBtnText}>Move Stock</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+
+        {/* ── Recent Activity ── */}
+        <View style={styles.activityHeader}>
+          <Text style={styles.sectionTitle}>Recent Activity</Text>
+          <TouchableOpacity>
+            <Text style={styles.viewAllText}>View All</Text>
+          </TouchableOpacity>
         </View>
 
+        {ACTIVITY.map((item) => (
+          <View key={item.id} style={styles.activityRow}>
+            <View style={[styles.activityIconBox, { backgroundColor: item.iconBg }]}>
+              <Ionicons name={item.icon as any} size={20} color={item.iconColor} />
+            </View>
+            <View style={styles.activityContent}>
+              <Text style={styles.activityTitle}>{item.title}</Text>
+              <Text style={styles.activitySub}>{item.subtitle}</Text>
+            </View>
+            <View style={styles.activityRight}>
+              <Text style={[styles.activityAmount, { color: item.amountColor }]}>
+                {item.amount}
+              </Text>
+              <Text style={styles.activityMeta}>{item.meta}</Text>
+            </View>
+          </View>
+        ))}
+
+        <View style={{ height: 40 }} />
       </ScrollView>
     </SafeAreaView>
   );
 }
 
+// ─── Styles ───────────────────────────────────────────────────────────────────
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#F9FAFB',
+    backgroundColor: '#F4F5F7',
     paddingTop: Platform.OS === 'android' ? (StatusBar.currentHeight || 0) : 0,
   },
+
+  // Header
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: Layout.spacing.lg,
+    paddingHorizontal: Layout.spacing.lg,
+    paddingVertical: 14,
     backgroundColor: '#FFF',
     borderBottomWidth: 1,
     borderBottomColor: Colors.border,
   },
-  backButton: {
-    marginRight: 16,
-  },
+  backBtn: { marginRight: 14 },
   headerTitle: {
-    fontSize: 20,
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: Colors.primary,
+  },
+
+  container: {
+    padding: Layout.spacing.lg,
+  },
+
+  // Value Banner
+  valueBanner: {
+    backgroundColor: Colors.primary,
+    borderRadius: 14,
+    padding: 20,
+    marginBottom: 18,
+  },
+  bannerLabel: {
+    fontSize: 13,
+    color: 'rgba(255,255,255,0.8)',
+    marginBottom: 6,
+  },
+  bannerValue: {
+    fontSize: 28,
+    fontWeight: 'bold',
+    color: '#FFF',
+    marginBottom: 8,
+  },
+  bannerTrend: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  bannerTrendText: {
+    fontSize: 13,
+    color: '#A5D6A7',
+    fontWeight: '600',
+  },
+
+  // Tab Bar
+  tabBar: {
+    flexDirection: 'row',
+    backgroundColor: '#FFF',
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    padding: 4,
+    marginBottom: 18,
+    ...Layout.cardShadow,
+  },
+  tab: {
+    flex: 1,
+    paddingVertical: 9,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  tabActive: {
+    backgroundColor: '#E8F5E9',
+  },
+  tabLabel: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: Colors.textSecondary,
+  },
+  tabLabelActive: {
+    color: Colors.primary,
+  },
+
+  // Form Card
+  formCard: {
+    backgroundColor: '#FFF',
+    borderRadius: 14,
+    padding: 16,
+    marginBottom: 20,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    ...Layout.cardShadow,
+  },
+  formCardHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    marginBottom: 14,
+  },
+  formCardTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: Colors.text,
+  },
+  formDesc: {
+    fontSize: 13,
+    color: Colors.textSecondary,
+    lineHeight: 19,
+    marginBottom: 16,
+  },
+  formLabel: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: Colors.text,
+    marginBottom: 6,
+    marginTop: 12,
+  },
+  inputBox: {
+    height: 46,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    justifyContent: 'center',
+    backgroundColor: '#F9FAFB',
+  },
+  textInput: {
+    fontSize: 14,
+    color: Colors.text,
+    padding: 0,
+  },
+  prefixRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  prefix: {
+    fontSize: 14,
+    color: Colors.textSecondary,
+    fontWeight: '600',
+  },
+  formRow: {
+    flexDirection: 'row',
+  },
+  formHalf: {
+    flex: 1,
+  },
+  primaryBtn: {
+    backgroundColor: Colors.primary,
+    height: 50,
+    borderRadius: 10,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginTop: 18,
+  },
+  primaryBtnText: {
+    color: '#FFF',
+    fontSize: 15,
+    fontWeight: '700',
+  },
+  outlineBtn: {
+    height: 46,
+    borderRadius: 10,
+    borderWidth: 1.5,
+    borderColor: Colors.primary,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  outlineBtnText: {
+    color: Colors.primary,
+    fontSize: 14,
+    fontWeight: '700',
+  },
+
+  // Recent Activity
+  activityHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  sectionTitle: {
+    fontSize: 16,
     fontWeight: 'bold',
     color: Colors.text,
   },
-  container: {
-    padding: Layout.spacing.lg,
-    paddingBottom: 40,
+  viewAllText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: Colors.primary,
   },
-  actionRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: Layout.spacing.xl,
-  },
-  actionCard: {
-    flex: 1,
+  activityRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 12,
+    backgroundColor: '#FFF',
     borderRadius: 12,
+    padding: 14,
+    marginBottom: 10,
     borderWidth: 1,
-    marginHorizontal: 4,
+    borderColor: Colors.border,
+    ...Layout.cardShadow,
   },
-  iconCircle: {
+  activityIconBox: {
     width: 40,
     height: 40,
     borderRadius: 20,
@@ -158,108 +483,30 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginRight: 12,
   },
-  actionText: {
-    fontSize: 14,
-    fontWeight: 'bold',
-  },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: Colors.text,
-    marginBottom: 12,
-  },
-  stockGrid: {
-    gap: 12,
-  },
-  stockCard: {
-    backgroundColor: '#FFF',
-    padding: 16,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: Colors.border,
-    ...Layout.cardShadow,
-  },
-  stockHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 8,
-  },
-  stockItemName: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: Colors.text,
-  },
-  typeBadge: {
-    backgroundColor: '#F4F5F7',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 8,
-  },
-  typeText: {
-    fontSize: 11,
-    color: Colors.textSecondary,
-    fontWeight: '600',
-  },
-  stockQty: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: Colors.primary,
-  },
-  stockUnit: {
-    fontSize: 14,
-    color: Colors.textSecondary,
-    fontWeight: 'normal',
-  },
-  transactionList: {
-    gap: 12,
-  },
-  txCard: {
-    flexDirection: 'row',
-    backgroundColor: '#FFF',
-    padding: 16,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: Colors.border,
-    alignItems: 'center',
-  },
-  txIconBox: {
-    width: 48,
-    height: 48,
-    borderRadius: 12,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 16,
-  },
-  txContent: {
+  activityContent: {
     flex: 1,
   },
-  txRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 4,
-  },
-  txItem: {
-    fontSize: 15,
-    fontWeight: 'bold',
-    color: Colors.text,
-  },
-  txType: {
-    fontSize: 12,
-    fontWeight: 'bold',
-  },
-  txQty: {
+  activityTitle: {
     fontSize: 14,
+    fontWeight: '600',
     color: Colors.text,
+    marginBottom: 3,
   },
-  txDate: {
+  activitySub: {
     fontSize: 12,
     color: Colors.textSecondary,
   },
-  txFarm: {
-    fontSize: 12,
+  activityRight: {
+    alignItems: 'flex-end',
+    marginLeft: 8,
+  },
+  activityAmount: {
+    fontSize: 14,
+    fontWeight: '700',
+    marginBottom: 3,
+  },
+  activityMeta: {
+    fontSize: 11,
     color: Colors.textSecondary,
-    marginTop: 4,
-  }
+  },
 });
