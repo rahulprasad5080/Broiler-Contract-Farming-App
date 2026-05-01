@@ -4,9 +4,11 @@ import { useAuth } from '../../context/AuthContext';
 import { Colors } from '../../constants/Colors';
 import { Layout } from '../../constants/Layout';
 import { Ionicons, MaterialCommunityIcons, FontAwesome5 } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
 
 export default function OwnerDashboard() {
   const { user, signOut } = useAuth();
+  const router = useRouter();
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -72,14 +74,18 @@ export default function OwnerDashboard() {
         <Text style={styles.sectionTitle}>Management Portal</Text>
         <View style={styles.portalGrid}>
           {[
-            { label: 'Add Farm', icon: 'warehouse', provider: FontAwesome5 },
-            { label: 'New Batch', icon: 'file-medical', provider: FontAwesome5 },
-            { label: 'Inventory', icon: 'box', provider: FontAwesome5 },
-            { label: 'Reports', icon: 'chart-bar', provider: FontAwesome5 },
-            { label: 'Users', icon: 'user-friends', provider: FontAwesome5 },
-            { label: 'Settings', icon: 'cog', provider: FontAwesome5 },
+            { label: 'Add Farm', icon: 'warehouse', provider: FontAwesome5, route: '/(owner)/manage/farms' },
+            { label: 'New Batch', icon: 'file-medical', provider: FontAwesome5, route: '/(owner)/manage/batches' },
+            { label: 'Inventory', icon: 'box', provider: FontAwesome5, route: null },
+            { label: 'Reports', icon: 'chart-bar', provider: FontAwesome5, route: null },
+            { label: 'Users', icon: 'user-friends', provider: FontAwesome5, route: null },
+            { label: 'Settings', icon: 'cog', provider: FontAwesome5, route: null },
           ].map((item, idx) => (
-            <TouchableOpacity key={idx} style={styles.portalCard}>
+            <TouchableOpacity
+              key={idx}
+              style={styles.portalCard}
+              onPress={() => item.route && router.push(item.route as any)}
+            >
               <View style={styles.portalIconBox}>
                 <item.provider name={item.icon} size={20} color={Colors.primary} />
               </View>
