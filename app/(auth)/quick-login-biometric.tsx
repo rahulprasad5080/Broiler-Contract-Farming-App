@@ -20,6 +20,7 @@ import {
 export default function QuickLoginBiometricScreen() {
   const router = useRouter();
   const { unlockApp } = useAuth();
+  const didAutoPrompt = React.useRef(false);
 
   const authenticate = React.useCallback(async () => {
     if (!(await isBiometricEnabled())) {
@@ -41,6 +42,14 @@ export default function QuickLoginBiometricScreen() {
       Alert.alert("Biometric authentication", result.error);
     }
   }, [router, unlockApp]);
+
+  React.useEffect(() => {
+    if (didAutoPrompt.current) return;
+
+    didAutoPrompt.current = true;
+    const timer = setTimeout(authenticate, 350);
+    return () => clearTimeout(timer);
+  }, [authenticate]);
 
   return (
     <SafeAreaView style={styles.safeArea}>

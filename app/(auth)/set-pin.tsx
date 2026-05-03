@@ -11,7 +11,6 @@ import {
   View,
 } from "react-native";
 import { Colors } from "../../constants/Colors";
-import { useAuth } from "../../context/AuthContext";
 import { saveQuickPin } from "../../services/authSecurity";
 
 function PinDots({ value }: { value: string }) {
@@ -29,7 +28,6 @@ function PinDots({ value }: { value: string }) {
 
 export default function SetPinScreen() {
   const router = useRouter();
-  const { unlockApp } = useAuth();
   const [pin, setPin] = React.useState("");
   const [confirmPin, setConfirmPin] = React.useState("");
   const [activeField, setActiveField] = React.useState<"pin" | "confirm">(
@@ -65,7 +63,7 @@ export default function SetPinScreen() {
     if (!canSave) return;
     Keyboard.dismiss();
     await saveQuickPin(pin);
-    unlockApp();
+    router.replace("/(auth)/enable-biometric" as never);
   };
 
   return (

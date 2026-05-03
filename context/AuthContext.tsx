@@ -1,7 +1,7 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useRouter, useSegments } from "expo-router";
 import React, { createContext, useContext, useEffect, useState } from "react";
-import { AppState } from "react-native";
+import { AppState, AppStateStatus } from "react-native";
 import { clearQuickAuth, getPreferredQuickLoginRoute } from "../services/authSecurity";
 
 export type UserRole = "OWNER" | "SUPERVISOR" | "FARMER" | null;
@@ -26,6 +26,15 @@ interface AuthContextType {
 const AUTH_KEY = "@murgi_auth_user";
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
+
+const AUTH_GROUP = "(auth)";
+const LOGIN_SCREEN = "login";
+const SETUP_SCREENS = ["login-success", "set-pin", "enable-biometric"];
+const UNLOCK_SCREENS = [
+  "quick-login-biometric",
+  "quick-login-pin",
+  "quick-login-password",
+];
 
 function getDashboardRoute(role: UserRole) {
   if (role === "OWNER") return "/(owner)/dashboard";
@@ -84,14 +93,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   useEffect(() => {
-    const subscription = AppState.addEventListener("change", (nextState) => {
-      if (user && nextState !== "active") {
+    const subscription = AppState.addEventListener("change", (nextState: AppStateStatus) => {
+      if (user && isAppUnlocked && nextState !== "active") {
         setIsAppUnlocked(false);
       }
     });
 
     return () => subscription.remove();
-  }, [user]);
+  }, [user, isAppUnlocked]);
 
   useEffect(() => {
     if (isLoading) return;
@@ -100,33 +109,32 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     const guardRoute = async () => {
       const segmentList = segments as string[];
-      const inAuthGroup = segmentList.includes("(auth)");
+      const inAuthGroup = segmentList.includes(AUTH_GROUP);
       const currentAuthScreen = segmentList[segmentList.length - 1];
-      const onboardingScreens = ["login-success", "set-pin", "enable-biometric"];
-      const unlockScreens = [
-        "quick-login-biometric",
-        "quick-login-pin",
-        "quick-login-password",
-      ];
+      const inSetupScreen = SETUP_SCREENS.includes(currentAuthScreen);
+      const inUnlockScreen = UNLOCK_SCREENS.includes(currentAuthScreen);
 
       if (!user) {
-        if (!inAuthGroup || currentAuthScreen !== "login") {
+        if (!inAuthGroup || currentAuthScreen !== LOGIN_SCREEN) {
           router.replace("/(auth)/login");
         }
         return;
       }
 
+      if (isAppUnlocked) {
+        if (!inAuthGroup) return;
+        if (inSetupScreen) return;
+
+        if (!cancelled) router.replace("/(auth)/login-success");
+        return;
+      }
+
       if (!isAppUnlocked) {
-        if (!inAuthGroup || !unlockScreens.includes(currentAuthScreen)) {
+        if (!inAuthGroup || !inUnlockScreen) {
           const route = await getPreferredQuickLoginRoute();
           if (!cancelled) router.replace(route as never);
         }
         return;
-      }
-
-      if (inAuthGroup) {
-        if (onboardingScreens.includes(currentAuthScreen)) return;
-        router.replace("/(auth)/login-success");
       }
     };
 
@@ -153,6 +161,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
           setUser(mockUser);
           setIsAppUnlocked(true);
+          router.replace("/(auth)/login-success");
           setIsLoading(false);
           resolve(true);
           return;
