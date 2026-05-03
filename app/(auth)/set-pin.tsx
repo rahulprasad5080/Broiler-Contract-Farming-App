@@ -3,13 +3,13 @@ import { useRouter } from "expo-router";
 import React from "react";
 import {
   Keyboard,
-  SafeAreaView,
   StyleSheet,
   Text,
   TextInput,
   TouchableOpacity,
   View,
 } from "react-native";
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Colors } from "../../constants/Colors";
 import { saveQuickPin } from "../../services/authSecurity";
 

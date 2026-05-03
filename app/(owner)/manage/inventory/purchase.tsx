@@ -1,5 +1,6 @@
 import React from 'react';
-import { View, Text, StyleSheet, SafeAreaView, TouchableOpacity, ScrollView, Platform, StatusBar } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { Colors } from '@/constants/Colors';
@@ -87,9 +88,7 @@ export default function PurchaseEntryScreen() {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#F9FAFB',
-    paddingTop: Platform.OS === 'android' ? (StatusBar.currentHeight || 0) : 0,
-  },
+    backgroundColor: '#F9FAFB',  },
   header: {
     flexDirection: 'row',
     alignItems: 'center',

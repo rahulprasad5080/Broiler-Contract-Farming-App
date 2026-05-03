@@ -3,17 +3,16 @@ import {
   View,
   Text,
   StyleSheet,
-  SafeAreaView,
   TouchableOpacity,
   ScrollView,
-  Platform,
-  StatusBar,
   TextInput,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { Colors } from '@/constants/Colors';
 import { Layout } from '@/constants/Layout';
+import { useAuth } from '@/context/AuthContext';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 type TabKey = 'purchase' | 'allocation' | 'transfer';
@@ -70,8 +69,10 @@ const ACTIVITY: ActivityItem[] = [
 // ─── Component ────────────────────────────────────────────────────────────────
 export default function InventoryScreen() {
   const router = useRouter();
+  const { hasPermission } = useAuth();
 
   const [activeTab, setActiveTab] = useState<TabKey>('purchase');
+  const canSeeCost = hasPermission('view:inventory-cost');
 
   // Purchase form
   const [itemName, setItemName] = useState('');
@@ -113,11 +114,11 @@ export default function InventoryScreen() {
       >
         {/* ── Value Banner ── */}
         <View style={styles.valueBanner}>
-          <Text style={styles.bannerLabel}>Current Inventory Value</Text>
-          <Text style={styles.bannerValue}>$142,850.00</Text>
+          <Text style={styles.bannerLabel}>{canSeeCost ? 'Current Inventory Value' : 'Current Inventory Quantity'}</Text>
+          <Text style={styles.bannerValue}>{canSeeCost ? 'Rs 1,42,850' : '18,420 units'}</Text>
           <View style={styles.bannerTrend}>
             <Ionicons name="trending-up-outline" size={16} color="#A5D6A7" />
-            <Text style={styles.bannerTrendText}>+12.5% from last month</Text>
+            <Text style={styles.bannerTrendText}>{canSeeCost ? '+12.5% from last month' : 'Cost hidden for this role'}</Text>
           </View>
         </View>
 
@@ -175,20 +176,22 @@ export default function InventoryScreen() {
                   />
                 </View>
               </View>
-              <View style={[styles.formHalf, { marginLeft: 12 }]}>
-                <Text style={styles.formLabel}>Cost per Unit</Text>
-                <View style={[styles.inputBox, styles.prefixRow]}>
-                  <Text style={styles.prefix}>$</Text>
-                  <TextInput
-                    style={[styles.textInput, { flex: 1 }]}
-                    placeholder="0.00"
-                    placeholderTextColor={Colors.textSecondary}
-                    value={costPerUnit}
-                    onChangeText={setCostPerUnit}
-                    keyboardType="decimal-pad"
-                  />
+              {canSeeCost && (
+                <View style={[styles.formHalf, !Layout.isSmallDevice && { marginLeft: 12 }]}>
+                  <Text style={styles.formLabel}>Cost per Unit</Text>
+                  <View style={[styles.inputBox, styles.prefixRow]}>
+                    <Text style={styles.prefix}>Rs</Text>
+                    <TextInput
+                      style={[styles.textInput, { flex: 1 }]}
+                      placeholder="0.00"
+                      placeholderTextColor={Colors.textSecondary}
+                      value={costPerUnit}
+                      onChangeText={setCostPerUnit}
+                      keyboardType="decimal-pad"
+                    />
+                  </View>
                 </View>
-              </View>
+              )}
             </View>
 
             <Text style={styles.formLabel}>Purchase Date</Text>
@@ -233,7 +236,7 @@ export default function InventoryScreen() {
                   />
                 </View>
               </View>
-              <View style={[styles.formHalf, { marginLeft: 12 }]}>
+              <View style={[styles.formHalf, !Layout.isSmallDevice && { marginLeft: 12 }]}>
                 <Text style={styles.formLabel}>Target Batch</Text>
                 <View style={styles.inputBox}>
                   <TextInput
@@ -346,8 +349,8 @@ export default function InventoryScreen() {
               <Text style={styles.activitySub}>{item.subtitle}</Text>
             </View>
             <View style={styles.activityRight}>
-              <Text style={[styles.activityAmount, { color: item.amountColor }]}>
-                {item.amount}
+              <Text style={[styles.activityAmount, { color: canSeeCost ? item.amountColor : Colors.textSecondary }]}>
+                {canSeeCost ? item.amount.replace('$', 'Rs ') : 'Qty only'}
               </Text>
               <Text style={styles.activityMeta}>{item.meta}</Text>
             </View>
@@ -364,9 +367,7 @@ export default function InventoryScreen() {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#F4F5F7',
-    paddingTop: Platform.OS === 'android' ? (StatusBar.currentHeight || 0) : 0,
-  },
+    backgroundColor: '#F4F5F7',  },
 
   // Header
   header: {
@@ -386,7 +387,10 @@ const styles = StyleSheet.create({
   },
 
   container: {
-    padding: Layout.spacing.lg,
+    padding: Layout.screenPadding,
+    alignSelf: 'center',
+    width: '100%',
+    maxWidth: Layout.contentMaxWidth,
   },
 
   // Value Banner
@@ -506,7 +510,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   formRow: {
-    flexDirection: 'row',
+    flexDirection: Layout.isSmallDevice ? 'column' : 'row',
   },
   formHalf: {
     flex: 1,

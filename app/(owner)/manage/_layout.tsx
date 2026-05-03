@@ -10,6 +10,8 @@ export default function ManageLayout() {
       <Stack.Screen name="daily-entry" />
       <Stack.Screen name="users" />
       <Stack.Screen name="partners" />
+      <Stack.Screen name="sales" />
+      <Stack.Screen name="settlement" />
     </Stack>
   );
 }

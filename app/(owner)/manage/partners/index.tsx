@@ -1,16 +1,14 @@
 import React, { useMemo, useState } from 'react';
 import {
   Modal,
-  Platform,
-  SafeAreaView,
   ScrollView,
-  StatusBar,
   StyleSheet,
   Text,
   TextInput,
   TouchableOpacity,
   View,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { Colors } from '@/constants/Colors';
@@ -301,9 +299,7 @@ export default function PartnerManagementScreen() {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: Colors.background,
-    paddingTop: Platform.OS === 'android' ? (StatusBar.currentHeight || 0) : 0,
-  },
+    backgroundColor: Colors.background,  },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -338,8 +334,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   container: {
-    padding: Layout.spacing.lg,
+    padding: Layout.screenPadding,
     paddingBottom: 110,
+    alignSelf: 'center',
+    width: '100%',
+    maxWidth: Layout.contentMaxWidth,
   },
   summaryPanel: {
     backgroundColor: Colors.surface,

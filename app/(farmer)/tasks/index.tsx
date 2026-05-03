@@ -1,5 +1,6 @@
 import React from 'react';
-import { View, Text, StyleSheet, SafeAreaView, TouchableOpacity, ScrollView, Platform, StatusBar } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Colors } from '@/constants/Colors';
 import { Layout } from '@/constants/Layout';
 import { Ionicons } from '@expo/vector-icons';
@@ -10,8 +11,7 @@ export default function FarmerTasksIndexScreen() {
 
   const menuItems = [
     { title: 'Daily Entry', desc: 'Log mortality, feed, and weight', icon: 'clipboard-outline', route: '/(farmer)/tasks/daily' },
-    // Sales Entry will be added here later
-    // { title: 'Sales Entry', desc: 'Record bird sales', icon: 'cash-outline', route: '/(farmer)/tasks/sales' },
+    { title: 'Sales Entry', desc: 'Record birds sold and total weight', icon: 'cash-outline', route: '/(farmer)/tasks/sales' },
   ];
 
   return (
@@ -54,9 +54,7 @@ export default function FarmerTasksIndexScreen() {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#F9FAFB',
-    paddingTop: Platform.OS === 'android' ? (StatusBar.currentHeight || 0) : 0,
-  },
+    backgroundColor: '#F9FAFB',  },
   header: {
     padding: Layout.spacing.lg,
     backgroundColor: '#FFF',
@@ -69,8 +67,11 @@ const styles = StyleSheet.create({
     color: Colors.text,
   },
   container: {
-    padding: Layout.spacing.lg,
+    padding: Layout.screenPadding,
     paddingBottom: 100,
+    alignSelf: 'center',
+    width: '100%',
+    maxWidth: Layout.contentMaxWidth,
   },
   infoCard: {
     flexDirection: 'row',

@@ -4,12 +4,12 @@ import React from "react";
 import {
   Alert,
   Image,
-  SafeAreaView,
   StyleSheet,
   Text,
   TouchableOpacity,
   View,
 } from "react-native";
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Colors } from "../../constants/Colors";
 import { useAuth } from "../../context/AuthContext";
 import { hasQuickPin, verifyQuickPin } from "../../services/authSecurity";

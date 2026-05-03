@@ -1,5 +1,6 @@
 import React from 'react';
-import { View, Text, StyleSheet, SafeAreaView, TouchableOpacity, ScrollView, Platform, StatusBar } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { Colors } from '@/constants/Colors';
@@ -40,13 +41,13 @@ export default function DailyEntryScreen() {
           </View>
 
           <View style={styles.row}>
-            <View style={[styles.inputGroup, { flex: 1, marginRight: 8 }]}>
+            <View style={[styles.inputGroup, { flex: 1 }, !Layout.isSmallDevice && { marginRight: 8 }]}>
               <Text style={styles.label}>Mortality (Birds) *</Text>
               <View style={styles.inputMock}>
                 <Text style={styles.placeholder}>0</Text>
               </View>
             </View>
-            <View style={[styles.inputGroup, { flex: 1, marginLeft: 8 }]}>
+            <View style={[styles.inputGroup, { flex: 1 }, !Layout.isSmallDevice && { marginLeft: 8 }]}>
               <Text style={styles.label}>Feed (Bags) *</Text>
               <View style={styles.inputMock}>
                 <Text style={styles.placeholder}>0</Text>
@@ -81,9 +82,7 @@ export default function DailyEntryScreen() {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#F9FAFB',
-    paddingTop: Platform.OS === 'android' ? (StatusBar.currentHeight || 0) : 0,
-  },
+    backgroundColor: '#F9FAFB',  },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -144,7 +143,7 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   row: {
-    flexDirection: 'row',
+    flexDirection: Layout.isSmallDevice ? 'column' : 'row',
   },
   label: {
     fontSize: 14,

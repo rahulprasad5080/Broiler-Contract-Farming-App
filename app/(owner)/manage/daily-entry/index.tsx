@@ -3,15 +3,12 @@ import {
   View,
   Text,
   StyleSheet,
-  SafeAreaView,
   TouchableOpacity,
   ScrollView,
-  Platform,
-  StatusBar,
   TextInput,
   Image,
-  Animated,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { Colors } from '@/constants/Colors';
@@ -186,9 +183,7 @@ export default function DailyEntryScreen() {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#F4F5F7',
-    paddingTop: Platform.OS === 'android' ? (StatusBar.currentHeight || 0) : 0,
-  },
+    backgroundColor: '#F4F5F7',  },
 
   // Header
   header: {
@@ -208,7 +203,10 @@ const styles = StyleSheet.create({
   },
 
   container: {
-    padding: Layout.spacing.lg,
+    padding: Layout.screenPadding,
+    alignSelf: 'center',
+    width: '100%',
+    maxWidth: Layout.formMaxWidth,
   },
 
   pageTitle: {

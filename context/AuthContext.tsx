@@ -6,11 +6,16 @@ import { clearQuickAuth, getPreferredQuickLoginRoute } from "../services/authSec
 
 export type UserRole = "OWNER" | "SUPERVISOR" | "FARMER" | null;
 export type Permission =
+  | "create:daily-entry"
+  | "create:sales"
+  | "finalize:sales"
   | "manage:partners"
   | "manage:users"
   | "manage:farms"
   | "manage:batches"
   | "manage:inventory"
+  | "manage:settlements"
+  | "view:inventory-cost"
   | "view:reports";
 
 interface User {
@@ -54,16 +59,27 @@ function getDashboardRoute(role: UserRole) {
 function getPermissionsForRole(role: UserRole): Permission[] {
   if (role === "OWNER") {
     return [
+      "create:daily-entry",
+      "create:sales",
+      "finalize:sales",
       "manage:partners",
       "manage:users",
       "manage:farms",
       "manage:batches",
       "manage:inventory",
+      "manage:settlements",
+      "view:inventory-cost",
       "view:reports",
     ];
   }
 
-  if (role === "SUPERVISOR") return ["view:reports"];
+  if (role === "SUPERVISOR") {
+    return ["create:daily-entry", "create:sales", "view:reports"];
+  }
+
+  if (role === "FARMER") {
+    return ["create:daily-entry", "create:sales"];
+  }
 
   return [];
 }

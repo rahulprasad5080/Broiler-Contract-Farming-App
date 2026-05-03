@@ -25,6 +25,9 @@ export const Layout = {
     lg: 20,
     round: 999,
   },
+  contentMaxWidth: isTablet ? 760 : width,
+  formMaxWidth: isTablet ? 680 : width,
+  screenPadding: isSmallDevice ? 16 : 24,
   cardShadow: {
     shadowColor: "#000",
     shadowOffset: {

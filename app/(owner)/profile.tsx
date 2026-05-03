@@ -1,17 +1,15 @@
 import { FontAwesome5, Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
-import React, { useState } from 'react';
+import React from 'react';
 import {
   Alert,
-  Platform,
-  SafeAreaView,
   ScrollView,
-  StatusBar,
   StyleSheet,
   Switch,
   Text,
   TouchableOpacity,
   View,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Colors } from '../../constants/Colors';
 import { Layout } from '../../constants/Layout';
 import { useAuth } from '../../context/AuthContext';
@@ -57,9 +55,6 @@ type MenuItem = {
 // ─── Component ────────────────────────────────────────────────────────────────
 export default function ProfileScreen() {
   const { signOut, user } = useAuth();
-
-  const [notificationsOn, setNotificationsOn] = useState(true);
-  const [darkModeOn,      setDarkModeOn]      = useState(false);
 
   const initials  = getInitials(user?.name || 'U');
   const roleLabel = getRoleLabel(user?.role);
@@ -147,8 +142,8 @@ export default function ProfileScreen() {
           </Text>
 
           {/* Role Badge */}
-          <View style={[styles.roleBadge, { backgroundColor: 'rgba(255,255,255,0.2)' }]}>
-            <Text style={styles.roleBadgeText}>{roleLabel}</Text>
+          <View style={[styles.roleBadge, { backgroundColor: roleColor.bg }]}>
+            <Text style={[styles.roleBadgeText, { color: roleColor.text }]}>{roleLabel}</Text>
           </View>
         </View>
 
@@ -237,9 +232,7 @@ export default function ProfileScreen() {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#F4F5F7',
-    paddingTop: Platform.OS === 'android' ? (StatusBar.currentHeight || 0) : 0,
-  },
+    backgroundColor: '#F4F5F7',  },
   container: { paddingBottom: 20 },
 
   // ── Hero Banner ──────────────────────────────────────────────────────────────

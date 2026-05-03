@@ -1,5 +1,6 @@
 import React from 'react';
-import { View, Text, StyleSheet, SafeAreaView, TouchableOpacity, ScrollView, Platform, StatusBar } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Colors } from '@/constants/Colors';
 import { Layout } from '@/constants/Layout';
 import { Ionicons } from '@expo/vector-icons';
@@ -81,9 +82,7 @@ export default function AddFarmScreen() {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#F9FAFB',
-    paddingTop: Platform.OS === 'android' ? (StatusBar.currentHeight || 0) : 0,
-  },
+    backgroundColor: '#F9FAFB',  },
   header: {
     flexDirection: 'row',
     alignItems: 'center',

@@ -3,13 +3,11 @@ import {
   View,
   Text,
   StyleSheet,
-  SafeAreaView,
   TouchableOpacity,
   ScrollView,
-  Platform,
-  StatusBar,
   Image,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { Colors } from '@/constants/Colors';
@@ -238,9 +236,7 @@ export default function BatchPerformanceScreen() {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#F4F5F7',
-    paddingTop: Platform.OS === 'android' ? (StatusBar.currentHeight || 0) : 0,
-  },
+    backgroundColor: '#F4F5F7',  },
   header: {
     flexDirection: 'row',
     alignItems: 'center',

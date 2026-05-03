@@ -3,14 +3,12 @@ import {
   View,
   Text,
   StyleSheet,
-  SafeAreaView,
   TouchableOpacity,
   ScrollView,
-  Platform,
-  StatusBar,
   TextInput,
   Modal,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { Colors } from '@/constants/Colors';
@@ -332,7 +330,7 @@ export default function FarmListScreen() {
                     />
                   </View>
                 </View>
-                <View style={[styles.formHalf, { marginLeft: 12 }]}>
+                <View style={[styles.formHalf, !Layout.isSmallDevice && { marginLeft: 12 }]}>
                   <Text style={styles.formLabel}>Type</Text>
                   <TouchableOpacity
                     style={[styles.inputBox, styles.dropdownRow]}
@@ -413,9 +411,7 @@ export default function FarmListScreen() {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#F4F5F7',
-    paddingTop: Platform.OS === 'android' ? (StatusBar.currentHeight || 0) : 0,
-  },
+    backgroundColor: '#F4F5F7',  },
 
   // Header
   header: {
@@ -436,7 +432,10 @@ const styles = StyleSheet.create({
 
   // Container
   container: {
-    padding: Layout.spacing.lg,
+    padding: Layout.screenPadding,
+    alignSelf: 'center',
+    width: '100%',
+    maxWidth: Layout.contentMaxWidth,
   },
   pageTitle: {
     fontSize: 22,
@@ -716,7 +715,8 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   formRow: {
-    flexDirection: 'row',
+    flexDirection: Layout.isSmallDevice ? 'column' : 'row',
+    gap: Layout.isSmallDevice ? 0 : undefined,
   },
   formHalf: {
     flex: 1,

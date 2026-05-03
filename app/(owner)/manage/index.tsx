@@ -1,5 +1,6 @@
 import React from 'react';
-import { View, Text, StyleSheet, SafeAreaView, TouchableOpacity, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { Colors } from '@/constants/Colors';
@@ -27,7 +28,8 @@ export default function ManageIndexScreen() {
     { title: 'Farms', desc: 'Manage farms and assigned staff', icon: 'home-outline', route: '/(owner)/manage/farms' },
     { title: 'Batches', desc: 'Active & closed batches', icon: 'layers-outline', route: '/(owner)/manage/batches' },
     { title: 'Inventory', desc: 'Purchases and allocations', icon: 'cube-outline', route: '/(owner)/manage/inventory' },
-    { title: 'Sales', desc: 'Finalize rates and view sales', icon: 'cash-outline', route: '/(owner)/manage/sales' },
+    { title: 'Sales', desc: 'Entry and owner rate finalization', icon: 'cash-outline', route: '/(owner)/manage/sales' },
+    { title: 'Settlement', desc: 'Manual FCR based partner payouts', icon: 'receipt-outline', route: '/(owner)/manage/settlement' },
     { title: 'Users', desc: 'Manage system users', icon: 'people-outline', route: '/(owner)/manage/users' },
   ];
 
@@ -78,8 +80,11 @@ const styles = StyleSheet.create({
     color: Colors.text,
   },
   container: {
-    padding: Layout.spacing.lg,
+    padding: Layout.screenPadding,
     paddingBottom: 100, // For BottomTabs
+    alignSelf: 'center',
+    width: '100%',
+    maxWidth: Layout.contentMaxWidth,
   },
   grid: {
     gap: Layout.spacing.md,

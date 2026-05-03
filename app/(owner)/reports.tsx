@@ -1,16 +1,14 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
   StyleSheet,
-  SafeAreaView,
   TouchableOpacity,
   ScrollView,
-  Platform,
-  StatusBar,
   TextInput,
 } from 'react-native';
-import { Ionicons, MaterialCommunityIcons, FontAwesome5 } from '@expo/vector-icons';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { Colors } from '../../constants/Colors';
 import { Layout } from '../../constants/Layout';
@@ -221,9 +219,7 @@ export default function ReportsScreen() {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#F4F5F7',
-    paddingTop: Platform.OS === 'android' ? (StatusBar.currentHeight || 0) : 0,
-  },
+    backgroundColor: '#F4F5F7',  },
 
   // Header
   header: {

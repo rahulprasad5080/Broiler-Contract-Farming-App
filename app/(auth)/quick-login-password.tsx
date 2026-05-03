@@ -4,13 +4,13 @@ import React from "react";
 import {
   Alert,
   Image,
-  SafeAreaView,
   StyleSheet,
   Text,
   TextInput,
   TouchableOpacity,
   View,
 } from "react-native";
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Colors } from "../../constants/Colors";
 import { useAuth } from "../../context/AuthContext";
 

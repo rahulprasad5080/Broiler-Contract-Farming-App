@@ -1,5 +1,6 @@
 import React from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, SafeAreaView, Platform, StatusBar } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '../../context/AuthContext';
 import { Colors } from '../../constants/Colors';
 import { Layout } from '../../constants/Layout';
@@ -28,6 +29,8 @@ export default function OwnerDashboard() {
       route: '/(owner)/manage/partners',
     } as PortalItem] : []),
     { label: 'Daily Entry', icon: 'clipboard-list', provider: FontAwesome5, route: '/(owner)/manage/daily-entry' },
+    { label: 'Sales', icon: 'rupee-sign', provider: FontAwesome5, route: '/(owner)/manage/sales' },
+    { label: 'Settlement', icon: 'file-invoice-dollar', provider: FontAwesome5, route: '/(owner)/manage/settlement' },
     { label: 'Reports', icon: 'chart-bar', provider: FontAwesome5, route: '/(owner)/reports' },
     { label: 'Users', icon: 'user-friends', provider: FontAwesome5, route: '/(owner)/manage/users' },
     { label: 'Settings', icon: 'cog', provider: FontAwesome5, route: null },
@@ -167,7 +170,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: Layout.spacing.lg,
-    paddingTop: Platform.OS === 'android' ? (StatusBar.currentHeight || 0) + 10 : Layout.spacing.md,
+    paddingTop: Layout.spacing.md,
     paddingBottom: Layout.spacing.md,
     backgroundColor: '#FFF',
     borderBottomWidth: 1,
@@ -199,8 +202,11 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
   },
   scrollContent: {
-    padding: Layout.spacing.lg,
+    padding: Layout.screenPadding,
     paddingBottom: 100,
+    alignSelf: 'center',
+    width: '100%',
+    maxWidth: Layout.contentMaxWidth,
   },
   welcomeSection: {
     marginBottom: Layout.spacing.lg,

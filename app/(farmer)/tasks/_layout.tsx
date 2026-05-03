@@ -5,6 +5,7 @@ export default function FarmerTasksLayout() {
     <Stack screenOptions={{ headerShown: false }}>
       <Stack.Screen name="index" />
       <Stack.Screen name="daily" />
+      <Stack.Screen name="sales" />
     </Stack>
   );
 }

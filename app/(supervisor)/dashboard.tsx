@@ -1,12 +1,13 @@
 import React from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, SafeAreaView, TextInput, Platform, StatusBar } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '../../context/AuthContext';
 import { Colors } from '../../constants/Colors';
 import { Layout } from '../../constants/Layout';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 
 export default function SupervisorDashboard() {
-  const { user, signOut } = useAuth();
+  const { signOut } = useAuth();
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -114,7 +115,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: Layout.spacing.lg,
-    paddingTop: Platform.OS === 'android' ? (StatusBar.currentHeight || 0) + 10 : Layout.spacing.md,
+    paddingTop: Layout.spacing.md,
     paddingBottom: Layout.spacing.md,
     backgroundColor: '#FFF',
     borderBottomWidth: 1,

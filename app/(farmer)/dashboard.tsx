@@ -1,12 +1,15 @@
 import React from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, SafeAreaView, ImageBackground, Platform, StatusBar } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '../../context/AuthContext';
 import { Colors } from '../../constants/Colors';
 import { Layout } from '../../constants/Layout';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
 
 export default function FarmerDashboard() {
-  const { user, signOut } = useAuth();
+  const { signOut } = useAuth();
+  const router = useRouter();
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -42,7 +45,7 @@ export default function FarmerDashboard() {
           </View>
         </View>
 
-        <TouchableOpacity style={styles.entryButton}>
+        <TouchableOpacity style={styles.entryButton} onPress={() => router.push('/(farmer)/tasks/daily' as any)}>
           <MaterialCommunityIcons name="playlist-edit" size={24} color="#FFF" />
           <Text style={styles.entryButtonText}>Daily Entry</Text>
         </TouchableOpacity>
@@ -122,7 +125,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: Layout.spacing.lg,
-    paddingTop: Platform.OS === 'android' ? (StatusBar.currentHeight || 0) + 10 : Layout.spacing.md,
+    paddingTop: Layout.spacing.md,
     paddingBottom: Layout.spacing.md,
     backgroundColor: '#FFF',
     borderBottomWidth: 1,
