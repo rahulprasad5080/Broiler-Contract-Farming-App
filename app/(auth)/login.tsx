@@ -1,7 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
 import { zodResolver } from "@hookform/resolvers/zod";
 import React from "react";
-import { useForm } from "react-hook-form";
+import { Controller, useForm } from "react-hook-form";
 import {
   Image,
   KeyboardAvoidingView,
@@ -10,36 +10,31 @@ import {
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   TouchableOpacity,
   View,
 } from "react-native";
 import { z } from "zod";
-import { FormInput } from "../../components/ui/FormInput";
 import { Colors } from "../../constants/Colors";
-import { Layout } from "../../constants/Layout";
 import { useAuth } from "../../context/AuthContext";
-
-// ─── Zod Schema ───────────────────────────────────────────────────────────────
 
 const loginSchema = z.object({
   mobile: z
     .string()
     .min(1, "Mobile number is required")
     .regex(/^[0-9]{10}$/, "Enter a valid 10-digit mobile number"),
-
   password: z
     .string()
     .min(1, "Password is required")
     .min(6, "Password must be at least 6 characters"),
 });
 
-// TypeScript type auto-generated from schema — no manual type needed!
 type LoginForm = z.infer<typeof loginSchema>;
-
-// ─── Screen ───────────────────────────────────────────────────────────────────
 
 export default function LoginScreen() {
   const { signIn, isLoading } = useAuth();
+  const [rememberDevice, setRememberDevice] = React.useState(false);
+  const [showPassword, setShowPassword] = React.useState(false);
 
   const { control, handleSubmit } = useForm<LoginForm>({
     resolver: zodResolver(loginSchema),
@@ -49,7 +44,6 @@ export default function LoginScreen() {
   const onSubmit = async (data: LoginForm) => {
     try {
       await signIn(data.mobile, data.password);
-      // Success is handled by the useEffect in AuthContext
     } catch (error) {
       alert("Login failed. Please check your credentials.");
     }
@@ -62,111 +56,163 @@ export default function LoginScreen() {
           behavior={Platform.OS === "ios" ? "padding" : "height"}
           style={styles.container}
         >
-          {/* ── Logo ──────────────────────────────────────── */}
-          <View style={styles.logoContainer}>
-            <View style={styles.logoBox}>
-              <Image
-                source={require("../../assets/logo.jpeg")}
-                style={styles.logoImage}
-                resizeMode="contain"
-              />
-            </View>
-            <Text style={styles.welcomeTitle}>Welcome Back</Text>
-            <Text style={styles.welcomeSubtitle}>
-              Manage your farm's efficiency
-            </Text>
+          <View style={styles.brandBlock}>
+            <Image
+              source={require("../../assets/logo.jpeg")}
+              style={styles.logoImage}
+              resizeMode="cover"
+            />
+            <Text style={styles.appTitle}>PoultryFlow</Text>
+            <Text style={styles.appSubtitle}>Smart Poultry Management</Text>
           </View>
 
-          {/* ── Card ──────────────────────────────────────── */}
-          <View style={styles.card}>
-            {/* Email / Mobile */}
-            <FormInput<LoginForm>
-              control={control}
-              name="mobile"
-              label="Mobile Number"
-              leftIcon="call-outline"
-              placeholder="Enter your mobile number"
-              keyboardType="phone-pad"
-              autoCapitalize="none"
-            />
+          <View style={styles.formBlock}>
+            <View style={styles.fieldGroup}>
+              <Text style={styles.label}>Mobile Number</Text>
+              <Controller
+                control={control}
+                name="mobile"
+                render={({
+                  field: { onChange, onBlur, value },
+                  fieldState: { error },
+                }) => (
+                  <>
+                    <View
+                      style={[
+                        styles.mobileInputWrap,
+                        error && styles.inputWrapError,
+                      ]}
+                    >
+                      <TouchableOpacity style={styles.countryCode}>
+                        <Text style={styles.countryCodeText}>+91</Text>
+                        <Ionicons
+                          name="chevron-down"
+                          size={15}
+                          color={Colors.textSecondary}
+                        />
+                      </TouchableOpacity>
+                      <TextInput
+                        style={styles.input}
+                        value={value}
+                        onChangeText={onChange}
+                        onBlur={onBlur}
+                        placeholder="Enter mobile number"
+                        placeholderTextColor="#99A2AD"
+                        keyboardType="phone-pad"
+                        maxLength={10}
+                        autoCapitalize="none"
+                      />
+                      <Ionicons
+                        name="call-outline"
+                        size={22}
+                        color={Colors.primary}
+                      />
+                    </View>
+                    {error?.message && (
+                      <Text style={styles.errorText}>{error.message}</Text>
+                    )}
+                  </>
+                )}
+              />
+            </View>
 
-            {/* Password */}
-            <FormInput<LoginForm>
-              control={control}
-              name="password"
-              label="Password"
-              leftIcon="lock-closed-outline"
-              placeholder="········"
-              isPassword
-              rightLabel={
+            <View style={styles.fieldGroup}>
+              <View style={styles.labelRow}>
+                <Text style={styles.labelNoMargin}>Password</Text>
                 <TouchableOpacity>
-                  <Text style={styles.forgotText}>Forgot?</Text>
+                  <Text style={styles.forgotText}>Forgot Password?</Text>
                 </TouchableOpacity>
-              }
-            />
+              </View>
+              <Controller
+                control={control}
+                name="password"
+                render={({
+                  field: { onChange, onBlur, value },
+                  fieldState: { error },
+                }) => (
+                  <>
+                    <View style={[styles.inputWrap, error && styles.inputWrapError]}>
+                      <Ionicons
+                        name="lock-closed-outline"
+                        size={20}
+                        color={Colors.textSecondary}
+                      />
+                      <TextInput
+                        style={styles.input}
+                        value={value}
+                        onChangeText={onChange}
+                        onBlur={onBlur}
+                        placeholder="Enter your password"
+                        placeholderTextColor="#99A2AD"
+                        secureTextEntry={!showPassword}
+                      />
+                      <TouchableOpacity
+                        onPress={() => setShowPassword((current) => !current)}
+                        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                      >
+                        <Ionicons
+                          name={showPassword ? "eye-off-outline" : "eye-outline"}
+                          size={22}
+                          color={Colors.textSecondary}
+                        />
+                      </TouchableOpacity>
+                    </View>
+                    {error?.message && (
+                      <Text style={styles.errorText}>{error.message}</Text>
+                    )}
+                  </>
+                )}
+              />
+            </View>
 
-            {/* Login Button */}
+            <TouchableOpacity
+              style={styles.rememberRow}
+              onPress={() => setRememberDevice((current) => !current)}
+              activeOpacity={0.75}
+            >
+              <View
+                style={[
+                  styles.checkbox,
+                  rememberDevice && styles.checkboxChecked,
+                ]}
+              >
+                {rememberDevice && (
+                  <Ionicons name="checkmark" size={15} color="#FFFFFF" />
+                )}
+              </View>
+              <Text style={styles.rememberText}>Remember this device</Text>
+            </TouchableOpacity>
+
             <TouchableOpacity
               style={[styles.loginButton, isLoading && styles.buttonDisabled]}
               onPress={handleSubmit(onSubmit)}
               disabled={isLoading}
+              activeOpacity={0.85}
             >
               <Text style={styles.loginButtonText}>
-                {isLoading ? "Logging in..." : "Login"}
+                {isLoading ? "LOGGING IN..." : "LOGIN"}
               </Text>
               {!isLoading && (
                 <Ionicons
                   name="arrow-forward"
-                  size={20}
-                  color="#FFF"
-                  style={{ marginLeft: 8 }}
+                  size={26}
+                  color="#FFFFFF"
+                  style={styles.loginIcon}
                 />
               )}
             </TouchableOpacity>
-          </View>
 
-          {/* ── Help ──────────────────────────────────────── */}
-          <View style={styles.helpContainer}>
-            <Text style={styles.helpText}>Need help with your account? </Text>
-            <TouchableOpacity>
-              <Text style={styles.supportLink}>Contact Support</Text>
-            </TouchableOpacity>
-          </View>
-
-          {/* ── Info Cards ────────────────────────────────── */}
-          <View style={styles.infoCardsRow}>
-            <View style={styles.infoCard}>
-              <View
-                style={[styles.infoIconBox, { backgroundColor: "#E3F2FD" }]}
-              >
-                <Ionicons
-                  name="shield-checkmark-outline"
-                  size={20}
-                  color="#1976D2"
-                />
-              </View>
-              <Text style={styles.infoCardText}>Secure Access</Text>
+            <View style={styles.helpContainer}>
+              <Ionicons
+                name="headset-outline"
+                size={19}
+                color={Colors.primary}
+              />
+              <Text style={styles.helpText}>Need help? </Text>
+              <TouchableOpacity>
+                <Text style={styles.supportLink}>Contact Support</Text>
+              </TouchableOpacity>
             </View>
-            <View
-              style={[
-                styles.infoCard,
-                { borderColor: "#FFEBEE", backgroundColor: "#FFF9F9" },
-              ]}
-            >
-              <View
-                style={[styles.infoIconBox, { backgroundColor: "#FFEBEE" }]}
-              >
-                <Ionicons name="analytics-outline" size={20} color="#D32F2F" />
-              </View>
-              <Text style={styles.infoCardText}>Real-time Data</Text>
-            </View>
-          </View>
-
-          {/* ── Footer ────────────────────────────────────── */}
-          <View style={styles.footer}>
-            <Text style={styles.footerText}>
-              v1.0.0 Secure Node • Privacy First
-            </Text>
           </View>
         </KeyboardAvoidingView>
       </ScrollView>
@@ -174,82 +220,170 @@ export default function LoginScreen() {
   );
 }
 
-// ─── Styles ───────────────────────────────────────────────────────────────────
-
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: "#FFF",
+    backgroundColor: "#FFFFFF",
   },
   scrollContent: {
     flexGrow: 1,
   },
   container: {
     flex: 1,
-    backgroundColor: Colors.background,
-    padding: Layout.spacing.lg,
-  },
-  logoContainer: {
-    alignItems: "center",
-    marginTop: 100,
-    marginBottom: Layout.spacing.xl,
-  },
-  logoBox: {
-    width: 110,
-    height: 110,
-    backgroundColor: Colors.surface,
-    borderRadius: 24,
-    borderWidth: 2.5,
-    borderColor: Colors.primary,
     justifyContent: "center",
+    backgroundColor: "#FFFFFF",
+    paddingHorizontal: 22,
+    paddingTop: 32,
+    paddingBottom: 32,
+  },
+  brandBlock: {
     alignItems: "center",
-    marginBottom: Layout.spacing.md,
-    shadowColor: Colors.primary,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 8,
-    elevation: 6,
+    marginBottom: 28,
   },
   logoImage: {
-    width: 80,
-    height: 80,
+    width: 88,
+    height: 88,
+    borderRadius: 20,
+    marginBottom: 8,
   },
-  welcomeTitle: {
-    fontSize: 26,
-    fontWeight: "bold",
-    color: Colors.text,
+  appTitle: {
+    fontSize: 30,
+    lineHeight: 35,
+    fontWeight: "800",
+    color: "#111827",
   },
-  welcomeSubtitle: {
+  appSubtitle: {
     fontSize: 14,
     color: Colors.textSecondary,
-    marginTop: 4,
+    fontWeight: "500",
   },
-  card: {
-    backgroundColor: Colors.surface,
-    borderRadius: Layout.borderRadius.md,
-    padding: Layout.spacing.lg,
-    borderWidth: 1,
-    borderColor: Colors.border,
-    ...Layout.cardShadow,
+  formBlock: {
+    width: "100%",
+    zIndex: 2,
+  },
+  fieldGroup: {
+    marginBottom: 17,
+  },
+  labelRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 8,
+  },
+  label: {
+    color: "#111827",
+    fontSize: 13,
+    fontWeight: "700",
+    marginBottom: 8,
+  },
+  labelNoMargin: {
+    color: "#111827",
+    fontSize: 13,
+    fontWeight: "700",
   },
   forgotText: {
     fontSize: 12,
     color: Colors.primary,
-    fontWeight: "600",
+    fontWeight: "700",
+  },
+  mobileInputWrap: {
+    height: 50,
+    flexDirection: "row",
+    alignItems: "center",
+    borderWidth: 1,
+    borderColor: "#DDE3E8",
+    borderRadius: 7,
+    backgroundColor: "#FFFFFF",
+    paddingHorizontal: 12,
+  },
+  inputWrap: {
+    height: 50,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    borderWidth: 1,
+    borderColor: "#DDE3E8",
+    borderRadius: 7,
+    backgroundColor: "#FFFFFF",
+    paddingHorizontal: 12,
+  },
+  inputWrapError: {
+    borderColor: Colors.error,
+  },
+  countryCode: {
+    height: "100%",
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    paddingRight: 12,
+    marginRight: 12,
+    borderRightWidth: 1,
+    borderRightColor: "#E5E8EB",
+  },
+  countryCodeText: {
+    color: "#111827",
+    fontSize: 14,
+    fontWeight: "700",
+  },
+  input: {
+    flex: 1,
+    height: "100%",
+    color: Colors.text,
+    fontSize: 14,
+    fontWeight: "500",
+  },
+  errorText: {
+    marginTop: 5,
+    color: Colors.error,
+    fontSize: 12,
+  },
+  rememberRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginTop: -2,
+    marginBottom: 25,
+  },
+  checkbox: {
+    width: 20,
+    height: 20,
+    borderRadius: 4,
+    borderWidth: 2,
+    borderColor: "#78B995",
+    marginRight: 10,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#FFFFFF",
+  },
+  checkboxChecked: {
+    backgroundColor: Colors.primary,
+    borderColor: Colors.primary,
+  },
+  rememberText: {
+    color: "#44515C",
+    fontSize: 13,
+    fontWeight: "500",
   },
   loginButton: {
     backgroundColor: Colors.primary,
-    height: 52,
+    minHeight: 56,
     borderRadius: 8,
     flexDirection: "row",
     justifyContent: "center",
     alignItems: "center",
-    marginTop: 8,
+    shadowColor: Colors.primary,
+    shadowOffset: { width: 0, height: 7 },
+    shadowOpacity: 0.24,
+    shadowRadius: 10,
+    elevation: 7,
   },
   loginButtonText: {
-    color: "#FFF",
+    color: "#FFFFFF",
     fontSize: 16,
-    fontWeight: "bold",
+    fontWeight: "800",
+  },
+  loginIcon: {
+    position: "absolute",
+    right: 18,
   },
   buttonDisabled: {
     opacity: 0.7,
@@ -257,54 +391,18 @@ const styles = StyleSheet.create({
   helpContainer: {
     flexDirection: "row",
     justifyContent: "center",
-    marginTop: Layout.spacing.xl,
+    alignItems: "center",
+    marginTop: 21,
   },
   helpText: {
-    fontSize: 14,
+    fontSize: 13,
     color: Colors.textSecondary,
+    marginLeft: 7,
   },
   supportLink: {
-    fontSize: 14,
+    fontSize: 13,
     color: Colors.primary,
-    fontWeight: "bold",
+    fontWeight: "800",
     textDecorationLine: "underline",
-  },
-  infoCardsRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    marginTop: Layout.spacing.xl,
-  },
-  infoCard: {
-    width: "48%",
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "#E8F5E9",
-    padding: 12,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: "#C8E6C9",
-  },
-  infoIconBox: {
-    width: 36,
-    height: 36,
-    borderRadius: 8,
-    justifyContent: "center",
-    alignItems: "center",
-    marginRight: 10,
-  },
-  infoCardText: {
-    fontSize: 12,
-    fontWeight: "600",
-    color: Colors.text,
-    flex: 1,
-  },
-  footer: {
-    marginTop: "auto",
-    alignItems: "center",
-    paddingVertical: Layout.spacing.xl,
-  },
-  footerText: {
-    fontSize: 11,
-    color: Colors.textSecondary,
   },
 });
