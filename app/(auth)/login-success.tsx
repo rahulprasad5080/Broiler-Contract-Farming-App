@@ -9,21 +9,11 @@ import {
   View,
 } from "react-native";
 import { Colors } from "../../constants/Colors";
-import { useAuth, UserRole } from "../../context/AuthContext";
-
-function getDashboardRoute(role: UserRole) {
-  if (role === "OWNER") return "/(owner)/dashboard";
-  if (role === "SUPERVISOR") return "/(supervisor)/dashboard";
-  return "/(farmer)/dashboard";
-}
+import { useAuth } from "../../context/AuthContext";
 
 export default function LoginSuccessScreen() {
   const router = useRouter();
-  const { user } = useAuth();
-
-  const continueToApp = () => {
-    router.replace(getDashboardRoute(user?.role ?? "FARMER") as never);
-  };
+  const { unlockApp } = useAuth();
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -75,7 +65,7 @@ export default function LoginSuccessScreen() {
 
         <TouchableOpacity
           style={styles.skipButton}
-          onPress={continueToApp}
+          onPress={unlockApp}
           activeOpacity={0.75}
         >
           <Text style={styles.skipButtonText}>SKIP FOR NOW</Text>

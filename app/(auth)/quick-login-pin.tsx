@@ -1,4 +1,3 @@
-import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import React from "react";
@@ -12,8 +11,8 @@ import {
   View,
 } from "react-native";
 import { Colors } from "../../constants/Colors";
-import { QUICK_PIN_KEY } from "../../constants/AuthStorage";
-import { useAuth, UserRole } from "../../context/AuthContext";
+import { useAuth } from "../../context/AuthContext";
+import { hasQuickPin, verifyQuickPin } from "../../services/authSecurity";
 
 const keys = [
   { value: "1" },
@@ -26,12 +25,6 @@ const keys = [
   { value: "8", letters: "TUV" },
   { value: "9", letters: "WXYZ" },
 ];
-
-function getDashboardRoute(role: UserRole) {
-  if (role === "OWNER") return "/(owner)/dashboard";
-  if (role === "SUPERVISOR") return "/(supervisor)/dashboard";
-  return "/(farmer)/dashboard";
-}
 
 function PinDots({ value, hasError }: { value: string; hasError: boolean }) {
   return (
@@ -52,15 +45,17 @@ function PinDots({ value, hasError }: { value: string; hasError: boolean }) {
 
 export default function QuickLoginPinScreen() {
   const router = useRouter();
-  const { user } = useAuth();
+  const { unlockApp } = useAuth();
   const [pin, setPin] = React.useState("");
   const [hasError, setHasError] = React.useState(false);
-
-  const continueToApp = React.useCallback(() => {
-    router.replace(getDashboardRoute(user?.role ?? "FARMER") as never);
-  }, [router, user?.role]);
+  const [failedAttempts, setFailedAttempts] = React.useState(0);
 
   const pressNumber = (digit: string) => {
+    if (failedAttempts >= 5) {
+      Alert.alert("Too many attempts", "Use password instead to continue.");
+      return;
+    }
+
     if (hasError) {
       setHasError(false);
       setPin(digit);
@@ -71,19 +66,21 @@ export default function QuickLoginPinScreen() {
       if (current.length >= 4) return current;
       const next = `${current}${digit}`;
       if (next.length === 4) {
-        AsyncStorage.getItem(QUICK_PIN_KEY).then((savedPin) => {
-          if (!savedPin) {
+        hasQuickPin().then(async (pinExists) => {
+          if (!pinExists) {
             Alert.alert("PIN not set", "Please create your 4-digit PIN first.");
             router.push("/(auth)/set-pin" as never);
             return;
           }
 
-          if (next === savedPin) {
-            setTimeout(continueToApp, 180);
+          if (await verifyQuickPin(next)) {
+            setFailedAttempts(0);
+            setTimeout(unlockApp, 180);
             return;
           }
 
           setTimeout(() => {
+            setFailedAttempts((count) => count + 1);
             setHasError(true);
             setPin("");
           }, 180);

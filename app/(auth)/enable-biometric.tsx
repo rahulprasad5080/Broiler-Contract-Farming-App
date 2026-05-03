@@ -1,6 +1,4 @@
-import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Ionicons } from "@expo/vector-icons";
-import * as LocalAuthentication from "expo-local-authentication";
 import { useRouter } from "expo-router";
 import React from "react";
 import {
@@ -12,47 +10,27 @@ import {
   View,
 } from "react-native";
 import { Colors } from "../../constants/Colors";
-import { BIOMETRIC_ENABLED_KEY } from "../../constants/AuthStorage";
-import { useAuth, UserRole } from "../../context/AuthContext";
-
-function getDashboardRoute(role: UserRole) {
-  if (role === "OWNER") return "/(owner)/dashboard";
-  if (role === "SUPERVISOR") return "/(supervisor)/dashboard";
-  return "/(farmer)/dashboard";
-}
+import { useAuth } from "../../context/AuthContext";
+import {
+  authenticateWithBiometrics,
+  setBiometricEnabled,
+} from "../../services/authSecurity";
 
 export default function EnableBiometricScreen() {
   const router = useRouter();
-  const { user } = useAuth();
-
-  const continueToApp = () => {
-    router.replace(getDashboardRoute(user?.role ?? "FARMER") as never);
-  };
+  const { unlockApp } = useAuth();
 
   const enableBiometric = async () => {
-    const hasHardware = await LocalAuthentication.hasHardwareAsync();
-    const isEnrolled = await LocalAuthentication.isEnrolledAsync();
+    const result = await authenticateWithBiometrics("Enable quick login");
 
-    if (!hasHardware || !isEnrolled) {
-      Alert.alert(
-        "Biometric not available",
-        "Please add fingerprint or face unlock in your phone settings first.",
-      );
+    if (result.success) {
+      await setBiometricEnabled(true);
+      unlockApp();
       return;
     }
 
-    const result = await LocalAuthentication.authenticateAsync({
-      promptMessage: "Enable quick login",
-      fallbackLabel: "Use phone passcode",
-      cancelLabel: "Cancel",
-      disableDeviceFallback: false,
-    });
-
-    if (result.success) {
-      await AsyncStorage.setItem(BIOMETRIC_ENABLED_KEY, "true");
-      continueToApp();
-    } else {
-      Alert.alert("Authentication failed", "Please try again.");
+    if (result.error) {
+      Alert.alert("Biometric authentication", result.error);
     }
   };
 
@@ -121,7 +99,7 @@ export default function EnableBiometricScreen() {
 
           <TouchableOpacity
             style={styles.skipButton}
-            onPress={continueToApp}
+            onPress={unlockApp}
             activeOpacity={0.75}
           >
             <Text style={styles.skipButtonText}>SKIP FOR NOW</Text>

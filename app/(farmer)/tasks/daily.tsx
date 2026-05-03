@@ -29,7 +29,7 @@ export default function DailyEntryScreen() {
         </View>
 
         <View style={styles.card}>
-          <Text style={styles.sectionTitle}>Today's Data</Text>
+          <Text style={styles.sectionTitle}>Today&apos;s Data</Text>
           
           <View style={styles.inputGroup}>
             <Text style={styles.label}>Date *</Text>

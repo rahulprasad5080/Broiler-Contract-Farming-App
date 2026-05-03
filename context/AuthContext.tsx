@@ -1,128 +1,205 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import React, { createContext, useContext, useEffect, useState } from 'react';
-import { useRouter, useSegments } from 'expo-router';
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { useRouter, useSegments } from "expo-router";
+import React, { createContext, useContext, useEffect, useState } from "react";
+import { AppState } from "react-native";
+import { clearQuickAuth, getPreferredQuickLoginRoute } from "../services/authSecurity";
 
-export type UserRole = 'OWNER' | 'SUPERVISOR' | 'FARMER' | null;
+export type UserRole = "OWNER" | "SUPERVISOR" | "FARMER" | null;
 
 interface User {
   id: string;
   name: string;
   role: UserRole;
-  farmId?: string; // For Farmer/Supervisor
+  farmId?: string;
 }
 
 interface AuthContextType {
   user: User | null;
   isLoading: boolean;
-  signIn: (identifier: string, pass: string) => Promise<void>;
-  signOut: () => void;
+  isAppUnlocked: boolean;
+  signIn: (identifier: string, pass: string) => Promise<boolean>;
+  signOut: () => Promise<void>;
+  unlockApp: () => void;
+  verifyCurrentPassword: (password: string) => boolean;
 }
 
-const AUTH_KEY = '@murgi_auth_user'; // AsyncStorage key
+const AUTH_KEY = "@murgi_auth_user";
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
+
+function getDashboardRoute(role: UserRole) {
+  if (role === "OWNER") return "/(owner)/dashboard";
+  if (role === "SUPERVISOR") return "/(supervisor)/dashboard";
+  return "/(farmer)/dashboard";
+}
+
+function getMockUser(identifier: string, pass: string): User | null {
+  const lowerIdentifier = identifier.toLowerCase();
+
+  if (lowerIdentifier === "9999999999" && pass === "owner123") {
+    return { id: "1", name: "Owner Admin", role: "OWNER" };
+  }
+
+  if (lowerIdentifier === "8888888888" && pass === "sup123") {
+    return { id: "2", name: "Ravi Supervisor", role: "SUPERVISOR" };
+  }
+
+  if (lowerIdentifier === "7777777777" && pass === "farmer123") {
+    return { id: "3", name: "Kisan Kumar", role: "FARMER", farmId: "farm_101" };
+  }
+
+  return null;
+}
+
+function getRolePassword(role: UserRole) {
+  if (role === "OWNER") return "owner123";
+  if (role === "SUPERVISOR") return "sup123";
+  if (role === "FARMER") return "farmer123";
+  return "";
+}
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isAppUnlocked, setIsAppUnlocked] = useState(false);
   const segments = useSegments();
   const router = useRouter();
 
-  // ── App start par saved session load karo ──────────────────────────────────
   useEffect(() => {
     const loadUser = async () => {
       try {
         const savedUser = await AsyncStorage.getItem(AUTH_KEY);
         if (savedUser) {
           setUser(JSON.parse(savedUser));
+          setIsAppUnlocked(false);
         }
       } catch (e) {
-        console.warn('Failed to load user from storage:', e);
+        console.warn("Failed to load user from storage:", e);
       } finally {
         setIsLoading(false);
       }
     };
+
     loadUser();
   }, []);
 
-  // ── Route guard ────────────────────────────────────────────────────────────
+  useEffect(() => {
+    const subscription = AppState.addEventListener("change", (nextState) => {
+      if (user && nextState !== "active") {
+        setIsAppUnlocked(false);
+      }
+    });
+
+    return () => subscription.remove();
+  }, [user]);
+
   useEffect(() => {
     if (isLoading) return;
 
-    const segmentList = segments as string[];
-    const inAuthGroup = segmentList.includes('(auth)');
-    const currentAuthScreen = segmentList[segmentList.length - 1];
-    const allowedAuthenticatedAuthScreens = [
-      'login-success',
-      'set-pin',
-      'enable-biometric',
-      'quick-login-biometric',
-      'quick-login-pin',
-      'quick-login-password',
-    ];
-    const onAllowedAuthenticatedAuthScreen = allowedAuthenticatedAuthScreens.includes(currentAuthScreen);
-    console.log('Current segments:', segments, 'inAuthGroup:', inAuthGroup, 'user:', user?.role);
+    let cancelled = false;
 
-    if (!user && !inAuthGroup) {
-      router.replace('/(auth)/login');
-    } else if (user && inAuthGroup && !onAllowedAuthenticatedAuthScreen) {
-      router.replace('/(auth)/login-success');
-    } else if (user && inAuthGroup && onAllowedAuthenticatedAuthScreen) {
-      return;
-    }
-  }, [user, segments, isLoading]);
+    const guardRoute = async () => {
+      const segmentList = segments as string[];
+      const inAuthGroup = segmentList.includes("(auth)");
+      const currentAuthScreen = segmentList[segmentList.length - 1];
+      const onboardingScreens = ["login-success", "set-pin", "enable-biometric"];
+      const unlockScreens = [
+        "quick-login-biometric",
+        "quick-login-pin",
+        "quick-login-password",
+      ];
 
-  // ── Sign In ────────────────────────────────────────────────────────────────
+      if (!user) {
+        if (!inAuthGroup || currentAuthScreen !== "login") {
+          router.replace("/(auth)/login");
+        }
+        return;
+      }
+
+      if (!isAppUnlocked) {
+        if (!inAuthGroup || !unlockScreens.includes(currentAuthScreen)) {
+          const route = await getPreferredQuickLoginRoute();
+          if (!cancelled) router.replace(route as never);
+        }
+        return;
+      }
+
+      if (inAuthGroup) {
+        if (onboardingScreens.includes(currentAuthScreen)) return;
+        router.replace("/(auth)/login-success");
+      }
+    };
+
+    guardRoute();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [user, segments, isLoading, isAppUnlocked, router]);
+
   const signIn = async (identifier: string, pass: string) => {
     setIsLoading(true);
-    console.log('Attempting login with:', identifier);
 
-    return new Promise<void>((resolve) => {
+    return new Promise<boolean>((resolve) => {
       setTimeout(async () => {
-        let mockUser: User | null = null;
-        const lowerIdentifier = identifier.toLowerCase();
-
-        console.log('Checking credentials for:', lowerIdentifier);
-
-        if (lowerIdentifier === '9999999999' && pass === 'owner123') {
-          mockUser = { id: '1', name: 'Owner Admin', role: 'OWNER' };
-        } else if (lowerIdentifier === '8888888888' && pass === 'sup123') {
-          mockUser = { id: '2', name: 'Ravi Supervisor', role: 'SUPERVISOR' };
-        } else if (lowerIdentifier === '7777777777' && pass === 'farmer123') {
-          mockUser = { id: '3', name: 'Kisan Kumar', role: 'FARMER', farmId: 'farm_101' };
-        }
+        const mockUser = getMockUser(identifier, pass);
 
         if (mockUser) {
-          // ✅ AsyncStorage me save karo
           try {
             await AsyncStorage.setItem(AUTH_KEY, JSON.stringify(mockUser));
           } catch (e) {
-            console.warn('Failed to save user to storage:', e);
+            console.warn("Failed to save user to storage:", e);
           }
+
           setUser(mockUser);
+          setIsAppUnlocked(true);
           setIsLoading(false);
-          resolve();
-        } else {
-          setIsLoading(false);
-          setUser(null);
-          resolve();
+          resolve(true);
+          return;
         }
-      }, 1000);
+
+        setUser(null);
+        setIsAppUnlocked(false);
+        setIsLoading(false);
+        resolve(false);
+      }, 700);
     });
   };
 
-  // ── Sign Out ───────────────────────────────────────────────────────────────
   const signOut = async () => {
     try {
       await AsyncStorage.removeItem(AUTH_KEY);
+      await clearQuickAuth();
     } catch (e) {
-      console.warn('Failed to remove user from storage:', e);
+      console.warn("Failed to clear auth data:", e);
     }
+
     setUser(null);
+    setIsAppUnlocked(false);
+    router.replace("/(auth)/login");
+  };
+
+  const unlockApp = () => {
+    setIsAppUnlocked(true);
+    router.replace(getDashboardRoute(user?.role ?? "FARMER") as never);
+  };
+
+  const verifyCurrentPassword = (password: string) => {
+    return Boolean(user && password === getRolePassword(user.role));
   };
 
   return (
-    <AuthContext.Provider value={{ user, isLoading, signIn, signOut }}>
+    <AuthContext.Provider
+      value={{
+        user,
+        isLoading,
+        isAppUnlocked,
+        signIn,
+        signOut,
+        unlockApp,
+        verifyCurrentPassword,
+      }}
+    >
       {children}
     </AuthContext.Provider>
   );
@@ -131,7 +208,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 export function useAuth() {
   const context = useContext(AuthContext);
   if (context === undefined) {
-    throw new Error('useAuth must be used within an AuthProvider');
+    throw new Error("useAuth must be used within an AuthProvider");
   }
   return context;
 }

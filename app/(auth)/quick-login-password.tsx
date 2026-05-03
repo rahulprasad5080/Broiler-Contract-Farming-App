@@ -12,31 +12,14 @@ import {
   View,
 } from "react-native";
 import { Colors } from "../../constants/Colors";
-import { useAuth, UserRole } from "../../context/AuthContext";
-
-function getDashboardRoute(role: UserRole) {
-  if (role === "OWNER") return "/(owner)/dashboard";
-  if (role === "SUPERVISOR") return "/(supervisor)/dashboard";
-  return "/(farmer)/dashboard";
-}
+import { useAuth } from "../../context/AuthContext";
 
 export default function QuickLoginPasswordScreen() {
   const router = useRouter();
-  const { user } = useAuth();
+  const { user, unlockApp, verifyCurrentPassword } = useAuth();
   const [password, setPassword] = React.useState("");
   const [showPassword, setShowPassword] = React.useState(false);
   const [hasError, setHasError] = React.useState(false);
-
-  const continueToApp = () => {
-    router.replace(getDashboardRoute(user?.role ?? "FARMER") as never);
-  };
-
-  const expectedPassword =
-    user?.role === "OWNER"
-      ? "owner123"
-      : user?.role === "SUPERVISOR"
-        ? "sup123"
-        : "farmer123";
 
   const handleLogin = () => {
     if (!user) {
@@ -45,9 +28,9 @@ export default function QuickLoginPasswordScreen() {
       return;
     }
 
-    if (password === expectedPassword) {
+    if (verifyCurrentPassword(password)) {
       setHasError(false);
-      continueToApp();
+      unlockApp();
       return;
     }
 

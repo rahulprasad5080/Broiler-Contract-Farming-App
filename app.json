@@ -45,7 +45,8 @@
         {
           "faceIDPermission": "Allow PoultryFlow to use Face ID for quick login."
         }
-      ]
+      ],
+      "expo-secure-store"
     ],
     "experiments": {
       "typedRoutes": true,

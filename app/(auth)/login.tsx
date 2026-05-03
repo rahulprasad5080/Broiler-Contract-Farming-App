@@ -43,8 +43,11 @@ export default function LoginScreen() {
 
   const onSubmit = async (data: LoginForm) => {
     try {
-      await signIn(data.mobile, data.password);
-    } catch (error) {
+      const success = await signIn(data.mobile, data.password);
+      if (!success) {
+        alert("Login failed. Please check your credentials.");
+      }
+    } catch {
       alert("Login failed. Please check your credentials.");
     }
   };

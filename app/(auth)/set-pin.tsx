@@ -1,4 +1,3 @@
-import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import React from "react";
@@ -12,14 +11,8 @@ import {
   View,
 } from "react-native";
 import { Colors } from "../../constants/Colors";
-import { QUICK_PIN_KEY } from "../../constants/AuthStorage";
-import { useAuth, UserRole } from "../../context/AuthContext";
-
-function getDashboardRoute(role: UserRole) {
-  if (role === "OWNER") return "/(owner)/dashboard";
-  if (role === "SUPERVISOR") return "/(supervisor)/dashboard";
-  return "/(farmer)/dashboard";
-}
+import { useAuth } from "../../context/AuthContext";
+import { saveQuickPin } from "../../services/authSecurity";
 
 function PinDots({ value }: { value: string }) {
   return (
@@ -36,7 +29,7 @@ function PinDots({ value }: { value: string }) {
 
 export default function SetPinScreen() {
   const router = useRouter();
-  const { user } = useAuth();
+  const { unlockApp } = useAuth();
   const [pin, setPin] = React.useState("");
   const [confirmPin, setConfirmPin] = React.useState("");
   const [activeField, setActiveField] = React.useState<"pin" | "confirm">(
@@ -71,8 +64,8 @@ export default function SetPinScreen() {
   const handleSave = async () => {
     if (!canSave) return;
     Keyboard.dismiss();
-    await AsyncStorage.setItem(QUICK_PIN_KEY, pin);
-    router.replace(getDashboardRoute(user?.role ?? "FARMER") as never);
+    await saveQuickPin(pin);
+    unlockApp();
   };
 
   return (
