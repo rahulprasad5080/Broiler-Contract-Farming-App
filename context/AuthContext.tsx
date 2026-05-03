@@ -51,14 +51,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     const segmentList = segments as string[];
     const inAuthGroup = segmentList.includes('(auth)');
-    const onLoginSuccessScreen = segmentList.includes('login-success');
+    const currentAuthScreen = segmentList[segmentList.length - 1];
+    const allowedAuthenticatedAuthScreens = [
+      'login-success',
+      'set-pin',
+      'enable-biometric',
+    ];
+    const onAllowedAuthenticatedAuthScreen = allowedAuthenticatedAuthScreens.includes(currentAuthScreen);
     console.log('Current segments:', segments, 'inAuthGroup:', inAuthGroup, 'user:', user?.role);
 
     if (!user && !inAuthGroup) {
       router.replace('/(auth)/login');
-    } else if (user && inAuthGroup && !onLoginSuccessScreen) {
+    } else if (user && inAuthGroup && !onAllowedAuthenticatedAuthScreen) {
       router.replace('/(auth)/login-success');
-    } else if (user && inAuthGroup && onLoginSuccessScreen) {
+    } else if (user && inAuthGroup && onAllowedAuthenticatedAuthScreen) {
       return;
     }
   }, [user, segments, isLoading]);
