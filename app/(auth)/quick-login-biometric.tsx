@@ -1,7 +1,10 @@
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Ionicons } from "@expo/vector-icons";
+import * as LocalAuthentication from "expo-local-authentication";
 import { useRouter } from "expo-router";
 import React from "react";
 import {
+  Alert,
   Image,
   SafeAreaView,
   StyleSheet,
@@ -10,9 +13,56 @@ import {
   View,
 } from "react-native";
 import { Colors } from "../../constants/Colors";
+import { BIOMETRIC_ENABLED_KEY } from "../../constants/AuthStorage";
+import { useAuth, UserRole } from "../../context/AuthContext";
+
+function getDashboardRoute(role: UserRole) {
+  if (role === "OWNER") return "/(owner)/dashboard";
+  if (role === "SUPERVISOR") return "/(supervisor)/dashboard";
+  return "/(farmer)/dashboard";
+}
 
 export default function QuickLoginBiometricScreen() {
   const router = useRouter();
+  const { user } = useAuth();
+
+  const continueToApp = React.useCallback(() => {
+    router.replace(getDashboardRoute(user?.role ?? "FARMER") as never);
+  }, [router, user?.role]);
+
+  const authenticate = React.useCallback(async () => {
+    const enabled = await AsyncStorage.getItem(BIOMETRIC_ENABLED_KEY);
+    if (enabled !== "true") {
+      Alert.alert(
+        "Biometric is not enabled",
+        "Enable fingerprint or face unlock first.",
+      );
+      router.push("/(auth)/enable-biometric" as never);
+      return;
+    }
+
+    const hasHardware = await LocalAuthentication.hasHardwareAsync();
+    const isEnrolled = await LocalAuthentication.isEnrolledAsync();
+
+    if (!hasHardware || !isEnrolled) {
+      Alert.alert(
+        "Biometric not available",
+        "Please add fingerprint or face unlock in your phone settings.",
+      );
+      return;
+    }
+
+    const result = await LocalAuthentication.authenticateAsync({
+      promptMessage: "Login to PoultryFlow",
+      fallbackLabel: "Use phone passcode",
+      cancelLabel: "Cancel",
+      disableDeviceFallback: false,
+    });
+
+    if (result.success) {
+      continueToApp();
+    }
+  }, [continueToApp, router]);
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -27,7 +77,11 @@ export default function QuickLoginBiometricScreen() {
           <Text style={styles.title}>Welcome Back!</Text>
           <Text style={styles.subtitle}>Login to continue</Text>
 
-          <TouchableOpacity style={styles.faceButton} activeOpacity={0.82}>
+          <TouchableOpacity
+            style={styles.faceButton}
+            onPress={authenticate}
+            activeOpacity={0.82}
+          >
             <View style={styles.cornerTopLeft} />
             <View style={styles.cornerTopRight} />
             <View style={styles.cornerBottomLeft} />

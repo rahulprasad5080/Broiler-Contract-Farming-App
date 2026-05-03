@@ -2,6 +2,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import React from "react";
 import {
+  Alert,
   Image,
   SafeAreaView,
   StyleSheet,
@@ -24,9 +25,33 @@ export default function QuickLoginPasswordScreen() {
   const { user } = useAuth();
   const [password, setPassword] = React.useState("");
   const [showPassword, setShowPassword] = React.useState(false);
+  const [hasError, setHasError] = React.useState(false);
 
   const continueToApp = () => {
     router.replace(getDashboardRoute(user?.role ?? "FARMER") as never);
+  };
+
+  const expectedPassword =
+    user?.role === "OWNER"
+      ? "owner123"
+      : user?.role === "SUPERVISOR"
+        ? "sup123"
+        : "farmer123";
+
+  const handleLogin = () => {
+    if (!user) {
+      Alert.alert("Session expired", "Please login with mobile number again.");
+      router.replace("/(auth)/login" as never);
+      return;
+    }
+
+    if (password === expectedPassword) {
+      setHasError(false);
+      continueToApp();
+      return;
+    }
+
+    setHasError(true);
   };
 
   return (
@@ -59,7 +84,10 @@ export default function QuickLoginPasswordScreen() {
             <TextInput
               style={styles.input}
               value={password}
-              onChangeText={setPassword}
+              onChangeText={(value) => {
+                setPassword(value);
+                setHasError(false);
+              }}
               placeholder="Enter your password"
               placeholderTextColor="#7A8694"
               secureTextEntry={!showPassword}
@@ -76,9 +104,13 @@ export default function QuickLoginPasswordScreen() {
             </TouchableOpacity>
           </View>
 
+          {hasError && (
+            <Text style={styles.errorText}>Incorrect password. Try again.</Text>
+          )}
+
           <TouchableOpacity
             style={styles.loginButton}
-            onPress={continueToApp}
+            onPress={handleLogin}
             activeOpacity={0.85}
           >
             <Text style={styles.loginButtonText}>LOGIN</Text>
@@ -188,7 +220,7 @@ const styles = StyleSheet.create({
     borderRadius: 7,
     backgroundColor: "#FFFFFF",
     paddingHorizontal: 14,
-    marginBottom: 25,
+    marginBottom: 10,
   },
   input: {
     flex: 1,
@@ -209,6 +241,13 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.22,
     shadowRadius: 10,
     elevation: 6,
+  },
+  errorText: {
+    alignSelf: "flex-start",
+    color: Colors.error,
+    fontSize: 13,
+    fontWeight: "800",
+    marginBottom: 14,
   },
   loginButtonText: {
     color: "#FFFFFF",

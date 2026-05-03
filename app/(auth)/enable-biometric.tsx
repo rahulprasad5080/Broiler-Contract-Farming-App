@@ -1,7 +1,10 @@
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Ionicons } from "@expo/vector-icons";
+import * as LocalAuthentication from "expo-local-authentication";
 import { useRouter } from "expo-router";
 import React from "react";
 import {
+  Alert,
   SafeAreaView,
   StyleSheet,
   Text,
@@ -9,6 +12,7 @@ import {
   View,
 } from "react-native";
 import { Colors } from "../../constants/Colors";
+import { BIOMETRIC_ENABLED_KEY } from "../../constants/AuthStorage";
 import { useAuth, UserRole } from "../../context/AuthContext";
 
 function getDashboardRoute(role: UserRole) {
@@ -23,6 +27,33 @@ export default function EnableBiometricScreen() {
 
   const continueToApp = () => {
     router.replace(getDashboardRoute(user?.role ?? "FARMER") as never);
+  };
+
+  const enableBiometric = async () => {
+    const hasHardware = await LocalAuthentication.hasHardwareAsync();
+    const isEnrolled = await LocalAuthentication.isEnrolledAsync();
+
+    if (!hasHardware || !isEnrolled) {
+      Alert.alert(
+        "Biometric not available",
+        "Please add fingerprint or face unlock in your phone settings first.",
+      );
+      return;
+    }
+
+    const result = await LocalAuthentication.authenticateAsync({
+      promptMessage: "Enable quick login",
+      fallbackLabel: "Use phone passcode",
+      cancelLabel: "Cancel",
+      disableDeviceFallback: false,
+    });
+
+    if (result.success) {
+      await AsyncStorage.setItem(BIOMETRIC_ENABLED_KEY, "true");
+      continueToApp();
+    } else {
+      Alert.alert("Authentication failed", "Please try again.");
+    }
   };
 
   return (
@@ -82,7 +113,7 @@ export default function EnableBiometricScreen() {
         <View style={styles.footer}>
           <TouchableOpacity
             style={styles.enableButton}
-            onPress={continueToApp}
+            onPress={enableBiometric}
             activeOpacity={0.85}
           >
             <Text style={styles.enableButtonText}>ENABLE</Text>

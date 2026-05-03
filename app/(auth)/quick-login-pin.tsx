@@ -1,7 +1,9 @@
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import React from "react";
 import {
+  Alert,
   Image,
   SafeAreaView,
   StyleSheet,
@@ -10,6 +12,7 @@ import {
   View,
 } from "react-native";
 import { Colors } from "../../constants/Colors";
+import { QUICK_PIN_KEY } from "../../constants/AuthStorage";
 import { useAuth, UserRole } from "../../context/AuthContext";
 
 const keys = [
@@ -68,14 +71,23 @@ export default function QuickLoginPinScreen() {
       if (current.length >= 4) return current;
       const next = `${current}${digit}`;
       if (next.length === 4) {
-        if (next === "1234") {
-          setTimeout(continueToApp, 180);
-        } else {
+        AsyncStorage.getItem(QUICK_PIN_KEY).then((savedPin) => {
+          if (!savedPin) {
+            Alert.alert("PIN not set", "Please create your 4-digit PIN first.");
+            router.push("/(auth)/set-pin" as never);
+            return;
+          }
+
+          if (next === savedPin) {
+            setTimeout(continueToApp, 180);
+            return;
+          }
+
           setTimeout(() => {
             setHasError(true);
             setPin("");
           }, 180);
-        }
+        });
       }
       return next;
     });

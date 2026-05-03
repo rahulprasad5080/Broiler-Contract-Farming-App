@@ -56,6 +56,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       'login-success',
       'set-pin',
       'enable-biometric',
+      'quick-login-biometric',
+      'quick-login-pin',
+      'quick-login-password',
     ];
     const onAllowedAuthenticatedAuthScreen = allowedAuthenticatedAuthScreens.includes(currentAuthScreen);
     console.log('Current segments:', segments, 'inAuthGroup:', inAuthGroup, 'user:', user?.role);
