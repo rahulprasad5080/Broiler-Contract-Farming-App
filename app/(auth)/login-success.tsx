@@ -83,6 +83,7 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     justifyContent: "center",
+    alignItems: "center",
     paddingHorizontal: 30,
     paddingVertical: 32,
     backgroundColor: "#FFFFFF",
@@ -166,6 +167,8 @@ const styles = StyleSheet.create({
     marginBottom: 26,
   },
   quickLoginCard: {
+    width: "100%",
+    maxWidth: 420,
     minHeight: 142,
     alignItems: "center",
     justifyContent: "center",
@@ -198,6 +201,8 @@ const styles = StyleSheet.create({
     textAlign: "center",
   },
   primaryButton: {
+    width: "100%",
+    maxWidth: 420,
     height: 48,
     borderRadius: 7,
     alignItems: "center",
@@ -215,6 +220,8 @@ const styles = StyleSheet.create({
     fontWeight: "800",
   },
   outlineButton: {
+    width: "100%",
+    maxWidth: 420,
     height: 48,
     borderRadius: 7,
     borderWidth: 1,

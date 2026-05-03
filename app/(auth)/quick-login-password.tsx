@@ -124,7 +124,11 @@ const styles = StyleSheet.create({
   },
   container: {
     flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
     backgroundColor: "#FFFFFF",
+    paddingHorizontal: 24,
+    paddingVertical: 32,
   },
   backButton: {
     position: "absolute",
@@ -137,10 +141,9 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   content: {
-    flex: 1,
+    width: "100%",
+    maxWidth: 420,
     alignItems: "center",
-    paddingHorizontal: 24,
-    paddingTop: 38,
   },
   logo: {
     width: 74,
@@ -219,8 +222,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 10,
-    marginTop: "auto",
-    marginBottom: 20,
+    marginTop: 58,
   },
   secureText: {
     color: "#4B5563",

@@ -234,6 +234,7 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     justifyContent: "center",
+    alignItems: "center",
     backgroundColor: "#FFFFFF",
     paddingHorizontal: 22,
     paddingTop: 32,
@@ -262,6 +263,7 @@ const styles = StyleSheet.create({
   },
   formBlock: {
     width: "100%",
+    maxWidth: 420,
     zIndex: 2,
   },
   fieldGroup: {

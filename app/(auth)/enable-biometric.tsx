@@ -117,22 +117,26 @@ const styles = StyleSheet.create({
   },
   container: {
     flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
     backgroundColor: "#FFFFFF",
     paddingHorizontal: 24,
-    paddingTop: 12,
-    paddingBottom: 34,
+    paddingVertical: 32,
   },
   backButton: {
+    position: "absolute",
+    left: 14,
+    top: 12,
+    zIndex: 2,
     width: 44,
     height: 44,
     alignItems: "center",
     justifyContent: "center",
-    marginLeft: -10,
   },
   content: {
-    flex: 1,
+    width: "100%",
+    maxWidth: 420,
     alignItems: "center",
-    paddingTop: 18,
   },
   fingerprintCircle: {
     width: 106,
@@ -190,7 +194,9 @@ const styles = StyleSheet.create({
     fontWeight: "500",
   },
   footer: {
-    paddingBottom: 6,
+    width: "100%",
+    maxWidth: 420,
+    marginTop: 42,
   },
   enableButton: {
     height: 54,

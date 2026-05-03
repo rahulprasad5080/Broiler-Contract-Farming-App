@@ -160,22 +160,26 @@ const styles = StyleSheet.create({
   },
   container: {
     flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
     backgroundColor: "#FFFFFF",
     paddingHorizontal: 24,
-    paddingTop: 12,
-    paddingBottom: 32,
+    paddingVertical: 32,
   },
   backButton: {
+    position: "absolute",
+    left: 14,
+    top: 12,
+    zIndex: 2,
     width: 44,
     height: 44,
     alignItems: "center",
     justifyContent: "center",
-    marginLeft: -10,
   },
   content: {
-    flex: 1,
+    width: "100%",
+    maxWidth: 420,
     alignItems: "center",
-    paddingTop: 42,
   },
   title: {
     color: "#111827",
@@ -219,6 +223,7 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: "700",
     marginTop: 28,
+    minHeight: 18,
   },
   hiddenInput: {
     position: "absolute",
@@ -227,7 +232,9 @@ const styles = StyleSheet.create({
     opacity: 0,
   },
   footer: {
-    paddingBottom: 8,
+    width: "100%",
+    maxWidth: 420,
+    marginTop: 72,
   },
   saveButton: {
     height: 48,

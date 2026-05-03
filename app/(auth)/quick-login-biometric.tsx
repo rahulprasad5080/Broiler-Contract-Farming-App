@@ -95,13 +95,16 @@ const styles = StyleSheet.create({
   },
   container: {
     flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
     backgroundColor: "#FFFFFF",
+    paddingHorizontal: 24,
+    paddingVertical: 32,
   },
   content: {
-    flex: 1,
+    width: "100%",
+    maxWidth: 420,
     alignItems: "center",
-    paddingHorizontal: 24,
-    paddingTop: 34,
   },
   logo: {
     width: 72,
