@@ -60,3 +60,4 @@ cd ..
 npx expo export:platform android
 
 > ./gradlew assembleRelease
+# Broiler-Contract-Farming-App
