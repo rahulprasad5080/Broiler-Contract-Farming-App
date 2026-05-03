@@ -49,15 +49,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (isLoading) return;
 
-    const inAuthGroup = (segments as string[]).includes('(auth)');
+    const segmentList = segments as string[];
+    const inAuthGroup = segmentList.includes('(auth)');
+    const onLoginSuccessScreen = segmentList.includes('login-success');
     console.log('Current segments:', segments, 'inAuthGroup:', inAuthGroup, 'user:', user?.role);
 
     if (!user && !inAuthGroup) {
       router.replace('/(auth)/login');
-    } else if (user && inAuthGroup) {
-      if (user.role === 'OWNER') router.replace('/(owner)/dashboard');
-      else if (user.role === 'SUPERVISOR') router.replace('/(supervisor)/dashboard');
-      else if (user.role === 'FARMER') router.replace('/(farmer)/dashboard');
+    } else if (user && inAuthGroup && !onLoginSuccessScreen) {
+      router.replace('/(auth)/login-success');
+    } else if (user && inAuthGroup && onLoginSuccessScreen) {
+      return;
     }
   }, [user, segments, isLoading]);
 
