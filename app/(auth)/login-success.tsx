@@ -64,7 +64,7 @@ export default function LoginSuccessScreen() {
 
         <TouchableOpacity
           style={styles.outlineButton}
-          onPress={continueToApp}
+          onPress={() => router.push("/(auth)/enable-biometric" as never)}
           activeOpacity={0.8}
         >
           <Ionicons name="finger-print-outline" size={22} color={Colors.primary} />
