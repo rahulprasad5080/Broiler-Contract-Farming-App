@@ -56,7 +56,7 @@ export default function LoginSuccessScreen() {
 
         <TouchableOpacity
           style={styles.primaryButton}
-          onPress={continueToApp}
+          onPress={() => router.push("/(auth)/set-pin" as never)}
           activeOpacity={0.85}
         >
           <Text style={styles.primaryButtonText}>SET 4-DIGIT PIN</Text>
