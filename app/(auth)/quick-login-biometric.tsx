@@ -45,7 +45,7 @@ export default function QuickLoginBiometricScreen() {
           </View>
 
           <TouchableOpacity
-            onPress={() => router.push("/(auth)/login" as never)}
+            onPress={() => router.push("/(auth)/quick-login-pin" as never)}
             activeOpacity={0.7}
           >
             <Text style={styles.pinLink}>Use PIN Instead</Text>
