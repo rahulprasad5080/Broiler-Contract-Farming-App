@@ -83,35 +83,6 @@ export default function QuickLoginBiometricScreen() {
             <Text style={styles.pinLink}>Use PIN Instead</Text>
           </TouchableOpacity>
         </View>
-
-        <View style={styles.farmArt} pointerEvents="none">
-          <View style={styles.hillBack} />
-          <View style={styles.hillFront} />
-          <Ionicons
-            name="leaf"
-            size={28}
-            color="#0D8A4F"
-            style={styles.leafLeft}
-          />
-          <Ionicons
-            name="leaf"
-            size={24}
-            color="#0D8A4F"
-            style={styles.leafMiddle}
-          />
-          <Ionicons
-            name="home"
-            size={38}
-            color="#6DAF85"
-            style={styles.farmHouse}
-          />
-          <Ionicons
-            name="grid-outline"
-            size={32}
-            color="#8EB88A"
-            style={styles.fence}
-          />
-        </View>
       </View>
     </SafeAreaView>
   );
