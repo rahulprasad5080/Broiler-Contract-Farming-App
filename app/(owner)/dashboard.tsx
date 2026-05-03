@@ -6,9 +6,32 @@ import { Layout } from '../../constants/Layout';
 import { Ionicons, MaterialCommunityIcons, FontAwesome5 } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 
+type PortalItem = {
+  label: string;
+  icon: React.ComponentProps<typeof FontAwesome5>['name'];
+  provider: typeof FontAwesome5;
+  route: string | null;
+};
+
 export default function OwnerDashboard() {
-  const { user, signOut } = useAuth();
+  const { hasPermission } = useAuth();
   const router = useRouter();
+
+  const portalItems: PortalItem[] = [
+    { label: 'Add Farm', icon: 'warehouse', provider: FontAwesome5, route: '/(owner)/manage/farms' },
+    { label: 'New Batch', icon: 'file-medical', provider: FontAwesome5, route: '/(owner)/manage/batches' },
+    { label: 'Inventory', icon: 'box', provider: FontAwesome5, route: '/(owner)/manage/inventory' },
+    ...(hasPermission('manage:partners') ? [{
+      label: 'Partners',
+      icon: 'handshake',
+      provider: FontAwesome5,
+      route: '/(owner)/manage/partners',
+    } as PortalItem] : []),
+    { label: 'Daily Entry', icon: 'clipboard-list', provider: FontAwesome5, route: '/(owner)/manage/daily-entry' },
+    { label: 'Reports', icon: 'chart-bar', provider: FontAwesome5, route: '/(owner)/reports' },
+    { label: 'Users', icon: 'user-friends', provider: FontAwesome5, route: '/(owner)/manage/users' },
+    { label: 'Settings', icon: 'cog', provider: FontAwesome5, route: null },
+  ];
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -73,15 +96,7 @@ export default function OwnerDashboard() {
 
         <Text style={styles.sectionTitle}>Management Portal</Text>
         <View style={styles.portalGrid}>
-          {[
-            { label: 'Add Farm', icon: 'warehouse', provider: FontAwesome5, route: '/(owner)/manage/farms' },
-            { label: 'New Batch', icon: 'file-medical', provider: FontAwesome5, route: '/(owner)/manage/batches' },
-            { label: 'Inventory', icon: 'box', provider: FontAwesome5, route: '/(owner)/manage/inventory' },
-            { label: 'Daily Entry', icon: 'clipboard-list', provider: FontAwesome5, route: '/(owner)/manage/daily-entry' },
-            { label: 'Reports', icon: 'chart-bar', provider: FontAwesome5, route: '/(owner)/reports' },
-            { label: 'Users', icon: 'user-friends', provider: FontAwesome5, route: '/(owner)/manage/users' },
-            { label: 'Settings', icon: 'cog', provider: FontAwesome5, route: null },
-          ].map((item, idx) => (
+          {portalItems.map((item, idx) => (
             <TouchableOpacity
               key={idx}
               style={styles.portalCard}

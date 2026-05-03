@@ -5,12 +5,20 @@ import { AppState, AppStateStatus } from "react-native";
 import { clearQuickAuth, getPreferredQuickLoginRoute } from "../services/authSecurity";
 
 export type UserRole = "OWNER" | "SUPERVISOR" | "FARMER" | null;
+export type Permission =
+  | "manage:partners"
+  | "manage:users"
+  | "manage:farms"
+  | "manage:batches"
+  | "manage:inventory"
+  | "view:reports";
 
 interface User {
   id: string;
   name: string;
   role: UserRole;
   farmId?: string;
+  permissions: Permission[];
 }
 
 interface AuthContextType {
@@ -21,6 +29,7 @@ interface AuthContextType {
   signOut: () => Promise<void>;
   unlockApp: () => void;
   verifyCurrentPassword: (password: string) => boolean;
+  hasPermission: (permission: Permission) => boolean;
 }
 
 const AUTH_KEY = "@murgi_auth_user";
@@ -42,19 +51,59 @@ function getDashboardRoute(role: UserRole) {
   return "/(farmer)/dashboard";
 }
 
+function getPermissionsForRole(role: UserRole): Permission[] {
+  if (role === "OWNER") {
+    return [
+      "manage:partners",
+      "manage:users",
+      "manage:farms",
+      "manage:batches",
+      "manage:inventory",
+      "view:reports",
+    ];
+  }
+
+  if (role === "SUPERVISOR") return ["view:reports"];
+
+  return [];
+}
+
+function normalizeUser(user: User): User {
+  return {
+    ...user,
+    permissions: user.permissions ?? getPermissionsForRole(user.role),
+  };
+}
+
 function getMockUser(identifier: string, pass: string): User | null {
   const lowerIdentifier = identifier.toLowerCase();
 
   if (lowerIdentifier === "9999999999" && pass === "owner123") {
-    return { id: "1", name: "Owner Admin", role: "OWNER" };
+    return {
+      id: "1",
+      name: "Owner Admin",
+      role: "OWNER",
+      permissions: getPermissionsForRole("OWNER"),
+    };
   }
 
   if (lowerIdentifier === "8888888888" && pass === "sup123") {
-    return { id: "2", name: "Ravi Supervisor", role: "SUPERVISOR" };
+    return {
+      id: "2",
+      name: "Ravi Supervisor",
+      role: "SUPERVISOR",
+      permissions: getPermissionsForRole("SUPERVISOR"),
+    };
   }
 
   if (lowerIdentifier === "7777777777" && pass === "farmer123") {
-    return { id: "3", name: "Kisan Kumar", role: "FARMER", farmId: "farm_101" };
+    return {
+      id: "3",
+      name: "Kisan Kumar",
+      role: "FARMER",
+      farmId: "farm_101",
+      permissions: getPermissionsForRole("FARMER"),
+    };
   }
 
   return null;
@@ -79,7 +128,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       try {
         const savedUser = await AsyncStorage.getItem(AUTH_KEY);
         if (savedUser) {
-          setUser(JSON.parse(savedUser));
+          setUser(normalizeUser(JSON.parse(savedUser)));
           setIsAppUnlocked(false);
         }
       } catch (e) {
@@ -197,6 +246,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return Boolean(user && password === getRolePassword(user.role));
   };
 
+  const hasPermission = (permission: Permission) => {
+    return Boolean(user?.permissions.includes(permission));
+  };
+
   return (
     <AuthContext.Provider
       value={{
@@ -207,6 +260,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         signOut,
         unlockApp,
         verifyCurrentPassword,
+        hasPermission,
       }}
     >
       {children}

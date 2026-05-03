@@ -4,11 +4,26 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { Colors } from '@/constants/Colors';
 import { Layout } from '@/constants/Layout';
+import { useAuth } from '@/context/AuthContext';
+
+type MenuItem = {
+  title: string;
+  desc: string;
+  icon: keyof typeof Ionicons.glyphMap;
+  route: string;
+};
 
 export default function ManageIndexScreen() {
   const router = useRouter();
+  const { hasPermission } = useAuth();
 
-  const menuItems = [
+  const menuItems: MenuItem[] = [
+    ...(hasPermission('manage:partners') ? [{
+      title: 'Partners',
+      desc: 'Contracts, commission and settlements',
+      icon: 'people-circle-outline',
+      route: '/(owner)/manage/partners',
+    } as MenuItem] : []),
     { title: 'Farms', desc: 'Manage farms and assigned staff', icon: 'home-outline', route: '/(owner)/manage/farms' },
     { title: 'Batches', desc: 'Active & closed batches', icon: 'layers-outline', route: '/(owner)/manage/batches' },
     { title: 'Inventory', desc: 'Purchases and allocations', icon: 'cube-outline', route: '/(owner)/manage/inventory' },
