@@ -1,0 +1,585 @@
+import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
+import { useFocusEffect } from '@react-navigation/native';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import {
+  ActivityIndicator,
+  Alert,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
+} from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { Colors } from '@/constants/Colors';
+import { Layout } from '@/constants/Layout';
+import { useAuth } from '@/context/AuthContext';
+import {
+  ApiBatch,
+  createDailyLog,
+  listAllBatches,
+} from '@/services/managementApi';
+
+type DailyEntryScreenProps = {
+  title?: string;
+  subtitle?: string;
+};
+
+function todayValue() {
+  return new Date().toISOString().slice(0, 10);
+}
+
+function toOptionalNumber(value: string) {
+  if (value.trim() === '') return undefined;
+  const next = Number(value);
+  return Number.isNaN(next) ? undefined : next;
+}
+
+function batchLabel(batch: ApiBatch) {
+  const farm = batch.farmName ? ` • ${batch.farmName}` : '';
+  return `${batch.code}${farm}`;
+}
+
+export function DailyEntryScreen({
+  title = 'Daily Entry',
+  subtitle = 'Capture mortality, feed, water, and average weight for the active batch.',
+}: DailyEntryScreenProps) {
+  const router = useRouter();
+  const { accessToken, user } = useAuth();
+  const [batches, setBatches] = useState<ApiBatch[]>([]);
+  const [selectedBatchId, setSelectedBatchId] = useState<string>('');
+  const [logDate, setLogDate] = useState(todayValue());
+  const [openingBirdCount, setOpeningBirdCount] = useState('');
+  const [mortalityCount, setMortalityCount] = useState('');
+  const [cullCount, setCullCount] = useState('');
+  const [feedConsumedKg, setFeedConsumedKg] = useState('');
+  const [waterConsumedLtr, setWaterConsumedLtr] = useState('');
+  const [avgWeightGrams, setAvgWeightGrams] = useState('');
+  const [notes, setNotes] = useState('');
+  const [loading, setLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
+  const [message, setMessage] = useState<string | null>(null);
+
+  const activeBatches = useMemo(
+    () => batches.filter((batch) => batch.status === 'ACTIVE' || batch.status === 'READY_FOR_SALE'),
+    [batches],
+  );
+
+  const loadBatches = useCallback(async () => {
+    if (!accessToken) {
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const response = await listAllBatches(accessToken);
+      setBatches(response.data);
+      setSelectedBatchId((current) => current || response.data[0]?.id || '');
+    } catch (error) {
+      console.warn('Failed to load batches for daily entry:', error);
+      setMessage('Could not load batches from backend.');
+    } finally {
+      setLoading(false);
+    }
+  }, [accessToken]);
+
+  useFocusEffect(
+    useCallback(() => {
+      void loadBatches();
+    }, [loadBatches]),
+  );
+
+  useEffect(() => {
+    if (!selectedBatchId && activeBatches[0]) {
+      setSelectedBatchId(activeBatches[0].id);
+    }
+  }, [activeBatches, selectedBatchId]);
+
+  const selectedBatch = batches.find((batch) => batch.id === selectedBatchId) ?? null;
+
+  const canSubmit = Boolean(
+    accessToken &&
+      selectedBatchId &&
+      logDate &&
+      (openingBirdCount.trim() ||
+        mortalityCount.trim() ||
+        cullCount.trim() ||
+        feedConsumedKg.trim() ||
+        waterConsumedLtr.trim() ||
+        avgWeightGrams.trim()),
+  );
+
+  const handleSubmit = async () => {
+    if (!accessToken || !selectedBatchId) {
+      setMessage('Select a batch before submitting.');
+      return;
+    }
+
+    setSubmitting(true);
+    setMessage(null);
+    try {
+      const created = await createDailyLog(accessToken, selectedBatchId, {
+        logDate,
+        openingBirdCount: toOptionalNumber(openingBirdCount),
+        mortalityCount: toOptionalNumber(mortalityCount),
+        cullCount: toOptionalNumber(cullCount),
+        feedConsumedKg: toOptionalNumber(feedConsumedKg),
+        waterConsumedLtr: toOptionalNumber(waterConsumedLtr),
+        avgWeightGrams: toOptionalNumber(avgWeightGrams),
+        notes: notes.trim() || undefined,
+        clientReferenceId: `daily-${Date.now()}`,
+      });
+
+      setMessage(`Saved daily log for ${created.logDate}.`);
+      setMortalityCount('');
+      setCullCount('');
+      setFeedConsumedKg('');
+      setWaterConsumedLtr('');
+      setAvgWeightGrams('');
+      setNotes('');
+    } catch (error) {
+      console.warn('Failed to create daily log:', error);
+      const fallback = error instanceof Error ? error.message : 'Failed to save daily log.';
+      setMessage(fallback);
+      Alert.alert('Daily log save failed', fallback);
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  return (
+    <SafeAreaView style={styles.safeArea}>
+      <View style={styles.header}>
+        <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
+          <Ionicons name="arrow-back" size={24} color={Colors.primary} />
+        </TouchableOpacity>
+        <View style={styles.headerCopy}>
+          <Text style={styles.headerTitle}>{title}</Text>
+          <Text style={styles.headerSub}>{user?.role ?? 'User'}</Text>
+        </View>
+      </View>
+
+      <ScrollView
+        contentContainerStyle={styles.container}
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+      >
+        <Text style={styles.pageTitle}>{subtitle}</Text>
+
+        <View style={styles.noticeCard}>
+          <Ionicons name="clipboard-outline" size={20} color={Colors.primary} />
+          <Text style={styles.noticeText}>
+            Daily logs are saved live to the backend and can be corrected later with the same batch.
+          </Text>
+        </View>
+
+        <View style={styles.card}>
+          <Text style={styles.sectionTitle}>Choose Batch</Text>
+          {loading ? (
+            <View style={styles.loadingBox}>
+              <ActivityIndicator color={Colors.primary} />
+              <Text style={styles.loadingText}>Loading active batches...</Text>
+            </View>
+          ) : activeBatches.length === 0 ? (
+            <View style={styles.emptyBox}>
+              <Text style={styles.emptyText}>No active batches found for this account.</Text>
+            </View>
+          ) : (
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipRow}>
+              {activeBatches.map((batch) => {
+                const active = batch.id === selectedBatchId;
+                return (
+                  <TouchableOpacity
+                    key={batch.id}
+                    style={[styles.batchChip, active && styles.batchChipActive]}
+                    onPress={() => setSelectedBatchId(batch.id)}
+                  >
+                    <Text style={[styles.batchChipText, active && styles.batchChipTextActive]}>
+                      {batchLabel(batch)}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
+          )}
+
+          {selectedBatch && (
+            <View style={styles.batchSummary}>
+              <MaterialCommunityIcons name="layers-outline" size={18} color={Colors.primary} />
+              <View style={styles.batchSummaryCopy}>
+                <Text style={styles.batchSummaryTitle}>{selectedBatch.code}</Text>
+                <Text style={styles.batchSummarySub}>
+                  {selectedBatch.farmName ?? 'Farm'} • {selectedBatch.placementCount.toLocaleString()} birds
+                </Text>
+              </View>
+            </View>
+          )}
+        </View>
+
+        <View style={styles.card}>
+          <Text style={styles.sectionTitle}>Daily Log</Text>
+
+          <View style={styles.inputGroup}>
+            <Text style={styles.label}>Log Date *</Text>
+            <View style={styles.inputMock}>
+              <TextInput
+                style={styles.textInput}
+                value={logDate}
+                onChangeText={setLogDate}
+                placeholder="YYYY-MM-DD"
+                placeholderTextColor={Colors.textSecondary}
+              />
+              <Ionicons name="calendar-outline" size={20} color={Colors.textSecondary} />
+            </View>
+          </View>
+
+          <View style={styles.row}>
+            <View style={[styles.inputGroup, styles.half]}>
+              <Text style={styles.label}>Opening Birds</Text>
+              <View style={styles.inputMock}>
+                <TextInput
+                  style={styles.textInput}
+                  value={openingBirdCount}
+                  onChangeText={setOpeningBirdCount}
+                  placeholder={selectedBatch ? selectedBatch.placementCount.toString() : '0'}
+                  placeholderTextColor={Colors.textSecondary}
+                  keyboardType="numeric"
+                />
+                <MaterialCommunityIcons name="bird" size={20} color={Colors.textSecondary} />
+              </View>
+            </View>
+            <View style={[styles.inputGroup, styles.half]}>
+              <Text style={styles.label}>Mortality</Text>
+              <View style={styles.inputMock}>
+                <TextInput
+                  style={styles.textInput}
+                  value={mortalityCount}
+                  onChangeText={setMortalityCount}
+                  placeholder="0"
+                  placeholderTextColor={Colors.textSecondary}
+                  keyboardType="numeric"
+                />
+                <MaterialCommunityIcons name="skull-outline" size={20} color={Colors.textSecondary} />
+              </View>
+            </View>
+          </View>
+
+          <View style={styles.row}>
+            <View style={[styles.inputGroup, styles.half]}>
+              <Text style={styles.label}>Cull Count</Text>
+              <View style={styles.inputMock}>
+                <TextInput
+                  style={styles.textInput}
+                  value={cullCount}
+                  onChangeText={setCullCount}
+                  placeholder="0"
+                  placeholderTextColor={Colors.textSecondary}
+                  keyboardType="numeric"
+                />
+                <MaterialCommunityIcons name="checkbox-marked-circle-outline" size={20} color={Colors.textSecondary} />
+              </View>
+            </View>
+            <View style={[styles.inputGroup, styles.half]}>
+              <Text style={styles.label}>Feed Consumed (kg)</Text>
+              <View style={styles.inputMock}>
+                <TextInput
+                  style={styles.textInput}
+                  value={feedConsumedKg}
+                  onChangeText={setFeedConsumedKg}
+                  placeholder="0.0"
+                  placeholderTextColor={Colors.textSecondary}
+                  keyboardType="decimal-pad"
+                />
+                <MaterialCommunityIcons name="silverware-fork" size={20} color={Colors.textSecondary} />
+              </View>
+            </View>
+          </View>
+
+          <View style={styles.row}>
+            <View style={[styles.inputGroup, styles.half]}>
+              <Text style={styles.label}>Water Consumed (ltr)</Text>
+              <View style={styles.inputMock}>
+                <TextInput
+                  style={styles.textInput}
+                  value={waterConsumedLtr}
+                  onChangeText={setWaterConsumedLtr}
+                  placeholder="0.0"
+                  placeholderTextColor={Colors.textSecondary}
+                  keyboardType="decimal-pad"
+                />
+                <MaterialCommunityIcons name="water-outline" size={20} color={Colors.textSecondary} />
+              </View>
+            </View>
+            <View style={[styles.inputGroup, styles.half]}>
+              <Text style={styles.label}>Avg Weight (grams)</Text>
+              <View style={styles.inputMock}>
+                <TextInput
+                  style={styles.textInput}
+                  value={avgWeightGrams}
+                  onChangeText={setAvgWeightGrams}
+                  placeholder="0"
+                  placeholderTextColor={Colors.textSecondary}
+                  keyboardType="numeric"
+                />
+                <MaterialCommunityIcons name="scale" size={20} color={Colors.textSecondary} />
+              </View>
+            </View>
+          </View>
+
+          <View style={styles.inputGroup}>
+            <Text style={styles.label}>Notes</Text>
+            <View style={[styles.inputMock, styles.textArea]}>
+              <TextInput
+                style={[styles.textInput, styles.multiLine]}
+                value={notes}
+                onChangeText={setNotes}
+                placeholder="Optional remarks"
+                placeholderTextColor={Colors.textSecondary}
+                multiline
+              />
+            </View>
+          </View>
+        </View>
+
+        {message ? (
+          <View style={styles.messageBox}>
+            <Ionicons name="information-circle-outline" size={18} color={Colors.primary} />
+            <Text style={styles.messageText}>{message}</Text>
+          </View>
+        ) : null}
+
+        <TouchableOpacity
+          style={[styles.submitBtn, (!canSubmit || submitting) && styles.submitBtnDisabled]}
+          onPress={handleSubmit}
+          disabled={!canSubmit || submitting}
+          activeOpacity={canSubmit ? 0.85 : 1}
+        >
+          {submitting ? (
+            <ActivityIndicator color="#FFF" />
+          ) : (
+            <>
+              <Ionicons name="checkmark-circle-outline" size={20} color="#FFF" />
+              <Text style={styles.submitBtnText}>Submit Daily Log</Text>
+            </>
+          )}
+        </TouchableOpacity>
+      </ScrollView>
+    </SafeAreaView>
+  );
+}
+
+const styles = StyleSheet.create({
+  safeArea: {
+    flex: 1,
+    backgroundColor: Colors.background,
+  },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: Layout.screenPadding,
+    paddingVertical: 14,
+    backgroundColor: Colors.surface,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.border,
+  },
+  backBtn: {
+    marginRight: 14,
+  },
+  headerCopy: {
+    flex: 1,
+  },
+  headerTitle: {
+    fontSize: 18,
+    fontWeight: '800',
+    color: Colors.text,
+  },
+  headerSub: {
+    marginTop: 2,
+    fontSize: 12,
+    color: Colors.textSecondary,
+  },
+  container: {
+    padding: Layout.screenPadding,
+    paddingBottom: 100,
+  },
+  pageTitle: {
+    fontSize: 26,
+    fontWeight: '800',
+    color: Colors.text,
+    marginBottom: 14,
+  },
+  noticeCard: {
+    flexDirection: 'row',
+    gap: 8,
+    alignItems: 'center',
+    backgroundColor: '#E8F5E9',
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#C8E6C9',
+    padding: 14,
+    marginBottom: 14,
+  },
+  noticeText: {
+    flex: 1,
+    fontSize: 12,
+    color: Colors.text,
+    lineHeight: 18,
+  },
+  card: {
+    backgroundColor: Colors.surface,
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 14,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    ...Layout.cardShadow,
+  },
+  sectionTitle: {
+    fontSize: 16,
+    fontWeight: '800',
+    color: Colors.text,
+    marginBottom: 12,
+  },
+  loadingBox: {
+    minHeight: 72,
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 8,
+  },
+  loadingText: {
+    fontSize: 12,
+    color: Colors.textSecondary,
+  },
+  emptyBox: {
+    paddingVertical: 8,
+  },
+  emptyText: {
+    fontSize: 13,
+    color: Colors.textSecondary,
+  },
+  chipRow: {
+    gap: 8,
+    paddingBottom: 12,
+  },
+  batchChip: {
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    backgroundColor: '#F9FAFB',
+  },
+  batchChipActive: {
+    borderColor: Colors.primary,
+    backgroundColor: Colors.primary,
+  },
+  batchChipText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: Colors.text,
+  },
+  batchChipTextActive: {
+    color: '#FFF',
+  },
+  batchSummary: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    backgroundColor: '#F9FAFB',
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    padding: 12,
+  },
+  batchSummaryCopy: {
+    flex: 1,
+  },
+  batchSummaryTitle: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: Colors.text,
+  },
+  batchSummarySub: {
+    marginTop: 2,
+    fontSize: 12,
+    color: Colors.textSecondary,
+  },
+  inputGroup: {
+    marginBottom: 14,
+  },
+  row: {
+    flexDirection: Layout.isSmallDevice ? 'column' : 'row',
+    gap: 12,
+  },
+  half: {
+    flex: 1,
+  },
+  label: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: Colors.text,
+    marginBottom: 8,
+  },
+  inputMock: {
+    minHeight: 48,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    backgroundColor: '#F9FAFB',
+  },
+  textArea: {
+    minHeight: 84,
+    alignItems: 'flex-start',
+    paddingTop: 12,
+  },
+  textInput: {
+    flex: 1,
+    fontSize: 15,
+    color: Colors.text,
+    padding: 0,
+  },
+  multiLine: {
+    minHeight: 56,
+    textAlignVertical: 'top',
+  },
+  messageBox: {
+    flexDirection: 'row',
+    gap: 8,
+    alignItems: 'center',
+    backgroundColor: '#E8F5E9',
+    borderWidth: 1,
+    borderColor: '#C8E6C9',
+    borderRadius: 10,
+    padding: 12,
+    marginBottom: 14,
+  },
+  messageText: {
+    flex: 1,
+    fontSize: 12,
+    color: Colors.primary,
+    fontWeight: '700',
+  },
+  submitBtn: {
+    minHeight: 52,
+    borderRadius: 10,
+    backgroundColor: Colors.primary,
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 8,
+  },
+  submitBtnDisabled: {
+    backgroundColor: '#9DB8A8',
+  },
+  submitBtnText: {
+    color: '#FFF',
+    fontSize: 15,
+    fontWeight: '800',
+  },
+});

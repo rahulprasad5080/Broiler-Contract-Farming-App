@@ -16,21 +16,21 @@ import { useAuth } from "../../context/AuthContext";
 
 export default function QuickLoginPasswordScreen() {
   const router = useRouter();
-  const { user, unlockApp, verifyCurrentPassword } = useAuth();
+  const { user, isLoading, unlockWithPassword } = useAuth();
   const [password, setPassword] = React.useState("");
   const [showPassword, setShowPassword] = React.useState(false);
   const [hasError, setHasError] = React.useState(false);
 
-  const handleLogin = () => {
+  const handleLogin = async () => {
     if (!user) {
       Alert.alert("Session expired", "Please login with mobile number again.");
       router.replace("/(auth)/login" as never);
       return;
     }
 
-    if (verifyCurrentPassword(password)) {
+    const success = await unlockWithPassword(password);
+    if (success) {
       setHasError(false);
-      unlockApp();
       return;
     }
 
@@ -92,11 +92,14 @@ export default function QuickLoginPasswordScreen() {
           )}
 
           <TouchableOpacity
-            style={styles.loginButton}
+            style={[styles.loginButton, isLoading && styles.buttonDisabled]}
             onPress={handleLogin}
+            disabled={isLoading}
             activeOpacity={0.85}
           >
-            <Text style={styles.loginButtonText}>LOGIN</Text>
+            <Text style={styles.loginButtonText}>
+              {isLoading ? "LOGGING IN..." : "LOGIN"}
+            </Text>
           </TouchableOpacity>
 
           <TouchableOpacity activeOpacity={0.7}>
@@ -198,6 +201,9 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.22,
     shadowRadius: 10,
     elevation: 6,
+  },
+  buttonDisabled: {
+    opacity: 0.7,
   },
   errorText: {
     alignSelf: "flex-start",

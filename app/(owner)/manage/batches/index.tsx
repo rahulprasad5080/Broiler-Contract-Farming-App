@@ -1,283 +1,214 @@
-import React, { useState } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
-  ScrollView,
-  TextInput,
-  Modal,
-} from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
+import { useFocusEffect } from '@react-navigation/native';
+import React, { useCallback, useMemo, useState } from 'react';
+import {
+  ActivityIndicator,
+  Alert,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Colors } from '@/constants/Colors';
 import { Layout } from '@/constants/Layout';
-
-type Batch = {
-  id: string;
-  batchNo: string;
-  farm: string;
-  shed: string;
-  day: number;
-  currentPop: number;
-  status: 'active' | 'closed';
-  closedDate?: string;
-};
-
-const FARMS = [
-  'Green Valley Farm - Shed A',
-  'Green Valley Farm - Shed B',
-  'Hillside Farm - Shed 1',
-  'Hillside Farm - Shed 2',
-  'Sunrise Poultry - Shed 1',
-];
-
-const MOCK_BATCHES: Batch[] = [
-  {
-    id: '1',
-    batchNo: 'GV-204',
-    farm: 'Green Valley',
-    shed: 'Shed A',
-    day: 24,
-    currentPop: 4850,
-    status: 'active',
-  },
-  {
-    id: '2',
-    batchNo: 'HP-112',
-    farm: 'Hillside',
-    shed: 'Shed 1',
-    day: 8,
-    currentPop: 2100,
-    status: 'active',
-  },
-  {
-    id: '3',
-    batchNo: 'GV-203',
-    farm: 'Green Valley',
-    shed: 'Shed B',
-    day: 0,
-    currentPop: 0,
-    status: 'closed',
-    closedDate: 'Oct 12, 2023',
-  },
-  {
-    id: '4',
-    batchNo: 'HP-111',
-    farm: 'Hillside',
-    shed: 'Shed 2',
-    day: 0,
-    currentPop: 0,
-    status: 'closed',
-    closedDate: 'Sep 28, 2023',
-  },
-];
+import { useAuth } from '@/context/AuthContext';
+import {
+  ApiBatch,
+  listAllBatches,
+  updateBatchStatus,
+} from '@/services/managementApi';
 
 export default function BatchManagementScreen() {
   const router = useRouter();
+  const { accessToken } = useAuth();
+  const [batches, setBatches] = useState<ApiBatch[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [closingId, setClosingId] = useState('');
+  const [message, setMessage] = useState<string | null>(null);
 
-  // Create-batch form state
-  const [selectedFarm, setSelectedFarm] = useState('Green Valley Farm - Shed A');
-  const [placementDate, setPlacementDate] = useState('');
-  const [chickCount, setChickCount] = useState('');
-  const [showFarmPicker, setShowFarmPicker] = useState(false);
-  const [filterActive, setFilterActive] = useState(false);
+  const loadBatches = useCallback(async () => {
+    if (!accessToken) return;
 
-  const activeBatches = MOCK_BATCHES.filter((b) => b.status === 'active');
-  const closedBatches = MOCK_BATCHES.filter((b) => b.status === 'closed');
+    setLoading(true);
+    try {
+      const response = await listAllBatches(accessToken);
+      setBatches(response.data);
+    } catch (error) {
+      console.warn('Failed to load batches:', error);
+      setMessage('Could not load batches from backend.');
+    } finally {
+      setLoading(false);
+    }
+  }, [accessToken]);
 
-  const handleStartBatch = () => {
-    router.push('/(owner)/manage/batches/create');
+  useFocusEffect(
+    useCallback(() => {
+      void loadBatches();
+    }, [loadBatches]),
+  );
+
+  const activeBatches = useMemo(
+    () =>
+      batches.filter(
+        (batch) => batch.status === 'ACTIVE' || batch.status === 'READY_FOR_SALE',
+      ),
+    [batches],
+  );
+  const closedBatches = useMemo(
+    () => batches.filter((batch) => batch.status === 'CLOSED' || batch.status === 'CANCELLED'),
+    [batches],
+  );
+
+  const handleCloseBatch = (batch: ApiBatch) => {
+    if (!accessToken) return;
+
+    Alert.alert('Close batch', `Mark ${batch.code} as closed?`, [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Close',
+        style: 'destructive',
+        onPress: async () => {
+          setClosingId(batch.id);
+          setMessage(null);
+          try {
+            await updateBatchStatus(accessToken, batch.id, {
+              status: 'CLOSED',
+              actualCloseDate: new Date().toISOString().slice(0, 10),
+            });
+            await loadBatches();
+            setMessage(`${batch.code} closed successfully.`);
+          } catch (error) {
+            console.warn('Failed to close batch:', error);
+            const fallback = error instanceof Error ? error.message : 'Failed to close batch.';
+            setMessage(fallback);
+            Alert.alert('Close batch failed', fallback);
+          } finally {
+            setClosingId('');
+          }
+        },
+      },
+    ]);
   };
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
           <Ionicons name="arrow-back" size={24} color={Colors.text} />
         </TouchableOpacity>
-        <View>
-          <Text style={styles.headerTitle}>Broiler Manager</Text>
-        </View>
+        <Text style={styles.headerTitle}>Batch Management</Text>
       </View>
 
       <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
-        {/* Page Title */}
         <Text style={styles.pageTitle}>Batch Management</Text>
-        <Text style={styles.pageSubtitle}>Monitor and manage poultry cycles across your farms.</Text>
+        <Text style={styles.pageSubtitle}>
+          Monitor live batches and create new cycles directly against the backend.
+        </Text>
 
-        {/* Create New Batch Card */}
         <View style={styles.createCard}>
-          <TouchableOpacity style={styles.createHeader} onPress={handleStartBatch}>
+          <TouchableOpacity style={styles.createButton} onPress={() => router.push('/(owner)/manage/batches/create')}>
             <View style={styles.createIconCircle}>
               <Ionicons name="add-circle" size={22} color={Colors.primary} />
             </View>
-            <Text style={styles.createTitle}>Create New Batch</Text>
-          </TouchableOpacity>
-
-          {/* Farm Selection */}
-          <Text style={styles.formLabel}>Farm Selection</Text>
-          <TouchableOpacity
-            style={styles.dropdown}
-            onPress={() => setShowFarmPicker(true)}
-            activeOpacity={0.8}
-          >
-            <Text style={styles.dropdownText}>{selectedFarm}</Text>
-            <Ionicons name="chevron-down" size={20} color={Colors.textSecondary} />
-          </TouchableOpacity>
-
-          {/* Date + Chick Count row */}
-          <View style={styles.formRow}>
-            <View style={styles.formHalf}>
-              <Text style={styles.formLabel}>Placement Date</Text>
-              <View style={styles.inputBox}>
-                <TextInput
-                  style={styles.textInput}
-                  placeholder="mm/dd/yyyy"
-                  placeholderTextColor={Colors.textSecondary}
-                  value={placementDate}
-                  onChangeText={setPlacementDate}
-                  keyboardType="default"
-                />
-              </View>
-            </View>
-            <View style={[styles.formHalf, !Layout.isSmallDevice && { marginLeft: 12 }]}>
-              <Text style={styles.formLabel}>Chick Count</Text>
-              <View style={styles.inputBox}>
-                <TextInput
-                  style={styles.textInput}
-                  placeholder="0"
-                  placeholderTextColor={Colors.textSecondary}
-                  value={chickCount}
-                  onChangeText={setChickCount}
-                  keyboardType="numeric"
-                />
-              </View>
-            </View>
-          </View>
-
-          {/* Start New Batch Button */}
-          <TouchableOpacity style={styles.startButton} onPress={handleStartBatch}>
-            <Text style={styles.startButtonText}>Start New Batch</Text>
-          </TouchableOpacity>
-        </View>
-
-        {/* Active Batches Header */}
-        <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>
-            ACTIVE BATCHES{' '}
-            <Text style={styles.sectionCount}>({activeBatches.length})</Text>
-          </Text>
-          <TouchableOpacity onPress={() => setFilterActive((v) => !v)}>
-            <Ionicons
-              name="filter-outline"
-              size={20}
-              color={filterActive ? Colors.primary : Colors.textSecondary}
-            />
-          </TouchableOpacity>
-        </View>
-
-        {/* Active Batch Cards */}
-        {activeBatches.map((batch) => (
-          <View key={batch.id} style={styles.batchCard}>
-            <View style={styles.batchCardHeader}>
-              <View style={styles.progressBadge}>
-                <Text style={styles.progressBadgeText}>In Progress - Day {String(batch.day).padStart(2, '0')}</Text>
-              </View>
-              <View style={styles.chickenIconBox}>
-                <MaterialCommunityIcons name="egg-outline" size={22} color={Colors.primary} />
-              </View>
-            </View>
-
-            <Text style={styles.batchNo}>Batch #{batch.batchNo}</Text>
-
-            <View style={styles.batchDetailsRow}>
-              <View style={styles.batchDetailItem}>
-                <Text style={styles.batchDetailLabel}>Farm / Shed</Text>
-                <Text style={styles.batchDetailValue}>
-                  {batch.farm} / {batch.shed}
-                </Text>
-              </View>
-              <View style={styles.batchDetailItem}>
-                <Text style={styles.batchDetailLabel}>Current Pop.</Text>
-                <Text style={styles.batchDetailValue}>
-                  {batch.currentPop.toLocaleString()} Chicks
-                </Text>
-              </View>
-            </View>
-
-            <View style={styles.batchActions}>
-              <TouchableOpacity style={styles.closeButton}>
-                <Text style={styles.closeButtonText}>Close Batch</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={styles.viewButton}
-                onPress={() => router.push('/(owner)/manage/batches/performance')}
-              >
-                <Text style={styles.viewButtonText}>View Details</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        ))}
-
-        {/* Closed Batches Section */}
-        <Text style={styles.closedSectionTitle}>CLOSED BATCHES</Text>
-
-        {closedBatches.map((batch) => (
-          <TouchableOpacity key={batch.id} style={styles.closedBatchRow}>
-            <View style={styles.lockBox}>
-              <Ionicons name="lock-closed" size={16} color={Colors.textSecondary} />
-            </View>
-            <View style={styles.closedBatchInfo}>
-              <Text style={styles.closedBatchNo}>Batch #{batch.batchNo}</Text>
-              <Text style={styles.closedBatchDate}>Closed: {batch.closedDate}</Text>
+            <View style={styles.createCopy}>
+              <Text style={styles.createTitle}>Create New Batch</Text>
+              <Text style={styles.createSub}>Only farms without an active batch appear in the form.</Text>
             </View>
             <Ionicons name="chevron-forward" size={20} color={Colors.textSecondary} />
           </TouchableOpacity>
-        ))}
+        </View>
+
+        {message ? (
+          <View style={styles.messageBox}>
+            <Ionicons name="information-circle-outline" size={18} color={Colors.primary} />
+            <Text style={styles.messageText}>{message}</Text>
+          </View>
+        ) : null}
+
+        <View style={styles.sectionHeader}>
+          <Text style={styles.sectionTitle}>
+            ACTIVE BATCHES <Text style={styles.sectionCount}>({activeBatches.length})</Text>
+          </Text>
+          <TouchableOpacity onPress={() => void loadBatches()}>
+            <Ionicons name="refresh-outline" size={20} color={Colors.primary} />
+          </TouchableOpacity>
+        </View>
+
+        {loading ? (
+          <View style={styles.loadingBox}>
+            <ActivityIndicator color={Colors.primary} />
+            <Text style={styles.loadingText}>Loading batches...</Text>
+          </View>
+        ) : activeBatches.length === 0 ? (
+          <Text style={styles.emptyText}>No active batches found.</Text>
+        ) : (
+          activeBatches.map((batch) => (
+            <View key={batch.id} style={styles.batchCard}>
+              <View style={styles.batchCardHeader}>
+                <View style={styles.progressBadge}>
+                  <Text style={styles.progressBadgeText}>{batch.status.replace('_', ' ')}</Text>
+                </View>
+                <View style={styles.chickenIconBox}>
+                  <MaterialCommunityIcons name="layers-outline" size={22} color={Colors.primary} />
+                </View>
+              </View>
+
+              <Text style={styles.batchNo}>Batch #{batch.code}</Text>
+              <Text style={styles.batchFarm}>{batch.farmName ?? 'Unknown farm'}</Text>
+
+              <View style={styles.batchDetailsRow}>
+                <View style={styles.batchDetailItem}>
+                  <Text style={styles.batchDetailLabel}>Placement</Text>
+                  <Text style={styles.batchDetailValue}>{batch.placementDate}</Text>
+                </View>
+                <View style={styles.batchDetailItem}>
+                  <Text style={styles.batchDetailLabel}>Current Pop.</Text>
+                  <Text style={styles.batchDetailValue}>{batch.placementCount.toLocaleString()} Chicks</Text>
+                </View>
+              </View>
+
+              <View style={styles.batchActions}>
+                <TouchableOpacity
+                  style={[styles.closeButton, closingId === batch.id && styles.disabledButton]}
+                  onPress={() => handleCloseBatch(batch)}
+                  disabled={closingId === batch.id}
+                >
+                  <Text style={styles.closeButtonText}>Close Batch</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.viewButton}
+                  onPress={() => router.push('/(owner)/manage/batches/performance')}
+                >
+                  <Text style={styles.viewButtonText}>View Details</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          ))
+        )}
+
+        <Text style={styles.closedSectionTitle}>CLOSED BATCHES</Text>
+        {closedBatches.length === 0 ? (
+          <Text style={styles.emptyText}>No closed batches yet.</Text>
+        ) : (
+          closedBatches.map((batch) => (
+            <TouchableOpacity key={batch.id} style={styles.closedBatchRow}>
+              <View style={styles.lockBox}>
+                <Ionicons name="lock-closed" size={16} color={Colors.textSecondary} />
+              </View>
+              <View style={styles.closedBatchInfo}>
+                <Text style={styles.closedBatchNo}>Batch #{batch.code}</Text>
+                <Text style={styles.closedBatchDate}>Closed: {batch.actualCloseDate ?? batch.updatedAt.slice(0, 10)}</Text>
+              </View>
+              <Ionicons name="chevron-forward" size={20} color={Colors.textSecondary} />
+            </TouchableOpacity>
+          ))
+        )}
 
         <View style={{ height: 32 }} />
       </ScrollView>
-
-      {/* Farm Picker Modal */}
-      <Modal visible={showFarmPicker} transparent animationType="slide">
-        <TouchableOpacity
-          style={styles.modalOverlay}
-          onPress={() => setShowFarmPicker(false)}
-          activeOpacity={1}
-        >
-          <View style={styles.pickerSheet}>
-            <Text style={styles.pickerTitle}>Select Farm / Shed</Text>
-            {FARMS.map((farm) => (
-              <TouchableOpacity
-                key={farm}
-                style={[
-                  styles.pickerOption,
-                  selectedFarm === farm && styles.pickerOptionActive,
-                ]}
-                onPress={() => {
-                  setSelectedFarm(farm);
-                  setShowFarmPicker(false);
-                }}
-              >
-                <Text
-                  style={[
-                    styles.pickerOptionText,
-                    selectedFarm === farm && styles.pickerOptionTextActive,
-                  ]}
-                >
-                  {farm}
-                </Text>
-                {selectedFarm === farm && (
-                  <Ionicons name="checkmark" size={18} color={Colors.primary} />
-                )}
-              </TouchableOpacity>
-            ))}
-          </View>
-        </TouchableOpacity>
-      </Modal>
     </SafeAreaView>
   );
 }
@@ -285,13 +216,14 @@ export default function BatchManagementScreen() {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#F4F5F7',  },
+    backgroundColor: Colors.background,
+  },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: Layout.spacing.lg,
+    paddingHorizontal: Layout.screenPadding,
     paddingVertical: 14,
-    backgroundColor: '#FFF',
+    backgroundColor: Colors.surface,
     borderBottomWidth: 1,
     borderBottomColor: Colors.border,
   },
@@ -300,18 +232,16 @@ const styles = StyleSheet.create({
   },
   headerTitle: {
     fontSize: 18,
-    fontWeight: 'bold',
+    fontWeight: '800',
     color: Colors.text,
   },
   container: {
     padding: Layout.screenPadding,
-    alignSelf: 'center',
-    width: '100%',
-    maxWidth: Layout.contentMaxWidth,
+    paddingBottom: 40,
   },
   pageTitle: {
     fontSize: 20,
-    fontWeight: 'bold',
+    fontWeight: '800',
     color: Colors.text,
     marginBottom: 4,
   },
@@ -321,10 +251,8 @@ const styles = StyleSheet.create({
     marginBottom: 20,
     lineHeight: 18,
   },
-
-  // ─── Create Card ─────────────────────────────────────────────
   createCard: {
-    backgroundColor: '#FFF',
+    backgroundColor: Colors.surface,
     borderRadius: 14,
     padding: 16,
     marginBottom: 24,
@@ -332,79 +260,42 @@ const styles = StyleSheet.create({
     borderColor: Colors.border,
     ...Layout.cardShadow,
   },
-  createHeader: {
+  createButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 16,
+    gap: 12,
   },
-  createIconCircle: {
-    marginRight: 8,
+  createIconCircle: {},
+  createCopy: {
+    flex: 1,
   },
   createTitle: {
     fontSize: 15,
-    fontWeight: '700',
+    fontWeight: '800',
     color: Colors.text,
   },
-  formLabel: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: Colors.text,
-    marginBottom: 6,
+  createSub: {
+    marginTop: 3,
+    fontSize: 12,
+    color: Colors.textSecondary,
   },
-  dropdown: {
+  messageBox: {
     flexDirection: 'row',
+    gap: 8,
     alignItems: 'center',
-    justifyContent: 'space-between',
-    height: 46,
+    backgroundColor: '#E8F5E9',
     borderWidth: 1,
-    borderColor: Colors.border,
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    backgroundColor: '#F9FAFB',
+    borderColor: '#C8E6C9',
+    borderRadius: 10,
+    padding: 12,
     marginBottom: 14,
   },
-  dropdownText: {
-    fontSize: 14,
-    color: Colors.text,
+  messageText: {
     flex: 1,
-  },
-  formRow: {
-    flexDirection: Layout.isSmallDevice ? 'column' : 'row',
-    marginBottom: 16,
-  },
-  formHalf: {
-    flex: 1,
-  },
-  inputBox: {
-    height: 46,
-    borderWidth: 1,
-    borderColor: Colors.border,
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    justifyContent: 'center',
-    backgroundColor: '#F9FAFB',
-  },
-  textInput: {
-    fontSize: 14,
-    color: Colors.text,
-    padding: 0,
-  },
-  startButton: {
-    backgroundColor: Colors.primary,
-    height: 50,
-    borderRadius: 10,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginTop: 4,
-  },
-  startButtonText: {
-    color: '#FFF',
-    fontSize: 15,
+    fontSize: 12,
+    color: Colors.primary,
     fontWeight: '700',
-    letterSpacing: 0.3,
   },
-
-  // ─── Section Headers ─────────────────────────────────────────
   sectionHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -413,17 +304,30 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     fontSize: 13,
-    fontWeight: '700',
+    fontWeight: '800',
     color: Colors.primary,
     letterSpacing: 0.5,
   },
   sectionCount: {
     color: Colors.primary,
   },
-
-  // ─── Active Batch Card ────────────────────────────────────────
+  loadingBox: {
+    minHeight: 96,
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 8,
+  },
+  loadingText: {
+    fontSize: 12,
+    color: Colors.textSecondary,
+  },
+  emptyText: {
+    fontSize: 13,
+    color: Colors.textSecondary,
+    marginBottom: 12,
+  },
   batchCard: {
-    backgroundColor: '#FFF',
+    backgroundColor: Colors.surface,
     borderRadius: 14,
     padding: 16,
     marginBottom: 14,
@@ -458,8 +362,13 @@ const styles = StyleSheet.create({
   },
   batchNo: {
     fontSize: 15,
-    fontWeight: '700',
+    fontWeight: '800',
     color: Colors.text,
+    marginBottom: 4,
+  },
+  batchFarm: {
+    fontSize: 12,
+    color: Colors.textSecondary,
     marginBottom: 12,
   },
   batchDetailsRow: {
@@ -476,7 +385,7 @@ const styles = StyleSheet.create({
   },
   batchDetailValue: {
     fontSize: 13,
-    fontWeight: '600',
+    fontWeight: '700',
     color: Colors.text,
   },
   batchActions: {
@@ -495,7 +404,7 @@ const styles = StyleSheet.create({
   },
   closeButtonText: {
     fontSize: 13,
-    fontWeight: '700',
+    fontWeight: '800',
     color: Colors.primary,
   },
   viewButton: {
@@ -508,14 +417,15 @@ const styles = StyleSheet.create({
   },
   viewButtonText: {
     fontSize: 13,
-    fontWeight: '700',
+    fontWeight: '800',
     color: '#FFF',
   },
-
-  // ─── Closed Batches ──────────────────────────────────────────
+  disabledButton: {
+    opacity: 0.6,
+  },
   closedSectionTitle: {
     fontSize: 13,
-    fontWeight: '700',
+    fontWeight: '800',
     color: Colors.textSecondary,
     letterSpacing: 0.5,
     marginBottom: 10,
@@ -524,7 +434,7 @@ const styles = StyleSheet.create({
   closedBatchRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FFF',
+    backgroundColor: Colors.surface,
     borderRadius: 12,
     padding: 14,
     marginBottom: 10,
@@ -546,51 +456,12 @@ const styles = StyleSheet.create({
   },
   closedBatchNo: {
     fontSize: 14,
-    fontWeight: '600',
+    fontWeight: '700',
     color: Colors.text,
   },
   closedBatchDate: {
     fontSize: 12,
     color: Colors.textSecondary,
     marginTop: 2,
-  },
-
-  // ─── Farm Picker Modal ────────────────────────────────────────
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.4)',
-    justifyContent: 'flex-end',
-  },
-  pickerSheet: {
-    backgroundColor: '#FFF',
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    padding: 20,
-    paddingBottom: 40,
-  },
-  pickerTitle: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: Colors.text,
-    marginBottom: 16,
-  },
-  pickerOption: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: 14,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.border,
-  },
-  pickerOptionActive: {
-    // no background change, checkmark handles it
-  },
-  pickerOptionText: {
-    fontSize: 14,
-    color: Colors.text,
-  },
-  pickerOptionTextActive: {
-    color: Colors.primary,
-    fontWeight: '700',
   },
 });

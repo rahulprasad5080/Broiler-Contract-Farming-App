@@ -1,10 +1,20 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import * as SecureStore from "expo-secure-store";
 import { useRouter, useSegments } from "expo-router";
 import React, { createContext, useContext, useEffect, useState } from "react";
-import { AppState, AppStateStatus } from "react-native";
+import { AppState, AppStateStatus, Platform } from "react-native";
+import {
+  fetchMe,
+  login,
+  logout,
+  refreshAuth,
+  type ApiRole,
+  type AuthTokens,
+} from "../services/authApi";
+import { ApiError } from "../services/api";
 import { clearQuickAuth, getPreferredQuickLoginRoute } from "../services/authSecurity";
 
-export type UserRole = "OWNER" | "SUPERVISOR" | "FARMER" | null;
+export type UserRole = ApiRole | null;
 export type Permission =
   | "create:daily-entry"
   | "create:sales"
@@ -20,24 +30,41 @@ export type Permission =
 
 interface User {
   id: string;
+  organizationId?: string;
   name: string;
+  email?: string;
+  phone?: string;
+  status?: string;
   role: UserRole;
   farmId?: string;
   permissions: Permission[];
 }
 
+type UserLike = {
+  id: string;
+  organizationId?: string;
+  name: string;
+  email?: string;
+  phone?: string;
+  status?: string;
+  role?: string | null;
+  farmId?: string;
+};
+
 interface AuthContextType {
   user: User | null;
+  accessToken: string | null;
   isLoading: boolean;
   isAppUnlocked: boolean;
-  signIn: (identifier: string, pass: string) => Promise<boolean>;
+  signIn: (identifier: string, pass: string) => Promise<string | null>;
   signOut: () => Promise<void>;
   unlockApp: () => void;
-  verifyCurrentPassword: (password: string) => boolean;
+  unlockWithPassword: (password: string) => Promise<boolean>;
   hasPermission: (permission: Permission) => boolean;
 }
 
-const AUTH_KEY = "@murgi_auth_user";
+const AUTH_USER_KEY = "murgi_auth_user";
+const AUTH_TOKEN_KEY = "murgi_auth_tokens";
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
@@ -84,56 +111,88 @@ function getPermissionsForRole(role: UserRole): Permission[] {
   return [];
 }
 
-function normalizeUser(user: User): User {
+function normalizeUser(user: UserLike): User {
+  const role =
+    user.role === "OWNER" || user.role === "SUPERVISOR" || user.role === "FARMER"
+      ? user.role
+      : null;
+
   return {
     ...user,
-    permissions: user.permissions ?? getPermissionsForRole(user.role),
+    role,
+    permissions: getPermissionsForRole(role),
   };
 }
 
-function getMockUser(identifier: string, pass: string): User | null {
-  const lowerIdentifier = identifier.toLowerCase();
-
-  if (lowerIdentifier === "9999999999" && pass === "owner123") {
-    return {
-      id: "1",
-      name: "Owner Admin",
-      role: "OWNER",
-      permissions: getPermissionsForRole("OWNER"),
-    };
-  }
-
-  if (lowerIdentifier === "8888888888" && pass === "sup123") {
-    return {
-      id: "2",
-      name: "Ravi Supervisor",
-      role: "SUPERVISOR",
-      permissions: getPermissionsForRole("SUPERVISOR"),
-    };
-  }
-
-  if (lowerIdentifier === "7777777777" && pass === "farmer123") {
-    return {
-      id: "3",
-      name: "Kisan Kumar",
-      role: "FARMER",
-      farmId: "farm_101",
-      permissions: getPermissionsForRole("FARMER"),
-    };
-  }
-
-  return null;
+function getLoginIdentifier(user: User) {
+  return user.email || user.phone || "";
 }
 
-function getRolePassword(role: UserRole) {
-  if (role === "OWNER") return "owner123";
-  if (role === "SUPERVISOR") return "sup123";
-  if (role === "FARMER") return "farmer123";
-  return "";
+function getAuthErrorMessage(error: unknown) {
+  if (error instanceof ApiError) {
+    if (error.payload && typeof error.payload === "object" && "message" in error.payload) {
+      const message = (error.payload as { message?: unknown }).message;
+      if (typeof message === "string" && message.trim()) {
+        return message;
+      }
+    }
+
+    if (error.message.trim()) {
+      return error.message;
+    }
+  }
+
+  if (error instanceof Error && error.message.trim()) {
+    return error.message;
+  }
+
+  return "Login failed. Please check your mobile number and password.";
+}
+
+async function loadStoredSession() {
+  const [storedUser, storedTokens] = await Promise.all([
+    AsyncStorage.getItem(AUTH_USER_KEY),
+    Platform.OS === "web"
+      ? AsyncStorage.getItem(AUTH_TOKEN_KEY)
+      : SecureStore.getItemAsync(AUTH_TOKEN_KEY),
+  ]);
+
+  if (!storedUser || !storedTokens) {
+    return null;
+  }
+
+  try {
+    return {
+      user: JSON.parse(storedUser) as User,
+      tokens: JSON.parse(storedTokens) as AuthTokens,
+    };
+  } catch {
+    return null;
+  }
+}
+
+async function saveSession(user: User, tokens: AuthTokens) {
+  await Promise.all([
+    AsyncStorage.setItem(AUTH_USER_KEY, JSON.stringify(user)),
+    Platform.OS === "web"
+      ? AsyncStorage.setItem(AUTH_TOKEN_KEY, JSON.stringify(tokens))
+      : SecureStore.setItemAsync(AUTH_TOKEN_KEY, JSON.stringify(tokens)),
+  ]);
+}
+
+async function clearSession() {
+  await Promise.all([
+    AsyncStorage.removeItem(AUTH_USER_KEY),
+    AsyncStorage.removeItem(AUTH_TOKEN_KEY),
+    Platform.OS === "web"
+      ? Promise.resolve()
+      : SecureStore.deleteItemAsync(AUTH_TOKEN_KEY),
+  ]);
 }
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
+  const [tokens, setTokens] = useState<AuthTokens | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isAppUnlocked, setIsAppUnlocked] = useState(false);
   const segments = useSegments();
@@ -142,13 +201,42 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     const loadUser = async () => {
       try {
-        const savedUser = await AsyncStorage.getItem(AUTH_KEY);
-        if (savedUser) {
-          setUser(normalizeUser(JSON.parse(savedUser)));
-          setIsAppUnlocked(false);
+        const session = await loadStoredSession();
+        if (!session) {
+          return;
         }
-      } catch (e) {
-        console.warn("Failed to load user from storage:", e);
+
+        const refreshed = await refreshAuth(session.tokens.refreshToken);
+        const nextUser = normalizeUser(refreshed.user);
+
+        await saveSession(nextUser, refreshed.tokens);
+        setUser(nextUser);
+        setTokens(refreshed.tokens);
+        setIsAppUnlocked(false);
+      } catch (error) {
+        try {
+          const session = await loadStoredSession();
+          if (session?.user) {
+            const nextUser = normalizeUser(session.user);
+            const me = session.tokens?.accessToken
+              ? await fetchMe(session.tokens.accessToken)
+              : null;
+            const resolvedUser = me ? normalizeUser(me) : nextUser;
+
+            await saveSession(resolvedUser, session.tokens);
+            setUser(resolvedUser);
+            setTokens(session.tokens);
+            setIsAppUnlocked(false);
+            return;
+          }
+        } catch (fallbackError) {
+          console.warn("Failed to restore auth session:", fallbackError);
+        }
+
+        await clearSession();
+        setUser(null);
+        setTokens(null);
+        setIsAppUnlocked(false);
       } finally {
         setIsLoading(false);
       }
@@ -199,7 +287,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           const route = await getPreferredQuickLoginRoute();
           if (!cancelled) router.replace(route as never);
         }
-        return;
       }
     };
 
@@ -210,45 +297,78 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     };
   }, [user, segments, isLoading, isAppUnlocked, router]);
 
+  const applySession = async (nextUser: User, nextTokens: AuthTokens) => {
+    await saveSession(nextUser, nextTokens);
+    setUser(nextUser);
+    setTokens(nextTokens);
+  };
+
   const signIn = async (identifier: string, pass: string) => {
     setIsLoading(true);
 
-    return new Promise<boolean>((resolve) => {
-      setTimeout(async () => {
-        const mockUser = getMockUser(identifier, pass);
+    try {
+      const response = await login(identifier, pass);
+      const nextUser = normalizeUser(response.user);
+      await applySession(nextUser, response.tokens);
+      setIsAppUnlocked(true);
+      router.replace("/(auth)/login-success");
+      return null;
+    } catch (error) {
+      console.warn("Login failed:", error);
+      setUser(null);
+      setTokens(null);
+      setIsAppUnlocked(false);
+      return getAuthErrorMessage(error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
-        if (mockUser) {
-          try {
-            await AsyncStorage.setItem(AUTH_KEY, JSON.stringify(mockUser));
-          } catch (e) {
-            console.warn("Failed to save user to storage:", e);
-          }
+  const unlockWithPassword = async (password: string) => {
+    if (!user) {
+      return false;
+    }
 
-          setUser(mockUser);
-          setIsAppUnlocked(true);
-          router.replace("/(auth)/login-success");
-          setIsLoading(false);
-          resolve(true);
-          return;
-        }
+    const identifier = getLoginIdentifier(user);
+    if (!identifier) {
+      return false;
+    }
 
-        setUser(null);
-        setIsAppUnlocked(false);
-        setIsLoading(false);
-        resolve(false);
-      }, 700);
-    });
+    setIsLoading(true);
+
+    try {
+      const response = await login(identifier, password);
+      const nextUser = normalizeUser(response.user);
+      await applySession(nextUser, response.tokens);
+      setIsAppUnlocked(true);
+      router.replace(getDashboardRoute(nextUser.role) as never);
+      return true;
+    } catch (error) {
+      console.warn("Unlock with password failed:", error);
+      return false;
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const signOut = async () => {
     try {
-      await AsyncStorage.removeItem(AUTH_KEY);
+      if (tokens?.refreshToken) {
+        await logout(tokens.refreshToken);
+      }
+    } catch (error) {
+      console.warn("Server logout failed, clearing local session anyway:", error);
+    }
+
+    try {
       await clearQuickAuth();
-    } catch (e) {
-      console.warn("Failed to clear auth data:", e);
+      await clearSession();
+    } catch (error) {
+      console.warn("Failed to clear auth data:", error);
     }
 
     setUser(null);
+    setTokens(null);
     setIsAppUnlocked(false);
     router.replace("/(auth)/login");
   };
@@ -256,10 +376,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const unlockApp = () => {
     setIsAppUnlocked(true);
     router.replace(getDashboardRoute(user?.role ?? "FARMER") as never);
-  };
-
-  const verifyCurrentPassword = (password: string) => {
-    return Boolean(user && password === getRolePassword(user.role));
   };
 
   const hasPermission = (permission: Permission) => {
@@ -270,12 +386,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     <AuthContext.Provider
       value={{
         user,
+        accessToken: tokens?.accessToken ?? null,
         isLoading,
         isAppUnlocked,
         signIn,
         signOut,
         unlockApp,
-        verifyCurrentPassword,
+        unlockWithPassword,
         hasPermission,
       }}
     >

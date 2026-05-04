@@ -138,7 +138,7 @@ export default function ProfileScreen() {
 
           <Text style={styles.heroName}>{user?.name || 'User'}</Text>
           <Text style={styles.heroEmail}>
-            {user?.role?.toLowerCase()}@broilermanager.app
+            {user?.email || user?.phone || `${user?.role?.toLowerCase() ?? "user"}@broilermanager.app`}
           </Text>
 
           {/* Role Badge */}

@@ -1,25 +1,52 @@
-import React, { useState } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
-  ScrollView,
-  Modal,
-  TextInput,
-} from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
+import React, { useEffect, useState } from 'react';
+import {
+  ActivityIndicator,
+  Modal,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
+} from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Colors } from '@/constants/Colors';
 import { Layout } from '@/constants/Layout';
+import { useAuth } from '@/context/AuthContext';
+import {
+  createUser,
+  fetchUser,
+  listAllFarms,
+  listAllUsers,
+  updateUser,
+  updateUserStatus,
+  type ApiFarm,
+  type ApiUser,
+} from '@/services/managementApi';
 
-// ─── Types ────────────────────────────────────────────────────────────────────
 type Role = 'Supervisor' | 'Farmer';
-type Status = 'Active' | 'Inactive';
+type Status = 'Active' | 'Invited' | 'Inactive';
 type FilterTab = 'All Users' | 'Supervisors' | 'Farmers' | 'Inactive';
 
-interface User {
+type UserFormState = {
+  name: string;
+  email: string;
+  phone: string;
+  role: Role;
+  status: Status;
+};
+
+const EMPTY_USER_FORM: UserFormState = {
+  name: '',
+  email: '',
+  phone: '',
+  role: 'Farmer',
+  status: 'Active',
+};
+
+interface UserCard {
   id: string;
   name: string;
   role: Role;
@@ -28,63 +55,232 @@ interface User {
   hasAvatar: boolean;
 }
 
-// ─── Mock Data ────────────────────────────────────────────────────────────────
-const INITIAL_USERS: User[] = [
-  { id: '1', name: 'Robert Chen',    role: 'Supervisor', farm: 'North Ridge Site', status: 'Active',   hasAvatar: false },
-  { id: '2', name: 'Sarah Jenkins',  role: 'Farmer',     farm: 'Valley Coop #2',  status: 'Active',   hasAvatar: true  },
-  { id: '3', name: 'Elena Rodriguez',role: 'Farmer',     farm: 'Unassigned',      status: 'Inactive', hasAvatar: true  },
-  { id: '4', name: 'Ravi Patel',     role: 'Supervisor', farm: 'Green Valley A',  status: 'Active',   hasAvatar: false },
-  { id: '5', name: 'Priya Sharma',   role: 'Farmer',     farm: 'Hillside Shed 1', status: 'Active',   hasAvatar: true  },
-];
-
 const TABS: FilterTab[] = ['All Users', 'Supervisors', 'Farmers', 'Inactive'];
 
-// ─── Component ────────────────────────────────────────────────────────────────
+function toStatus(status: ApiUser['status']): Status {
+  if (status === 'DISABLED') return 'Inactive';
+  if (status === 'INVITED') return 'Invited';
+  return 'Active';
+}
+
+function toRole(role: ApiUser['role']): Role {
+  return role === 'SUPERVISOR' ? 'Supervisor' : 'Farmer';
+}
+
+function getAssignedFarm(user: ApiUser, farms: ApiFarm[]) {
+  const match = farms.find((farm) => {
+    const assignments = farm.assignments.some((assignment) => assignment.userId === user.id);
+    return farm.primaryFarmerId === user.id || farm.supervisorId === user.id || assignments;
+  });
+
+  return match?.name || 'Unassigned';
+}
+
+function toUserCard(user: ApiUser, farms: ApiFarm[]): UserCard {
+  return {
+    id: user.id,
+    name: user.name,
+    role: toRole(user.role),
+    farm: getAssignedFarm(user, farms),
+    status: toStatus(user.status),
+    hasAvatar: Boolean(user.email),
+  };
+}
+
+function userFormFromApi(user: ApiUser): UserFormState {
+  return {
+    name: user.name,
+    email: user.email ?? '',
+    phone: user.phone ?? '',
+    role: toRole(user.role),
+    status: toStatus(user.status),
+  };
+}
+
 export default function UserManagementScreen() {
   const router = useRouter();
+  const { accessToken } = useAuth();
 
-  const [users, setUsers]           = useState<User[]>(INITIAL_USERS);
-  const [activeTab, setActiveTab]   = useState<FilterTab>('All Users');
-  const [showAddModal, setShowAdd]  = useState(false);
+  const [users, setUsers] = useState<UserCard[]>([]);
+  const [activeTab, setActiveTab] = useState<FilterTab>('All Users');
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [newName, setNewName] = useState('');
+  const [newPhone, setNewPhone] = useState('');
+  const [newRole, setNewRole] = useState<Role>('Farmer');
+  const [newPassword, setNewPassword] = useState('Broiler@1234');
+  const [editUserId, setEditUserId] = useState<string | null>(null);
+  const [editForm, setEditForm] = useState<UserFormState>(EMPTY_USER_FORM);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isSavingEdit, setIsSavingEdit] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [farms, setFarms] = useState<ApiFarm[]>([]);
 
-  // Add-user form
-  const [newName, setNewName]   = useState('');
-  const [newRole, setNewRole]   = useState<Role>('Farmer');
-  const [newFarm, setNewFarm]   = useState('');
+  const loadUsers = async () => {
+    if (!accessToken) {
+      setError('Missing access token. Please sign in again.');
+      setIsLoading(false);
+      return;
+    }
 
-  const totalUsers  = users.length;
-  const activeSites = [...new Set(users.filter(u => u.status === 'Active' && u.farm !== 'Unassigned').map(u => u.farm))].length;
+    setIsLoading(true);
+    setError(null);
 
-  const filtered = users.filter(u => {
-    if (activeTab === 'Supervisors') return u.role === 'Supervisor';
-    if (activeTab === 'Farmers')     return u.role === 'Farmer';
-    if (activeTab === 'Inactive')    return u.status === 'Inactive';
+    try {
+      const [usersResponse, farmsResponse] = await Promise.all([
+        listAllUsers(accessToken),
+        listAllFarms(accessToken),
+      ]);
+      setFarms(farmsResponse.data);
+      setUsers(usersResponse.data.map((user) => toUserCard(user, farmsResponse.data)));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to load users.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadUsers();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [accessToken]);
+
+  const openEditUser = async (userId: string) => {
+    if (!accessToken) {
+      setError('Missing access token. Please sign in again.');
+      return;
+    }
+
+    setError(null);
+    setIsSavingEdit(true);
+
+    try {
+      const user = await fetchUser(accessToken, userId);
+      setEditUserId(user.id);
+      setEditForm(userFormFromApi(user));
+      setShowEditModal(true);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to load user details.');
+    } finally {
+      setIsSavingEdit(false);
+    }
+  };
+
+  const totalUsers = users.length;
+  const activeSites = farms.filter((farm) => farm.status === 'ACTIVE').length;
+
+  const filtered = users.filter((user) => {
+    if (activeTab === 'Supervisors') return user.role === 'Supervisor';
+    if (activeTab === 'Farmers') return user.role === 'Farmer';
+    if (activeTab === 'Inactive') return user.status === 'Inactive';
     return true;
   });
 
-  const handleAddUser = () => {
-    if (!newName.trim()) return;
-    setUsers(prev => [
-      {
-        id: String(Date.now()),
-        name: newName.trim(),
-        role: newRole,
-        farm: newFarm.trim() || 'Unassigned',
-        status: 'Active',
-        hasAvatar: false,
-      },
-      ...prev,
-    ]);
-    setNewName(''); setNewRole('Farmer'); setNewFarm('');
-    setShowAdd(false);
+  const handleAddUser = async () => {
+    const trimmedName = newName.trim();
+    const trimmedPhone = newPhone.trim();
+    const trimmedPassword = newPassword.trim();
+
+    if (!accessToken || !trimmedName) {
+      return;
+    }
+
+    if (!trimmedPhone) {
+      setError('Provide a phone number for the new user.');
+      return;
+    }
+
+    setIsSubmitting(true);
+    setError(null);
+
+    try {
+      const created = await createUser(accessToken, {
+        name: trimmedName,
+        phone: trimmedPhone,
+        role: newRole === 'Supervisor' ? 'SUPERVISOR' : 'FARMER',
+        password: trimmedPassword || 'Broiler@1234',
+      });
+
+      setUsers((prev) => [
+        {
+          id: created.id,
+          name: created.name,
+          role: toRole(created.role),
+          farm: 'Unassigned',
+          status: toStatus(created.status),
+          hasAvatar: Boolean(created.email),
+        },
+        ...prev,
+      ]);
+
+      setNewName('');
+      setNewPhone('');
+      setNewRole('Farmer');
+      setNewPassword('Broiler@1234');
+      setShowAddModal(false);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to create user.');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleUpdateUser = async () => {
+    if (!accessToken || !editUserId || !editForm.name.trim()) {
+      return;
+    }
+
+    setIsSavingEdit(true);
+    setError(null);
+
+    try {
+      const updated = await updateUser(accessToken, editUserId, {
+        name: editForm.name.trim(),
+        email: editForm.email.trim() || undefined,
+        phone: editForm.phone.trim() || undefined,
+        role: editForm.role === 'Supervisor' ? 'SUPERVISOR' : 'FARMER',
+      });
+
+      const desiredStatus =
+        editForm.status === 'Inactive'
+          ? 'DISABLED'
+          : editForm.status === 'Invited'
+            ? 'INVITED'
+            : 'ACTIVE';
+
+      if (updated.status !== desiredStatus) {
+        await updateUserStatus(accessToken, editUserId, { status: desiredStatus });
+      }
+
+      setShowEditModal(false);
+      setEditUserId(null);
+      setEditForm(EMPTY_USER_FORM);
+      loadUsers();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to update user.');
+    } finally {
+      setIsSavingEdit(false);
+    }
   };
 
   const initials = (name: string) =>
-    name.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2);
+    name
+      .split(' ')
+      .filter(Boolean)
+      .map((word) => word[0])
+      .join('')
+      .toUpperCase()
+      .slice(0, 2);
+
+  const statusColor = (status: Status) => {
+    if (status === 'Inactive') return Colors.textSecondary;
+    if (status === 'Invited') return '#D97706';
+    return Colors.primary;
+  };
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      {/* ── Header ── */}
       <View style={styles.header}>
         <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
           <Ionicons name="arrow-back" size={24} color={Colors.primary} />
@@ -97,27 +293,21 @@ export default function UserManagementScreen() {
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
       >
-        {/* ── Filter Tabs ── */}
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.tabsRow}
-        >
-          {TABS.map(tab => (
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.tabsRow}>
+          {TABS.map((tab) => (
             <TouchableOpacity
               key={tab}
               style={[styles.tab, activeTab === tab && styles.tabActive]}
               onPress={() => setActiveTab(tab)}
               activeOpacity={0.8}
             >
-              <Text style={[styles.tabLabel, activeTab === tab && styles.tabLabelActive]}>
-                {tab}
-              </Text>
+              <Text style={[styles.tabLabel, activeTab === tab && styles.tabLabelActive]}>{tab}</Text>
             </TouchableOpacity>
           ))}
         </ScrollView>
 
-        {/* ── Stats Row ── */}
+        {error ? <Text style={styles.errorText}>{error}</Text> : null}
+
         <View style={styles.statsRow}>
           <View style={styles.statsCard}>
             <Text style={styles.statsLabel}>Total Users</Text>
@@ -129,124 +319,104 @@ export default function UserManagementScreen() {
           </View>
         </View>
 
-        {/* ── Add New User Button ── */}
-        <TouchableOpacity style={styles.addBtn} onPress={() => setShowAdd(true)}>
+        <TouchableOpacity style={styles.addBtn} onPress={() => setShowAddModal(true)}>
           <MaterialCommunityIcons name="account-plus-outline" size={20} color="#FFF" />
           <Text style={styles.addBtnText}>Add New User</Text>
         </TouchableOpacity>
 
-        {/* ── Active Staff Label ── */}
         <Text style={styles.sectionLabel}>
           {activeTab === 'All Users' ? 'ACTIVE STAFF' : activeTab.toUpperCase()}
         </Text>
 
-        {/* ── User Cards ── */}
-        {filtered.map(user => {
-          const isInactive = user.status === 'Inactive';
-          return (
-            <View
-              key={user.id}
-              style={[styles.userCard, isInactive && styles.userCardInactive]}
-            >
-              {/* Top Row */}
-              <View style={styles.cardTop}>
-                {/* Avatar */}
-                <View style={[
-                  styles.avatar,
-                  isInactive && styles.avatarInactive,
-                ]}>
-                  {user.hasAvatar ? (
-                    <MaterialCommunityIcons
-                      name="account-circle-outline"
-                      size={32}
-                      color={isInactive ? Colors.textSecondary : Colors.primary}
+        {isLoading ? (
+          <View style={styles.loadingState}>
+            <ActivityIndicator color={Colors.primary} />
+            <Text style={styles.loadingText}>Loading users...</Text>
+          </View>
+        ) : (
+          filtered.map((user) => {
+            const isInactive = user.status === 'Inactive';
+            const dotColor = statusColor(user.status);
+
+            return (
+              <View key={user.id} style={[styles.userCard, isInactive && styles.userCardInactive]}>
+                <View style={styles.cardTop}>
+                  <View style={[styles.avatar, isInactive && styles.avatarInactive]}>
+                    {user.hasAvatar ? (
+                      <MaterialCommunityIcons
+                        name="account-circle-outline"
+                        size={32}
+                        color={isInactive ? Colors.textSecondary : Colors.primary}
+                      />
+                    ) : (
+                      <Text style={[styles.avatarInitials, isInactive && { color: Colors.textSecondary }]}>
+                        {initials(user.name)}
+                      </Text>
+                    )}
+                  </View>
+
+                  <View style={styles.nameBlock}>
+                    <Text style={[styles.userName, isInactive && styles.textFaded]}>{user.name}</Text>
+                    <View
+                      style={[
+                        styles.roleBadge,
+                        { backgroundColor: isInactive ? '#F3F4F6' : '#E8F5E9' },
+                      ]}
+                    >
+                      <Text
+                        style={[
+                          styles.roleText,
+                          { color: isInactive ? Colors.textSecondary : Colors.primary },
+                        ]}
+                      >
+                        {user.role.toUpperCase()}
+                      </Text>
+                    </View>
+                  </View>
+
+                  <TouchableOpacity style={styles.actionIcon} onPress={() => openEditUser(user.id)}>
+                    <Ionicons
+                      name="pencil-outline"
+                      size={20}
+                      color={Colors.primary}
                     />
-                  ) : (
-                    <Text style={[
-                      styles.avatarInitials,
-                      isInactive && { color: Colors.textSecondary },
-                    ]}>
-                      {initials(user.name)}
-                    </Text>
-                  )}
+                  </TouchableOpacity>
                 </View>
 
-                {/* Name + Role */}
-                <View style={styles.nameBlock}>
-                  <Text style={[styles.userName, isInactive && styles.textFaded]}>
-                    {user.name}
-                  </Text>
-                  <View style={[
-                    styles.roleBadge,
-                    { backgroundColor: isInactive ? '#F3F4F6' : '#E8F5E9' },
-                  ]}>
-                    <Text style={[
-                      styles.roleText,
-                      { color: isInactive ? Colors.textSecondary : Colors.primary },
-                    ]}>
-                      {user.role.toUpperCase()}
-                    </Text>
+                <View style={styles.cardDivider} />
+
+                <View style={styles.cardBottom}>
+                  <View>
+                    <Text style={styles.infoLabel}>ASSIGNED FARM</Text>
+                    <Text style={[styles.infoValue, isInactive && styles.textFaded]}>{user.farm}</Text>
                   </View>
-                </View>
-
-                {/* Edit / Settings Icon */}
-                <TouchableOpacity style={styles.actionIcon}>
-                  <Ionicons
-                    name={isInactive ? 'settings-outline' : 'pencil-outline'}
-                    size={20}
-                    color={isInactive ? Colors.textSecondary : Colors.primary}
-                  />
-                </TouchableOpacity>
-              </View>
-
-              {/* Divider */}
-              <View style={styles.cardDivider} />
-
-              {/* Bottom Row */}
-              <View style={styles.cardBottom}>
-                <View>
-                  <Text style={styles.infoLabel}>ASSIGNED FARM</Text>
-                  <Text style={[styles.infoValue, isInactive && styles.textFaded]}>
-                    {user.farm}
-                  </Text>
-                </View>
-                <View style={styles.statusBlock}>
-                  <Text style={styles.infoLabel}>STATUS</Text>
-                  <View style={styles.statusRow}>
-                    <View style={[
-                      styles.statusDot,
-                      { backgroundColor: isInactive ? Colors.textSecondary : Colors.primary },
-                    ]} />
-                    <Text style={[
-                      styles.statusText,
-                      { color: isInactive ? Colors.textSecondary : Colors.text },
-                    ]}>
-                      {user.status}
-                    </Text>
+                  <View style={styles.statusBlock}>
+                    <Text style={styles.infoLabel}>STATUS</Text>
+                    <View style={styles.statusRow}>
+                      <View style={[styles.statusDot, { backgroundColor: dotColor }]} />
+                      <Text style={[styles.statusText, { color: isInactive ? Colors.textSecondary : Colors.text }]}>
+                        {user.status}
+                      </Text>
+                    </View>
                   </View>
                 </View>
               </View>
-            </View>
-          );
-        })}
+            );
+          })
+        )}
 
-        {filtered.length === 0 && (
+        {!isLoading && filtered.length === 0 ? (
           <View style={styles.emptyState}>
             <MaterialCommunityIcons name="account-search-outline" size={48} color={Colors.border} />
             <Text style={styles.emptyText}>No users found</Text>
           </View>
-        )}
+        ) : null}
 
         <View style={{ height: 40 }} />
       </ScrollView>
 
-      {/* ── Add User Modal ── */}
       <Modal visible={showAddModal} transparent animationType="slide">
-        <TouchableOpacity
-          style={styles.modalOverlay}
-          activeOpacity={1}
-          onPress={() => setShowAdd(false)}
-        >
+        <TouchableOpacity style={styles.modalOverlay} activeOpacity={1} onPress={() => setShowAddModal(false)}>
           <View style={styles.modalSheet} onStartShouldSetResponder={() => true}>
             <Text style={styles.modalTitle}>Add New User</Text>
 
@@ -261,35 +431,152 @@ export default function UserManagementScreen() {
               />
             </View>
 
+            <Text style={styles.formLabel}>Phone</Text>
+            <View style={styles.inputBox}>
+              <TextInput
+                style={styles.textInput}
+                placeholder="9876500001"
+                placeholderTextColor={Colors.textSecondary}
+                value={newPhone}
+                keyboardType="phone-pad"
+                maxLength={10}
+                onChangeText={setNewPhone}
+              />
+            </View>
+
+            <Text style={styles.helperText}>Phone number is required for new users.</Text>
+
             <Text style={styles.formLabel}>Role</Text>
             <View style={styles.roleToggleRow}>
-              {(['Farmer', 'Supervisor'] as Role[]).map(r => (
+              {(['Farmer', 'Supervisor'] as Role[]).map((role) => (
                 <TouchableOpacity
-                  key={r}
-                  style={[styles.roleToggle, newRole === r && styles.roleToggleActive]}
-                  onPress={() => setNewRole(r)}
+                  key={role}
+                  style={[styles.roleToggle, newRole === role && styles.roleToggleActive]}
+                  onPress={() => setNewRole(role)}
                 >
-                  <Text style={[styles.roleToggleText, newRole === r && styles.roleToggleTextActive]}>
-                    {r}
+                  <Text style={[styles.roleToggleText, newRole === role && styles.roleToggleTextActive]}>
+                    {role}
                   </Text>
                 </TouchableOpacity>
               ))}
             </View>
 
-            <Text style={styles.formLabel}>Assign Farm</Text>
+            <Text style={styles.formLabel}>Temporary Password</Text>
             <View style={styles.inputBox}>
               <TextInput
                 style={styles.textInput}
-                placeholder="Farm name (optional)"
+                placeholder="Broiler@1234"
                 placeholderTextColor={Colors.textSecondary}
-                value={newFarm}
-                onChangeText={setNewFarm}
+                value={newPassword}
+                onChangeText={setNewPassword}
+                secureTextEntry
               />
             </View>
 
-            <TouchableOpacity style={styles.submitBtn} onPress={handleAddUser}>
-              <Text style={styles.submitBtnText}>Create User</Text>
+            <TouchableOpacity
+              style={[styles.submitBtn, isSubmitting && styles.buttonDisabled]}
+              onPress={handleAddUser}
+              disabled={isSubmitting}
+            >
+              {isSubmitting ? <ActivityIndicator color="#FFF" /> : <Text style={styles.submitBtnText}>Create User</Text>}
             </TouchableOpacity>
+          </View>
+        </TouchableOpacity>
+      </Modal>
+
+      <Modal visible={showEditModal} transparent animationType="slide">
+        <TouchableOpacity style={styles.modalOverlay} activeOpacity={1} onPress={() => setShowEditModal(false)}>
+          <View style={styles.modalSheet} onStartShouldSetResponder={() => true}>
+            <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+              <Text style={styles.modalTitle}>Edit User</Text>
+
+              <Text style={styles.formLabel}>Full Name</Text>
+              <View style={styles.inputBox}>
+                <TextInput
+                  style={styles.textInput}
+                  placeholder="e.g. John Doe"
+                  placeholderTextColor={Colors.textSecondary}
+                  value={editForm.name}
+                  onChangeText={(value) => setEditForm((prev) => ({ ...prev, name: value }))}
+                />
+              </View>
+
+              <Text style={styles.formLabel}>Email</Text>
+              <View style={styles.inputBox}>
+                <TextInput
+                  style={styles.textInput}
+                  placeholder="john@example.com"
+                  placeholderTextColor={Colors.textSecondary}
+                  value={editForm.email}
+                  autoCapitalize="none"
+                  keyboardType="email-address"
+                  onChangeText={(value) => setEditForm((prev) => ({ ...prev, email: value }))}
+                />
+              </View>
+
+              <Text style={styles.formLabel}>Phone</Text>
+              <View style={styles.inputBox}>
+                <TextInput
+                  style={styles.textInput}
+                  placeholder="9876500001"
+                  placeholderTextColor={Colors.textSecondary}
+                  value={editForm.phone}
+                  keyboardType="phone-pad"
+                  onChangeText={(value) => setEditForm((prev) => ({ ...prev, phone: value }))}
+                />
+              </View>
+
+              <Text style={styles.formLabel}>Role</Text>
+              <View style={styles.roleToggleRow}>
+                {(['Farmer', 'Supervisor'] as Role[]).map((role) => (
+                  <TouchableOpacity
+                    key={role}
+                    style={[styles.roleToggle, editForm.role === role && styles.roleToggleActive]}
+                    onPress={() => setEditForm((prev) => ({ ...prev, role }))}
+                  >
+                    <Text style={[styles.roleToggleText, editForm.role === role && styles.roleToggleTextActive]}>
+                      {role}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+
+              <Text style={styles.formLabel}>Status</Text>
+              <View style={styles.roleToggleRow}>
+                {(['Active', 'Invited', 'Inactive'] as Status[]).map((status) => (
+                  <TouchableOpacity
+                    key={status}
+                    style={[styles.roleToggle, editForm.status === status && styles.roleToggleActive]}
+                    onPress={() => setEditForm((prev) => ({ ...prev, status }))}
+                  >
+                    <Text
+                      style={[
+                        styles.roleToggleText,
+                        editForm.status === status && styles.roleToggleTextActive,
+                      ]}
+                    >
+                      {status}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+
+              <Text style={styles.helperText}>
+                Status is saved through the dedicated user status endpoint.
+              </Text>
+
+              <TouchableOpacity
+                style={[styles.submitBtn, isSavingEdit && styles.buttonDisabled]}
+                onPress={handleUpdateUser}
+                disabled={isSavingEdit}
+              >
+                {isSavingEdit ? (
+                  <ActivityIndicator color="#FFF" />
+                ) : (
+                  <Text style={styles.submitBtnText}>Update User</Text>
+                )}
+              </TouchableOpacity>
+            </ScrollView>
           </View>
         </TouchableOpacity>
       </Modal>
@@ -297,11 +584,8 @@ export default function UserManagementScreen() {
   );
 }
 
-// ─── Styles ───────────────────────────────────────────────────────────────────
 const styles = StyleSheet.create({
-  safeArea: {
-    flex: 1,
-    backgroundColor: '#F4F5F7',  },
+  safeArea: { flex: 1, backgroundColor: '#F4F5F7' },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -313,10 +597,7 @@ const styles = StyleSheet.create({
   },
   backBtn: { marginRight: 14 },
   headerTitle: { fontSize: 18, fontWeight: 'bold', color: Colors.text },
-
   container: { padding: Layout.spacing.lg },
-
-  // Tabs
   tabsRow: { flexDirection: 'row', gap: 10, marginBottom: 18, paddingRight: 8 },
   tab: {
     paddingHorizontal: 18,
@@ -329,8 +610,15 @@ const styles = StyleSheet.create({
   tabActive: { backgroundColor: Colors.primary, borderColor: Colors.primary },
   tabLabel: { fontSize: 13, fontWeight: '600', color: Colors.text },
   tabLabelActive: { color: '#FFF' },
-
-  // Stats
+  errorText: {
+    marginBottom: 12,
+    padding: 12,
+    borderRadius: 10,
+    backgroundColor: '#FFF4F4',
+    color: Colors.tertiary,
+    borderWidth: 1,
+    borderColor: '#FECACA',
+  },
   statsRow: { flexDirection: 'row', marginBottom: 16 },
   statsCard: {
     flex: 1,
@@ -343,8 +631,6 @@ const styles = StyleSheet.create({
   },
   statsLabel: { fontSize: 13, color: Colors.textSecondary, marginBottom: 4 },
   statsValue: { fontSize: 22, fontWeight: 'bold', color: Colors.primary },
-
-  // Add Button
   addBtn: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -361,8 +647,6 @@ const styles = StyleSheet.create({
     shadowRadius: 6,
   },
   addBtnText: { color: '#FFF', fontSize: 15, fontWeight: '700' },
-
-  // Section label
   sectionLabel: {
     fontSize: 11,
     fontWeight: '700',
@@ -370,8 +654,8 @@ const styles = StyleSheet.create({
     letterSpacing: 0.8,
     marginBottom: 12,
   },
-
-  // User Card
+  loadingState: { alignItems: 'center', paddingVertical: 40, gap: 8 },
+  loadingText: { color: Colors.textSecondary, fontSize: 13 },
   userCard: {
     backgroundColor: '#FFF',
     borderRadius: 14,
@@ -383,8 +667,6 @@ const styles = StyleSheet.create({
   },
   userCardInactive: { opacity: 0.75 },
   cardTop: { flexDirection: 'row', alignItems: 'center', marginBottom: 12 },
-
-  // Avatar
   avatar: {
     width: 46,
     height: 46,
@@ -396,8 +678,6 @@ const styles = StyleSheet.create({
   },
   avatarInactive: { backgroundColor: '#F3F4F6' },
   avatarInitials: { fontSize: 15, fontWeight: 'bold', color: Colors.primary },
-
-  // Name + Role
   nameBlock: { flex: 1 },
   userName: { fontSize: 16, fontWeight: '700', color: Colors.text, marginBottom: 4 },
   textFaded: { color: Colors.textSecondary },
@@ -408,29 +688,24 @@ const styles = StyleSheet.create({
     borderRadius: 20,
   },
   roleText: { fontSize: 10, fontWeight: '800', letterSpacing: 0.6 },
-
   actionIcon: { padding: 4 },
-
   cardDivider: { height: 1, backgroundColor: Colors.border, marginBottom: 12 },
-
   cardBottom: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' },
-  infoLabel: { fontSize: 10, fontWeight: '700', color: Colors.textSecondary, letterSpacing: 0.6, marginBottom: 4 },
+  infoLabel: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: Colors.textSecondary,
+    letterSpacing: 0.6,
+    marginBottom: 4,
+  },
   infoValue: { fontSize: 14, fontWeight: '600', color: Colors.text },
   statusBlock: { alignItems: 'flex-end' },
   statusRow: { flexDirection: 'row', alignItems: 'center', gap: 5 },
   statusDot: { width: 8, height: 8, borderRadius: 4 },
   statusText: { fontSize: 13, fontWeight: '600' },
-
-  // Empty State
   emptyState: { alignItems: 'center', paddingVertical: 40, gap: 8 },
   emptyText: { fontSize: 14, color: Colors.textSecondary },
-
-  // Modal
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.4)',
-    justifyContent: 'flex-end',
-  },
+  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'flex-end' },
   modalSheet: {
     backgroundColor: '#FFF',
     borderTopLeftRadius: 24,
@@ -464,6 +739,12 @@ const styles = StyleSheet.create({
   roleToggleActive: { backgroundColor: Colors.primary, borderColor: Colors.primary },
   roleToggleText: { fontSize: 14, fontWeight: '600', color: Colors.text },
   roleToggleTextActive: { color: '#FFF' },
+  helperText: {
+    marginTop: 10,
+    fontSize: 12,
+    lineHeight: 16,
+    color: Colors.textSecondary,
+  },
   submitBtn: {
     backgroundColor: Colors.primary,
     height: 50,
@@ -472,5 +753,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginTop: 20,
   },
+  buttonDisabled: { opacity: 0.75 },
   submitBtnText: { color: '#FFF', fontSize: 15, fontWeight: '700' },
 });

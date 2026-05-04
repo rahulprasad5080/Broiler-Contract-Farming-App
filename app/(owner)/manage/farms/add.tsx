@@ -1,161 +1,782 @@
-import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
+import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
+import React, { useEffect, useState } from 'react';
+import {
+  ActivityIndicator,
+  Modal,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Colors } from '@/constants/Colors';
 import { Layout } from '@/constants/Layout';
-import { Ionicons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
+import { useAuth } from '@/context/AuthContext';
+import { createFarm, listAllUsers, type ApiUser } from '@/services/managementApi';
+
+type AssignmentField = 'primaryFarmerId' | 'supervisorId' | 'assignmentUserIds';
+type PickerRoleFilter = 'all' | 'farmers' | 'supervisors' | 'staff';
+
+type FarmUserOption = {
+  id: string;
+  name: string;
+  email: string;
+  phone: string;
+  role: ApiUser['role'];
+  status: ApiUser['status'];
+};
+
+function normalizeUserOption(user: ApiUser): FarmUserOption {
+  return {
+    id: user.id,
+    name: user.name,
+    email: user.email ?? '',
+    phone: user.phone ?? '',
+    role: user.role,
+    status: user.status,
+  };
+}
+
+function getUserInitials(name: string) {
+  return name
+    .split(' ')
+    .filter(Boolean)
+    .map((part) => part[0])
+    .join('')
+    .toUpperCase()
+    .slice(0, 2);
+}
+
+function getRoleLabel(role: ApiUser['role']) {
+  if (role === 'OWNER') return 'Owner';
+  if (role === 'SUPERVISOR') return 'Supervisor';
+  return 'Farmer';
+}
+
+function getRoleAccent(role: ApiUser['role']) {
+  if (role === 'SUPERVISOR') return Colors.tertiary;
+  if (role === 'OWNER') return '#2563EB';
+  return Colors.primary;
+}
+
+function generateFarmCode(name: string) {
+  const slug = name
+    .trim()
+    .toUpperCase()
+    .replace(/[^A-Z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 10);
+
+  return `FARM-${slug || 'NEW'}-${Date.now().toString().slice(-4)}`;
+}
 
 export default function AddFarmScreen() {
   const router = useRouter();
+  const { accessToken } = useAuth();
 
-  // Basic mock save handler
-  const handleSave = () => {
-    // Save to DB via Node.js API here
-    router.back();
+  const [farmName, setFarmName] = useState('');
+  const [farmCode, setFarmCode] = useState(generateFarmCode(''));
+  const [location, setLocation] = useState('');
+  const [village, setVillage] = useState('');
+  const [district, setDistrict] = useState('');
+  const [state, setState] = useState('');
+  const [capacity, setCapacity] = useState('5000');
+  const [notes, setNotes] = useState('');
+  const [primaryFarmerId, setPrimaryFarmerId] = useState('');
+  const [supervisorId, setSupervisorId] = useState('');
+  const [assignmentUserIds, setAssignmentUserIds] = useState<string[]>([]);
+  const [users, setUsers] = useState<FarmUserOption[]>([]);
+  const [showAssignmentPicker, setShowAssignmentPicker] = useState(false);
+  const [assignmentField, setAssignmentField] = useState<AssignmentField | null>(null);
+  const [assignmentSearch, setAssignmentSearch] = useState('');
+  const [assignmentRoleFilter, setAssignmentRoleFilter] = useState<PickerRoleFilter>('all');
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const loadUsers = async () => {
+    if (!accessToken) {
+      setError('Missing access token. Please sign in again.');
+      setIsLoading(false);
+      return;
+    }
+
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      const response = await listAllUsers(accessToken);
+      setUsers(response.data.map(normalizeUserOption));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to load users.');
+    } finally {
+      setIsLoading(false);
+    }
   };
+
+  useEffect(() => {
+    loadUsers();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [accessToken]);
+
+  useEffect(() => {
+    if (!farmName.trim()) {
+      setFarmCode(generateFarmCode(''));
+      return;
+    }
+
+    setFarmCode(generateFarmCode(farmName));
+  }, [farmName]);
+
+  const roleFilterOptions: { key: PickerRoleFilter; label: string }[] = [
+    { key: 'all', label: 'All' },
+    { key: 'farmers', label: 'Farmers' },
+    { key: 'supervisors', label: 'Supervisors' },
+    { key: 'staff', label: 'Staff' },
+  ];
+
+  const filteredUsers = users.filter((user) => {
+    const query = assignmentSearch.trim().toLowerCase();
+    if (!query) return true;
+
+    return [user.name, user.email, user.phone, user.role, user.status]
+      .filter(Boolean)
+      .join(' ')
+      .toLowerCase()
+      .includes(query);
+  });
+
+  const roleFilteredUsers = filteredUsers.filter((user) => {
+    if (assignmentRoleFilter === 'all') return true;
+    if (assignmentRoleFilter === 'farmers') return user.role === 'FARMER';
+    if (assignmentRoleFilter === 'supervisors') return user.role === 'SUPERVISOR';
+    return user.role === 'FARMER' || user.role === 'SUPERVISOR';
+  });
+
+  const openAssignmentPicker = (field: AssignmentField) => {
+    setAssignmentField(field);
+    setAssignmentSearch('');
+    setAssignmentRoleFilter(
+      field === 'primaryFarmerId' ? 'farmers' : field === 'supervisorId' ? 'supervisors' : 'staff',
+    );
+    setShowAssignmentPicker(true);
+  };
+
+  const closeAssignmentPicker = () => {
+    setShowAssignmentPicker(false);
+    setAssignmentField(null);
+    setAssignmentSearch('');
+    setAssignmentRoleFilter('all');
+  };
+
+  const getUserLabel = (userId: string) => users.find((user) => user.id === userId)?.name ?? userId;
+
+  const getUserOption = (userId: string) => users.find((user) => user.id === userId) ?? null;
+
+  const handlePickUser = (userId: string) => {
+    if (!assignmentField) return;
+
+    if (assignmentField === 'assignmentUserIds') {
+      setAssignmentUserIds((prev) =>
+        prev.includes(userId) ? prev.filter((id) => id !== userId) : [...prev, userId],
+      );
+      return;
+    }
+
+    if (assignmentField === 'primaryFarmerId') {
+      setPrimaryFarmerId(userId);
+    } else if (assignmentField === 'supervisorId') {
+      setSupervisorId(userId);
+    }
+
+    closeAssignmentPicker();
+  };
+
+  const handleCreateFarm = async () => {
+    if (!accessToken || !farmName.trim()) {
+      return;
+    }
+
+    setIsSubmitting(true);
+    setError(null);
+
+    try {
+      const parsedCapacity = Number(capacity);
+
+      await createFarm(accessToken, {
+        name: farmName.trim(),
+        code: farmCode.trim(),
+        location: location.trim() || undefined,
+        village: village.trim() || undefined,
+        district: district.trim() || undefined,
+        state: state.trim() || undefined,
+        capacity: Number.isFinite(parsedCapacity) && parsedCapacity > 0 ? parsedCapacity : undefined,
+        notes: notes.trim() || undefined,
+        primaryFarmerId: primaryFarmerId || undefined,
+        supervisorId: supervisorId || undefined,
+        assignmentUserIds: assignmentUserIds.length ? assignmentUserIds : undefined,
+      });
+
+      setFarmName('');
+      setFarmCode(generateFarmCode(''));
+      setLocation('');
+      setVillage('');
+      setDistrict('');
+      setState('');
+      setCapacity('5000');
+      setNotes('');
+      setPrimaryFarmerId('');
+      setSupervisorId('');
+      setAssignmentUserIds([]);
+      router.back();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to create farm.');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const pickerTitle =
+    assignmentField === 'primaryFarmerId'
+      ? 'Select Primary Farmer'
+      : assignmentField === 'supervisorId'
+        ? 'Select Supervisor'
+        : 'Select Assigned Staff';
 
   return (
     <SafeAreaView style={styles.safeArea}>
       <View style={styles.header}>
         <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-          <Ionicons name="arrow-back" size={24} color={Colors.text} />
+          <Ionicons name="arrow-back" size={24} color={Colors.primary} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Add New Farm</Text>
       </View>
-      
-      <ScrollView contentContainerStyle={styles.container}>
+
+      <ScrollView
+        contentContainerStyle={styles.container}
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+      >
+        <Text style={styles.pageTitle}>Create Farm</Text>
+        <Text style={styles.pageSubtitle}>Set up farm details and assign staff in one place.</Text>
+
+        {error ? <Text style={styles.errorText}>{error}</Text> : null}
+
         <View style={styles.card}>
           <Text style={styles.sectionTitle}>Farm Details</Text>
-          
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Farm Name *</Text>
-            {/* Ideally we use react-hook-form here like in login */}
-            <View style={styles.inputMock}>
-              <Text style={styles.placeholder}>e.g., Green Valley Farm</Text>
+
+          <Text style={styles.label}>Farm Name *</Text>
+          <View style={styles.inputBox}>
+            <TextInput
+              style={styles.textInput}
+              placeholder="e.g., Green Valley Farm"
+              placeholderTextColor={Colors.textSecondary}
+              value={farmName}
+              onChangeText={setFarmName}
+            />
+          </View>
+
+          <Text style={styles.label}>Farm Code *</Text>
+          <View style={styles.inputBox}>
+            <TextInput
+              style={styles.textInput}
+              placeholder="Auto-generated"
+              placeholderTextColor={Colors.textSecondary}
+              value={farmCode}
+              editable={false}
+            />
+          </View>
+          <Text style={styles.helperText}>The code is generated from the farm name and can be saved as-is.</Text>
+
+          <View style={styles.formRow}>
+            <View style={styles.formHalf}>
+              <Text style={styles.label}>Capacity</Text>
+              <View style={styles.inputBox}>
+                <TextInput
+                  style={styles.textInput}
+                  placeholder="5000"
+                  placeholderTextColor={Colors.textSecondary}
+                  value={capacity}
+                  onChangeText={setCapacity}
+                  keyboardType="numeric"
+                />
+              </View>
+            </View>
+            <View style={[styles.formHalf, !Layout.isSmallDevice && { marginLeft: 12 }]}>
+              <Text style={styles.label}>State</Text>
+              <View style={styles.inputBox}>
+                <TextInput
+                  style={styles.textInput}
+                  placeholder="Madhya Pradesh"
+                  placeholderTextColor={Colors.textSecondary}
+                  value={state}
+                  onChangeText={setState}
+                />
+              </View>
             </View>
           </View>
 
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Location / Block *</Text>
-            <View style={styles.inputMock}>
-              <Text style={styles.placeholder}>e.g., North Block</Text>
+          <Text style={styles.label}>Location</Text>
+          <View style={styles.inputBox}>
+            <TextInput
+              style={styles.textInput}
+              placeholder="Near Main Road"
+              placeholderTextColor={Colors.textSecondary}
+              value={location}
+              onChangeText={setLocation}
+            />
+          </View>
+
+          <View style={styles.formRow}>
+            <View style={styles.formHalf}>
+              <Text style={styles.label}>Village</Text>
+              <View style={styles.inputBox}>
+                <TextInput
+                  style={styles.textInput}
+                  placeholder="Rampura"
+                  placeholderTextColor={Colors.textSecondary}
+                  value={village}
+                  onChangeText={setVillage}
+                />
+              </View>
+            </View>
+            <View style={[styles.formHalf, !Layout.isSmallDevice && { marginLeft: 12 }]}>
+              <Text style={styles.label}>District</Text>
+              <View style={styles.inputBox}>
+                <TextInput
+                  style={styles.textInput}
+                  placeholder="Indore"
+                  placeholderTextColor={Colors.textSecondary}
+                  value={district}
+                  onChangeText={setDistrict}
+                />
+              </View>
             </View>
           </View>
 
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Total Capacity (Birds) *</Text>
-            <View style={styles.inputMock}>
-              <Text style={styles.placeholder}>e.g., 5000</Text>
-            </View>
+          <Text style={styles.label}>Notes</Text>
+          <View style={[styles.inputBox, styles.textAreaBox]}>
+            <TextInput
+              style={[styles.textInput, styles.textArea]}
+              placeholder="Optional notes"
+              placeholderTextColor={Colors.textSecondary}
+              value={notes}
+              onChangeText={setNotes}
+              multiline
+            />
           </View>
         </View>
 
         <View style={styles.card}>
-          <Text style={styles.sectionTitle}>Assign Staff</Text>
-          
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Supervisor</Text>
-            <View style={[styles.inputMock, styles.dropdownMock]}>
-              <Text style={styles.placeholder}>Select Supervisor</Text>
-              <Ionicons name="chevron-down" size={20} color={Colors.textSecondary} />
-            </View>
-          </View>
+          <Text style={styles.sectionTitle}>Assignments</Text>
 
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Farmer</Text>
-            <View style={[styles.inputMock, styles.dropdownMock]}>
-              <Text style={styles.placeholder}>Select Farmer</Text>
-              <Ionicons name="chevron-down" size={20} color={Colors.textSecondary} />
+          <TouchableOpacity style={styles.selectorRow} onPress={() => openAssignmentPicker('primaryFarmerId')}>
+            <View style={styles.selectorTextWrap}>
+              <Text style={styles.selectorLabel}>Primary Farmer</Text>
+              <Text style={[styles.selectorValue, !primaryFarmerId && styles.selectorPlaceholder]}>
+                {primaryFarmerId ? getUserLabel(primaryFarmerId) : 'Search and select a primary farmer'}
+              </Text>
             </View>
-          </View>
+            <Ionicons name="search-outline" size={18} color={Colors.textSecondary} />
+          </TouchableOpacity>
+
+          <TouchableOpacity style={styles.selectorRow} onPress={() => openAssignmentPicker('supervisorId')}>
+            <View style={styles.selectorTextWrap}>
+              <Text style={styles.selectorLabel}>Supervisor</Text>
+              <Text style={[styles.selectorValue, !supervisorId && styles.selectorPlaceholder]}>
+                {supervisorId ? getUserLabel(supervisorId) : 'Search and select a supervisor'}
+              </Text>
+            </View>
+            <Ionicons name="search-outline" size={18} color={Colors.textSecondary} />
+          </TouchableOpacity>
+
+          <TouchableOpacity style={styles.selectorRow} onPress={() => openAssignmentPicker('assignmentUserIds')}>
+            <View style={styles.selectorTextWrap}>
+              <Text style={styles.selectorLabel}>Assigned Staff</Text>
+              <Text
+                style={[
+                  styles.selectorValue,
+                  !assignmentUserIds.length && styles.selectorPlaceholder,
+                ]}
+              >
+                {assignmentUserIds.length
+                  ? `${assignmentUserIds.length} user(s) selected`
+                  : 'Search and select staff members'}
+              </Text>
+            </View>
+            <Ionicons name="people-outline" size={18} color={Colors.textSecondary} />
+          </TouchableOpacity>
+
+          {assignmentUserIds.length ? (
+            <View style={styles.chipWrap}>
+              {assignmentUserIds.map((userId) => {
+                const option = getUserOption(userId);
+                return (
+                  <View key={userId} style={styles.chip}>
+                    <View style={styles.avatarMini}>
+                      <Text style={styles.avatarMiniText}>{getUserInitials(getUserLabel(userId))}</Text>
+                    </View>
+                    <View style={styles.chipBody}>
+                      <Text style={styles.chipText}>{getUserLabel(userId)}</Text>
+                      {option ? (
+                        <View style={[styles.rolePill, { backgroundColor: `${getRoleAccent(option.role)}1A` }]}>
+                          <Text style={[styles.rolePillText, { color: getRoleAccent(option.role) }]}>
+                            {getRoleLabel(option.role)}
+                          </Text>
+                        </View>
+                      ) : null}
+                    </View>
+                    <TouchableOpacity
+                      style={styles.chipRemoveBtn}
+                      onPress={() => setAssignmentUserIds((prev) => prev.filter((id) => id !== userId))}
+                    >
+                      <Ionicons name="close" size={14} color={Colors.primary} />
+                    </TouchableOpacity>
+                  </View>
+                );
+              })}
+            </View>
+          ) : null}
         </View>
 
-        <TouchableOpacity style={styles.saveButton} onPress={handleSave}>
-          <Text style={styles.saveButtonText}>Save Farm</Text>
+        <TouchableOpacity
+          style={[styles.saveButton, isSubmitting && styles.buttonDisabled]}
+          onPress={handleCreateFarm}
+          disabled={isSubmitting}
+        >
+          {isSubmitting ? (
+            <ActivityIndicator color="#FFF" />
+          ) : (
+            <>
+              <MaterialCommunityIcons name="content-save-outline" size={18} color="#FFF" />
+              <Text style={styles.saveButtonText}>Create Farm Record</Text>
+            </>
+          )}
         </TouchableOpacity>
       </ScrollView>
+
+      <Modal visible={showAssignmentPicker} transparent animationType="slide">
+        <TouchableOpacity style={styles.modalOverlay} onPress={closeAssignmentPicker} activeOpacity={1}>
+          <View style={styles.pickerSheet} onStartShouldSetResponder={() => true}>
+            <Text style={styles.modalTitle}>{pickerTitle}</Text>
+
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterRow}>
+              {roleFilterOptions.map((option) => (
+                <TouchableOpacity
+                  key={option.key}
+                  style={[
+                    styles.filterChip,
+                    assignmentRoleFilter === option.key && styles.filterChipActive,
+                  ]}
+                  onPress={() => setAssignmentRoleFilter(option.key)}
+                >
+                  <Text
+                    style={[
+                      styles.filterChipText,
+                      assignmentRoleFilter === option.key && styles.filterChipTextActive,
+                    ]}
+                  >
+                    {option.label}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+
+            <View style={styles.searchBox}>
+              <Ionicons name="search-outline" size={18} color={Colors.textSecondary} />
+              <TextInput
+                style={styles.searchInput}
+                placeholder="Search by name, phone, email..."
+                placeholderTextColor={Colors.textSecondary}
+                value={assignmentSearch}
+                onChangeText={setAssignmentSearch}
+              />
+            </View>
+
+            <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+              {isLoading ? (
+                <View style={styles.loadingState}>
+                  <ActivityIndicator color={Colors.primary} />
+                  <Text style={styles.loadingText}>Loading users...</Text>
+                </View>
+              ) : roleFilteredUsers.length ? (
+                roleFilteredUsers.map((user) => {
+                  const selected =
+                    assignmentField === 'assignmentUserIds'
+                      ? assignmentUserIds.includes(user.id)
+                      : assignmentField === 'primaryFarmerId'
+                        ? primaryFarmerId === user.id
+                        : supervisorId === user.id;
+
+                  return (
+                    <TouchableOpacity
+                      key={user.id}
+                      style={[styles.userOption, selected && styles.userOptionSelected]}
+                      onPress={() => handlePickUser(user.id)}
+                    >
+                      <View style={styles.optionAvatar}>
+                        <Text style={styles.optionAvatarText}>{getUserInitials(user.name)}</Text>
+                      </View>
+                      <View style={styles.userOptionTextWrap}>
+                        <View style={styles.userOptionHeader}>
+                          <Text style={styles.userOptionName}>{user.name}</Text>
+                          <View
+                            style={[
+                              styles.rolePill,
+                              { backgroundColor: `${getRoleAccent(user.role)}1A` },
+                            ]}
+                          >
+                            <Text style={[styles.rolePillText, { color: getRoleAccent(user.role) }]}>
+                              {getRoleLabel(user.role)}
+                            </Text>
+                          </View>
+                        </View>
+                        <Text style={styles.userOptionMeta}>
+                          {[user.status, user.phone || user.email].filter(Boolean).join(' • ')}
+                        </Text>
+                      </View>
+                      <View style={[styles.checkbox, selected && styles.checkboxSelected]}>
+                        {selected ? <Ionicons name="checkmark" size={14} color="#FFF" /> : null}
+                      </View>
+                    </TouchableOpacity>
+                  );
+                })
+              ) : (
+                <View style={styles.emptyPickerState}>
+                  <MaterialCommunityIcons name="account-search-outline" size={40} color={Colors.border} />
+                  <Text style={styles.emptyText}>No matching users</Text>
+                </View>
+              )}
+            </ScrollView>
+
+            {assignmentField === 'assignmentUserIds' ? (
+              <TouchableOpacity style={styles.doneButton} onPress={closeAssignmentPicker}>
+                <Text style={styles.doneButtonText}>Done</Text>
+              </TouchableOpacity>
+            ) : null}
+          </View>
+        </TouchableOpacity>
+      </Modal>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  safeArea: {
-    flex: 1,
-    backgroundColor: '#F9FAFB',  },
+  safeArea: { flex: 1, backgroundColor: '#F4F5F7' },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: Layout.spacing.lg,
+    paddingHorizontal: Layout.spacing.lg,
+    paddingVertical: 14,
     backgroundColor: '#FFF',
     borderBottomWidth: 1,
     borderBottomColor: Colors.border,
   },
-  backButton: {
-    marginRight: 16,
-  },
-  headerTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: Colors.text,
-  },
+  backButton: { marginRight: 14 },
+  headerTitle: { fontSize: 18, fontWeight: 'bold', color: Colors.primary },
   container: {
-    padding: Layout.spacing.lg,
-    paddingBottom: 40,
+    padding: Layout.screenPadding,
+    alignSelf: 'center',
+    width: '100%',
+    maxWidth: Layout.contentMaxWidth,
+    paddingBottom: 120,
+  },
+  pageTitle: { fontSize: 22, fontWeight: 'bold', color: Colors.text, marginBottom: 4 },
+  pageSubtitle: { fontSize: 13, color: Colors.textSecondary, marginBottom: 16, lineHeight: 18 },
+  errorText: {
+    marginBottom: 12,
+    padding: 12,
+    borderRadius: 10,
+    backgroundColor: '#FFF4F4',
+    color: Colors.tertiary,
+    borderWidth: 1,
+    borderColor: '#FECACA',
   },
   card: {
     backgroundColor: '#FFF',
-    borderRadius: 12,
+    borderRadius: 14,
     padding: 16,
-    marginBottom: Layout.spacing.lg,
+    marginBottom: 16,
     borderWidth: 1,
     borderColor: Colors.border,
     ...Layout.cardShadow,
   },
-  sectionTitle: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: Colors.primary,
-    marginBottom: 16,
-  },
-  inputGroup: {
-    marginBottom: 16,
-  },
-  label: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: Colors.text,
-    marginBottom: 8,
-  },
-  inputMock: {
-    height: 48,
+  sectionTitle: { fontSize: 16, fontWeight: 'bold', color: Colors.primary, marginBottom: 14 },
+  label: { fontSize: 13, fontWeight: '600', color: Colors.text, marginBottom: 6, marginTop: 12 },
+  inputBox: {
+    height: 46,
     borderWidth: 1,
     borderColor: Colors.border,
-    borderRadius: 8,
+    borderRadius: 9,
     paddingHorizontal: 12,
     justifyContent: 'center',
     backgroundColor: '#F9FAFB',
   },
-  placeholder: {
+  textInput: { fontSize: 14, color: Colors.text, padding: 0 },
+  formRow: { flexDirection: Layout.isSmallDevice ? 'column' : 'row', gap: Layout.isSmallDevice ? 0 : undefined },
+  formHalf: { flex: 1 },
+  textAreaBox: { height: 84, paddingVertical: 10, alignItems: 'flex-start' },
+  textArea: { textAlignVertical: 'top' },
+  helperText: {
+    marginTop: 6,
+    fontSize: 12,
+    lineHeight: 16,
     color: Colors.textSecondary,
-    fontSize: 14,
   },
-  dropdownMock: {
+  selectorRow: {
+    minHeight: 48,
     flexDirection: 'row',
+    alignItems: 'center',
     justifyContent: 'space-between',
+    borderWidth: 1,
+    borderColor: Colors.border,
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    backgroundColor: '#FAFAFA',
+    marginTop: 10,
+  },
+  selectorTextWrap: { flex: 1, paddingRight: 12 },
+  selectorLabel: { fontSize: 11, fontWeight: '700', color: Colors.textSecondary, marginBottom: 2 },
+  selectorValue: { fontSize: 14, color: Colors.text, fontWeight: '600' },
+  selectorPlaceholder: { color: Colors.textSecondary, fontWeight: '500' },
+  chipWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 12 },
+  chip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    borderRadius: 999,
+    backgroundColor: '#E8F5E9',
+  },
+  chipBody: { flexDirection: 'column' },
+  avatarMini: {
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    backgroundColor: Colors.primary,
+    justifyContent: 'center',
     alignItems: 'center',
   },
+  avatarMiniText: { color: '#FFF', fontSize: 10, fontWeight: '800' },
+  chipText: { fontSize: 12, fontWeight: '700', color: Colors.primary, lineHeight: 14 },
+  chipRemoveBtn: { marginLeft: 2 },
+  rolePill: {
+    alignSelf: 'flex-start',
+    marginTop: 2,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 999,
+  },
+  rolePillText: { fontSize: 9, fontWeight: '800', letterSpacing: 0.3 },
   saveButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
     backgroundColor: Colors.primary,
     height: 54,
     borderRadius: 12,
+    marginBottom: 8,
+  },
+  buttonDisabled: { opacity: 0.75 },
+  saveButtonText: { color: '#FFF', fontSize: 16, fontWeight: 'bold' },
+  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'flex-end' },
+  pickerSheet: {
+    backgroundColor: '#FFF',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    padding: 20,
+    paddingBottom: 24,
+    maxHeight: '88%',
+  },
+  modalTitle: { fontSize: 18, fontWeight: 'bold', color: Colors.text, marginBottom: 16 },
+  filterRow: { gap: 8, paddingBottom: 12 },
+  filterChip: {
+    borderWidth: 1,
+    borderColor: Colors.border,
+    borderRadius: 999,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    backgroundColor: '#FAFAFA',
+    marginRight: 8,
+  },
+  filterChipActive: { backgroundColor: Colors.primary, borderColor: Colors.primary },
+  filterChipText: { fontSize: 12, fontWeight: '700', color: Colors.text },
+  filterChipTextActive: { color: '#FFF' },
+  searchBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFF',
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    paddingHorizontal: 12,
+    height: 44,
+    gap: 8,
+    marginBottom: 12,
+    ...Layout.cardShadow,
+  },
+  searchInput: { flex: 1, fontSize: 14, color: Colors.text, padding: 0 },
+  loadingState: { alignItems: 'center', paddingVertical: 30, gap: 8 },
+  loadingText: { color: Colors.textSecondary, fontSize: 13 },
+  userOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 12,
+    paddingHorizontal: 12,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    borderRadius: 12,
+    marginBottom: 10,
+    backgroundColor: '#FAFAFA',
+  },
+  userOptionSelected: {
+    borderColor: Colors.primary,
+    backgroundColor: '#F1F8F4',
+  },
+  optionAvatar: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#E8F5E9',
     justifyContent: 'center',
     alignItems: 'center',
-    marginTop: 8,
+    marginRight: 12,
   },
-  saveButtonText: {
-    color: '#FFF',
-    fontSize: 16,
-    fontWeight: 'bold',
-  }
+  optionAvatarText: { fontSize: 13, fontWeight: '800', color: Colors.primary },
+  userOptionTextWrap: { flex: 1, paddingRight: 12 },
+  userOptionHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
+  userOptionName: { fontSize: 14, fontWeight: '700', color: Colors.text },
+  userOptionMeta: { marginTop: 3, fontSize: 12, color: Colors.textSecondary },
+  checkbox: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#FFF',
+  },
+  checkboxSelected: {
+    backgroundColor: Colors.primary,
+    borderColor: Colors.primary,
+  },
+  emptyPickerState: { alignItems: 'center', paddingVertical: 30, gap: 8 },
+  emptyText: { fontSize: 14, color: Colors.textSecondary },
+  doneButton: {
+    marginTop: 10,
+    backgroundColor: Colors.primary,
+    height: 48,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  doneButtonText: { color: '#FFF', fontSize: 15, fontWeight: '700' },
 });

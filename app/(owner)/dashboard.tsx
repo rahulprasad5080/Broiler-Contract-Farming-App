@@ -1,11 +1,22 @@
-import React from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import {
+  ActivityIndicator,
+  Modal,
+  ScrollView,
+  StyleSheet,
+  Switch,
+  Text,
+  TouchableOpacity,
+  View,
+  TextInput,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '../../context/AuthContext';
 import { Colors } from '../../constants/Colors';
 import { Layout } from '../../constants/Layout';
 import { Ionicons, MaterialCommunityIcons, FontAwesome5 } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
+import { listAllUsers, updateUserStatus, type ApiUser } from '@/services/managementApi';
 
 type PortalItem = {
   label: string;
@@ -14,12 +25,33 @@ type PortalItem = {
   route: string | null;
 };
 
+type QuickUser = {
+  id: string;
+  name: string;
+  role: ApiUser['role'];
+  email?: string | null;
+  phone?: string | null;
+  status: ApiUser['status'];
+};
+
 export default function OwnerDashboard() {
-  const { hasPermission } = useAuth();
+  const { hasPermission, user, accessToken } = useAuth();
   const router = useRouter();
+  const [showSettingsPanel, setShowSettingsPanel] = useState(false);
+  const [users, setUsers] = useState<QuickUser[]>([]);
+  const [userSearch, setUserSearch] = useState('');
+  const [loadingUsers, setLoadingUsers] = useState(false);
+  const [savingUserId, setSavingUserId] = useState<string | null>(null);
+  const [settingsError, setSettingsError] = useState<string | null>(null);
+  const initials = (user?.name ?? "Owner")
+    .split(" ")
+    .map((word) => word[0])
+    .join("")
+    .slice(0, 2)
+    .toUpperCase();
 
   const portalItems: PortalItem[] = [
-    { label: 'Add Farm', icon: 'warehouse', provider: FontAwesome5, route: '/(owner)/manage/farms' },
+    { label: 'Add Farm', icon: 'warehouse', provider: FontAwesome5, route: '/(owner)/manage/farms/add' },
     { label: 'New Batch', icon: 'file-medical', provider: FontAwesome5, route: '/(owner)/manage/batches' },
     { label: 'Inventory', icon: 'box', provider: FontAwesome5, route: '/(owner)/manage/inventory' },
     ...(hasPermission('manage:partners') ? [{
@@ -33,8 +65,83 @@ export default function OwnerDashboard() {
     { label: 'Settlement', icon: 'file-invoice-dollar', provider: FontAwesome5, route: '/(owner)/manage/settlement' },
     { label: 'Reports', icon: 'chart-bar', provider: FontAwesome5, route: '/(owner)/reports' },
     { label: 'Users', icon: 'user-friends', provider: FontAwesome5, route: '/(owner)/manage/users' },
-    { label: 'Settings', icon: 'cog', provider: FontAwesome5, route: null },
+    { label: 'Settings', icon: 'cog', provider: FontAwesome5, route: 'settings' },
   ];
+
+  const loadUsers = async () => {
+    if (!accessToken) {
+      setSettingsError('Missing access token. Please sign in again.');
+      return;
+    }
+
+    setLoadingUsers(true);
+    setSettingsError(null);
+
+    try {
+      const response = await listAllUsers(accessToken);
+      setUsers(
+        response.data.map((item) => ({
+          id: item.id,
+          name: item.name,
+          role: item.role,
+          email: item.email,
+          phone: item.phone,
+          status: item.status,
+        })),
+      );
+    } catch (err) {
+      setSettingsError(err instanceof Error ? err.message : 'Failed to load users.');
+    } finally {
+      setLoadingUsers(false);
+    }
+  };
+
+  useEffect(() => {
+    if (showSettingsPanel) {
+      void loadUsers();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [showSettingsPanel, accessToken]);
+
+  const filteredUsers = users.filter((item) => {
+    const query = userSearch.trim().toLowerCase();
+    if (!query) return true;
+    return [item.name, item.email, item.phone, item.role, item.status]
+      .filter(Boolean)
+      .join(' ')
+      .toLowerCase()
+      .includes(query);
+  });
+
+  const toggleUserStatus = async (nextUser: QuickUser, active: boolean) => {
+    if (!accessToken) {
+      setSettingsError('Missing access token. Please sign in again.');
+      return;
+    }
+
+    setSavingUserId(nextUser.id);
+    setSettingsError(null);
+
+    try {
+      const nextStatus = active ? 'ACTIVE' : 'DISABLED';
+      const updated = await updateUserStatus(accessToken, nextUser.id, { status: nextStatus });
+
+      setUsers((prev) =>
+        prev.map((item) =>
+          item.id === updated.id
+            ? {
+                ...item,
+                status: updated.status,
+              }
+            : item,
+        ),
+      );
+    } catch (err) {
+      setSettingsError(err instanceof Error ? err.message : 'Failed to update user status.');
+    } finally {
+      setSavingUserId(null);
+    }
+  };
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -47,15 +154,20 @@ export default function OwnerDashboard() {
           <TouchableOpacity style={styles.iconBtn}>
             <Ionicons name="notifications-outline" size={24} color={Colors.text} />
           </TouchableOpacity>
+          <TouchableOpacity style={styles.iconBtn} onPress={() => setShowSettingsPanel(true)}>
+            <Ionicons name="settings-outline" size={24} color={Colors.text} />
+          </TouchableOpacity>
           <TouchableOpacity style={styles.profileCircle}>
-            <Text style={styles.profileInitials}>JD</Text>
+            <Text style={styles.profileInitials}>{initials}</Text>
           </TouchableOpacity>
         </View>
       </View>
 
       <ScrollView contentContainerStyle={styles.scrollContent}>
         <View style={styles.welcomeSection}>
-          <Text style={styles.welcomeText}>Welcome back, Owner</Text>
+          <Text style={styles.welcomeText}>
+            Welcome back, {user?.name?.split(" ")[0] ?? "Owner"}
+          </Text>
           <Text style={styles.sectionTitle}>Farm Overview</Text>
         </View>
 
@@ -103,7 +215,15 @@ export default function OwnerDashboard() {
             <TouchableOpacity
               key={idx}
               style={styles.portalCard}
-              onPress={() => item.route && router.push(item.route as any)}
+              onPress={() => {
+                if (item.route === 'settings') {
+                  setShowSettingsPanel(true);
+                  return;
+                }
+                if (item.route) {
+                  router.push(item.route as any);
+                }
+              }}
             >
               <View style={styles.portalIconBox}>
                 <item.provider name={item.icon} size={20} color={Colors.primary} />
@@ -156,6 +276,97 @@ export default function OwnerDashboard() {
         <Ionicons name="add" size={32} color="#FFF" />
       </TouchableOpacity>
 
+      <Modal visible={showSettingsPanel} transparent animationType="slide">
+        <TouchableOpacity
+          style={styles.modalOverlay}
+          activeOpacity={1}
+          onPress={() => setShowSettingsPanel(false)}
+        >
+          <View style={styles.settingsSheet} onStartShouldSetResponder={() => true}>
+            <View style={styles.sheetHeader}>
+              <View>
+                <Text style={styles.sheetTitle}>User Settings</Text>
+                <Text style={styles.sheetSubtitle}>Toggle active or inactive status for users.</Text>
+              </View>
+              <TouchableOpacity onPress={() => setShowSettingsPanel(false)} style={styles.closeBtn}>
+                <Ionicons name="close" size={20} color={Colors.text} />
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.searchBox}>
+              <Ionicons name="search-outline" size={18} color={Colors.textSecondary} />
+              <TextInput
+                style={styles.searchInput}
+                placeholder="Search users..."
+                placeholderTextColor={Colors.textSecondary}
+                value={userSearch}
+                onChangeText={setUserSearch}
+              />
+            </View>
+
+            {settingsError ? <Text style={styles.errorText}>{settingsError}</Text> : null}
+
+            <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+              {loadingUsers ? (
+                <View style={styles.loadingState}>
+                  <ActivityIndicator color={Colors.primary} />
+                  <Text style={styles.loadingText}>Loading users...</Text>
+                </View>
+              ) : filteredUsers.length ? (
+                filteredUsers.map((item) => {
+                  const isActive = item.status === 'ACTIVE';
+                  const isSaving = savingUserId === item.id;
+
+                  return (
+                    <View key={item.id} style={styles.userRow}>
+                      <View style={styles.userMeta}>
+                        <View style={styles.userAvatar}>
+                          <Text style={styles.userAvatarText}>
+                            {item.name
+                              .split(' ')
+                              .filter(Boolean)
+                              .map((part) => part[0])
+                              .join('')
+                              .toUpperCase()
+                              .slice(0, 2)}
+                          </Text>
+                        </View>
+                        <View style={styles.userTextWrap}>
+                          <Text style={styles.userName}>{item.name}</Text>
+                          <Text style={styles.userSub}>
+                            {[item.role, item.email || item.phone].filter(Boolean).join(' • ')}
+                          </Text>
+                        </View>
+                      </View>
+                      <View style={styles.switchWrap}>
+                        {isSaving ? (
+                          <ActivityIndicator color={Colors.primary} />
+                        ) : (
+                          <Switch
+                            value={isActive}
+                            onValueChange={(next) => void toggleUserStatus(item, next)}
+                            trackColor={{ false: '#D1D5DB', true: '#B7E0C2' }}
+                            thumbColor={isActive ? Colors.primary : '#F9FAFB'}
+                          />
+                        )}
+                        <Text style={[styles.statusLabel, isActive ? styles.statusActive : styles.statusInactive]}>
+                          {isActive ? 'Active' : 'Inactive'}
+                        </Text>
+                      </View>
+                    </View>
+                  );
+                })
+              ) : (
+                <View style={styles.emptyState}>
+                  <MaterialCommunityIcons name="account-search-outline" size={42} color={Colors.border} />
+                  <Text style={styles.emptyText}>No users found</Text>
+                </View>
+              )}
+            </ScrollView>
+          </View>
+        </TouchableOpacity>
+      </Modal>
+
     </SafeAreaView>
   );
 }
@@ -185,9 +396,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
   },
-  iconBtn: {
-    marginRight: 15,
-  },
+  iconBtn: { marginRight: 15 },
   profileCircle: {
     width: 32,
     height: 32,
@@ -446,5 +655,85 @@ const styles = StyleSheet.create({
     fontSize: 10,
     color: Colors.textSecondary,
     marginTop: 4,
-  }
+  },
+  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'flex-end' },
+  settingsSheet: {
+    backgroundColor: '#FFF',
+    borderTopLeftRadius: 22,
+    borderTopRightRadius: 22,
+    padding: 20,
+    paddingBottom: 28,
+    maxHeight: '88%',
+  },
+  sheetHeader: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+    marginBottom: 14,
+  },
+  sheetTitle: { fontSize: 18, fontWeight: '800', color: Colors.text },
+  sheetSubtitle: { fontSize: 12, color: Colors.textSecondary, marginTop: 4, lineHeight: 16 },
+  closeBtn: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#F3F4F6',
+  },
+  searchBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFF',
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    paddingHorizontal: 12,
+    height: 44,
+    gap: 8,
+    marginBottom: 12,
+    ...Layout.cardShadow,
+  },
+  searchInput: { flex: 1, fontSize: 14, color: Colors.text, padding: 0 },
+  errorText: {
+    marginBottom: 12,
+    padding: 10,
+    borderRadius: 10,
+    backgroundColor: '#FFF4F4',
+    color: Colors.tertiary,
+    borderWidth: 1,
+    borderColor: '#FECACA',
+    fontSize: 12,
+  },
+  loadingState: { alignItems: 'center', paddingVertical: 28, gap: 8 },
+  loadingText: { color: Colors.textSecondary, fontSize: 13 },
+  userRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.border,
+    gap: 12,
+  },
+  userMeta: { flexDirection: 'row', alignItems: 'center', flex: 1, paddingRight: 10 },
+  userAvatar: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#E8F5E9',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 10,
+  },
+  userAvatarText: { fontSize: 13, fontWeight: '800', color: Colors.primary },
+  userTextWrap: { flex: 1 },
+  userName: { fontSize: 14, fontWeight: '700', color: Colors.text },
+  userSub: { fontSize: 12, color: Colors.textSecondary, marginTop: 2 },
+  switchWrap: { alignItems: 'center', gap: 4, minWidth: 70 },
+  statusLabel: { fontSize: 11, fontWeight: '700' },
+  statusActive: { color: Colors.primary },
+  statusInactive: { color: Colors.textSecondary },
+  emptyState: { alignItems: 'center', paddingVertical: 30, gap: 8 },
+  emptyText: { fontSize: 14, color: Colors.textSecondary },
 });

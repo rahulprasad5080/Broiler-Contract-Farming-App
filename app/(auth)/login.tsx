@@ -19,7 +19,7 @@ import { Colors } from "../../constants/Colors";
 import { useAuth } from "../../context/AuthContext";
 
 const loginSchema = z.object({
-  mobile: z
+  identifier: z
     .string()
     .min(1, "Mobile number is required")
     .regex(/^[0-9]{10}$/, "Enter a valid 10-digit mobile number"),
@@ -38,16 +38,21 @@ export default function LoginScreen() {
 
   const { control, handleSubmit } = useForm<LoginForm>({
     resolver: zodResolver(loginSchema),
-    defaultValues: { mobile: "", password: "" },
+    defaultValues: { identifier: "", password: "" },
   });
 
   const onSubmit = async (data: LoginForm) => {
     try {
-      const success = await signIn(data.mobile, data.password);
-      if (!success) {
-        alert("Login failed. Please check your credentials.");
+      console.log("Login submit:", { identifier: data.identifier });
+      const errorMessage = await signIn(data.identifier, data.password);
+      if (errorMessage) {
+        console.log("Login failed:", { identifier: data.identifier, errorMessage });
+        alert(errorMessage);
+      } else {
+        console.log("Login success:", { identifier: data.identifier });
       }
     } catch {
+      console.log("Login submit crashed:", { identifier: data.identifier });
       alert("Login failed. Please check your credentials.");
     }
   };
@@ -74,7 +79,7 @@ export default function LoginScreen() {
               <Text style={styles.label}>Mobile Number</Text>
               <Controller
                 control={control}
-                name="mobile"
+                name="identifier"
                 render={({
                   field: { onChange, onBlur, value },
                   fieldState: { error },
