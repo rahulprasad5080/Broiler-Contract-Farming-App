@@ -137,15 +137,7 @@ export async function authenticateWithBiometrics(promptMessage: string) {
 }
 
 export async function getPreferredQuickLoginRoute() {
-  if (await isBiometricEnabled()) {
-    return "/(auth)/quick-login-biometric";
-  }
-
-  if (await hasQuickPin()) {
-    return "/(auth)/quick-login-pin";
-  }
-
-  return "/(auth)/quick-login-password";
+  return "/(auth)/quick-unlock";
 }
 
 export async function clearQuickAuth() {

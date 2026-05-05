@@ -77,8 +77,9 @@ const AuthContext = React.createContext<AuthContextType | undefined>(undefined);
 
 const AUTH_GROUP = "(auth)";
 const LOGIN_SCREEN = "login";
-const SETUP_SCREENS = ["login-success", "set-pin", "enable-biometric"];
+const SETUP_SCREENS = ["setup-security", "login-success", "set-pin", "enable-biometric"];
 const UNLOCK_SCREENS = [
+  "quick-unlock",
   "quick-login-biometric",
   "quick-login-pin",
   "quick-login-password",
@@ -303,14 +304,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           tokens: response.tokens,
         };
 
-        await persistSession(nextSession);
-        setIsAppUnlocked(true);
-
         const quickAuthEnabled = await hasAnyQuickAuth();
+        await persistSession(nextSession);
+        setIsAppUnlocked(!quickAuthEnabled);
         router.replace(
           (quickAuthEnabled
-            ? getDashboardRoute(normalizeUser(hydratedUser).role)
-            : "/(auth)/login-success") as never,
+            ? "/(auth)/quick-unlock"
+            : "/(auth)/setup-security") as never,
         );
 
         return null;
