@@ -9,8 +9,10 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView } from "react-native-safe-area-context";
+
 import { Colors } from "../../constants/Colors";
+import { useToast } from "../../context/ToastContext";
 import { saveQuickPin } from "../../services/authSecurity";
 
 function PinDots({ value }: { value: string }) {
@@ -28,17 +30,17 @@ function PinDots({ value }: { value: string }) {
 
 export default function SetPinScreen() {
   const router = useRouter();
+  const { showToast } = useToast();
   const [pin, setPin] = React.useState("");
   const [confirmPin, setConfirmPin] = React.useState("");
-  const [activeField, setActiveField] = React.useState<"pin" | "confirm">(
-    "pin",
-  );
+  const [activeField, setActiveField] = React.useState<"pin" | "confirm">("pin");
+  const [isSaving, setIsSaving] = React.useState(false);
   const inputRef = React.useRef<TextInput>(null);
 
   const activeValue = activeField === "pin" ? pin : confirmPin;
   const pinIsComplete = pin.length === 4 && confirmPin.length === 4;
   const pinsMatch = pin === confirmPin;
-  const canSave = pinIsComplete && pinsMatch;
+  const canSave = pinIsComplete && pinsMatch && !isSaving;
 
   React.useEffect(() => {
     const timer = setTimeout(() => inputRef.current?.focus(), 250);
@@ -60,10 +62,33 @@ export default function SetPinScreen() {
   };
 
   const handleSave = async () => {
-    if (!canSave) return;
+    if (!canSave) {
+      return;
+    }
+
     Keyboard.dismiss();
-    await saveQuickPin(pin);
-    router.replace("/(auth)/enable-biometric" as never);
+    setIsSaving(true);
+
+    try {
+      await saveQuickPin(pin);
+      showToast({
+        tone: "success",
+        title: "PIN saved",
+        message: "Your quick login PIN is ready for this device.",
+      });
+      router.replace("/(auth)/enable-biometric" as never);
+    } catch (error) {
+      showToast({
+        tone: "error",
+        title: "Unable to save PIN",
+        message:
+          error instanceof Error && error.message.trim()
+            ? error.message
+            : "Please try again.",
+      });
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   return (
@@ -79,7 +104,7 @@ export default function SetPinScreen() {
 
         <View style={styles.content}>
           <Text style={styles.title}>Create 4-digit PIN</Text>
-          <Text style={styles.subtitle}>This PIN will be used for quick login</Text>
+          <Text style={styles.subtitle}>This PIN will be used for quick login on this device</Text>
 
           <TouchableOpacity
             activeOpacity={1}
@@ -102,8 +127,12 @@ export default function SetPinScreen() {
             <PinDots value={confirmPin} />
           </TouchableOpacity>
 
-          {pinIsComplete && !pinsMatch && (
+          {pinIsComplete && !pinsMatch ? (
             <Text style={styles.errorText}>PIN does not match</Text>
+          ) : (
+            <Text style={styles.helperText}>
+              Choose a PIN that is easy for you to remember but hard for others to guess.
+            </Text>
           )}
         </View>
 
@@ -131,7 +160,7 @@ export default function SetPinScreen() {
                 !canSave && styles.saveButtonTextDisabled,
               ]}
             >
-              SAVE PIN
+              {isSaving ? "SAVING..." : "SAVE PIN"}
             </Text>
           </TouchableOpacity>
 
@@ -142,7 +171,7 @@ export default function SetPinScreen() {
               color={Colors.textSecondary}
             />
             <Text style={styles.secureText}>
-              Your PIN is encrypted and stored securely{"\n"}on your device.
+              Your PIN is encrypted and stored securely on this device.
             </Text>
           </View>
         </View>
@@ -190,6 +219,7 @@ const styles = StyleSheet.create({
     fontWeight: "500",
     marginTop: 7,
     marginBottom: 48,
+    textAlign: "center",
   },
   dotsRow: {
     flexDirection: "row",
@@ -222,6 +252,15 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     marginTop: 28,
     minHeight: 18,
+  },
+  helperText: {
+    color: Colors.textSecondary,
+    fontSize: 12,
+    lineHeight: 18,
+    fontWeight: "500",
+    marginTop: 28,
+    minHeight: 36,
+    textAlign: "center",
   },
   hiddenInput: {
     position: "absolute",

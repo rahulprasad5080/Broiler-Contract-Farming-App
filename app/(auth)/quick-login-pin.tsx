@@ -2,17 +2,22 @@ import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import React from "react";
 import {
-  Alert,
   Image,
   StyleSheet,
   Text,
   TouchableOpacity,
   View,
 } from "react-native";
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView } from "react-native-safe-area-context";
+
 import { Colors } from "../../constants/Colors";
 import { useAuth } from "../../context/AuthContext";
-import { hasQuickPin, verifyQuickPin } from "../../services/authSecurity";
+import { useToast } from "../../context/ToastContext";
+import {
+  hasQuickPin,
+  isBiometricEnabled,
+  verifyQuickPin,
+} from "../../services/authSecurity";
 
 const keys = [
   { value: "1" },
@@ -46,53 +51,103 @@ function PinDots({ value, hasError }: { value: string; hasError: boolean }) {
 export default function QuickLoginPinScreen() {
   const router = useRouter();
   const { unlockApp } = useAuth();
+  const { showToast } = useToast();
   const [pin, setPin] = React.useState("");
   const [hasError, setHasError] = React.useState(false);
   const [failedAttempts, setFailedAttempts] = React.useState(0);
+  const [isVerifying, setIsVerifying] = React.useState(false);
+
+  React.useEffect(() => {
+    const ensurePinExists = async () => {
+      if (await hasQuickPin()) {
+        return;
+      }
+
+      showToast({
+        tone: "info",
+        title: "PIN not available",
+        message: "Quick PIN is not set on this device. Use your password instead.",
+      });
+      router.replace("/(auth)/quick-login-password" as never);
+    };
+
+    void ensurePinExists();
+  }, [router, showToast]);
+
+  React.useEffect(() => {
+    if (pin.length !== 4 || isVerifying) {
+      return;
+    }
+
+    const verifyPin = async () => {
+      setIsVerifying(true);
+
+      try {
+        const matched = await verifyQuickPin(pin);
+        if (matched) {
+          setHasError(false);
+          setFailedAttempts(0);
+          unlockApp();
+          return;
+        }
+
+        const nextAttempts = failedAttempts + 1;
+        setFailedAttempts(nextAttempts);
+        setHasError(true);
+        setPin("");
+
+        if (nextAttempts >= 5) {
+          showToast({
+            tone: "error",
+            title: "Too many attempts",
+            message: "Use your account password to continue.",
+          });
+          router.replace("/(auth)/quick-login-password" as never);
+          return;
+        }
+
+        showToast({
+          tone: "error",
+          title: "Incorrect PIN",
+          message: `${5 - nextAttempts} attempt(s) remaining before password unlock is required.`,
+        });
+      } finally {
+        setIsVerifying(false);
+      }
+    };
+
+    void verifyPin();
+  }, [failedAttempts, isVerifying, pin, router, showToast, unlockApp]);
 
   const pressNumber = (digit: string) => {
-    if (failedAttempts >= 5) {
-      Alert.alert("Too many attempts", "Use password instead to continue.");
+    if (isVerifying) {
       return;
     }
 
-    if (hasError) {
-      setHasError(false);
-      setPin(digit);
-      return;
-    }
-
-    setPin((current) => {
-      if (current.length >= 4) return current;
-      const next = `${current}${digit}`;
-      if (next.length === 4) {
-        hasQuickPin().then(async (pinExists) => {
-          if (!pinExists) {
-            Alert.alert("PIN not set", "Please create your 4-digit PIN first.");
-            router.push("/(auth)/set-pin" as never);
-            return;
-          }
-
-          if (await verifyQuickPin(next)) {
-            setFailedAttempts(0);
-            setTimeout(unlockApp, 180);
-            return;
-          }
-
-          setTimeout(() => {
-            setFailedAttempts((count) => count + 1);
-            setHasError(true);
-            setPin("");
-          }, 180);
-        });
-      }
-      return next;
-    });
+    setHasError(false);
+    setPin((current) => (current.length >= 4 ? current : `${current}${digit}`));
   };
 
   const removeDigit = () => {
+    if (isVerifying) {
+      return;
+    }
+
     setHasError(false);
     setPin((current) => current.slice(0, -1));
+  };
+
+  const openBiometric = async () => {
+    if (await isBiometricEnabled()) {
+      router.push("/(auth)/quick-login-biometric" as never);
+      return;
+    }
+
+    showToast({
+      tone: "info",
+      title: "Biometric not enabled",
+      message: "Use your PIN or password to continue.",
+    });
   };
 
   return (
@@ -113,34 +168,42 @@ export default function QuickLoginPinScreen() {
             resizeMode="cover"
           />
 
-          <Text style={styles.title}>Welcome Back!</Text>
-          <Text style={styles.subtitle}>Enter your 4-digit PIN</Text>
+          <Text style={styles.title}>Quick PIN Login</Text>
+          <Text style={styles.subtitle}>Enter your 4-digit PIN to unlock PoultryFlow</Text>
 
           <PinDots value={pin} hasError={hasError} />
 
-          {hasError && (
+          {hasError ? (
             <View style={styles.errorRow}>
               <Ionicons name="warning-outline" size={17} color={Colors.error} />
               <Text style={styles.errorText}>Incorrect PIN. Try again.</Text>
             </View>
+          ) : (
+            <Text style={styles.helperText}>
+              {failedAttempts > 0
+                ? `${5 - failedAttempts} attempt(s) remaining before password unlock.`
+                : "Use the PIN created for this device."}
+            </Text>
           )}
 
           <View style={styles.keypad}>
             {keys.map((key) => (
               <TouchableOpacity
                 key={key.value}
-                style={styles.key}
+                style={[styles.key, isVerifying && styles.keyDisabled]}
                 onPress={() => pressNumber(key.value)}
+                disabled={isVerifying}
                 activeOpacity={0.76}
               >
                 <Text style={styles.keyNumber}>{key.value}</Text>
-                {key.letters && <Text style={styles.keyLetters}>{key.letters}</Text>}
+                {key.letters ? <Text style={styles.keyLetters}>{key.letters}</Text> : null}
               </TouchableOpacity>
             ))}
 
             <TouchableOpacity
-              style={styles.key}
-              onPress={() => router.push("/(auth)/quick-login-biometric" as never)}
+              style={[styles.key, isVerifying && styles.keyDisabled]}
+              onPress={() => void openBiometric()}
+              disabled={isVerifying}
               activeOpacity={0.76}
             >
               <Ionicons
@@ -151,16 +214,18 @@ export default function QuickLoginPinScreen() {
             </TouchableOpacity>
 
             <TouchableOpacity
-              style={styles.key}
+              style={[styles.key, isVerifying && styles.keyDisabled]}
               onPress={() => pressNumber("0")}
+              disabled={isVerifying}
               activeOpacity={0.76}
             >
               <Text style={styles.keyNumber}>0</Text>
             </TouchableOpacity>
 
             <TouchableOpacity
-              style={styles.key}
+              style={[styles.key, isVerifying && styles.keyDisabled]}
               onPress={removeDigit}
+              disabled={isVerifying}
               activeOpacity={0.76}
             >
               <Ionicons name="backspace-outline" size={25} color="#243142" />
@@ -264,6 +329,14 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: "800",
   },
+  helperText: {
+    color: Colors.textSecondary,
+    fontSize: 12,
+    lineHeight: 17,
+    marginBottom: 10,
+    textAlign: "center",
+    minHeight: 34,
+  },
   keypad: {
     width: "100%",
     flexDirection: "row",
@@ -273,13 +346,16 @@ const styles = StyleSheet.create({
   },
   key: {
     width: "32%",
-    height: 49,
-    borderRadius: 6,
+    height: 52,
+    borderRadius: 8,
     borderWidth: 1,
     borderColor: "#DDE3E8",
     alignItems: "center",
     justifyContent: "center",
     backgroundColor: "#FFFFFF",
+  },
+  keyDisabled: {
+    opacity: 0.55,
   },
   keyNumber: {
     color: "#111827",

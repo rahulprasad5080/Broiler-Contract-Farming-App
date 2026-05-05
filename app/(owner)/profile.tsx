@@ -2,10 +2,12 @@ import { FontAwesome5, Ionicons, MaterialCommunityIcons } from '@expo/vector-ico
 import React from 'react';
 import {
   Alert,
+  Modal,
   ScrollView,
   StyleSheet,
   Switch,
   Text,
+  TextInput,
   TouchableOpacity,
   View,
 } from 'react-native';
@@ -13,35 +15,47 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Colors } from '../../constants/Colors';
 import { Layout } from '../../constants/Layout';
 import { useAuth } from '../../context/AuthContext';
+import { changePassword } from '@/services/authApi';
+import {
+  formatDisplayMobileNumber,
+  getPasswordValidationError,
+  PASSWORD_REQUIREMENT_TEXT,
+} from '../../services/authValidation';
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
 const getInitials = (name: string) =>
   name
     .split(' ')
-    .map((w) => w[0])
+    .map((word) => word[0])
     .join('')
     .toUpperCase()
     .slice(0, 2);
 
 const getRoleLabel = (role: string | null | undefined) => {
   switch (role) {
-    case 'OWNER':      return 'Farm Owner';
-    case 'SUPERVISOR': return 'Supervisor';
-    case 'FARMER':     return 'Farmer';
-    default:           return 'User';
+    case 'OWNER':
+      return 'Farm Owner';
+    case 'SUPERVISOR':
+      return 'Supervisor';
+    case 'FARMER':
+      return 'Farmer';
+    default:
+      return 'User';
   }
 };
 
 const getRoleColor = (role: string | null | undefined) => {
   switch (role) {
-    case 'OWNER':      return { bg: '#E8F5E9', text: Colors.primary };
-    case 'SUPERVISOR': return { bg: '#E3F2FD', text: '#1565C0' };
-    case 'FARMER':     return { bg: '#FFF3E0', text: '#E65100' };
-    default:           return { bg: '#F3F4F6', text: Colors.textSecondary };
+    case 'OWNER':
+      return { bg: '#E8F5E9', text: Colors.primary };
+    case 'SUPERVISOR':
+      return { bg: '#E3F2FD', text: '#1565C0' };
+    case 'FARMER':
+      return { bg: '#FFF3E0', text: '#E65100' };
+    default:
+      return { bg: '#F3F4F6', text: Colors.textSecondary };
   }
 };
 
-// ─── Menu Item Type ───────────────────────────────────────────────────────────
 type MenuItem = {
   icon: string;
   iconLib: 'Ionicons' | 'MaterialCommunityIcons' | 'FontAwesome5';
@@ -52,47 +66,113 @@ type MenuItem = {
   toggle?: boolean;
 };
 
-// ─── Component ────────────────────────────────────────────────────────────────
 export default function ProfileScreen() {
-  const { signOut, user } = useAuth();
+  const { signOut, user, accessToken } = useAuth();
+  const [showChangePassword, setShowChangePassword] = React.useState(false);
+  const [currentPassword, setCurrentPassword] = React.useState('');
+  const [newPassword, setNewPassword] = React.useState('');
+  const [confirmPassword, setConfirmPassword] = React.useState('');
+  const [isSavingPassword, setIsSavingPassword] = React.useState(false);
+  const [passwordError, setPasswordError] = React.useState<string | null>(null);
+  const [passwordSuccess, setPasswordSuccess] = React.useState<string | null>(null);
 
-  const initials  = getInitials(user?.name || 'U');
+  const initials = getInitials(user?.name || 'U');
   const roleLabel = getRoleLabel(user?.role);
   const roleColor = getRoleColor(user?.role);
 
   const handleLogout = () => {
-    Alert.alert(
-      'Logout',
-      'Are you sure you want to sign out?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        { text: 'Sign Out', style: 'destructive', onPress: signOut },
-      ]
-    );
+    Alert.alert('Logout', 'Are you sure you want to sign out?', [
+      { text: 'Cancel', style: 'cancel' },
+      { text: 'Sign Out', style: 'destructive', onPress: signOut },
+    ]);
   };
 
-  // ─── Render Menu Row ───────────────────────────────────────────────────────
+  const openChangePassword = () => {
+    setPasswordError(null);
+    setPasswordSuccess(null);
+    setShowChangePassword(true);
+  };
+
+  const submitPasswordChange = async () => {
+    if (!accessToken) {
+      setPasswordError('Missing access token. Please sign in again.');
+      return;
+    }
+
+    if (!currentPassword.trim() || !newPassword.trim()) {
+      setPasswordError('Current password and new password are required.');
+      return;
+    }
+
+    const passwordValidationError = getPasswordValidationError(
+      newPassword,
+      'New password is required.',
+    );
+    if (passwordValidationError) {
+      setPasswordError(passwordValidationError);
+      return;
+    }
+
+    if (newPassword === currentPassword) {
+      setPasswordError('New password must be different from the current password.');
+      return;
+    }
+
+    if (newPassword !== confirmPassword) {
+      setPasswordError('New password and confirm password do not match.');
+      return;
+    }
+
+    setIsSavingPassword(true);
+    setPasswordError(null);
+    setPasswordSuccess(null);
+
+    try {
+      const response = await changePassword(accessToken, {
+        currentPassword,
+        newPassword,
+      });
+
+      setPasswordSuccess(response.message || 'Password updated. Please sign in again.');
+      setCurrentPassword('');
+      setNewPassword('');
+      setConfirmPassword('');
+
+      setTimeout(() => {
+        setShowChangePassword(false);
+        setPasswordSuccess(null);
+        void signOut();
+      }, 1200);
+    } catch (error) {
+      setPasswordError(error instanceof Error ? error.message : 'Failed to update password.');
+    } finally {
+      setIsSavingPassword(false);
+    }
+  };
+
   const MenuRow = ({
     item,
     toggleValue,
     onToggle,
+    onPress,
   }: {
     item: MenuItem;
     toggleValue?: boolean;
     onToggle?: (v: boolean) => void;
+    onPress?: () => void;
   }) => {
     const IconComp =
       item.iconLib === 'MaterialCommunityIcons'
         ? MaterialCommunityIcons
         : item.iconLib === 'FontAwesome5'
-        ? FontAwesome5
-        : Ionicons;
+          ? FontAwesome5
+          : Ionicons;
 
     return (
       <TouchableOpacity
         style={[styles.menuRow, item.danger && styles.menuRowDanger]}
         activeOpacity={item.toggle ? 1 : 0.7}
-        onPress={item.danger ? handleLogout : undefined}
+        onPress={item.danger ? handleLogout : onPress}
       >
         <View style={[styles.menuIconBox, item.danger && styles.menuIconBoxDanger]}>
           <IconComp
@@ -105,7 +185,7 @@ export default function ProfileScreen() {
           <Text style={[styles.menuLabel, item.danger && styles.menuLabelDanger]}>
             {item.label}
           </Text>
-          {item.sub && <Text style={styles.menuSub}>{item.sub}</Text>}
+          {item.sub ? <Text style={styles.menuSub}>{item.sub}</Text> : null}
         </View>
         {item.toggle && onToggle ? (
           <Switch
@@ -123,13 +203,8 @@ export default function ProfileScreen() {
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <ScrollView
-        contentContainerStyle={styles.container}
-        showsVerticalScrollIndicator={false}
-      >
-        {/* ── Header Banner ── */}
+      <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
         <View style={styles.heroBanner}>
-          {/* Avatar Circle */}
           <View style={styles.avatarRing}>
             <View style={styles.avatarCircle}>
               <Text style={styles.avatarInitials}>{initials}</Text>
@@ -138,16 +213,16 @@ export default function ProfileScreen() {
 
           <Text style={styles.heroName}>{user?.name || 'User'}</Text>
           <Text style={styles.heroEmail}>
-            {user?.email || user?.phone || `${user?.role?.toLowerCase() ?? "user"}@broilermanager.app`}
+            {user?.phone
+              ? formatDisplayMobileNumber(user.phone)
+              : user?.email || `${user?.role?.toLowerCase() ?? 'user'}@broilermanager.app`}
           </Text>
 
-          {/* Role Badge */}
           <View style={[styles.roleBadge, { backgroundColor: roleColor.bg }]}>
             <Text style={[styles.roleBadgeText, { color: roleColor.text }]}>{roleLabel}</Text>
           </View>
         </View>
 
-        {/* ── Quick Stats ── */}
         <View style={styles.statsRow}>
           <View style={styles.statItem}>
             <Text style={styles.statValue}>12</Text>
@@ -165,7 +240,6 @@ export default function ProfileScreen() {
           </View>
         </View>
 
-        {/* ── Account Section ── */}
         <Text style={styles.sectionTitle}>Account</Text>
         <View style={styles.menuCard}>
           <MenuRow
@@ -173,7 +247,8 @@ export default function ProfileScreen() {
           />
           <View style={styles.menuDivider} />
           <MenuRow
-            item={{ icon: 'lock-closed-outline', iconLib: 'Ionicons', label: 'Change Password', sub: 'Last changed 30 days ago', chevron: true }}
+            item={{ icon: 'lock-closed-outline', iconLib: 'Ionicons', label: 'Change Password', sub: 'Update your login password', chevron: true }}
+            onPress={openChangePassword}
           />
           <View style={styles.menuDivider} />
           <MenuRow
@@ -181,7 +256,6 @@ export default function ProfileScreen() {
           />
         </View>
 
-        {/* ── Farm Section ── */}
         <Text style={styles.sectionTitle}>Farm Management</Text>
         <View style={styles.menuCard}>
           <MenuRow
@@ -196,46 +270,93 @@ export default function ProfileScreen() {
             item={{ icon: 'file-chart-outline', iconLib: 'MaterialCommunityIcons', label: 'Export Reports', sub: 'PDF & CSV available', chevron: true }}
           />
         </View>
-        {/* ── Support Section ── */}
+
         <Text style={styles.sectionTitle}>Support</Text>
         <View style={styles.menuCard}>
-          <MenuRow
-            item={{ icon: 'help-circle-outline', iconLib: 'Ionicons', label: 'Help & FAQ', chevron: true }}
-          />
+          <MenuRow item={{ icon: 'help-circle-outline', iconLib: 'Ionicons', label: 'Help & FAQ', chevron: true }} />
           <View style={styles.menuDivider} />
           <MenuRow
             item={{ icon: 'chatbubble-outline', iconLib: 'Ionicons', label: 'Contact Support', sub: 'support@broilermanager.app', chevron: true }}
           />
           <View style={styles.menuDivider} />
-          <MenuRow
-            item={{ icon: 'document-text-outline', iconLib: 'Ionicons', label: 'Privacy Policy', chevron: true }}
-          />
+          <MenuRow item={{ icon: 'document-text-outline', iconLib: 'Ionicons', label: 'Privacy Policy', chevron: true }} />
         </View>
 
-        {/* ── Logout ── */}
         <View style={[styles.menuCard, { marginTop: 4 }]}>
-          <MenuRow
-            item={{ icon: 'log-out-outline', iconLib: 'Ionicons', label: 'Sign Out', danger: true }}
-          />
+          <MenuRow item={{ icon: 'log-out-outline', iconLib: 'Ionicons', label: 'Sign Out', danger: true }} />
         </View>
 
-        {/* ── Version ── */}
         <Text style={styles.versionText}>Broiler Manager v1.0.0 · Build 2024</Text>
-
         <View style={{ height: 40 }} />
       </ScrollView>
+
+      <Modal visible={showChangePassword} transparent animationType="fade" onRequestClose={() => setShowChangePassword(false)}>
+        <View style={styles.modalOverlay}>
+          <View style={styles.passwordSheet}>
+            <View style={styles.sheetHeader}>
+              <View>
+                <Text style={styles.sheetTitle}>Change Password</Text>
+                <Text style={styles.sheetSubtitle}>Update the password used to sign in on this device.</Text>
+              </View>
+              <TouchableOpacity onPress={() => setShowChangePassword(false)} style={styles.closeBtn}>
+                <Ionicons name="close" size={20} color={Colors.text} />
+              </TouchableOpacity>
+            </View>
+
+            <Text style={styles.inputLabel}>Current Password</Text>
+            <TextInput
+              style={styles.passwordInput}
+              value={currentPassword}
+              onChangeText={setCurrentPassword}
+              secureTextEntry
+              placeholder="Enter current password"
+              placeholderTextColor={Colors.textSecondary}
+            />
+
+            <Text style={styles.inputLabel}>New Password</Text>
+            <TextInput
+              style={styles.passwordInput}
+              value={newPassword}
+              onChangeText={setNewPassword}
+              secureTextEntry
+              placeholder="Enter new password"
+              placeholderTextColor={Colors.textSecondary}
+            />
+
+            <Text style={styles.inputLabel}>Confirm New Password</Text>
+            <TextInput
+              style={styles.passwordInput}
+              value={confirmPassword}
+              onChangeText={setConfirmPassword}
+              secureTextEntry
+              placeholder="Re-enter new password"
+              placeholderTextColor={Colors.textSecondary}
+            />
+
+            <Text style={styles.passwordHint}>{PASSWORD_REQUIREMENT_TEXT}</Text>
+            {passwordError ? <Text style={styles.errorText}>{passwordError}</Text> : null}
+            {passwordSuccess ? <Text style={styles.successText}>{passwordSuccess}</Text> : null}
+
+            <TouchableOpacity
+              style={[styles.saveBtn, isSavingPassword && styles.saveBtnDisabled]}
+              onPress={submitPasswordChange}
+              disabled={isSavingPassword}
+            >
+              <Text style={styles.saveBtnText}>{isSavingPassword ? 'Saving...' : 'Update Password'}</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
 
-// ─── Styles ───────────────────────────────────────────────────────────────────
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#F4F5F7',  },
+    backgroundColor: '#F4F5F7',
+  },
   container: { paddingBottom: 20 },
-
-  // ── Hero Banner ──────────────────────────────────────────────────────────────
   heroBanner: {
     backgroundColor: Colors.primary,
     paddingTop: 40,
@@ -289,11 +410,8 @@ const styles = StyleSheet.create({
   roleBadgeText: {
     fontSize: 12,
     fontWeight: '700',
-    color: '#FFF',
     letterSpacing: 0.4,
   },
-
-  // ── Quick Stats ──────────────────────────────────────────────────────────────
   statsRow: {
     flexDirection: 'row',
     backgroundColor: '#FFF',
@@ -309,8 +427,6 @@ const styles = StyleSheet.create({
   statValue: { fontSize: 22, fontWeight: 'bold', color: Colors.text, marginBottom: 3 },
   statLabel: { fontSize: 12, color: Colors.textSecondary },
   statDivider: { width: 1, backgroundColor: Colors.border },
-
-  // ── Section & Cards ──────────────────────────────────────────────────────────
   sectionTitle: {
     fontSize: 12,
     fontWeight: '700',
@@ -367,13 +483,93 @@ const styles = StyleSheet.create({
     color: Colors.textSecondary,
     marginTop: 1,
   },
-
-  // ── Version ──────────────────────────────────────────────────────────────────
   versionText: {
     fontSize: 12,
     color: Colors.textSecondary,
     textAlign: 'center',
     marginTop: 8,
     marginBottom: 4,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.45)',
+    justifyContent: 'flex-end',
+  },
+  passwordSheet: {
+    backgroundColor: '#FFF',
+    borderTopLeftRadius: 22,
+    borderTopRightRadius: 22,
+    padding: 20,
+    paddingBottom: 28,
+  },
+  sheetHeader: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+    marginBottom: 14,
+  },
+  sheetTitle: { fontSize: 18, fontWeight: '800', color: Colors.text },
+  sheetSubtitle: { fontSize: 12, color: Colors.textSecondary, marginTop: 4, lineHeight: 16 },
+  closeBtn: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#F3F4F6',
+  },
+  inputLabel: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: Colors.text,
+    marginTop: 12,
+    marginBottom: 6,
+  },
+  passwordInput: {
+    height: 46,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    backgroundColor: '#F9FAFB',
+    color: Colors.text,
+  },
+  passwordHint: {
+    marginTop: 10,
+    color: Colors.textSecondary,
+    fontSize: 12,
+    lineHeight: 18,
+  },
+  errorText: {
+    marginTop: 12,
+    color: Colors.tertiary,
+    fontSize: 12,
+    backgroundColor: '#FFF4F4',
+    padding: 10,
+    borderRadius: 10,
+  },
+  successText: {
+    marginTop: 12,
+    color: Colors.primary,
+    fontSize: 12,
+    backgroundColor: '#E8F5E9',
+    padding: 10,
+    borderRadius: 10,
+  },
+  saveBtn: {
+    backgroundColor: Colors.primary,
+    marginTop: 16,
+    height: 48,
+    borderRadius: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  saveBtnDisabled: {
+    opacity: 0.75,
+  },
+  saveBtnText: {
+    color: '#FFF',
+    fontSize: 15,
+    fontWeight: '800',
   },
 });

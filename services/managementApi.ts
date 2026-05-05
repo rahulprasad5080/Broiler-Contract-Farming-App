@@ -17,6 +17,9 @@ export type ApiCostCategory =
   | "TRANSPORT"
   | "MAINTENANCE";
 
+export type ApiCatalogItemType = "FEED" | "VACCINE" | "MEDICINE" | "OTHER";
+export type ApiCommentTargetType = "FARM" | "BATCH" | "DAILY_LOG" | "TREATMENT" | "COST" | "SALE";
+
 export type PaginationMeta = {
   page: number;
   limit: number;
@@ -141,6 +144,47 @@ export type ApiSale = {
   updatedAt: string;
 };
 
+export type ApiCatalogItem = {
+  id: string;
+  organizationId: string;
+  name: string;
+  type: ApiCatalogItemType;
+  unit?: string | null;
+  description?: string | null;
+  isActive?: boolean;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type ApiCost = {
+  id: string;
+  organizationId: string;
+  batchId: string;
+  category: ApiCostCategory;
+  catalogItemId?: string | null;
+  costDate: string;
+  amount: number;
+  quantity?: number | null;
+  unitRate?: number | null;
+  notes?: string | null;
+  clientReferenceId?: string | null;
+  createdById?: string | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type ApiComment = {
+  id: string;
+  organizationId: string;
+  batchId?: string | null;
+  targetType: ApiCommentTargetType;
+  targetId: string;
+  comment: string;
+  createdById?: string | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
 export type CreateUserRequest = {
   name: string;
   password: string;
@@ -239,6 +283,33 @@ export type CreateTraderRequest = {
   email?: string;
   address?: string;
   notes?: string;
+};
+
+export type UpdateTraderRequest = Partial<CreateTraderRequest>;
+
+export type CreateCatalogItemRequest = {
+  name: string;
+  type: ApiCatalogItemType;
+  unit?: string;
+  description?: string;
+  isActive?: boolean;
+};
+
+export type UpdateCatalogItemRequest = Partial<CreateCatalogItemRequest>;
+
+export type CreateCostRequest = {
+  category: ApiCostCategory;
+  catalogItemId?: string;
+  costDate: string;
+  amount: number;
+  quantity?: number;
+  unitRate?: number;
+  notes?: string;
+  clientReferenceId?: string;
+};
+
+export type CreateCommentRequest = {
+  comment: string;
 };
 
 async function fetchAllPages<T>(
@@ -492,6 +563,79 @@ export async function listAllTraders(token: string, search?: string) {
 
 export async function createTrader(token: string, payload: CreateTraderRequest) {
   return apiRequest<ApiTrader>("/master-data/traders", {
+    method: "POST",
+    token,
+    body: payload,
+  });
+}
+
+export async function updateTrader(token: string, traderId: string, payload: UpdateTraderRequest) {
+  return apiRequest<ApiTrader>(`/master-data/traders/${traderId}`, {
+    method: "PUT",
+    token,
+    body: payload,
+  });
+}
+
+export async function listCatalogItems(
+  token: string,
+  params: ListParams & { type?: ApiCatalogItemType } = {},
+) {
+  return apiRequest<ListResponse<ApiCatalogItem>>("/master-data/catalog-items", {
+    method: "GET",
+    token,
+    query: params,
+  });
+}
+
+export async function createCatalogItem(token: string, payload: CreateCatalogItemRequest) {
+  return apiRequest<ApiCatalogItem>("/master-data/catalog-items", {
+    method: "POST",
+    token,
+    body: payload,
+  });
+}
+
+export async function updateCatalogItem(
+  token: string,
+  itemId: string,
+  payload: UpdateCatalogItemRequest,
+) {
+  return apiRequest<ApiCatalogItem>(`/master-data/catalog-items/${itemId}`, {
+    method: "PUT",
+    token,
+    body: payload,
+  });
+}
+
+export async function listBatchCosts(token: string, batchId: string) {
+  return apiRequest<ListResponse<ApiCost>>(`/batches/${batchId}/costs`, {
+    method: "GET",
+    token,
+  });
+}
+
+export async function createBatchCost(token: string, batchId: string, payload: CreateCostRequest) {
+  return apiRequest<ApiCost>(`/batches/${batchId}/costs`, {
+    method: "POST",
+    token,
+    body: payload,
+  });
+}
+
+export async function listBatchComments(token: string, batchId: string) {
+  return apiRequest<ListResponse<ApiComment>>(`/batches/${batchId}/comments`, {
+    method: "GET",
+    token,
+  });
+}
+
+export async function createBatchComment(
+  token: string,
+  batchId: string,
+  payload: CreateCommentRequest,
+) {
+  return apiRequest<ApiComment>(`/batches/${batchId}/comments`, {
     method: "POST",
     token,
     body: payload,

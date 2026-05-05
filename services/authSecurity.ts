@@ -22,6 +22,27 @@ async function hashPin(pin: string, salt: string) {
   );
 }
 
+function mapBiometricError(error?: string) {
+  switch (error) {
+    case "lockout":
+      return "Too many biometric attempts. Use your password and try again later.";
+    case "timeout":
+      return "Authentication timed out. Please try again.";
+    case "not_available":
+      return "Biometric authentication is not available on this device.";
+    case "not_enrolled":
+      return "Please add fingerprint or face unlock in phone settings first.";
+    case "user_fallback":
+      return "Use your password to continue.";
+    case "system_cancel":
+    case "app_cancel":
+    case "user_cancel":
+      return undefined;
+    default:
+      return "Authentication failed. Please try again.";
+  }
+}
+
 export async function saveQuickPin(pin: string) {
   const salt = randomSalt();
   const hash = await hashPin(pin, salt);
@@ -39,7 +60,9 @@ export async function verifyQuickPin(pin: string) {
     SecureStore.getItemAsync(QUICK_PIN_HASH_KEY),
   ]);
 
-  if (!salt || !savedHash) return false;
+  if (!salt || !savedHash) {
+    return false;
+  }
 
   const candidateHash = await hashPin(pin, salt);
   return candidateHash === savedHash;
@@ -56,6 +79,15 @@ export async function setBiometricEnabled(enabled: boolean) {
 
 export async function isBiometricEnabled() {
   return (await SecureStore.getItemAsync(BIOMETRIC_ENABLED_KEY)) === "true";
+}
+
+export async function hasAnyQuickAuth() {
+  const [pinEnabled, biometricEnabled] = await Promise.all([
+    hasQuickPin(),
+    isBiometricEnabled(),
+  ]);
+
+  return pinEnabled || biometricEnabled;
 }
 
 export async function getBiometricAvailability(): Promise<BiometricAvailability> {
@@ -100,10 +132,7 @@ export async function authenticateWithBiometrics(promptMessage: string) {
 
   return {
     success: false,
-    error:
-      result.error === "user_cancel"
-        ? undefined
-        : "Authentication failed. Please try again.",
+    error: mapBiometricError(result.error),
   };
 }
 

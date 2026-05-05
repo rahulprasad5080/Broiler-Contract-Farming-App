@@ -1,18 +1,28 @@
-import AsyncStorage from "@react-native-async-storage/async-storage";
-import * as SecureStore from "expo-secure-store";
 import { useRouter, useSegments } from "expo-router";
-import React, { createContext, useContext, useEffect, useState } from "react";
-import { AppState, AppStateStatus, Platform } from "react-native";
+import React from "react";
+import { AppState, AppStateStatus } from "react-native";
+
 import {
   fetchMe,
   login,
   logout,
   refreshAuth,
   type ApiRole,
-  type AuthTokens,
 } from "../services/authApi";
 import { ApiError } from "../services/api";
-import { clearQuickAuth, getPreferredQuickLoginRoute } from "../services/authSecurity";
+import {
+  clearStoredSession,
+  loadStoredSession,
+  persistStoredSession,
+  subscribeToStoredSession,
+} from "../services/authSession";
+import type { ApiUser, AuthSession, AuthTokens } from "../services/authTypes";
+import {
+  clearQuickAuth,
+  getPreferredQuickLoginRoute,
+  hasAnyQuickAuth,
+} from "../services/authSecurity";
+import { normalizeMobileNumber } from "../services/authValidation";
 
 export type UserRole = ApiRole | null;
 export type Permission =
@@ -56,17 +66,14 @@ interface AuthContextType {
   accessToken: string | null;
   isLoading: boolean;
   isAppUnlocked: boolean;
-  signIn: (identifier: string, pass: string) => Promise<string | null>;
+  signIn: (phone: string, password: string) => Promise<string | null>;
   signOut: () => Promise<void>;
   unlockApp: () => void;
-  unlockWithPassword: (password: string) => Promise<boolean>;
+  unlockWithPassword: (password: string) => Promise<string | null>;
   hasPermission: (permission: Permission) => boolean;
 }
 
-const AUTH_USER_KEY = "murgi_auth_user";
-const AUTH_TOKEN_KEY = "murgi_auth_tokens";
-
-const AuthContext = createContext<AuthContextType | undefined>(undefined);
+const AuthContext = React.createContext<AuthContextType | undefined>(undefined);
 
 const AUTH_GROUP = "(auth)";
 const LOGIN_SCREEN = "login";
@@ -124,17 +131,22 @@ function normalizeUser(user: UserLike): User {
   };
 }
 
-function getLoginIdentifier(user: User) {
-  return user.email || user.phone || "";
+function shouldClearSessionForError(error: unknown) {
+  return error instanceof ApiError && (error.status === 401 || error.status === 403);
 }
 
-function getAuthErrorMessage(error: unknown) {
+function getAuthErrorMessage(
+  error: unknown,
+  fallback = "Login failed. Please check your mobile number and password.",
+) {
   if (error instanceof ApiError) {
-    if (error.payload && typeof error.payload === "object" && "message" in error.payload) {
-      const message = (error.payload as { message?: unknown }).message;
-      if (typeof message === "string" && message.trim()) {
-        return message;
-      }
+    if (
+      error.payload &&
+      typeof error.payload === "object" &&
+      "message" in error.payload &&
+      typeof (error.payload as { message?: unknown }).message === "string"
+    ) {
+      return String((error.payload as { message: string }).message);
     }
 
     if (error.message.trim()) {
@@ -146,106 +158,75 @@ function getAuthErrorMessage(error: unknown) {
     return error.message;
   }
 
-  return "Login failed. Please check your mobile number and password.";
+  return fallback;
 }
 
-async function loadStoredSession() {
-  const [storedUser, storedTokens] = await Promise.all([
-    AsyncStorage.getItem(AUTH_USER_KEY),
-    Platform.OS === "web"
-      ? AsyncStorage.getItem(AUTH_TOKEN_KEY)
-      : SecureStore.getItemAsync(AUTH_TOKEN_KEY),
-  ]);
-
-  if (!storedUser || !storedTokens) {
-    return null;
-  }
-
+async function hydrateServerUser(tokens: AuthTokens, fallbackUser: ApiUser) {
   try {
-    return {
-      user: JSON.parse(storedUser) as User,
-      tokens: JSON.parse(storedTokens) as AuthTokens,
-    };
+    return await fetchMe(tokens.accessToken);
   } catch {
-    return null;
+    return fallbackUser;
   }
-}
-
-async function saveSession(user: User, tokens: AuthTokens) {
-  await Promise.all([
-    AsyncStorage.setItem(AUTH_USER_KEY, JSON.stringify(user)),
-    Platform.OS === "web"
-      ? AsyncStorage.setItem(AUTH_TOKEN_KEY, JSON.stringify(tokens))
-      : SecureStore.setItemAsync(AUTH_TOKEN_KEY, JSON.stringify(tokens)),
-  ]);
-}
-
-async function clearSession() {
-  await Promise.all([
-    AsyncStorage.removeItem(AUTH_USER_KEY),
-    AsyncStorage.removeItem(AUTH_TOKEN_KEY),
-    Platform.OS === "web"
-      ? Promise.resolve()
-      : SecureStore.deleteItemAsync(AUTH_TOKEN_KEY),
-  ]);
 }
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [user, setUser] = useState<User | null>(null);
-  const [tokens, setTokens] = useState<AuthTokens | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [isAppUnlocked, setIsAppUnlocked] = useState(false);
+  const [user, setUser] = React.useState<User | null>(null);
+  const [tokens, setTokens] = React.useState<AuthTokens | null>(null);
+  const [isLoading, setIsLoading] = React.useState(true);
+  const [isAppUnlocked, setIsAppUnlocked] = React.useState(false);
   const segments = useSegments();
   const router = useRouter();
 
-  useEffect(() => {
-    const loadUser = async () => {
+  const applySessionState = React.useCallback((session: AuthSession | null) => {
+    setTokens(session?.tokens ?? null);
+    setUser(session?.user ? normalizeUser(session.user) : null);
+  }, []);
+
+  React.useEffect(() => {
+    return subscribeToStoredSession((session) => {
+      applySessionState(session);
+    });
+  }, [applySessionState]);
+
+  React.useEffect(() => {
+    const restoreSession = async () => {
       try {
-        const session = await loadStoredSession();
-        if (!session) {
+        const storedSession = await loadStoredSession();
+
+        if (!storedSession) {
+          applySessionState(null);
           return;
         }
 
-        const refreshed = await refreshAuth(session.tokens.refreshToken);
-        const nextUser = normalizeUser(refreshed.user);
-
-        await saveSession(nextUser, refreshed.tokens);
-        setUser(nextUser);
-        setTokens(refreshed.tokens);
-        setIsAppUnlocked(false);
-      } catch (error) {
         try {
-          const session = await loadStoredSession();
-          if (session?.user) {
-            const nextUser = normalizeUser(session.user);
-            const me = session.tokens?.accessToken
-              ? await fetchMe(session.tokens.accessToken)
-              : null;
-            const resolvedUser = me ? normalizeUser(me) : nextUser;
+          const refreshed = await refreshAuth(storedSession.tokens.refreshToken);
+          const hydratedUser = await hydrateServerUser(refreshed.tokens, refreshed.user);
+          const nextSession = {
+            user: hydratedUser,
+            tokens: refreshed.tokens,
+          };
 
-            await saveSession(resolvedUser, session.tokens);
-            setUser(resolvedUser);
-            setTokens(session.tokens);
-            setIsAppUnlocked(false);
+          await persistStoredSession(nextSession);
+          applySessionState(nextSession);
+        } catch (error) {
+          if (shouldClearSessionForError(error)) {
+            await clearStoredSession();
+            applySessionState(null);
             return;
           }
-        } catch (fallbackError) {
-          console.warn("Failed to restore auth session:", fallbackError);
-        }
 
-        await clearSession();
-        setUser(null);
-        setTokens(null);
-        setIsAppUnlocked(false);
+          applySessionState(storedSession);
+        }
       } finally {
+        setIsAppUnlocked(false);
         setIsLoading(false);
       }
     };
 
-    loadUser();
-  }, []);
+    void restoreSession();
+  }, [applySessionState]);
 
-  useEffect(() => {
+  React.useEffect(() => {
     const subscription = AppState.addEventListener("change", (nextState: AppStateStatus) => {
       if (user && isAppUnlocked && nextState !== "active") {
         setIsAppUnlocked(false);
@@ -255,15 +236,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return () => subscription.remove();
   }, [user, isAppUnlocked]);
 
-  useEffect(() => {
-    if (isLoading) return;
+  React.useEffect(() => {
+    if (isLoading) {
+      return;
+    }
 
     let cancelled = false;
 
     const guardRoute = async () => {
       const segmentList = segments as string[];
-      const inAuthGroup = segmentList.includes(AUTH_GROUP);
       const currentAuthScreen = segmentList[segmentList.length - 1];
+      const inAuthGroup = segmentList.includes(AUTH_GROUP);
       const inSetupScreen = SETUP_SCREENS.includes(currentAuthScreen);
       const inUnlockScreen = UNLOCK_SCREENS.includes(currentAuthScreen);
 
@@ -275,83 +258,101 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
 
       if (isAppUnlocked) {
-        if (!inAuthGroup) return;
-        if (inSetupScreen) return;
+        if (!inAuthGroup) {
+          return;
+        }
 
-        if (!cancelled) router.replace("/(auth)/login-success");
+        if (!inSetupScreen && !cancelled) {
+          router.replace(getDashboardRoute(user.role) as never);
+        }
         return;
       }
 
-      if (!isAppUnlocked) {
-        if (!inAuthGroup || !inUnlockScreen) {
-          const route = await getPreferredQuickLoginRoute();
-          if (!cancelled) router.replace(route as never);
+      if (!inAuthGroup || !inUnlockScreen) {
+        const route = await getPreferredQuickLoginRoute();
+        if (!cancelled) {
+          router.replace(route as never);
         }
       }
     };
 
-    guardRoute();
+    void guardRoute();
 
     return () => {
       cancelled = true;
     };
-  }, [user, segments, isLoading, isAppUnlocked, router]);
+  }, [user, tokens, isLoading, isAppUnlocked, segments, router]);
 
-  const applySession = async (nextUser: User, nextTokens: AuthTokens) => {
-    await saveSession(nextUser, nextTokens);
-    setUser(nextUser);
-    setTokens(nextTokens);
-  };
+  const persistSession = React.useCallback(
+    async (session: AuthSession) => {
+      await persistStoredSession(session);
+      applySessionState(session);
+    },
+    [applySessionState],
+  );
 
-  const signIn = async (identifier: string, pass: string) => {
-    setIsLoading(true);
+  const signIn = React.useCallback(
+    async (phone: string, password: string) => {
+      setIsLoading(true);
 
-    try {
-      const response = await login(identifier, pass);
-      const nextUser = normalizeUser(response.user);
-      await applySession(nextUser, response.tokens);
-      setIsAppUnlocked(true);
-      router.replace("/(auth)/login-success");
-      return null;
-    } catch (error) {
-      console.warn("Login failed:", error);
-      setUser(null);
-      setTokens(null);
-      setIsAppUnlocked(false);
-      return getAuthErrorMessage(error);
-    } finally {
-      setIsLoading(false);
-    }
-  };
+      try {
+        const response = await login(normalizeMobileNumber(phone), password);
+        const hydratedUser = await hydrateServerUser(response.tokens, response.user);
+        const nextSession = {
+          user: hydratedUser,
+          tokens: response.tokens,
+        };
 
-  const unlockWithPassword = async (password: string) => {
-    if (!user) {
-      return false;
-    }
+        await persistSession(nextSession);
+        setIsAppUnlocked(true);
 
-    const identifier = getLoginIdentifier(user);
-    if (!identifier) {
-      return false;
-    }
+        const quickAuthEnabled = await hasAnyQuickAuth();
+        router.replace(
+          (quickAuthEnabled
+            ? getDashboardRoute(normalizeUser(hydratedUser).role)
+            : "/(auth)/login-success") as never,
+        );
 
-    setIsLoading(true);
+        return null;
+      } catch (error) {
+        return getAuthErrorMessage(error);
+      } finally {
+        setIsLoading(false);
+      }
+    },
+    [persistSession, router],
+  );
 
-    try {
-      const response = await login(identifier, password);
-      const nextUser = normalizeUser(response.user);
-      await applySession(nextUser, response.tokens);
-      setIsAppUnlocked(true);
-      router.replace(getDashboardRoute(nextUser.role) as never);
-      return true;
-    } catch (error) {
-      console.warn("Unlock with password failed:", error);
-      return false;
-    } finally {
-      setIsLoading(false);
-    }
-  };
+  const unlockWithPassword = React.useCallback(
+    async (password: string) => {
+      if (!user?.phone) {
+        return "Please sign in again with your mobile number.";
+      }
 
-  const signOut = async () => {
+      setIsLoading(true);
+
+      try {
+        const response = await login(user.phone, password);
+        const hydratedUser = await hydrateServerUser(response.tokens, response.user);
+        const nextSession = {
+          user: hydratedUser,
+          tokens: response.tokens,
+        };
+
+        await persistSession(nextSession);
+        setIsAppUnlocked(true);
+        router.replace(getDashboardRoute(normalizeUser(hydratedUser).role) as never);
+        return null;
+      } catch (error) {
+        return getAuthErrorMessage(error, "Incorrect password. Try again.");
+      } finally {
+        setIsLoading(false);
+      }
+    },
+    [persistSession, router, user],
+  );
+
+  const signOut = React.useCallback(async () => {
     try {
       if (tokens?.refreshToken) {
         await logout(tokens.refreshToken);
@@ -362,25 +363,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     try {
       await clearQuickAuth();
-      await clearSession();
+      await clearStoredSession();
     } catch (error) {
       console.warn("Failed to clear auth data:", error);
     }
 
-    setUser(null);
-    setTokens(null);
+    applySessionState(null);
     setIsAppUnlocked(false);
     router.replace("/(auth)/login");
-  };
+  }, [applySessionState, router, tokens]);
 
-  const unlockApp = () => {
+  const unlockApp = React.useCallback(() => {
     setIsAppUnlocked(true);
     router.replace(getDashboardRoute(user?.role ?? "FARMER") as never);
-  };
+  }, [router, user?.role]);
 
-  const hasPermission = (permission: Permission) => {
-    return Boolean(user?.permissions.includes(permission));
-  };
+  const hasPermission = React.useCallback(
+    (permission: Permission) => Boolean(user?.permissions.includes(permission)),
+    [user],
+  );
 
   return (
     <AuthContext.Provider
@@ -402,9 +403,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 }
 
 export function useAuth() {
-  const context = useContext(AuthContext);
+  const context = React.useContext(AuthContext);
+
   if (context === undefined) {
     throw new Error("useAuth must be used within an AuthProvider");
   }
+
   return context;
 }

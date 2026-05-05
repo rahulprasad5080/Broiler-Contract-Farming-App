@@ -2,7 +2,6 @@ import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import React from "react";
 import {
-  Alert,
   Image,
   StyleSheet,
   Text,
@@ -10,31 +9,51 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView } from "react-native-safe-area-context";
+
 import { Colors } from "../../constants/Colors";
 import { useAuth } from "../../context/AuthContext";
+import { useToast } from "../../context/ToastContext";
+import {
+  maskMobileNumber,
+} from "../../services/authValidation";
 
 export default function QuickLoginPasswordScreen() {
   const router = useRouter();
   const { user, isLoading, unlockWithPassword } = useAuth();
+  const { showToast } = useToast();
   const [password, setPassword] = React.useState("");
   const [showPassword, setShowPassword] = React.useState(false);
-  const [hasError, setHasError] = React.useState(false);
+  const [passwordError, setPasswordError] = React.useState<string | null>(null);
 
   const handleLogin = async () => {
     if (!user) {
-      Alert.alert("Session expired", "Please login with mobile number again.");
+      showToast({
+        tone: "error",
+        title: "Session expired",
+        message: "Please log in again with your mobile number.",
+      });
       router.replace("/(auth)/login" as never);
       return;
     }
 
-    const success = await unlockWithPassword(password);
-    if (success) {
-      setHasError(false);
+    const validationError = password.trim() ? null : "Password is required";
+    if (validationError) {
+      setPasswordError(validationError);
       return;
     }
 
-    setHasError(true);
+    setPasswordError(null);
+    const errorMessage = await unlockWithPassword(password);
+
+    if (errorMessage) {
+      setPasswordError(errorMessage);
+      showToast({
+        tone: "error",
+        title: "Login failed",
+        message: errorMessage,
+      });
+    }
   };
 
   return (
@@ -55,10 +74,15 @@ export default function QuickLoginPasswordScreen() {
             resizeMode="cover"
           />
 
-          <Text style={styles.title}>Welcome Back!</Text>
-          <Text style={styles.subtitle}>Enter your password</Text>
+          <Text style={styles.title}>Welcome Back</Text>
+          <Text style={styles.subtitle}>Continue as {maskMobileNumber(user?.phone)}</Text>
 
-          <View style={styles.inputWrap}>
+          <View
+            style={[
+              styles.inputWrap,
+              passwordError ? styles.inputWrapError : null,
+            ]}
+          >
             <Ionicons
               name="lock-closed-outline"
               size={20}
@@ -69,11 +93,14 @@ export default function QuickLoginPasswordScreen() {
               value={password}
               onChangeText={(value) => {
                 setPassword(value);
-                setHasError(false);
+                setPasswordError(null);
               }}
               placeholder="Enter your password"
               placeholderTextColor="#7A8694"
               secureTextEntry={!showPassword}
+              autoCapitalize="none"
+              autoComplete="password"
+              textContentType="password"
             />
             <TouchableOpacity
               onPress={() => setShowPassword((current) => !current)}
@@ -87,8 +114,12 @@ export default function QuickLoginPasswordScreen() {
             </TouchableOpacity>
           </View>
 
-          {hasError && (
-            <Text style={styles.errorText}>Incorrect password. Try again.</Text>
+          {passwordError ? (
+            <Text style={styles.errorText}>{passwordError}</Text>
+          ) : (
+            <Text style={styles.helperText}>
+              Use your account password to unlock this device.
+            </Text>
           )}
 
           <TouchableOpacity
@@ -102,8 +133,11 @@ export default function QuickLoginPasswordScreen() {
             </Text>
           </TouchableOpacity>
 
-          <TouchableOpacity activeOpacity={0.7}>
-            <Text style={styles.forgotText}>Forgot Password?</Text>
+          <TouchableOpacity
+            activeOpacity={0.7}
+            onPress={() => router.push("/(auth)/quick-login-pin" as never)}
+          >
+            <Text style={styles.secondaryLink}>Use PIN Instead</Text>
           </TouchableOpacity>
 
           <View style={styles.secureRow}>
@@ -112,7 +146,7 @@ export default function QuickLoginPasswordScreen() {
               size={22}
               color="#314158"
             />
-            <Text style={styles.secureText}>Your data is secure with us</Text>
+            <Text style={styles.secureText}>Your data stays protected on this device.</Text>
           </View>
         </View>
       </View>
@@ -180,7 +214,9 @@ const styles = StyleSheet.create({
     borderRadius: 7,
     backgroundColor: "#FFFFFF",
     paddingHorizontal: 14,
-    marginBottom: 10,
+  },
+  inputWrapError: {
+    borderColor: Colors.error,
   },
   input: {
     flex: 1,
@@ -188,6 +224,20 @@ const styles = StyleSheet.create({
     color: Colors.text,
     fontSize: 14,
     fontWeight: "500",
+  },
+  errorText: {
+    alignSelf: "flex-start",
+    color: Colors.error,
+    fontSize: 13,
+    fontWeight: "700",
+    marginTop: 8,
+  },
+  helperText: {
+    alignSelf: "flex-start",
+    color: Colors.textSecondary,
+    fontSize: 12,
+    lineHeight: 17,
+    marginTop: 8,
   },
   loginButton: {
     width: "100%",
@@ -201,84 +251,33 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.22,
     shadowRadius: 10,
     elevation: 6,
+    marginTop: 20,
   },
   buttonDisabled: {
     opacity: 0.7,
-  },
-  errorText: {
-    alignSelf: "flex-start",
-    color: Colors.error,
-    fontSize: 13,
-    fontWeight: "800",
-    marginBottom: 14,
   },
   loginButtonText: {
     color: "#FFFFFF",
     fontSize: 15,
     fontWeight: "800",
   },
-  forgotText: {
+  secondaryLink: {
     color: Colors.primary,
     fontSize: 14,
     fontWeight: "800",
     textDecorationLine: "underline",
-    marginTop: 28,
+    marginTop: 22,
   },
   secureRow: {
     flexDirection: "row",
     alignItems: "center",
     gap: 10,
-    marginTop: 58,
+    marginTop: 44,
   },
   secureText: {
     color: "#4B5563",
     fontSize: 14,
     fontWeight: "500",
-  },
-  farmArt: {
-    height: 106,
-    overflow: "hidden",
-  },
-  hillBack: {
-    position: "absolute",
-    left: -30,
-    right: -30,
-    bottom: -38,
-    height: 88,
-    borderTopLeftRadius: 180,
-    borderTopRightRadius: 180,
-    backgroundColor: "#CFE7BA",
-    transform: [{ rotate: "-8deg" }],
-  },
-  hillFront: {
-    position: "absolute",
-    left: -18,
-    right: -18,
-    bottom: -47,
-    height: 86,
-    borderTopLeftRadius: 180,
-    borderTopRightRadius: 180,
-    backgroundColor: "#A8D59D",
-    transform: [{ rotate: "7deg" }],
-  },
-  leafLeft: {
-    position: "absolute",
-    left: 24,
-    bottom: 25,
-  },
-  leafMiddle: {
-    position: "absolute",
-    left: 138,
-    bottom: 11,
-  },
-  farmHouse: {
-    position: "absolute",
-    right: 42,
-    bottom: 19,
-  },
-  fence: {
-    position: "absolute",
-    right: 92,
-    bottom: 9,
+    flex: 1,
   },
 });

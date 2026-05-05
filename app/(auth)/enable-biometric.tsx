@@ -2,15 +2,17 @@ import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import React from "react";
 import {
-  Alert,
+  ActivityIndicator,
   StyleSheet,
   Text,
   TouchableOpacity,
   View,
 } from "react-native";
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView } from "react-native-safe-area-context";
+
 import { Colors } from "../../constants/Colors";
 import { useAuth } from "../../context/AuthContext";
+import { useToast } from "../../context/ToastContext";
 import {
   authenticateWithBiometrics,
   setBiometricEnabled,
@@ -19,18 +21,39 @@ import {
 export default function EnableBiometricScreen() {
   const router = useRouter();
   const { unlockApp } = useAuth();
+  const { showToast } = useToast();
+  const [isEnabling, setIsEnabling] = React.useState(false);
 
   const enableBiometric = async () => {
-    const result = await authenticateWithBiometrics("Enable quick login");
-
-    if (result.success) {
-      await setBiometricEnabled(true);
-      unlockApp();
+    if (isEnabling) {
       return;
     }
 
-    if (result.error) {
-      Alert.alert("Biometric authentication", result.error);
+    setIsEnabling(true);
+
+    try {
+      const result = await authenticateWithBiometrics("Enable quick login");
+
+      if (result.success) {
+        await setBiometricEnabled(true);
+        showToast({
+          tone: "success",
+          title: "Biometric enabled",
+          message: "Fingerprint or face unlock is ready for future logins.",
+        });
+        unlockApp();
+        return;
+      }
+
+      if (result.error) {
+        showToast({
+          tone: "error",
+          title: "Biometric authentication",
+          message: result.error,
+        });
+      }
+    } finally {
+      setIsEnabling(false);
     }
   };
 
@@ -51,7 +74,7 @@ export default function EnableBiometricScreen() {
           </View>
 
           <Text style={styles.title}>Use Fingerprint / Face Unlock</Text>
-          <Text style={styles.subtitle}>Login faster and more securely</Text>
+          <Text style={styles.subtitle}>Login faster and more securely on this device</Text>
 
           <View style={styles.features}>
             <View style={styles.featureRow}>
@@ -60,7 +83,7 @@ export default function EnableBiometricScreen() {
               </View>
               <View style={styles.featureTextBlock}>
                 <Text style={styles.featureTitle}>Quick Access</Text>
-                <Text style={styles.featureText}>Unlock your account in a second</Text>
+                <Text style={styles.featureText}>Unlock your account in a second.</Text>
               </View>
             </View>
 
@@ -71,7 +94,7 @@ export default function EnableBiometricScreen() {
               <View style={styles.featureTextBlock}>
                 <Text style={styles.featureTitle}>Secure & Private</Text>
                 <Text style={styles.featureText}>
-                  Your biometric data stays on{"\n"}your device
+                  Your biometric data stays protected on your device.
                 </Text>
               </View>
             </View>
@@ -81,8 +104,8 @@ export default function EnableBiometricScreen() {
                 <Ionicons name="wifi-outline" size={27} color={Colors.primary} />
               </View>
               <View style={styles.featureTextBlock}>
-                <Text style={styles.featureTitle}>Works Offline</Text>
-                <Text style={styles.featureText}>No internet required</Text>
+                <Text style={styles.featureTitle}>Works With Quick Login</Text>
+                <Text style={styles.featureText}>Fallback to PIN or password whenever needed.</Text>
               </View>
             </View>
           </View>
@@ -90,11 +113,16 @@ export default function EnableBiometricScreen() {
 
         <View style={styles.footer}>
           <TouchableOpacity
-            style={styles.enableButton}
-            onPress={enableBiometric}
+            style={[styles.enableButton, isEnabling && styles.buttonDisabled]}
+            onPress={() => void enableBiometric()}
             activeOpacity={0.85}
+            disabled={isEnabling}
           >
-            <Text style={styles.enableButtonText}>ENABLE</Text>
+            {isEnabling ? (
+              <ActivityIndicator color="#FFFFFF" />
+            ) : (
+              <Text style={styles.enableButtonText}>ENABLE</Text>
+            )}
           </TouchableOpacity>
 
           <TouchableOpacity
@@ -209,6 +237,9 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.22,
     shadowRadius: 10,
     elevation: 6,
+  },
+  buttonDisabled: {
+    opacity: 0.75,
   },
   enableButtonText: {
     color: "#FFFFFF",

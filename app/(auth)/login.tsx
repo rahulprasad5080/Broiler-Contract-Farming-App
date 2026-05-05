@@ -13,47 +13,57 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView } from "react-native-safe-area-context";
 import { z } from "zod";
+
 import { Colors } from "../../constants/Colors";
 import { useAuth } from "../../context/AuthContext";
+import { useToast } from "../../context/ToastContext";
+import {
+  getMobileValidationError,
+  normalizeMobileNumber,
+} from "../../services/authValidation";
 
 const loginSchema = z.object({
-  identifier: z
+  phone: z
     .string()
-    .min(1, "Mobile number is required")
-    .regex(/^[0-9]{10}$/, "Enter a valid 10-digit mobile number"),
-  password: z
-    .string()
-    .min(1, "Password is required")
-    .min(6, "Password must be at least 6 characters"),
+    .superRefine((value, ctx) => {
+      const error = getMobileValidationError(value);
+      if (error) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: error,
+        });
+      }
+    })
+    .transform(normalizeMobileNumber),
+  password: z.string().min(1, "Password is required"),
 });
 
-type LoginForm = z.infer<typeof loginSchema>;
+type LoginForm = z.input<typeof loginSchema>;
 
 export default function LoginScreen() {
   const { signIn, isLoading } = useAuth();
-  const [rememberDevice, setRememberDevice] = React.useState(false);
+  const { showToast } = useToast();
   const [showPassword, setShowPassword] = React.useState(false);
 
   const { control, handleSubmit } = useForm<LoginForm>({
     resolver: zodResolver(loginSchema),
-    defaultValues: { identifier: "", password: "" },
+    defaultValues: {
+      phone: "",
+      password: "",
+    },
   });
 
   const onSubmit = async (data: LoginForm) => {
-    try {
-      console.log("Login submit:", { identifier: data.identifier });
-      const errorMessage = await signIn(data.identifier, data.password);
-      if (errorMessage) {
-        console.log("Login failed:", { identifier: data.identifier, errorMessage });
-        alert(errorMessage);
-      } else {
-        console.log("Login success:", { identifier: data.identifier });
-      }
-    } catch {
-      console.log("Login submit crashed:", { identifier: data.identifier });
-      alert("Login failed. Please check your credentials.");
+    const errorMessage = await signIn(data.phone, data.password);
+
+    if (errorMessage) {
+      showToast({
+        tone: "error",
+        title: "Login failed",
+        message: errorMessage,
+      });
     }
   };
 
@@ -71,7 +81,7 @@ export default function LoginScreen() {
               resizeMode="cover"
             />
             <Text style={styles.appTitle}>PoultryFlow</Text>
-            <Text style={styles.appSubtitle}>Smart Poultry Management</Text>
+            <Text style={styles.appSubtitle}>Secure farm access with mobile number login</Text>
           </View>
 
           <View style={styles.formBlock}>
@@ -79,11 +89,8 @@ export default function LoginScreen() {
               <Text style={styles.label}>Mobile Number</Text>
               <Controller
                 control={control}
-                name="identifier"
-                render={({
-                  field: { onChange, onBlur, value },
-                  fieldState: { error },
-                }) => (
+                name="phone"
+                render={({ field: { onChange, onBlur, value }, fieldState: { error } }) => (
                   <>
                     <View
                       style={[
@@ -91,24 +98,22 @@ export default function LoginScreen() {
                         error && styles.inputWrapError,
                       ]}
                     >
-                      <TouchableOpacity style={styles.countryCode}>
+                      <View style={styles.countryCode}>
                         <Text style={styles.countryCodeText}>+91</Text>
-                        <Ionicons
-                          name="chevron-down"
-                          size={15}
-                          color={Colors.textSecondary}
-                        />
-                      </TouchableOpacity>
+                      </View>
                       <TextInput
                         style={styles.input}
                         value={value}
-                        onChangeText={onChange}
+                        onChangeText={(nextValue) => onChange(normalizeMobileNumber(nextValue))}
                         onBlur={onBlur}
-                        placeholder="Enter mobile number"
+                        placeholder="Enter 10-digit mobile number"
                         placeholderTextColor="#99A2AD"
-                        keyboardType="phone-pad"
+                        keyboardType="number-pad"
                         maxLength={10}
                         autoCapitalize="none"
+                        autoComplete="tel"
+                        textContentType="telephoneNumber"
+                        returnKeyType="next"
                       />
                       <Ionicons
                         name="call-outline"
@@ -116,8 +121,12 @@ export default function LoginScreen() {
                         color={Colors.primary}
                       />
                     </View>
-                    {error?.message && (
+                    {error?.message ? (
                       <Text style={styles.errorText}>{error.message}</Text>
+                    ) : (
+                      <Text style={styles.helperText}>
+                        Use the mobile number linked to your PoultryFlow account.
+                      </Text>
                     )}
                   </>
                 )}
@@ -125,19 +134,11 @@ export default function LoginScreen() {
             </View>
 
             <View style={styles.fieldGroup}>
-              <View style={styles.labelRow}>
-                <Text style={styles.labelNoMargin}>Password</Text>
-                <TouchableOpacity>
-                  <Text style={styles.forgotText}>Forgot Password?</Text>
-                </TouchableOpacity>
-              </View>
+              <Text style={styles.label}>Password</Text>
               <Controller
                 control={control}
                 name="password"
-                render={({
-                  field: { onChange, onBlur, value },
-                  fieldState: { error },
-                }) => (
+                render={({ field: { onChange, onBlur, value }, fieldState: { error } }) => (
                   <>
                     <View style={[styles.inputWrap, error && styles.inputWrapError]}>
                       <Ionicons
@@ -153,6 +154,9 @@ export default function LoginScreen() {
                         placeholder="Enter your password"
                         placeholderTextColor="#99A2AD"
                         secureTextEntry={!showPassword}
+                        autoCapitalize="none"
+                        autoComplete="password"
+                        textContentType="password"
                       />
                       <TouchableOpacity
                         onPress={() => setShowPassword((current) => !current)}
@@ -165,31 +169,17 @@ export default function LoginScreen() {
                         />
                       </TouchableOpacity>
                     </View>
-                    {error?.message && (
+                    {error?.message ? (
                       <Text style={styles.errorText}>{error.message}</Text>
+                    ) : (
+                      <Text style={styles.helperText}>
+                        Use the same password you use for your farm account.
+                      </Text>
                     )}
                   </>
                 )}
               />
             </View>
-
-            <TouchableOpacity
-              style={styles.rememberRow}
-              onPress={() => setRememberDevice((current) => !current)}
-              activeOpacity={0.75}
-            >
-              <View
-                style={[
-                  styles.checkbox,
-                  rememberDevice && styles.checkboxChecked,
-                ]}
-              >
-                {rememberDevice && (
-                  <Ionicons name="checkmark" size={15} color="#FFFFFF" />
-                )}
-              </View>
-              <Text style={styles.rememberText}>Remember this device</Text>
-            </TouchableOpacity>
 
             <TouchableOpacity
               style={[styles.loginButton, isLoading && styles.buttonDisabled]}
@@ -200,26 +190,25 @@ export default function LoginScreen() {
               <Text style={styles.loginButtonText}>
                 {isLoading ? "LOGGING IN..." : "LOGIN"}
               </Text>
-              {!isLoading && (
+              {!isLoading ? (
                 <Ionicons
                   name="arrow-forward"
                   size={26}
                   color="#FFFFFF"
                   style={styles.loginIcon}
                 />
-              )}
+              ) : null}
             </TouchableOpacity>
 
             <View style={styles.helpContainer}>
               <Ionicons
-                name="headset-outline"
+                name="shield-checkmark-outline"
                 size={19}
                 color={Colors.primary}
               />
-              <Text style={styles.helpText}>Need help? </Text>
-              <TouchableOpacity>
-                <Text style={styles.supportLink}>Contact Support</Text>
-              </TouchableOpacity>
+              <Text style={styles.helpText}>
+                Access is protected. Contact your farm admin if your mobile number is not working.
+              </Text>
             </View>
           </View>
         </KeyboardAvoidingView>
@@ -265,6 +254,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: Colors.textSecondary,
     fontWeight: "500",
+    textAlign: "center",
   },
   formBlock: {
     width: "100%",
@@ -274,46 +264,30 @@ const styles = StyleSheet.create({
   fieldGroup: {
     marginBottom: 17,
   },
-  labelRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: 8,
-  },
   label: {
     color: "#111827",
     fontSize: 13,
     fontWeight: "700",
     marginBottom: 8,
   },
-  labelNoMargin: {
-    color: "#111827",
-    fontSize: 13,
-    fontWeight: "700",
-  },
-  forgotText: {
-    fontSize: 12,
-    color: Colors.primary,
-    fontWeight: "700",
-  },
   mobileInputWrap: {
-    height: 50,
+    height: 52,
     flexDirection: "row",
     alignItems: "center",
     borderWidth: 1,
     borderColor: "#DDE3E8",
-    borderRadius: 7,
+    borderRadius: 8,
     backgroundColor: "#FFFFFF",
     paddingHorizontal: 12,
   },
   inputWrap: {
-    height: 50,
+    height: 52,
     flexDirection: "row",
     alignItems: "center",
     gap: 12,
     borderWidth: 1,
     borderColor: "#DDE3E8",
-    borderRadius: 7,
+    borderRadius: 8,
     backgroundColor: "#FFFFFF",
     paddingHorizontal: 12,
   },
@@ -322,9 +296,8 @@ const styles = StyleSheet.create({
   },
   countryCode: {
     height: "100%",
-    flexDirection: "row",
     alignItems: "center",
-    gap: 4,
+    justifyContent: "center",
     paddingRight: 12,
     marginRight: 12,
     borderRightWidth: 1,
@@ -343,35 +316,15 @@ const styles = StyleSheet.create({
     fontWeight: "500",
   },
   errorText: {
-    marginTop: 5,
+    marginTop: 6,
     color: Colors.error,
     fontSize: 12,
   },
-  rememberRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginTop: -2,
-    marginBottom: 25,
-  },
-  checkbox: {
-    width: 20,
-    height: 20,
-    borderRadius: 4,
-    borderWidth: 2,
-    borderColor: "#78B995",
-    marginRight: 10,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: "#FFFFFF",
-  },
-  checkboxChecked: {
-    backgroundColor: Colors.primary,
-    borderColor: Colors.primary,
-  },
-  rememberText: {
-    color: "#44515C",
-    fontSize: 13,
-    fontWeight: "500",
+  helperText: {
+    marginTop: 6,
+    color: Colors.textSecondary,
+    fontSize: 12,
+    lineHeight: 17,
   },
   loginButton: {
     backgroundColor: Colors.primary,
@@ -385,6 +338,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.24,
     shadowRadius: 10,
     elevation: 7,
+    marginTop: 6,
   },
   loginButtonText: {
     color: "#FFFFFF",
@@ -400,19 +354,15 @@ const styles = StyleSheet.create({
   },
   helpContainer: {
     flexDirection: "row",
-    justifyContent: "center",
-    alignItems: "center",
-    marginTop: 21,
+    alignItems: "flex-start",
+    gap: 10,
+    marginTop: 22,
+    paddingHorizontal: 2,
   },
   helpText: {
+    flex: 1,
     fontSize: 13,
     color: Colors.textSecondary,
-    marginLeft: 7,
-  },
-  supportLink: {
-    fontSize: 13,
-    color: Colors.primary,
-    fontWeight: "800",
-    textDecorationLine: "underline",
+    lineHeight: 18,
   },
 });

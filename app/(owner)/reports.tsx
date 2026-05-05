@@ -1,503 +1,514 @@
-import React, { useState } from 'react';
+import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import React, { useEffect, useState } from 'react';
 import {
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
+  ActivityIndicator,
+  Alert,
   ScrollView,
+  StyleSheet,
+  Text,
   TextInput,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
 import { Colors } from '../../constants/Colors';
 import { Layout } from '../../constants/Layout';
+import { useAuth } from '../../context/AuthContext';
+import {
+  downloadBatchExcelReport,
+  downloadBatchPdfReport,
+  fetchBatchSummary,
+  fetchFarmSummary,
+  fetchOverviewReport,
+  type ApiBatchSummary,
+  type ApiFarmSummary,
+  type ApiOverviewReport,
+} from '@/services/reportApi';
 
-// ─── Bar Chart Data ───────────────────────────────────────────────────────────
-const SALES_TREND = [
-  { day: 'Mon', value: 55 },
-  { day: 'Tue', value: 70 },
-  { day: 'Wed', value: 60 },
-  { day: 'Thu', value: 65 },
-  { day: 'Fri', value: 100, isToday: true },
-];
-
-const BAR_MAX = 100;
-const BAR_HEIGHT = 80;
-
-// ─── Helpers ──────────────────────────────────────────────────────────────────
-const formatINR = (num: number) => {
-  if (isNaN(num) || num === 0) return '₹0';
-  return '₹' + num.toLocaleString('en-IN');
+const formatINR = (value?: number | null) => {
+  if (value === null || value === undefined) return 'Rs 0';
+  return `Rs ${Number(value).toLocaleString('en-IN')}`;
 };
 
-// ─── Component ────────────────────────────────────────────────────────────────
+const formatNumber = (value?: number | null) => {
+  if (value === null || value === undefined) return '0';
+  return Number(value).toLocaleString('en-IN');
+};
+
+const metricCards = (overview: ApiOverviewReport | null) => [
+  { label: 'Total Farms', value: formatNumber(overview?.totalFarms), icon: 'home-outline' },
+  { label: 'Active Batches', value: formatNumber(overview?.activeBatches), icon: 'water-outline' },
+  { label: 'Users', value: formatNumber(overview?.totalUsers), icon: 'people-outline' },
+  { label: 'Profit / Loss', value: formatINR(overview?.profitOrLoss), icon: 'cash-outline' },
+];
+
 export default function ReportsScreen() {
-  const router = useRouter();
+  const { accessToken } = useAuth();
+  const [overview, setOverview] = useState<ApiOverviewReport | null>(null);
+  const [batchId, setBatchId] = useState('');
+  const [farmId, setFarmId] = useState('');
+  const [batchSummary, setBatchSummary] = useState<ApiBatchSummary | null>(null);
+  const [farmSummary, setFarmSummary] = useState<ApiFarmSummary | null>(null);
+  const [loadingOverview, setLoadingOverview] = useState(false);
+  const [loadingBatch, setLoadingBatch] = useState(false);
+  const [loadingFarm, setLoadingFarm] = useState(false);
+  const [exporting, setExporting] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
-  const [birdsSold, setBirdsSold] = useState('');
-  const [totalWeight, setTotalWeight] = useState('');
-  const [ratePerKg, setRatePerKg] = useState('115');
-  const [finalized, setFinalized] = useState(false);
+  useEffect(() => {
+    const loadOverview = async () => {
+      if (!accessToken) {
+        setError('Missing access token. Please sign in again.');
+        return;
+      }
 
-  // Derived calculations
-  const weightNum = parseFloat(totalWeight) || 0;
-  const rateNum = parseFloat(ratePerKg) || 0;
-  const birdsNum = parseInt(birdsSold) || 0;
-  const estimatedRevenue = weightNum * rateNum;
-  const avgBodyWeight = birdsNum > 0 ? (weightNum / birdsNum).toFixed(2) : '2.15';
+      setLoadingOverview(true);
+      setError(null);
 
-  const handleFinalize = () => {
-    setFinalized(true);
-    setTimeout(() => setFinalized(false), 3000);
+      try {
+        const response = await fetchOverviewReport(accessToken);
+        setOverview(response);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Failed to load report overview.');
+      } finally {
+        setLoadingOverview(false);
+      }
+    };
+
+    void loadOverview();
+  }, [accessToken]);
+
+  const loadBatchSummary = async () => {
+    if (!accessToken) {
+      setError('Missing access token. Please sign in again.');
+      return;
+    }
+
+    if (!batchId.trim()) {
+      setError('Enter a batch ID first.');
+      return;
+    }
+
+    setLoadingBatch(true);
+    setError(null);
+
+    try {
+      const response = await fetchBatchSummary(accessToken, batchId.trim());
+      setBatchSummary(response);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to load batch summary.');
+    } finally {
+      setLoadingBatch(false);
+    }
+  };
+
+  const loadFarmSummary = async () => {
+    if (!accessToken) {
+      setError('Missing access token. Please sign in again.');
+      return;
+    }
+
+    if (!farmId.trim()) {
+      setError('Enter a farm ID first.');
+      return;
+    }
+
+    setLoadingFarm(true);
+    setError(null);
+
+    try {
+      const response = await fetchFarmSummary(accessToken, farmId.trim());
+      setFarmSummary(response);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to load farm summary.');
+    } finally {
+      setLoadingFarm(false);
+    }
+  };
+
+  const exportBatchReport = async (format: 'excel' | 'pdf') => {
+    if (!accessToken) {
+      setError('Missing access token. Please sign in again.');
+      return;
+    }
+
+    if (!batchId.trim()) {
+      setError('Enter a batch ID first.');
+      return;
+    }
+
+    setExporting(format);
+    setError(null);
+
+    try {
+      const response =
+        format === 'excel'
+          ? await downloadBatchExcelReport(accessToken, batchId.trim())
+          : await downloadBatchPdfReport(accessToken, batchId.trim());
+
+      Alert.alert(
+        'Export ready',
+        `Status ${response.status}. ${response.headers.get('content-disposition') ?? 'File download response received.'}`,
+      );
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to export report.');
+    } finally {
+      setExporting(null);
+    }
   };
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      {/* ── Header ── */}
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-          <Ionicons name="arrow-back" size={24} color={Colors.primary} />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Broiler Manager</Text>
+        <View>
+          <Text style={styles.headerEyebrow}>Live backend data</Text>
+          <Text style={styles.headerTitle}>Reports</Text>
+        </View>
+        <View style={styles.headerIcon}>
+          <MaterialCommunityIcons name="chart-box-outline" size={22} color={Colors.primary} />
+        </View>
       </View>
 
-      <ScrollView
-        contentContainerStyle={styles.container}
-        showsVerticalScrollIndicator={false}
-        keyboardShouldPersistTaps="handled"
-      >
-        {/* ── Role Banner ── */}
-        <View style={styles.roleBanner}>
-          <View style={styles.roleIconBox}>
-            <MaterialCommunityIcons name="account-outline" size={20} color={Colors.primary} />
-          </View>
-          <View style={styles.roleInfo}>
-            <Text style={styles.roleViewing}>Viewing as</Text>
-            <Text style={styles.roleTitle}>Farm Owner</Text>
-          </View>
-          <View style={styles.accessBadge}>
-            <Text style={styles.accessText}>Full Access</Text>
-          </View>
+      <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
+        {error ? <Text style={styles.errorText}>{error}</Text> : null}
+
+        <View style={styles.summaryGrid}>
+          {metricCards(overview).map((item) => (
+            <View key={item.label} style={styles.summaryCard}>
+              <View style={styles.summaryIcon}>
+                <Ionicons name={item.icon as any} size={18} color={Colors.primary} />
+              </View>
+              <Text style={styles.summaryLabel}>{item.label}</Text>
+              <Text style={styles.summaryValue}>{loadingOverview ? '...' : item.value}</Text>
+            </View>
+          ))}
         </View>
 
-        {/* ── Page Title ── */}
-        <Text style={styles.pageTitle}>New Sales Record</Text>
-
-        {/* ── Form Card ── */}
-        <View style={styles.formCard}>
-          {/* Birds Sold */}
-          <Text style={styles.fieldLabel}>Birds Sold</Text>
-          <View style={styles.inputRow}>
-            <TextInput
-              style={styles.inputField}
-              placeholder="Enter quantity"
-              placeholderTextColor={Colors.textSecondary}
-              value={birdsSold}
-              onChangeText={setBirdsSold}
-              keyboardType="numeric"
-            />
-            <MaterialCommunityIcons name="archive-outline" size={22} color={Colors.textSecondary} />
+        <View style={styles.panel}>
+          <View style={styles.panelHeader}>
+            <Text style={styles.panelTitle}>Overview KPIs</Text>
+            {loadingOverview ? <ActivityIndicator color={Colors.primary} /> : null}
           </View>
-
-          {/* Total Weight */}
-          <Text style={[styles.fieldLabel, { marginTop: 14 }]}>Total Weight (kg)</Text>
-          <View style={styles.inputRow}>
-            <TextInput
-              style={styles.inputField}
-              placeholder="Enter weight"
-              placeholderTextColor={Colors.textSecondary}
-              value={totalWeight}
-              onChangeText={setTotalWeight}
-              keyboardType="decimal-pad"
-            />
-            <MaterialCommunityIcons name="timer-sand" size={22} color={Colors.textSecondary} />
+          <View style={styles.kpiRow}>
+            <Text style={styles.kpiLabel}>Closed Batches</Text>
+            <Text style={styles.kpiValue}>{formatNumber(overview?.closedBatches)}</Text>
           </View>
-
-          {/* Owner Only Section */}
-          <View style={styles.ownerOnlyRow}>
-            <Ionicons name="lock-closed-outline" size={13} color={Colors.primary} />
-            <Text style={styles.ownerOnlyText}>OWNER ONLY SECTION</Text>
+          <View style={styles.kpiRow}>
+            <Text style={styles.kpiLabel}>Total Placement</Text>
+            <Text style={styles.kpiValue}>{formatNumber(overview?.totalPlacementCount)}</Text>
           </View>
-
-          {/* Rate Per Kg */}
-          <Text style={styles.fieldLabel}>Rate per kg (₹)</Text>
-          <View style={styles.inputRow}>
-            <TextInput
-              style={styles.inputField}
-              value={ratePerKg}
-              onChangeText={setRatePerKg}
-              keyboardType="decimal-pad"
-              placeholder="0"
-              placeholderTextColor={Colors.textSecondary}
-            />
-            <MaterialCommunityIcons name="currency-inr" size={22} color={Colors.primary} />
+          <View style={styles.kpiRow}>
+            <Text style={styles.kpiLabel}>Total Cost</Text>
+            <Text style={styles.kpiValue}>{formatINR(overview?.totalCost)}</Text>
           </View>
-        </View>
-
-        {/* ── Revenue Banner ── */}
-        <View style={styles.revenueBanner}>
-          <View style={styles.revenueLeft}>
-            <Text style={styles.revenueLabel}>Estimated Revenue</Text>
-            <Text style={styles.revenueValue}>
-              {estimatedRevenue > 0 ? formatINR(estimatedRevenue) : '₹1,43,750'}
-            </Text>
-          </View>
-          <View style={styles.revenueRight}>
-            <Text style={styles.avgLabel}>Avg. Body Wt.</Text>
-            <Text style={styles.avgValue}>
-              {weightNum > 0 ? `${avgBodyWeight} kg` : '2.15 kg'}
+          <View style={styles.kpiRow}>
+            <Text style={styles.kpiLabel}>Average FCR</Text>
+            <Text style={styles.kpiValue}>
+              {overview?.averageFcr !== null && overview?.averageFcr !== undefined
+                ? Number(overview.averageFcr).toFixed(2)
+                : '0.00'}
             </Text>
           </View>
         </View>
 
-        {/* ── Batch Info Row ── */}
-        <View style={styles.batchRow}>
-          <View style={styles.batchChip}>
-            <Text style={styles.batchChipLabel}>Batch</Text>
-            <Text style={styles.batchChipValue}>#B-204</Text>
+        <View style={styles.panel}>
+          <Text style={styles.panelTitle}>Batch Summary</Text>
+          <Text style={styles.panelSubtitle}>Enter a batch ID to load live batch performance and exports.</Text>
+          <View style={styles.inputBox}>
+            <TextInput
+              style={styles.input}
+              value={batchId}
+              onChangeText={setBatchId}
+              placeholder="Batch ID"
+              placeholderTextColor={Colors.textSecondary}
+            />
           </View>
-          <View style={[styles.batchChip, { marginLeft: 12 }]}>
-            <Text style={styles.batchChipLabel}>Age</Text>
-            <Text style={styles.batchChipValue}>38 Days</Text>
-          </View>
-        </View>
+          <TouchableOpacity style={styles.primaryBtn} onPress={loadBatchSummary} disabled={loadingBatch}>
+            {loadingBatch ? (
+              <ActivityIndicator color="#FFF" />
+            ) : (
+              <Text style={styles.primaryBtnText}>Load Batch Summary</Text>
+            )}
+          </TouchableOpacity>
 
-        {/* ── Finalize Button ── */}
-        <TouchableOpacity style={styles.finalizeBtn} onPress={handleFinalize} activeOpacity={0.85}>
-          <Ionicons name="checkmark-circle-outline" size={20} color="#FFF" style={{ marginRight: 8 }} />
-          <Text style={styles.finalizeBtnText}>Finalize Sale</Text>
-        </TouchableOpacity>
-        <Text style={styles.finalizeHint}>Records will be locked after finalization.</Text>
+          {batchSummary ? (
+            <View style={styles.detailCard}>
+              <DetailRow label="Batch Code" value={batchSummary.batchCode || batchSummary.batchId} />
+              <DetailRow label="Farm" value={batchSummary.farmName || batchSummary.farmId} />
+              <DetailRow label="Mortality Rate" value={batchSummary.mortalityRate !== null && batchSummary.mortalityRate !== undefined ? `${Number(batchSummary.mortalityRate).toFixed(2)}%` : '0.00%'} />
+              <DetailRow label="FCR" value={batchSummary.fcr !== null && batchSummary.fcr !== undefined ? Number(batchSummary.fcr).toFixed(2) : '0.00'} />
+              <DetailRow label="Profit / Loss" value={formatINR(batchSummary.profitOrLoss)} />
+              <DetailRow label="Total Sales" value={formatINR(batchSummary.totalSales)} />
+            </View>
+          ) : null}
 
-        {/* ── Finalized Banner ── */}
-        {finalized && (
-          <View style={styles.finalizedBanner}>
-            <Ionicons name="lock-closed" size={16} color={Colors.primary} />
-            <Text style={styles.finalizedText}>Sale record finalized and locked!</Text>
-          </View>
-        )}
-
-        {/* ── Sales Trend Chart ── */}
-        <View style={styles.chartCard}>
-          <Text style={styles.chartTitle}>Recent Sales Trend</Text>
-          <View style={styles.chartBars}>
-            {SALES_TREND.map((item) => {
-              const barH = (item.value / BAR_MAX) * BAR_HEIGHT;
-              return (
-                <View key={item.day} style={styles.barCol}>
-                  {item.isToday && (
-                    <Text style={styles.todayLabel}>TODAY</Text>
-                  )}
-                  <View style={styles.barWrapper}>
-                    <View
-                      style={[
-                        styles.bar,
-                        {
-                          height: barH,
-                          backgroundColor: item.isToday ? Colors.primary : '#C8E6C9',
-                        },
-                      ]}
-                    />
-                  </View>
-                  <Text style={[styles.barLabel, item.isToday && styles.barLabelToday]}>
-                    {item.day}
-                  </Text>
-                </View>
-              );
-            })}
+          <View style={styles.exportRow}>
+            <TouchableOpacity
+              style={[styles.secondaryBtn, exporting === 'pdf' && styles.btnDisabled]}
+              onPress={() => void exportBatchReport('pdf')}
+              disabled={exporting !== null}
+            >
+              <Text style={styles.secondaryBtnText}>{exporting === 'pdf' ? 'Exporting...' : 'Export PDF'}</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.secondaryBtn, exporting === 'excel' && styles.btnDisabled]}
+              onPress={() => void exportBatchReport('excel')}
+              disabled={exporting !== null}
+            >
+              <Text style={styles.secondaryBtnText}>{exporting === 'excel' ? 'Exporting...' : 'Export Excel'}</Text>
+            </TouchableOpacity>
           </View>
         </View>
 
-        <View style={{ height: 40 }} />
+        <View style={styles.panel}>
+          <Text style={styles.panelTitle}>Farm Summary</Text>
+          <Text style={styles.panelSubtitle}>Use a farm ID to fetch live farm performance.</Text>
+          <View style={styles.inputBox}>
+            <TextInput
+              style={styles.input}
+              value={farmId}
+              onChangeText={setFarmId}
+              placeholder="Farm ID"
+              placeholderTextColor={Colors.textSecondary}
+            />
+          </View>
+          <TouchableOpacity style={styles.primaryBtn} onPress={loadFarmSummary} disabled={loadingFarm}>
+            {loadingFarm ? <ActivityIndicator color="#FFF" /> : <Text style={styles.primaryBtnText}>Load Farm Summary</Text>}
+          </TouchableOpacity>
+
+          {farmSummary ? (
+            <View style={styles.detailCard}>
+              <DetailRow label="Farm Name" value={farmSummary.farmName || farmSummary.farmId} />
+              <DetailRow label="Total Batches" value={formatNumber(farmSummary.totalBatches)} />
+              <DetailRow label="Active Batches" value={formatNumber(farmSummary.activeBatches)} />
+              <DetailRow label="Closed Batches" value={formatNumber(farmSummary.closedBatches)} />
+              <DetailRow label="Total Cost" value={formatINR(farmSummary.totalCost)} />
+              <DetailRow label="Average FCR" value={farmSummary.averageFcr !== null && farmSummary.averageFcr !== undefined ? Number(farmSummary.averageFcr).toFixed(2) : '0.00'} />
+            </View>
+          ) : null}
+        </View>
+
+        <View style={{ height: 30 }} />
       </ScrollView>
     </SafeAreaView>
   );
 }
 
-// ─── Styles ───────────────────────────────────────────────────────────────────
+function DetailRow({ label, value }: { label: string; value: string }) {
+  return (
+    <View style={styles.detailRow}>
+      <Text style={styles.detailLabel}>{label}</Text>
+      <Text style={styles.detailValue}>{value}</Text>
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#F4F5F7',  },
-
-  // Header
+    backgroundColor: '#F4F5F7',
+  },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'space-between',
     paddingHorizontal: Layout.spacing.lg,
     paddingVertical: 14,
     backgroundColor: '#FFF',
     borderBottomWidth: 1,
     borderBottomColor: Colors.border,
   },
-  backBtn: { marginRight: 14 },
-  headerTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: Colors.primary,
-  },
-
-  container: {
-    padding: Layout.spacing.lg,
-  },
-
-  // Role Banner
-  roleBanner: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#E8F5E9',
-    borderRadius: 12,
-    padding: 14,
-    marginBottom: 18,
-    borderWidth: 1,
-    borderColor: '#C8E6C9',
-  },
-  roleIconBox: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    backgroundColor: '#FFF',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 12,
-  },
-  roleInfo: {
-    flex: 1,
-  },
-  roleViewing: {
+  headerEyebrow: {
     fontSize: 11,
     color: Colors.textSecondary,
+    textTransform: 'uppercase',
+    letterSpacing: 0.8,
   },
-  roleTitle: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: Colors.text,
-  },
-  accessBadge: {
-    borderWidth: 1,
-    borderColor: Colors.border,
-    borderRadius: 20,
-    paddingHorizontal: 12,
-    paddingVertical: 5,
-    backgroundColor: '#FFF',
-  },
-  accessText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: Colors.text,
-  },
-
-  // Page Title
-  pageTitle: {
+  headerTitle: {
     fontSize: 22,
-    fontWeight: 'bold',
+    fontWeight: '800',
     color: Colors.text,
-    marginBottom: 16,
+    marginTop: 2,
   },
-
-  // Form Card
-  formCard: {
+  headerIcon: {
+    width: 42,
+    height: 42,
+    borderRadius: 12,
+    backgroundColor: '#E8F5E9',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  container: {
+    padding: Layout.screenPadding,
+    alignSelf: 'center',
+    width: '100%',
+    maxWidth: Layout.contentMaxWidth,
+  },
+  errorText: {
+    marginBottom: 14,
+    padding: 10,
+    borderRadius: 10,
+    backgroundColor: '#FFF4F4',
+    color: Colors.tertiary,
+    borderWidth: 1,
+    borderColor: '#FECACA',
+    fontSize: 12,
+  },
+  summaryGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+    gap: 12,
+    marginBottom: 18,
+  },
+  summaryCard: {
+    width: '48%',
     backgroundColor: '#FFF',
     borderRadius: 14,
-    padding: 16,
-    marginBottom: 14,
     borderWidth: 1,
     borderColor: Colors.border,
+    padding: 14,
     ...Layout.cardShadow,
   },
-  fieldLabel: {
-    fontSize: 13,
-    fontWeight: '600',
+  summaryIcon: {
+    width: 34,
+    height: 34,
+    borderRadius: 10,
+    backgroundColor: '#E8F5E9',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 10,
+  },
+  summaryLabel: {
+    fontSize: 12,
+    color: Colors.textSecondary,
+    marginBottom: 4,
+  },
+  summaryValue: {
+    fontSize: 20,
+    fontWeight: '800',
+    color: Colors.text,
+  },
+  panel: {
+    backgroundColor: '#FFF',
+    borderRadius: 16,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    marginBottom: 16,
+    ...Layout.cardShadow,
+  },
+  panelHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 10,
+  },
+  panelTitle: {
+    fontSize: 16,
+    fontWeight: '800',
     color: Colors.text,
     marginBottom: 8,
   },
-  inputRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: Colors.border,
-    borderRadius: 10,
-    paddingHorizontal: 14,
-    height: 50,
-    backgroundColor: '#F9FAFB',
+  panelSubtitle: {
+    fontSize: 12,
+    color: Colors.textSecondary,
+    marginBottom: 12,
+    lineHeight: 17,
   },
-  inputField: {
-    flex: 1,
-    fontSize: 15,
-    color: Colors.text,
-    padding: 0,
-  },
-  ownerOnlyRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-    marginTop: 16,
-    marginBottom: 10,
-    borderTopWidth: 1,
-    borderTopColor: Colors.border,
-    borderStyle: 'dashed',
-    paddingTop: 12,
-  },
-  ownerOnlyText: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: Colors.primary,
-    letterSpacing: 0.8,
-  },
-
-  // Revenue Banner
-  revenueBanner: {
+  kpiRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    backgroundColor: Colors.primary,
-    borderRadius: 14,
-    padding: 18,
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.border,
+  },
+  kpiLabel: {
+    fontSize: 13,
+    color: Colors.textSecondary,
+  },
+  kpiValue: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: Colors.text,
+  },
+  inputBox: {
+    height: 46,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    justifyContent: 'center',
+    backgroundColor: '#F9FAFB',
     marginBottom: 12,
   },
-  revenueLeft: {},
-  revenueLabel: {
-    fontSize: 12,
-    color: 'rgba(255,255,255,0.75)',
-    marginBottom: 4,
+  input: {
+    fontSize: 14,
+    color: Colors.text,
+    padding: 0,
   },
-  revenueValue: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    color: '#FFF',
-  },
-  revenueRight: {
-    alignItems: 'flex-end',
-  },
-  avgLabel: {
-    fontSize: 11,
-    color: 'rgba(255,255,255,0.75)',
-    marginBottom: 4,
-  },
-  avgValue: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#FFF',
-  },
-
-  // Batch Row
-  batchRow: {
-    flexDirection: 'row',
-    marginBottom: 14,
-  },
-  batchChip: {
-    flex: 1,
-    backgroundColor: '#FFF',
+  primaryBtn: {
+    backgroundColor: Colors.primary,
+    height: 48,
     borderRadius: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+  primaryBtnText: {
+    color: '#FFF',
+    fontSize: 14,
+    fontWeight: '800',
+  },
+  detailCard: {
+    marginTop: 6,
     borderWidth: 1,
     borderColor: Colors.border,
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    ...Layout.cardShadow,
+    borderRadius: 12,
+    overflow: 'hidden',
   },
-  batchChipLabel: {
-    fontSize: 11,
-    color: Colors.textSecondary,
-    marginBottom: 3,
-  },
-  batchChipValue: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: Colors.text,
-  },
-
-  // Finalize Button
-  finalizeBtn: {
+  detailRow: {
     flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.border,
+    backgroundColor: '#FFF',
+  },
+  detailLabel: {
+    fontSize: 12,
+    color: Colors.textSecondary,
+  },
+  detailValue: {
+    fontSize: 12,
+    color: Colors.text,
+    fontWeight: '700',
+    flexShrink: 1,
+    textAlign: 'right',
+  },
+  exportRow: {
+    flexDirection: 'row',
+    gap: 10,
+    marginTop: 12,
+  },
+  secondaryBtn: {
+    flex: 1,
+    height: 46,
+    borderRadius: 12,
+    borderWidth: 1.5,
+    borderColor: Colors.primary,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: Colors.primary,
-    height: 52,
-    borderRadius: 12,
-    marginBottom: 8,
-    elevation: 4,
-    shadowColor: Colors.primary,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 6,
-  },
-  finalizeBtnText: {
-    color: '#FFF',
-    fontSize: 16,
-    fontWeight: '700',
-  },
-  finalizeHint: {
-    fontSize: 12,
-    color: Colors.textSecondary,
-    textAlign: 'center',
-    marginBottom: 14,
-  },
-  finalizedBanner: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    backgroundColor: '#E8F5E9',
-    borderRadius: 10,
-    padding: 12,
-    marginBottom: 14,
-    borderWidth: 1,
-    borderColor: '#C8E6C9',
-  },
-  finalizedText: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: Colors.primary,
-  },
-
-  // Bar Chart
-  chartCard: {
     backgroundColor: '#FFF',
-    borderRadius: 14,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: Colors.border,
-    ...Layout.cardShadow,
   },
-  chartTitle: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: Colors.text,
-    marginBottom: 20,
-  },
-  chartBars: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    alignItems: 'flex-end',
-    height: BAR_HEIGHT + 30,
-  },
-  barCol: {
-    alignItems: 'center',
-    flex: 1,
-  },
-  todayLabel: {
-    fontSize: 9,
-    fontWeight: '700',
+  secondaryBtnText: {
     color: Colors.primary,
-    marginBottom: 4,
-    letterSpacing: 0.5,
+    fontSize: 13,
+    fontWeight: '800',
   },
-  barWrapper: {
-    height: BAR_HEIGHT,
-    justifyContent: 'flex-end',
-  },
-  bar: {
-    width: 28,
-    borderRadius: 6,
-  },
-  barLabel: {
-    fontSize: 11,
-    color: Colors.textSecondary,
-    marginTop: 6,
-    fontWeight: '500',
-  },
-  barLabelToday: {
-    color: Colors.primary,
-    fontWeight: '700',
+  btnDisabled: {
+    opacity: 0.75,
   },
 });

@@ -1,22 +1,7 @@
 import { apiRequest } from "./api";
+import type { ApiUser, AuthTokens } from "./authTypes";
 
-export type ApiRole = "OWNER" | "SUPERVISOR" | "FARMER";
-
-export type ApiUser = {
-  id: string;
-  organizationId?: string;
-  name: string;
-  email?: string;
-  phone?: string;
-  role: ApiRole;
-  status?: string;
-  farmId?: string;
-};
-
-export type AuthTokens = {
-  accessToken: string;
-  refreshToken: string;
-};
+export type { ApiRole, ApiUser, AuthTokens } from "./authTypes";
 
 export type LoginResponse = {
   user: ApiUser;
@@ -25,10 +10,32 @@ export type LoginResponse = {
 
 export type RefreshResponse = LoginResponse;
 
-export async function login(identifier: string, password: string) {
+export type RegisterOwnerRequest = {
+  organizationName: string;
+  organizationPhone?: string;
+  organizationEmail?: string;
+  ownerName: string;
+  ownerEmail?: string;
+  ownerPhone: string;
+  password: string;
+};
+
+export type ChangePasswordRequest = {
+  currentPassword: string;
+  newPassword: string;
+};
+
+export async function login(phone: string, password: string) {
   return apiRequest<LoginResponse>("/auth/login", {
     method: "POST",
-    body: { identifier, password },
+    body: { phone, password },
+  });
+}
+
+export async function registerOwner(payload: RegisterOwnerRequest) {
+  return apiRequest<LoginResponse>("/auth/register-owner", {
+    method: "POST",
+    body: payload,
   });
 }
 
@@ -50,5 +57,13 @@ export async function logout(refreshToken: string) {
   return apiRequest<{ message: string }>("/auth/logout", {
     method: "POST",
     body: { refreshToken },
+  });
+}
+
+export async function changePassword(token: string, payload: ChangePasswordRequest) {
+  return apiRequest<{ message: string }>("/auth/change-password", {
+    method: "POST",
+    token,
+    body: payload,
   });
 }
