@@ -11,7 +11,7 @@ export default function SupervisorDashboard() {
   const insets = useSafeAreaInsets();
 
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
       <View style={styles.topBar}>
         <Text style={styles.topBarTitle}>Broiler Manager</Text>
         <View style={styles.topBarRight}>
