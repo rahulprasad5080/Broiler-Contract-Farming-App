@@ -65,6 +65,7 @@ interface AuthContextType {
   user: User | null;
   accessToken: string | null;
   isLoading: boolean;
+  isReady: boolean;
   isAppUnlocked: boolean;
   signIn: (phone: string, password: string) => Promise<string | null>;
   signOut: () => Promise<void>;
@@ -177,6 +178,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = React.useState<User | null>(null);
   const [tokens, setTokens] = React.useState<AuthTokens | null>(null);
   const [isLoading, setIsLoading] = React.useState(true);
+  const [isReady, setIsReady] = React.useState(false);
   const [isAppUnlocked, setIsAppUnlocked] = React.useState(false);
   const segments = useSegments();
   const router = useRouter();
@@ -258,11 +260,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (!inAuthGroup || currentAuthScreen !== LOGIN_SCREEN) {
           router.replace("/(auth)/login1");
         }
+        if (!isReady) setIsReady(true);
         return;
       }
 
       if (isAppUnlocked) {
         if (!inAuthGroup) {
+          if (!isReady) setIsReady(true);
           return;
         }
 
@@ -271,6 +275,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (!inSetupScreen && currentAuthScreen !== LOGIN_SCREEN && !cancelled) {
           router.replace(getDashboardRoute(user.role) as never);
         }
+        if (!isReady) setIsReady(true);
         return;
       }
 
@@ -278,7 +283,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const route = await getPreferredQuickLoginRoute();
         if (!cancelled) {
           router.replace(route as never);
+          // Small delay to ensure router has started the transition before we show the screen
+          setTimeout(() => {
+            if (!cancelled && !isReady) setIsReady(true);
+          }, 50);
         }
+      } else {
+        if (!isReady) setIsReady(true);
       }
     };
 
@@ -394,6 +405,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         user,
         accessToken: tokens?.accessToken ?? null,
         isLoading,
+        isReady,
         isAppUnlocked,
         signIn,
         signOut,
