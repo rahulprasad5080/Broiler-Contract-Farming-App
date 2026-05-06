@@ -33,7 +33,7 @@ export default function QuickLoginPasswordScreen() {
         title: "Session expired",
         message: "Please log in again with your mobile number.",
       });
-      router.replace("/(auth)/login" as never);
+      router.replace("/(auth)/login1" as never);
       return;
     }
 
