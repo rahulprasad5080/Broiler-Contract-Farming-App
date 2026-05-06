@@ -114,6 +114,16 @@ function userFormFromApi(user: ApiUser): UserFormState {
   };
 }
 
+const editUserSchema = z.object({
+  name: z.string().min(2, 'Name must be at least 2 characters'),
+  email: z.string().email('Invalid email address').or(z.literal('')),
+  phone: z.string().regex(/^[0-9]{10}$/, 'Phone must be exactly 10 digits').or(z.literal('')),
+  role: z.enum(['Supervisor', 'Farmer']),
+  status: z.enum(['Active', 'Invited', 'Inactive']),
+});
+
+type EditUserFormData = z.infer<typeof editUserSchema>;
+
 export default function UserManagementScreen() {
   const router = useRouter();
   const { accessToken } = useAuth();
@@ -132,8 +142,19 @@ export default function UserManagementScreen() {
       password: '',
     },
   });
+
+  const { control: editControl, handleSubmit: handleEditSubmit, setValue: setEditValue, reset: resetEditForm, formState: { errors: editErrors } } = useForm<EditUserFormData>({
+    resolver: zodResolver(editUserSchema),
+    defaultValues: {
+      name: '',
+      email: '',
+      phone: '',
+      role: 'Farmer',
+      status: 'Active',
+    },
+  });
+
   const [editUserId, setEditUserId] = useState<string | null>(null);
-  const [editForm, setEditForm] = useState<UserFormState>(EMPTY_USER_FORM);
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSavingEdit, setIsSavingEdit] = useState(false);
@@ -182,7 +203,15 @@ export default function UserManagementScreen() {
     try {
       const user = await fetchUser(accessToken, userId);
       setEditUserId(user.id);
-      setEditForm(userFormFromApi(user));
+      
+      resetEditForm({
+        name: user.name,
+        email: user.email ?? '',
+        phone: user.phone ?? '',
+        role: toRole(user.role),
+        status: toStatus(user.status),
+      });
+
       setShowEditModal(true);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load user details.');
@@ -239,8 +268,8 @@ export default function UserManagementScreen() {
     }
   };
 
-  const handleUpdateUser = async () => {
-    if (!accessToken || !editUserId || !editForm.name.trim()) {
+  const handleUpdateUser = async (data: EditUserFormData) => {
+    if (!accessToken || !editUserId) {
       return;
     }
 
@@ -249,16 +278,16 @@ export default function UserManagementScreen() {
 
     try {
       const updated = await updateUser(accessToken, editUserId, {
-        name: editForm.name.trim(),
-        email: editForm.email.trim() || undefined,
-        phone: editForm.phone.trim() || undefined,
-        role: editForm.role === 'Supervisor' ? 'SUPERVISOR' : 'FARMER',
+        name: data.name.trim(),
+        email: data.email.trim() || undefined,
+        phone: data.phone.trim() || undefined,
+        role: data.role === 'Supervisor' ? 'SUPERVISOR' : 'FARMER',
       });
 
       const desiredStatus =
-        editForm.status === 'Inactive'
+        data.status === 'Inactive'
           ? 'DISABLED'
-          : editForm.status === 'Invited'
+          : data.status === 'Invited'
             ? 'INVITED'
             : 'ACTIVE';
 
@@ -268,7 +297,7 @@ export default function UserManagementScreen() {
 
       setShowEditModal(false);
       setEditUserId(null);
-      setEditForm(EMPTY_USER_FORM);
+      resetEditForm();
       loadUsers();
       Toast.show({type: 'success', text1: 'Success', text2: 'User updated successfully.', position: 'bottom'});
     } catch (err) {
@@ -548,76 +577,122 @@ export default function UserManagementScreen() {
               <Text style={styles.modalTitle}>Edit User</Text>
               {error ? <Text style={styles.errorText}>{error}</Text> : null}
 
-              <Text style={styles.formLabel}>Full Name</Text>
-              <View style={styles.inputBox}>
-                <TextInput
-                  style={styles.textInput}
-                  placeholder="e.g. John Doe"
-                  placeholderTextColor={Colors.textSecondary}
-                  value={editForm.name}
-                  onChangeText={(value) => setEditForm((prev) => ({ ...prev, name: value }))}
-                />
-              </View>
+              <Controller
+                control={editControl}
+                name="name"
+                render={({ field: { onChange, value } }) => (
+                  <View>
+                    <Text style={styles.formLabel}>Full Name</Text>
+                    <View style={[styles.inputBox, editErrors.name && { borderColor: Colors.tertiary }]}>
+                      <TextInput
+                        style={styles.textInput}
+                        placeholder="e.g. John Doe"
+                        placeholderTextColor={Colors.textSecondary}
+                        value={value}
+                        onChangeText={onChange}
+                      />
+                    </View>
+                    {editErrors.name && <Text style={styles.fieldErrorText}>{editErrors.name.message}</Text>}
+                  </View>
+                )}
+              />
 
-              <Text style={styles.formLabel}>Email</Text>
-              <View style={styles.inputBox}>
-                <TextInput
-                  style={styles.textInput}
-                  placeholder="john@example.com"
-                  placeholderTextColor={Colors.textSecondary}
-                  value={editForm.email}
-                  autoCapitalize="none"
-                  keyboardType="email-address"
-                  onChangeText={(value) => setEditForm((prev) => ({ ...prev, email: value }))}
-                />
-              </View>
+              <Controller
+                control={editControl}
+                name="email"
+                render={({ field: { onChange, value } }) => (
+                  <View>
+                    <Text style={styles.formLabel}>Email</Text>
+                    <View style={[styles.inputBox, editErrors.email && { borderColor: Colors.tertiary }]}>
+                      <TextInput
+                        style={styles.textInput}
+                        placeholder="john@example.com"
+                        placeholderTextColor={Colors.textSecondary}
+                        value={value}
+                        autoCapitalize="none"
+                        keyboardType="email-address"
+                        onChangeText={onChange}
+                      />
+                    </View>
+                    {editErrors.email && <Text style={styles.fieldErrorText}>{editErrors.email.message}</Text>}
+                  </View>
+                )}
+              />
 
-              <Text style={styles.formLabel}>Phone</Text>
-              <View style={styles.inputBox}>
-                <TextInput
-                  style={styles.textInput}
-                  placeholder="9876500001"
-                  placeholderTextColor={Colors.textSecondary}
-                  value={editForm.phone}
-                  keyboardType="phone-pad"
-                  onChangeText={(value) => setEditForm((prev) => ({ ...prev, phone: value }))}
-                />
-              </View>
+              <Controller
+                control={editControl}
+                name="phone"
+                render={({ field: { onChange, value } }) => (
+                  <View>
+                    <Text style={styles.formLabel}>Phone</Text>
+                    <View style={[styles.inputBox, editErrors.phone && { borderColor: Colors.tertiary }]}>
+                      <TextInput
+                        style={styles.textInput}
+                        placeholder="9876500001"
+                        placeholderTextColor={Colors.textSecondary}
+                        value={value}
+                        keyboardType="phone-pad"
+                        onChangeText={onChange}
+                        maxLength={10}
+                      />
+                    </View>
+                    {editErrors.phone && <Text style={styles.fieldErrorText}>{editErrors.phone.message}</Text>}
+                  </View>
+                )}
+              />
 
-              <Text style={styles.formLabel}>Role</Text>
-              <View style={styles.roleToggleRow}>
-                {(['Farmer', 'Supervisor'] as Role[]).map((role) => (
-                  <TouchableOpacity
-                    key={role}
-                    style={[styles.roleToggle, editForm.role === role && styles.roleToggleActive]}
-                    onPress={() => setEditForm((prev) => ({ ...prev, role }))}
-                  >
-                    <Text style={[styles.roleToggleText, editForm.role === role && styles.roleToggleTextActive]}>
-                      {role}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
+              <Controller
+                control={editControl}
+                name="role"
+                render={({ field: { onChange, value } }) => (
+                  <View>
+                    <Text style={styles.formLabel}>Role</Text>
+                    <View style={styles.roleToggleRow}>
+                      {(['Farmer', 'Supervisor'] as Role[]).map((role) => (
+                        <TouchableOpacity
+                          key={role}
+                          style={[styles.roleToggle, value === role && styles.roleToggleActive]}
+                          onPress={() => onChange(role)}
+                        >
+                          <Text style={[styles.roleToggleText, value === role && styles.roleToggleTextActive]}>
+                            {role}
+                          </Text>
+                        </TouchableOpacity>
+                      ))}
+                    </View>
+                    {editErrors.role && <Text style={styles.fieldErrorText}>{editErrors.role.message}</Text>}
+                  </View>
+                )}
+              />
 
-              <Text style={styles.formLabel}>Status</Text>
-              <View style={styles.roleToggleRow}>
-                {(['Active', 'Invited', 'Inactive'] as Status[]).map((status) => (
-                  <TouchableOpacity
-                    key={status}
-                    style={[styles.roleToggle, editForm.status === status && styles.roleToggleActive]}
-                    onPress={() => setEditForm((prev) => ({ ...prev, status }))}
-                  >
-                    <Text
-                      style={[
-                        styles.roleToggleText,
-                        editForm.status === status && styles.roleToggleTextActive,
-                      ]}
-                    >
-                      {status}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
+              <Controller
+                control={editControl}
+                name="status"
+                render={({ field: { onChange, value } }) => (
+                  <View>
+                    <Text style={styles.formLabel}>Status</Text>
+                    <View style={styles.roleToggleRow}>
+                      {(['Active', 'Invited', 'Inactive'] as Status[]).map((status) => (
+                        <TouchableOpacity
+                          key={status}
+                          style={[styles.roleToggle, value === status && styles.roleToggleActive]}
+                          onPress={() => onChange(status)}
+                        >
+                          <Text
+                            style={[
+                              styles.roleToggleText,
+                              value === status && styles.roleToggleTextActive,
+                            ]}
+                          >
+                            {status}
+                          </Text>
+                        </TouchableOpacity>
+                      ))}
+                    </View>
+                    {editErrors.status && <Text style={styles.fieldErrorText}>{editErrors.status.message}</Text>}
+                  </View>
+                )}
+              />
 
               <Text style={styles.helperText}>
                 Status is saved through the dedicated user status endpoint.
@@ -625,7 +700,7 @@ export default function UserManagementScreen() {
 
               <TouchableOpacity
                 style={[styles.submitBtn, isSavingEdit && styles.buttonDisabled]}
-                onPress={handleUpdateUser}
+                onPress={handleEditSubmit(handleUpdateUser)}
                 disabled={isSavingEdit}
               >
                 {isSavingEdit ? (

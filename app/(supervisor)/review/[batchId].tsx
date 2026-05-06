@@ -11,6 +11,22 @@ import { useFocusEffect } from '@react-navigation/native';
 import { format } from 'date-fns';
 import Toast from 'react-native-toast-message';
 
+import { useForm, Controller } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { z } from 'zod';
+
+const correctionSchema = z.object({
+  mortality: z.string().optional().refine((val) => !val || !isNaN(Number(val)), {
+    message: 'Must be a number',
+  }),
+  feed: z.string().optional().refine((val) => !val || !isNaN(Number(val)), {
+    message: 'Must be a number',
+  }),
+  correctionNote: z.string().optional(),
+});
+
+type CorrectionFormData = z.infer<typeof correctionSchema>;
+
 export default function SupervisorReviewLogsScreen() {
   const { batchId } = useLocalSearchParams<{ batchId: string }>();
   const router = useRouter();
@@ -21,10 +37,16 @@ export default function SupervisorReviewLogsScreen() {
   const [refreshing, setRefreshing] = useState(false);
   
   const [selectedLog, setSelectedLog] = useState<ApiDailyLog | null>(null);
-  const [mortality, setMortality] = useState('');
-  const [feed, setFeed] = useState('');
-  const [correctionNote, setCorrectionNote] = useState('');
   const [saving, setSaving] = useState(false);
+
+  const { control, handleSubmit, reset, formState: { errors: formErrors } } = useForm<CorrectionFormData>({
+    resolver: zodResolver(correctionSchema),
+    defaultValues: {
+      mortality: '',
+      feed: '',
+      correctionNote: '',
+    },
+  });
 
   const fetchLogs = useCallback(async () => {
     if (!accessToken || !batchId) return;
@@ -54,20 +76,22 @@ export default function SupervisorReviewLogsScreen() {
 
   const handleEditLog = (log: ApiDailyLog) => {
     setSelectedLog(log);
-    setMortality(log.mortalityCount?.toString() || '');
-    setFeed(log.feedConsumedKg?.toString() || '');
-    setCorrectionNote('');
+    reset({
+      mortality: log.mortalityCount?.toString() || '',
+      feed: log.feedConsumedKg?.toString() || '',
+      correctionNote: '',
+    });
   };
 
-  const submitCorrection = async () => {
+  const onSubmitCorrection = async (data: CorrectionFormData) => {
     if (!accessToken || !batchId || !selectedLog) return;
     setSaving(true);
     try {
       // 1. Update the log
       await updateDailyLog(accessToken, batchId, selectedLog.id, {
         logDate: selectedLog.logDate,
-        mortalityCount: mortality ? Number(mortality) : undefined,
-        feedConsumedKg: feed ? Number(feed) : undefined,
+        mortalityCount: data.mortality ? Number(data.mortality) : undefined,
+        feedConsumedKg: data.feed ? Number(data.feed) : undefined,
         openingBirdCount: selectedLog.openingBirdCount || undefined,
         cullCount: selectedLog.cullCount || undefined,
         waterConsumedLtr: selectedLog.waterConsumedLtr || undefined,
@@ -76,12 +100,12 @@ export default function SupervisorReviewLogsScreen() {
       });
 
       // 2. Add correction note if provided
-      if (correctionNote.trim()) {
+      if (data.correctionNote?.trim()) {
         await createBatchComment(accessToken, batchId, {
           targetType: 'DAILY_LOG',
           targetId: selectedLog.id,
           comment: 'Log corrected by Supervisor.',
-          correctionNote: correctionNote.trim(),
+          correctionNote: data.correctionNote.trim(),
         });
       }
 
@@ -164,32 +188,59 @@ export default function SupervisorReviewLogsScreen() {
 
             <View style={styles.row}>
               <View style={styles.flexHalf}>
-                <Text style={styles.label}>Mortality</Text>
-                <View style={styles.inputBox}>
-                  <TextInput style={styles.input} value={mortality} onChangeText={setMortality} keyboardType="numeric" />
-                </View>
+                <Controller
+                  control={control}
+                  name="mortality"
+                  render={({ field: { onChange, value } }) => (
+                    <>
+                      <Text style={styles.label}>Mortality</Text>
+                      <View style={[styles.inputBox, formErrors.mortality && { borderColor: Colors.tertiary }]}>
+                        <TextInput style={styles.input} value={value} onChangeText={onChange} keyboardType="numeric" />
+                      </View>
+                      {formErrors.mortality && <Text style={styles.fieldErrorText}>{formErrors.mortality.message}</Text>}
+                    </>
+                  )}
+                />
               </View>
               <View style={styles.flexHalf}>
-                <Text style={styles.label}>Feed (kg)</Text>
-                <View style={styles.inputBox}>
-                  <TextInput style={styles.input} value={feed} onChangeText={setFeed} keyboardType="decimal-pad" />
-                </View>
+                <Controller
+                  control={control}
+                  name="feed"
+                  render={({ field: { onChange, value } }) => (
+                    <>
+                      <Text style={styles.label}>Feed (kg)</Text>
+                      <View style={[styles.inputBox, formErrors.feed && { borderColor: Colors.tertiary }]}>
+                        <TextInput style={styles.input} value={value} onChangeText={onChange} keyboardType="decimal-pad" />
+                      </View>
+                      {formErrors.feed && <Text style={styles.fieldErrorText}>{formErrors.feed.message}</Text>}
+                    </>
+                  )}
+                />
               </View>
             </View>
 
-            <Text style={styles.label}>Correction Note for Farmer</Text>
-            <View style={[styles.inputBox, styles.textArea]}>
-              <TextInput 
-                style={[styles.input, styles.multiLine]} 
-                value={correctionNote} 
-                onChangeText={setCorrectionNote} 
-                placeholder="Explain why this correction was made" 
-                placeholderTextColor={Colors.textSecondary}
-                multiline
-              />
-            </View>
+            <Controller
+              control={control}
+              name="correctionNote"
+              render={({ field: { onChange, value } }) => (
+                <>
+                  <Text style={styles.label}>Correction Note for Farmer</Text>
+                  <View style={[styles.inputBox, styles.textArea, formErrors.correctionNote && { borderColor: Colors.tertiary }]}>
+                    <TextInput 
+                      style={[styles.input, styles.multiLine]} 
+                      value={value} 
+                      onChangeText={onChange} 
+                      placeholder="Explain why this correction was made" 
+                      placeholderTextColor={Colors.textSecondary}
+                      multiline
+                    />
+                  </View>
+                  {formErrors.correctionNote && <Text style={styles.fieldErrorText}>{formErrors.correctionNote.message}</Text>}
+                </>
+              )}
+            />
 
-            <TouchableOpacity style={styles.submitBtn} onPress={submitCorrection} disabled={saving}>
+            <TouchableOpacity style={styles.submitBtn} onPress={handleSubmit(onSubmitCorrection)} disabled={saving}>
               {saving ? <ActivityIndicator color="#FFF" /> : <Text style={styles.submitBtnText}>Submit Correction</Text>}
             </TouchableOpacity>
           </View>
@@ -240,4 +291,10 @@ const styles = StyleSheet.create({
   multiLine: { minHeight: 60, textAlignVertical: 'top' },
   submitBtn: { backgroundColor: Colors.primary, height: 50, borderRadius: 10, justifyContent: 'center', alignItems: 'center', marginTop: 24 },
   submitBtnText: { color: '#FFF', fontSize: 16, fontWeight: 'bold' },
+  fieldErrorText: {
+    color: Colors.tertiary,
+    fontSize: 10,
+    marginTop: 2,
+    fontWeight: '600',
+  },
 });

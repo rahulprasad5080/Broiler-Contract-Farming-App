@@ -22,6 +22,11 @@ import {
   listAllBatches,
 } from '@/services/managementApi';
 
+import { useForm, Controller } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { z } from 'zod';
+import Toast from 'react-native-toast-message';
+
 type DailyEntryScreenProps = {
   title?: string;
   subtitle?: string;
@@ -32,7 +37,7 @@ function todayValue() {
 }
 
 function toOptionalNumber(value: string) {
-  if (value.trim() === '') return undefined;
+  if (!value || value.trim() === '') return undefined;
   const next = Number(value);
   return Number.isNaN(next) ? undefined : next;
 }
@@ -42,6 +47,32 @@ function batchLabel(batch: ApiBatch) {
   return `${batch.code}${farm}`;
 }
 
+const dailyEntrySchema = z.object({
+  batchId: z.string().min(1, 'Please select a batch'),
+  logDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Date must be in YYYY-MM-DD format'),
+  openingBirdCount: z.string().optional().refine((val) => !val || !isNaN(Number(val)), {
+    message: 'Must be a number',
+  }),
+  mortalityCount: z.string().optional().refine((val) => !val || !isNaN(Number(val)), {
+    message: 'Must be a number',
+  }),
+  cullCount: z.string().optional().refine((val) => !val || !isNaN(Number(val)), {
+    message: 'Must be a number',
+  }),
+  feedConsumedKg: z.string().optional().refine((val) => !val || !isNaN(Number(val)), {
+    message: 'Must be a number',
+  }),
+  waterConsumedLtr: z.string().optional().refine((val) => !val || !isNaN(Number(val)), {
+    message: 'Must be a number',
+  }),
+  avgWeightGrams: z.string().optional().refine((val) => !val || !isNaN(Number(val)), {
+    message: 'Must be a number',
+  }),
+  notes: z.string().optional(),
+});
+
+type DailyEntryFormData = z.infer<typeof dailyEntrySchema>;
+
 export function DailyEntryScreen({
   title = 'Daily Entry',
   subtitle = 'Capture mortality, feed, water, and average weight for the active batch.',
@@ -49,18 +80,27 @@ export function DailyEntryScreen({
   const router = useRouter();
   const { accessToken, user } = useAuth();
   const [batches, setBatches] = useState<ApiBatch[]>([]);
-  const [selectedBatchId, setSelectedBatchId] = useState<string>('');
-  const [logDate, setLogDate] = useState(todayValue());
-  const [openingBirdCount, setOpeningBirdCount] = useState('');
-  const [mortalityCount, setMortalityCount] = useState('');
-  const [cullCount, setCullCount] = useState('');
-  const [feedConsumedKg, setFeedConsumedKg] = useState('');
-  const [waterConsumedLtr, setWaterConsumedLtr] = useState('');
-  const [avgWeightGrams, setAvgWeightGrams] = useState('');
-  const [notes, setNotes] = useState('');
+  
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
+
+  const { control, handleSubmit, setValue, watch, reset, formState: { errors: formErrors } } = useForm<DailyEntryFormData>({
+    resolver: zodResolver(dailyEntrySchema),
+    defaultValues: {
+      batchId: '',
+      logDate: todayValue(),
+      openingBirdCount: '',
+      mortalityCount: '',
+      cullCount: '',
+      feedConsumedKg: '',
+      waterConsumedLtr: '',
+      avgWeightGrams: '',
+      notes: '',
+    },
+  });
+
+  const selectedBatchId = watch('batchId');
 
   const activeBatches = useMemo(
     () => batches.filter((batch) => batch.status === 'ACTIVE' || batch.status === 'READY_FOR_SALE'),
@@ -76,14 +116,18 @@ export function DailyEntryScreen({
     try {
       const response = await listAllBatches(accessToken);
       setBatches(response.data);
-      setSelectedBatchId((current) => current || response.data[0]?.id || '');
+      
+      const firstActiveId = response.data.find(b => b.status === 'ACTIVE' || b.status === 'READY_FOR_SALE')?.id;
+      if (firstActiveId && !selectedBatchId) {
+        setValue('batchId', firstActiveId);
+      }
     } catch (error) {
       console.warn('Failed to load batches for daily entry:', error);
       setMessage('Could not load batches from backend.');
     } finally {
       setLoading(false);
     }
-  }, [accessToken]);
+  }, [accessToken, selectedBatchId, setValue]);
 
   useFocusEffect(
     useCallback(() => {
@@ -91,59 +135,61 @@ export function DailyEntryScreen({
     }, [loadBatches]),
   );
 
-  useEffect(() => {
-    if (!selectedBatchId && activeBatches[0]) {
-      setSelectedBatchId(activeBatches[0].id);
-    }
-  }, [activeBatches, selectedBatchId]);
-
   const selectedBatch = batches.find((batch) => batch.id === selectedBatchId) ?? null;
 
-  const canSubmit = Boolean(
-    accessToken &&
-      selectedBatchId &&
-      logDate &&
-      (openingBirdCount.trim() ||
-        mortalityCount.trim() ||
-        cullCount.trim() ||
-        feedConsumedKg.trim() ||
-        waterConsumedLtr.trim() ||
-        avgWeightGrams.trim()),
-  );
-
-  const handleSubmit = async () => {
-    if (!accessToken || !selectedBatchId) {
+  const onSubmit = async (data: DailyEntryFormData) => {
+    if (!accessToken || !data.batchId) {
       setMessage('Select a batch before submitting.');
+      return;
+    }
+
+    // Custom check for empty log
+    const hasAnyValue = [
+      data.openingBirdCount,
+      data.mortalityCount,
+      data.cullCount,
+      data.feedConsumedKg,
+      data.waterConsumedLtr,
+      data.avgWeightGrams,
+    ].some(v => v && v.trim() !== '');
+
+    if (!hasAnyValue) {
+      setMessage('Please fill at least one log field.');
       return;
     }
 
     setSubmitting(true);
     setMessage(null);
     try {
-      const created = await createDailyLog(accessToken, selectedBatchId, {
-        logDate,
-        openingBirdCount: toOptionalNumber(openingBirdCount),
-        mortalityCount: toOptionalNumber(mortalityCount),
-        cullCount: toOptionalNumber(cullCount),
-        feedConsumedKg: toOptionalNumber(feedConsumedKg),
-        waterConsumedLtr: toOptionalNumber(waterConsumedLtr),
-        avgWeightGrams: toOptionalNumber(avgWeightGrams),
-        notes: notes.trim() || undefined,
+      const created = await createDailyLog(accessToken, data.batchId, {
+        logDate: data.logDate,
+        openingBirdCount: toOptionalNumber(data.openingBirdCount ?? ''),
+        mortalityCount: toOptionalNumber(data.mortalityCount ?? ''),
+        cullCount: toOptionalNumber(data.cullCount ?? ''),
+        feedConsumedKg: toOptionalNumber(data.feedConsumedKg ?? ''),
+        waterConsumedLtr: toOptionalNumber(data.waterConsumedLtr ?? ''),
+        avgWeightGrams: toOptionalNumber(data.avgWeightGrams ?? ''),
+        notes: data.notes?.trim() || undefined,
         clientReferenceId: `daily-${Date.now()}`,
       });
 
       setMessage(`Saved daily log for ${created.logDate}.`);
-      setMortalityCount('');
-      setCullCount('');
-      setFeedConsumedKg('');
-      setWaterConsumedLtr('');
-      setAvgWeightGrams('');
-      setNotes('');
+      reset({
+        ...data,
+        mortalityCount: '',
+        cullCount: '',
+        feedConsumedKg: '',
+        waterConsumedLtr: '',
+        avgWeightGrams: '',
+        notes: '',
+      });
+      Toast.show({ type: 'success', text1: 'Success', text2: 'Daily log saved successfully.', position: 'bottom' });
     } catch (error) {
       console.warn('Failed to create daily log:', error);
       const fallback = error instanceof Error ? error.message : 'Failed to save daily log.';
       setMessage(fallback);
       Alert.alert('Daily log save failed', fallback);
+      Toast.show({ type: 'error', text1: 'Error', text2: fallback, position: 'bottom' });
     } finally {
       setSubmitting(false);
     }
@@ -176,34 +222,43 @@ export function DailyEntryScreen({
         </View>
 
         <View style={styles.card}>
-          <Text style={styles.sectionTitle}>Choose Batch</Text>
-          {loading ? (
-            <View style={styles.loadingBox}>
-              <ActivityIndicator color={Colors.primary} />
-              <Text style={styles.loadingText}>Loading active batches...</Text>
-            </View>
-          ) : activeBatches.length === 0 ? (
-            <View style={styles.emptyBox}>
-              <Text style={styles.emptyText}>No active batches found for this account.</Text>
-            </View>
-          ) : (
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipRow}>
-              {activeBatches.map((batch) => {
-                const active = batch.id === selectedBatchId;
-                return (
-                  <TouchableOpacity
-                    key={batch.id}
-                    style={[styles.batchChip, active && styles.batchChipActive]}
-                    onPress={() => setSelectedBatchId(batch.id)}
-                  >
-                    <Text style={[styles.batchChipText, active && styles.batchChipTextActive]}>
-                      {batchLabel(batch)}
-                    </Text>
-                  </TouchableOpacity>
-                );
-              })}
-            </ScrollView>
-          )}
+          <Controller
+            control={control}
+            name="batchId"
+            render={({ field: { onChange, value } }) => (
+              <>
+                <Text style={styles.sectionTitle}>Choose Batch</Text>
+                {loading ? (
+                  <View style={styles.loadingBox}>
+                    <ActivityIndicator color={Colors.primary} />
+                    <Text style={styles.loadingText}>Loading active batches...</Text>
+                  </View>
+                ) : activeBatches.length === 0 ? (
+                  <View style={styles.emptyBox}>
+                    <Text style={styles.emptyText}>No active batches found for this account.</Text>
+                  </View>
+                ) : (
+                  <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipRow}>
+                    {activeBatches.map((batch) => {
+                      const active = batch.id === value;
+                      return (
+                        <TouchableOpacity
+                          key={batch.id}
+                          style={[styles.batchChip, active && styles.batchChipActive, formErrors.batchId && { borderColor: Colors.tertiary }]}
+                          onPress={() => onChange(batch.id)}
+                        >
+                          <Text style={[styles.batchChipText, active && styles.batchChipTextActive]}>
+                            {batchLabel(batch)}
+                          </Text>
+                        </TouchableOpacity>
+                      );
+                    })}
+                  </ScrollView>
+                )}
+                {formErrors.batchId && <Text style={styles.fieldErrorText}>{formErrors.batchId.message}</Text>}
+              </>
+            )}
+          />
 
           {selectedBatch && (
             <View style={styles.batchSummary}>
@@ -221,126 +276,182 @@ export function DailyEntryScreen({
         <View style={styles.card}>
           <Text style={styles.sectionTitle}>Daily Log</Text>
 
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Log Date *</Text>
-            <View style={styles.inputMock}>
-              <TextInput
-                style={styles.textInput}
-                value={logDate}
-                onChangeText={setLogDate}
-                placeholder="YYYY-MM-DD"
-                placeholderTextColor={Colors.textSecondary}
-              />
-              <Ionicons name="calendar-outline" size={20} color={Colors.textSecondary} />
-            </View>
+          <Controller
+            control={control}
+            name="logDate"
+            render={({ field: { onChange, value } }) => (
+              <View style={styles.inputGroup}>
+                <Text style={styles.label}>Log Date *</Text>
+                <View style={[styles.inputMock, formErrors.logDate && { borderColor: Colors.tertiary }]}>
+                  <TextInput
+                    style={styles.textInput}
+                    value={value}
+                    onChangeText={onChange}
+                    placeholder="YYYY-MM-DD"
+                    placeholderTextColor={Colors.textSecondary}
+                  />
+                  <Ionicons name="calendar-outline" size={20} color={Colors.textSecondary} />
+                </View>
+                {formErrors.logDate && <Text style={styles.fieldErrorText}>{formErrors.logDate.message}</Text>}
+              </View>
+            )}
+          />
+
+          <View style={styles.row}>
+            <Controller
+              control={control}
+              name="openingBirdCount"
+              render={({ field: { onChange, value } }) => (
+                <View style={[styles.inputGroup, styles.half]}>
+                  <Text style={styles.label}>Opening Birds</Text>
+                  <View style={[styles.inputMock, formErrors.openingBirdCount && { borderColor: Colors.tertiary }]}>
+                    <TextInput
+                      style={styles.textInput}
+                      value={value}
+                      onChangeText={onChange}
+                      placeholder={selectedBatch ? selectedBatch.placementCount.toString() : '0'}
+                      placeholderTextColor={Colors.textSecondary}
+                      keyboardType="numeric"
+                    />
+                    <MaterialCommunityIcons name="bird" size={20} color={Colors.textSecondary} />
+                  </View>
+                  {formErrors.openingBirdCount && <Text style={styles.fieldErrorText}>{formErrors.openingBirdCount.message}</Text>}
+                </View>
+              )}
+            />
+            <Controller
+              control={control}
+              name="mortalityCount"
+              render={({ field: { onChange, value } }) => (
+                <View style={[styles.inputGroup, styles.half]}>
+                  <Text style={styles.label}>Mortality</Text>
+                  <View style={[styles.inputMock, formErrors.mortalityCount && { borderColor: Colors.tertiary }]}>
+                    <TextInput
+                      style={styles.textInput}
+                      value={value}
+                      onChangeText={onChange}
+                      placeholder="0"
+                      placeholderTextColor={Colors.textSecondary}
+                      keyboardType="numeric"
+                    />
+                    <MaterialCommunityIcons name="skull-outline" size={20} color={Colors.textSecondary} />
+                  </View>
+                  {formErrors.mortalityCount && <Text style={styles.fieldErrorText}>{formErrors.mortalityCount.message}</Text>}
+                </View>
+              )}
+            />
           </View>
 
           <View style={styles.row}>
-            <View style={[styles.inputGroup, styles.half]}>
-              <Text style={styles.label}>Opening Birds</Text>
-              <View style={styles.inputMock}>
-                <TextInput
-                  style={styles.textInput}
-                  value={openingBirdCount}
-                  onChangeText={setOpeningBirdCount}
-                  placeholder={selectedBatch ? selectedBatch.placementCount.toString() : '0'}
-                  placeholderTextColor={Colors.textSecondary}
-                  keyboardType="numeric"
-                />
-                <MaterialCommunityIcons name="bird" size={20} color={Colors.textSecondary} />
-              </View>
-            </View>
-            <View style={[styles.inputGroup, styles.half]}>
-              <Text style={styles.label}>Mortality</Text>
-              <View style={styles.inputMock}>
-                <TextInput
-                  style={styles.textInput}
-                  value={mortalityCount}
-                  onChangeText={setMortalityCount}
-                  placeholder="0"
-                  placeholderTextColor={Colors.textSecondary}
-                  keyboardType="numeric"
-                />
-                <MaterialCommunityIcons name="skull-outline" size={20} color={Colors.textSecondary} />
-              </View>
-            </View>
+            <Controller
+              control={control}
+              name="cullCount"
+              render={({ field: { onChange, value } }) => (
+                <View style={[styles.inputGroup, styles.half]}>
+                  <Text style={styles.label}>Cull Count</Text>
+                  <View style={[styles.inputMock, formErrors.cullCount && { borderColor: Colors.tertiary }]}>
+                    <TextInput
+                      style={styles.textInput}
+                      value={value}
+                      onChangeText={onChange}
+                      placeholder="0"
+                      placeholderTextColor={Colors.textSecondary}
+                      keyboardType="numeric"
+                    />
+                    <MaterialCommunityIcons name="checkbox-marked-circle-outline" size={20} color={Colors.textSecondary} />
+                  </View>
+                  {formErrors.cullCount && <Text style={styles.fieldErrorText}>{formErrors.cullCount.message}</Text>}
+                </View>
+              )}
+            />
+            <Controller
+              control={control}
+              name="feedConsumedKg"
+              render={({ field: { onChange, value } }) => (
+                <View style={[styles.inputGroup, styles.half]}>
+                  <Text style={styles.label}>Feed Consumed (kg)</Text>
+                  <View style={[styles.inputMock, formErrors.feedConsumedKg && { borderColor: Colors.tertiary }]}>
+                    <TextInput
+                      style={styles.textInput}
+                      value={value}
+                      onChangeText={onChange}
+                      placeholder="0.0"
+                      placeholderTextColor={Colors.textSecondary}
+                      keyboardType="decimal-pad"
+                    />
+                    <MaterialCommunityIcons name="silverware-fork" size={20} color={Colors.textSecondary} />
+                  </View>
+                  {formErrors.feedConsumedKg && <Text style={styles.fieldErrorText}>{formErrors.feedConsumedKg.message}</Text>}
+                </View>
+              )}
+            />
           </View>
 
           <View style={styles.row}>
-            <View style={[styles.inputGroup, styles.half]}>
-              <Text style={styles.label}>Cull Count</Text>
-              <View style={styles.inputMock}>
-                <TextInput
-                  style={styles.textInput}
-                  value={cullCount}
-                  onChangeText={setCullCount}
-                  placeholder="0"
-                  placeholderTextColor={Colors.textSecondary}
-                  keyboardType="numeric"
-                />
-                <MaterialCommunityIcons name="checkbox-marked-circle-outline" size={20} color={Colors.textSecondary} />
-              </View>
-            </View>
-            <View style={[styles.inputGroup, styles.half]}>
-              <Text style={styles.label}>Feed Consumed (kg)</Text>
-              <View style={styles.inputMock}>
-                <TextInput
-                  style={styles.textInput}
-                  value={feedConsumedKg}
-                  onChangeText={setFeedConsumedKg}
-                  placeholder="0.0"
-                  placeholderTextColor={Colors.textSecondary}
-                  keyboardType="decimal-pad"
-                />
-                <MaterialCommunityIcons name="silverware-fork" size={20} color={Colors.textSecondary} />
-              </View>
-            </View>
+            <Controller
+              control={control}
+              name="waterConsumedLtr"
+              render={({ field: { onChange, value } }) => (
+                <View style={[styles.inputGroup, styles.half]}>
+                  <Text style={styles.label}>Water Consumed (ltr)</Text>
+                  <View style={[styles.inputMock, formErrors.waterConsumedLtr && { borderColor: Colors.tertiary }]}>
+                    <TextInput
+                      style={styles.textInput}
+                      value={value}
+                      onChangeText={onChange}
+                      placeholder="0.0"
+                      placeholderTextColor={Colors.textSecondary}
+                      keyboardType="decimal-pad"
+                    />
+                    <MaterialCommunityIcons name="water-outline" size={20} color={Colors.textSecondary} />
+                  </View>
+                  {formErrors.waterConsumedLtr && <Text style={styles.fieldErrorText}>{formErrors.waterConsumedLtr.message}</Text>}
+                </View>
+              )}
+            />
+            <Controller
+              control={control}
+              name="avgWeightGrams"
+              render={({ field: { onChange, value } }) => (
+                <View style={[styles.inputGroup, styles.half]}>
+                  <Text style={styles.label}>Avg Weight (grams)</Text>
+                  <View style={[styles.inputMock, formErrors.avgWeightGrams && { borderColor: Colors.tertiary }]}>
+                    <TextInput
+                      style={styles.textInput}
+                      value={value}
+                      onChangeText={onChange}
+                      placeholder="0"
+                      placeholderTextColor={Colors.textSecondary}
+                      keyboardType="numeric"
+                    />
+                    <MaterialCommunityIcons name="scale" size={20} color={Colors.textSecondary} />
+                  </View>
+                  {formErrors.avgWeightGrams && <Text style={styles.fieldErrorText}>{formErrors.avgWeightGrams.message}</Text>}
+                </View>
+              )}
+            />
           </View>
 
-          <View style={styles.row}>
-            <View style={[styles.inputGroup, styles.half]}>
-              <Text style={styles.label}>Water Consumed (ltr)</Text>
-              <View style={styles.inputMock}>
-                <TextInput
-                  style={styles.textInput}
-                  value={waterConsumedLtr}
-                  onChangeText={setWaterConsumedLtr}
-                  placeholder="0.0"
-                  placeholderTextColor={Colors.textSecondary}
-                  keyboardType="decimal-pad"
-                />
-                <MaterialCommunityIcons name="water-outline" size={20} color={Colors.textSecondary} />
+          <Controller
+            control={control}
+            name="notes"
+            render={({ field: { onChange, value } }) => (
+              <View style={styles.inputGroup}>
+                <Text style={styles.label}>Notes</Text>
+                <View style={[styles.inputMock, styles.textArea, formErrors.notes && { borderColor: Colors.tertiary }]}>
+                  <TextInput
+                    style={[styles.textInput, styles.multiLine]}
+                    value={value}
+                    onChangeText={onChange}
+                    placeholder="Optional remarks"
+                    placeholderTextColor={Colors.textSecondary}
+                    multiline
+                  />
+                </View>
+                {formErrors.notes && <Text style={styles.fieldErrorText}>{formErrors.notes.message}</Text>}
               </View>
-            </View>
-            <View style={[styles.inputGroup, styles.half]}>
-              <Text style={styles.label}>Avg Weight (grams)</Text>
-              <View style={styles.inputMock}>
-                <TextInput
-                  style={styles.textInput}
-                  value={avgWeightGrams}
-                  onChangeText={setAvgWeightGrams}
-                  placeholder="0"
-                  placeholderTextColor={Colors.textSecondary}
-                  keyboardType="numeric"
-                />
-                <MaterialCommunityIcons name="scale" size={20} color={Colors.textSecondary} />
-              </View>
-            </View>
-          </View>
-
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Notes</Text>
-            <View style={[styles.inputMock, styles.textArea]}>
-              <TextInput
-                style={[styles.textInput, styles.multiLine]}
-                value={notes}
-                onChangeText={setNotes}
-                placeholder="Optional remarks"
-                placeholderTextColor={Colors.textSecondary}
-                multiline
-              />
-            </View>
-          </View>
+            )}
+          />
         </View>
 
         {message ? (
@@ -351,10 +462,10 @@ export function DailyEntryScreen({
         ) : null}
 
         <TouchableOpacity
-          style={[styles.submitBtn, (!canSubmit || submitting) && styles.submitBtnDisabled]}
-          onPress={handleSubmit}
-          disabled={!canSubmit || submitting}
-          activeOpacity={canSubmit ? 0.85 : 1}
+          style={[styles.submitBtn, submitting && styles.submitBtnDisabled]}
+          onPress={handleSubmit(onSubmit)}
+          disabled={submitting}
+          activeOpacity={0.85}
         >
           {submitting ? (
             <ActivityIndicator color="#FFF" />
@@ -581,5 +692,11 @@ const styles = StyleSheet.create({
     color: '#FFF',
     fontSize: 15,
     fontWeight: '800',
+  },
+  fieldErrorText: {
+    color: Colors.tertiary,
+    fontSize: 11,
+    marginTop: 4,
+    fontWeight: '600',
   },
 });

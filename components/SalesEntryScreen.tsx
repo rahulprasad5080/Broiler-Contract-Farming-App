@@ -24,6 +24,11 @@ import {
   listAllTraders,
 } from '@/services/managementApi';
 
+import { useForm, Controller } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { z } from 'zod';
+import Toast from 'react-native-toast-message';
+
 type SalesEntryScreenProps = {
   title?: string;
   subtitle?: string;
@@ -33,8 +38,8 @@ function todayValue() {
   return new Date().toISOString().slice(0, 10);
 }
 
-function toOptionalNumber(value: string) {
-  if (value.trim() === '') return undefined;
+function toOptionalNumber(value: string | undefined) {
+  if (!value || value.trim() === '') return undefined;
   const next = Number(value);
   return Number.isNaN(next) ? undefined : next;
 }
@@ -48,6 +53,36 @@ function traderLabel(trader: ApiTrader) {
   return trader.phone ? `${trader.name} • ${trader.phone}` : trader.name;
 }
 
+const salesEntrySchema = z.object({
+  batchId: z.string().min(1, 'Please select a batch'),
+  traderId: z.string().min(1, 'Please select a trader'),
+  saleDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Date must be in YYYY-MM-DD format'),
+  birdCount: z.string().min(1, 'Birds sold is required').refine((val) => !isNaN(Number(val)), {
+    message: 'Must be a number',
+  }),
+  totalWeightKg: z.string().min(1, 'Total weight is required').refine((val) => !isNaN(Number(val)), {
+    message: 'Must be a number',
+  }),
+  ratePerKg: z.string().min(1, 'Rate is required').refine((val) => !isNaN(Number(val)), {
+    message: 'Must be a number',
+  }),
+  paymentReceivedAmount: z.string().optional().refine((val) => !val || !isNaN(Number(val)), {
+    message: 'Must be a number',
+  }),
+  transportCharge: z.string().optional().refine((val) => !val || !isNaN(Number(val)), {
+    message: 'Must be a number',
+  }),
+  commissionCharge: z.string().optional().refine((val) => !val || !isNaN(Number(val)), {
+    message: 'Must be a number',
+  }),
+  otherDeduction: z.string().optional().refine((val) => !val || !isNaN(Number(val)), {
+    message: 'Must be a number',
+  }),
+  notes: z.string().optional(),
+});
+
+type SalesEntryFormData = z.infer<typeof salesEntrySchema>;
+
 export function SalesEntryScreen({
   title = 'Sales Entry',
   subtitle = 'Record birds sold, weight, rate, and final sale status for a live batch.',
@@ -56,21 +91,38 @@ export function SalesEntryScreen({
   const { user, accessToken } = useAuth();
   const [batches, setBatches] = useState<ApiBatch[]>([]);
   const [traders, setTraders] = useState<ApiTrader[]>([]);
-  const [selectedBatchId, setSelectedBatchId] = useState('');
-  const [traderId, setTraderId] = useState('');
+  
   const [traderSearch, setTraderSearch] = useState('');
-  const [saleDate, setSaleDate] = useState(todayValue());
-  const [birdCount, setBirdCount] = useState('');
-  const [totalWeightKg, setTotalWeightKg] = useState('');
-  const [ratePerKg, setRatePerKg] = useState('');
-  const [transportCharge, setTransportCharge] = useState('');
-  const [commissionCharge, setCommissionCharge] = useState('');
-  const [otherDeduction, setOtherDeduction] = useState('');
-  const [paymentReceivedAmount, setPaymentReceivedAmount] = useState('');
-  const [notes, setNotes] = useState('');
+  
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
+
+  const { control, handleSubmit, setValue, watch, reset, formState: { errors: formErrors } } = useForm<SalesEntryFormData>({
+    resolver: zodResolver(salesEntrySchema),
+    defaultValues: {
+      batchId: '',
+      traderId: '',
+      saleDate: todayValue(),
+      birdCount: '',
+      totalWeightKg: '',
+      ratePerKg: '',
+      paymentReceivedAmount: '',
+      transportCharge: '',
+      commissionCharge: '',
+      otherDeduction: '',
+      notes: '',
+    },
+  });
+
+  const selectedBatchId = watch('batchId');
+  const traderId = watch('traderId');
+  const birdCount = watch('birdCount');
+  const totalWeightKg = watch('totalWeightKg');
+  const ratePerKg = watch('ratePerKg');
+  const transportCharge = watch('transportCharge');
+  const commissionCharge = watch('commissionCharge');
+  const otherDeduction = watch('otherDeduction');
 
   const activeBatches = useMemo(
     () =>
@@ -90,10 +142,6 @@ export function SalesEntryScreen({
 
   const selectedBatch = batches.find((batch) => batch.id === selectedBatchId) ?? null;
   const selectedTrader = traders.find((trader) => trader.id === traderId) ?? null;
-  const canSubmit = Boolean(
-    accessToken && selectedBatchId && traderId && ratePerKg.trim() && totalWeightKg.trim() && birdCount.trim(),
-  );
-  const canFinalize = canSubmit && user?.role === 'OWNER';
 
   const loadLookups = useCallback(async () => {
     if (!accessToken) {
@@ -109,27 +157,28 @@ export function SalesEntryScreen({
 
       setBatches(batchResponse.data);
       setTraders(traderResponse.data);
-      setSelectedBatchId((current) => current || batchResponse.data[0]?.id || '');
-      setTraderId((current) => current || traderResponse.data[0]?.id || '');
+      
+      const firstActiveId = batchResponse.data.find(b => b.status === 'ACTIVE' || b.status === 'READY_FOR_SALE')?.id;
+      if (firstActiveId && !selectedBatchId) {
+        setValue('batchId', firstActiveId);
+      }
+      
+      if (traderResponse.data[0] && !traderId) {
+        setValue('traderId', traderResponse.data[0].id);
+      }
     } catch (error) {
       console.warn('Failed to load sales lookups:', error);
       setMessage('Could not load batches or traders from backend.');
     } finally {
       setLoading(false);
     }
-  }, [accessToken]);
+  }, [accessToken, selectedBatchId, traderId, setValue]);
 
   useFocusEffect(
     useCallback(() => {
       void loadLookups();
     }, [loadLookups]),
   );
-
-  useEffect(() => {
-    if (!selectedBatchId && activeBatches[0]) {
-      setSelectedBatchId(activeBatches[0].id);
-    }
-  }, [activeBatches, selectedBatchId]);
 
   const grossAmount = (toOptionalNumber(totalWeightKg) ?? 0) * (toOptionalNumber(ratePerKg) ?? 0);
   const netAmount =
@@ -138,8 +187,8 @@ export function SalesEntryScreen({
     (toOptionalNumber(commissionCharge) ?? 0) -
     (toOptionalNumber(otherDeduction) ?? 0);
 
-  const submitSale = async (status: 'DRAFT' | 'CONFIRMED') => {
-    if (!accessToken || !selectedBatchId || !traderId) {
+  const onSubmitSale = async (data: SalesEntryFormData, status: 'DRAFT' | 'CONFIRMED') => {
+    if (!accessToken || !data.batchId || !data.traderId) {
       setMessage('Select batch and trader before saving.');
       return;
     }
@@ -153,18 +202,18 @@ export function SalesEntryScreen({
     setMessage(null);
 
     try {
-      const created = await createSale(accessToken, selectedBatchId, {
-        traderId,
-        saleDate,
-        birdCount: toOptionalNumber(birdCount),
-        totalWeightKg: toOptionalNumber(totalWeightKg),
-        ratePerKg: toOptionalNumber(ratePerKg),
-        transportCharge: toOptionalNumber(transportCharge),
-        commissionCharge: toOptionalNumber(commissionCharge),
-        otherDeduction: toOptionalNumber(otherDeduction),
-        paymentReceivedAmount: toOptionalNumber(paymentReceivedAmount),
+      const created = await createSale(accessToken, data.batchId, {
+        traderId: data.traderId,
+        saleDate: data.saleDate,
+        birdCount: toOptionalNumber(data.birdCount),
+        totalWeightKg: toOptionalNumber(data.totalWeightKg),
+        ratePerKg: toOptionalNumber(data.ratePerKg),
+        transportCharge: toOptionalNumber(data.transportCharge ?? ''),
+        commissionCharge: toOptionalNumber(data.commissionCharge ?? ''),
+        otherDeduction: toOptionalNumber(data.otherDeduction ?? ''),
+        paymentReceivedAmount: toOptionalNumber(data.paymentReceivedAmount ?? ''),
         status,
-        notes: notes.trim() || undefined,
+        notes: data.notes?.trim() || undefined,
         clientReferenceId: `sale-${Date.now()}`,
       });
 
@@ -173,19 +222,24 @@ export function SalesEntryScreen({
           ? `Sale finalized for ${created.saleDate}.`
           : `Draft sale saved for ${created.saleDate}.`,
       );
-      setBirdCount('');
-      setTotalWeightKg('');
-      setRatePerKg('');
-      setTransportCharge('');
-      setCommissionCharge('');
-      setOtherDeduction('');
-      setPaymentReceivedAmount('');
-      setNotes('');
+      reset({
+        ...data,
+        birdCount: '',
+        totalWeightKg: '',
+        ratePerKg: '',
+        transportCharge: '',
+        commissionCharge: '',
+        otherDeduction: '',
+        paymentReceivedAmount: '',
+        notes: '',
+      });
+      Toast.show({ type: 'success', text1: 'Success', text2: 'Sale saved successfully.', position: 'bottom' });
     } catch (error) {
       console.warn('Failed to save sale:', error);
       const fallback = error instanceof Error ? error.message : 'Failed to save sale.';
       setMessage(fallback);
       Alert.alert('Sale save failed', fallback);
+      Toast.show({ type: 'error', text1: 'Error', text2: fallback, position: 'bottom' });
     } finally {
       setSubmitting(false);
     }
@@ -218,32 +272,41 @@ export function SalesEntryScreen({
         </View>
 
         <View style={styles.card}>
-          <Text style={styles.sectionTitle}>Choose Batch</Text>
-          {loading ? (
-            <View style={styles.loadingBox}>
-              <ActivityIndicator color={Colors.primary} />
-              <Text style={styles.loadingText}>Loading batches and traders...</Text>
-            </View>
-          ) : activeBatches.length === 0 ? (
-            <Text style={styles.emptyText}>No active or ready-for-sale batches found.</Text>
-          ) : (
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipRow}>
-              {activeBatches.map((batch) => {
-                const active = batch.id === selectedBatchId;
-                return (
-                  <TouchableOpacity
-                    key={batch.id}
-                    style={[styles.batchChip, active && styles.batchChipActive]}
-                    onPress={() => setSelectedBatchId(batch.id)}
-                  >
-                    <Text style={[styles.batchChipText, active && styles.batchChipTextActive]}>
-                      {batchLabel(batch)}
-                    </Text>
-                  </TouchableOpacity>
-                );
-              })}
-            </ScrollView>
-          )}
+          <Controller
+            control={control}
+            name="batchId"
+            render={({ field: { onChange, value } }) => (
+              <>
+                <Text style={styles.sectionTitle}>Choose Batch</Text>
+                {loading ? (
+                  <View style={styles.loadingBox}>
+                    <ActivityIndicator color={Colors.primary} />
+                    <Text style={styles.loadingText}>Loading batches and traders...</Text>
+                  </View>
+                ) : activeBatches.length === 0 ? (
+                  <Text style={styles.emptyText}>No active or ready-for-sale batches found.</Text>
+                ) : (
+                  <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipRow}>
+                    {activeBatches.map((batch) => {
+                      const active = batch.id === value;
+                      return (
+                        <TouchableOpacity
+                          key={batch.id}
+                          style={[styles.batchChip, active && styles.batchChipActive, formErrors.batchId && { borderColor: Colors.tertiary }]}
+                          onPress={() => onChange(batch.id)}
+                        >
+                          <Text style={[styles.batchChipText, active && styles.batchChipTextActive]}>
+                            {batchLabel(batch)}
+                          </Text>
+                        </TouchableOpacity>
+                      );
+                    })}
+                  </ScrollView>
+                )}
+                {formErrors.batchId && <Text style={styles.fieldErrorText}>{formErrors.batchId.message}</Text>}
+              </>
+            )}
+          />
 
           {selectedBatch && (
             <View style={styles.summaryStrip}>
@@ -275,164 +338,229 @@ export function SalesEntryScreen({
             </View>
           </View>
 
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipRow}>
-            {visibleTraders.map((trader) => {
-              const active = trader.id === traderId;
-              return (
-                <TouchableOpacity
-                  key={trader.id}
-                  style={[styles.traderChip, active && styles.traderChipActive]}
-                  onPress={() => setTraderId(trader.id)}
-                >
-                  <Text style={[styles.traderChipText, active && styles.traderChipTextActive]}>
-                    {traderLabel(trader)}
-                  </Text>
-                </TouchableOpacity>
-              );
-            })}
-          </ScrollView>
+          <Controller
+            control={control}
+            name="traderId"
+            render={({ field: { onChange, value } }) => (
+              <>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipRow}>
+                  {visibleTraders.map((trader) => {
+                    const active = trader.id === value;
+                    return (
+                      <TouchableOpacity
+                        key={trader.id}
+                        style={[styles.traderChip, active && styles.traderChipActive, formErrors.traderId && { borderColor: Colors.tertiary }]}
+                        onPress={() => onChange(trader.id)}
+                      >
+                        <Text style={[styles.traderChipText, active && styles.traderChipTextActive]}>
+                          {traderLabel(trader)}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </ScrollView>
 
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Trader ID *</Text>
-            <View style={styles.inputBox}>
-              <TextInput
-                style={styles.input}
-                value={traderId}
-                onChangeText={setTraderId}
-                placeholder="Select or paste trader ID"
-                placeholderTextColor={Colors.textSecondary}
-              />
-            </View>
-            {selectedTrader ? (
-              <Text style={styles.helperText}>Selected: {traderLabel(selectedTrader)}</Text>
-            ) : null}
-          </View>
+                <View style={styles.inputGroup}>
+                  <Text style={styles.label}>Trader ID *</Text>
+                  <View style={[styles.inputBox, formErrors.traderId && { borderColor: Colors.tertiary }]}>
+                    <TextInput
+                      style={styles.input}
+                      value={value}
+                      onChangeText={onChange}
+                      placeholder="Select or paste trader ID"
+                      placeholderTextColor={Colors.textSecondary}
+                    />
+                  </View>
+                  {formErrors.traderId && <Text style={styles.fieldErrorText}>{formErrors.traderId.message}</Text>}
+                  {selectedTrader ? (
+                    <Text style={styles.helperText}>Selected: {traderLabel(selectedTrader)}</Text>
+                  ) : null}
+                </View>
+              </>
+            )}
+          />
         </View>
 
         <View style={styles.card}>
           <Text style={styles.sectionTitle}>Sale Details</Text>
 
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Sale Date *</Text>
-            <View style={styles.inputBox}>
-              <TextInput
-                style={styles.input}
-                value={saleDate}
-                onChangeText={setSaleDate}
-                placeholder="YYYY-MM-DD"
-                placeholderTextColor={Colors.textSecondary}
-              />
-              <Ionicons name="calendar-outline" size={18} color={Colors.textSecondary} />
-            </View>
+          <Controller
+            control={control}
+            name="saleDate"
+            render={({ field: { onChange, value } }) => (
+              <View style={styles.inputGroup}>
+                <Text style={styles.label}>Sale Date *</Text>
+                <View style={[styles.inputBox, formErrors.saleDate && { borderColor: Colors.tertiary }]}>
+                  <TextInput
+                    style={styles.input}
+                    value={value}
+                    onChangeText={onChange}
+                    placeholder="YYYY-MM-DD"
+                    placeholderTextColor={Colors.textSecondary}
+                  />
+                  <Ionicons name="calendar-outline" size={18} color={Colors.textSecondary} />
+                </View>
+                {formErrors.saleDate && <Text style={styles.fieldErrorText}>{formErrors.saleDate.message}</Text>}
+              </View>
+            )}
+          />
+
+          <View style={styles.row}>
+            <Controller
+              control={control}
+              name="birdCount"
+              render={({ field: { onChange, value } }) => (
+                <View style={[styles.inputGroup, styles.half]}>
+                  <Text style={styles.label}>Birds Sold *</Text>
+                  <View style={[styles.inputBox, formErrors.birdCount && { borderColor: Colors.tertiary }]}>
+                    <TextInput
+                      style={styles.input}
+                      value={value}
+                      onChangeText={onChange}
+                      placeholder="0"
+                      placeholderTextColor={Colors.textSecondary}
+                      keyboardType="numeric"
+                    />
+                    <MaterialCommunityIcons name="bird" size={18} color={Colors.textSecondary} />
+                  </View>
+                  {formErrors.birdCount && <Text style={styles.fieldErrorText}>{formErrors.birdCount.message}</Text>}
+                </View>
+              )}
+            />
+            <Controller
+              control={control}
+              name="totalWeightKg"
+              render={({ field: { onChange, value } }) => (
+                <View style={[styles.inputGroup, styles.half]}>
+                  <Text style={styles.label}>Total Weight (kg) *</Text>
+                  <View style={[styles.inputBox, formErrors.totalWeightKg && { borderColor: Colors.tertiary }]}>
+                    <TextInput
+                      style={styles.input}
+                      value={value}
+                      onChangeText={onChange}
+                      placeholder="0.0"
+                      placeholderTextColor={Colors.textSecondary}
+                      keyboardType="decimal-pad"
+                    />
+                    <MaterialCommunityIcons name="scale" size={18} color={Colors.textSecondary} />
+                  </View>
+                  {formErrors.totalWeightKg && <Text style={styles.fieldErrorText}>{formErrors.totalWeightKg.message}</Text>}
+                </View>
+              )}
+            />
           </View>
 
           <View style={styles.row}>
-            <View style={[styles.inputGroup, styles.half]}>
-              <Text style={styles.label}>Birds Sold *</Text>
-              <View style={styles.inputBox}>
-                <TextInput
-                  style={styles.input}
-                  value={birdCount}
-                  onChangeText={setBirdCount}
-                  placeholder="0"
-                  placeholderTextColor={Colors.textSecondary}
-                  keyboardType="numeric"
-                />
-                <MaterialCommunityIcons name="bird" size={18} color={Colors.textSecondary} />
-              </View>
-            </View>
-            <View style={[styles.inputGroup, styles.half]}>
-              <Text style={styles.label}>Total Weight (kg) *</Text>
-              <View style={styles.inputBox}>
-                <TextInput
-                  style={styles.input}
-                  value={totalWeightKg}
-                  onChangeText={setTotalWeightKg}
-                  placeholder="0.0"
-                  placeholderTextColor={Colors.textSecondary}
-                  keyboardType="decimal-pad"
-                />
-                <MaterialCommunityIcons name="scale" size={18} color={Colors.textSecondary} />
-              </View>
-            </View>
+            <Controller
+              control={control}
+              name="ratePerKg"
+              render={({ field: { onChange, value } }) => (
+                <View style={[styles.inputGroup, styles.half]}>
+                  <Text style={styles.label}>Rate / Kg *</Text>
+                  <View style={[styles.inputBox, formErrors.ratePerKg && { borderColor: Colors.tertiary }]}>
+                    <TextInput
+                      style={styles.input}
+                      value={value}
+                      onChangeText={onChange}
+                      placeholder="0"
+                      placeholderTextColor={Colors.textSecondary}
+                      keyboardType="decimal-pad"
+                    />
+                    <MaterialCommunityIcons name="currency-inr" size={18} color={Colors.primary} />
+                  </View>
+                  {formErrors.ratePerKg && <Text style={styles.fieldErrorText}>{formErrors.ratePerKg.message}</Text>}
+                </View>
+              )}
+            />
+            <Controller
+              control={control}
+              name="paymentReceivedAmount"
+              render={({ field: { onChange, value } }) => (
+                <View style={[styles.inputGroup, styles.half]}>
+                  <Text style={styles.label}>Payment Received</Text>
+                  <View style={[styles.inputBox, formErrors.paymentReceivedAmount && { borderColor: Colors.tertiary }]}>
+                    <TextInput
+                      style={styles.input}
+                      value={value}
+                      onChangeText={onChange}
+                      placeholder="0"
+                      placeholderTextColor={Colors.textSecondary}
+                      keyboardType="numeric"
+                    />
+                    <MaterialCommunityIcons name="cash-check" size={18} color={Colors.textSecondary} />
+                  </View>
+                  {formErrors.paymentReceivedAmount && <Text style={styles.fieldErrorText}>{formErrors.paymentReceivedAmount.message}</Text>}
+                </View>
+              )}
+            />
           </View>
 
           <View style={styles.row}>
-            <View style={[styles.inputGroup, styles.half]}>
-              <Text style={styles.label}>Rate / Kg *</Text>
-              <View style={styles.inputBox}>
-                <TextInput
-                  style={styles.input}
-                  value={ratePerKg}
-                  onChangeText={setRatePerKg}
-                  placeholder="0"
-                  placeholderTextColor={Colors.textSecondary}
-                  keyboardType="decimal-pad"
-                />
-                <MaterialCommunityIcons name="currency-inr" size={18} color={Colors.primary} />
-              </View>
-            </View>
-            <View style={[styles.inputGroup, styles.half]}>
-              <Text style={styles.label}>Payment Received</Text>
-              <View style={styles.inputBox}>
-                <TextInput
-                  style={styles.input}
-                  value={paymentReceivedAmount}
-                  onChangeText={setPaymentReceivedAmount}
-                  placeholder="0"
-                  placeholderTextColor={Colors.textSecondary}
-                  keyboardType="numeric"
-                />
-                <MaterialCommunityIcons name="cash-check" size={18} color={Colors.textSecondary} />
-              </View>
-            </View>
+            <Controller
+              control={control}
+              name="transportCharge"
+              render={({ field: { onChange, value } }) => (
+                <View style={[styles.inputGroup, styles.half]}>
+                  <Text style={styles.label}>Transport Charge</Text>
+                  <View style={[styles.inputBox, formErrors.transportCharge && { borderColor: Colors.tertiary }]}>
+                    <TextInput
+                      style={styles.input}
+                      value={value}
+                      onChangeText={onChange}
+                      placeholder="0"
+                      placeholderTextColor={Colors.textSecondary}
+                      keyboardType="numeric"
+                    />
+                    <MaterialCommunityIcons name="truck-outline" size={18} color={Colors.textSecondary} />
+                  </View>
+                  {formErrors.transportCharge && <Text style={styles.fieldErrorText}>{formErrors.transportCharge.message}</Text>}
+                </View>
+              )}
+            />
+            <Controller
+              control={control}
+              name="commissionCharge"
+              render={({ field: { onChange, value } }) => (
+                <View style={[styles.inputGroup, styles.half]}>
+                  <Text style={styles.label}>Commission Charge</Text>
+                  <View style={[styles.inputBox, formErrors.commissionCharge && { borderColor: Colors.tertiary }]}>
+                    <TextInput
+                      style={styles.input}
+                      value={value}
+                      onChangeText={onChange}
+                      placeholder="0"
+                      placeholderTextColor={Colors.textSecondary}
+                      keyboardType="numeric"
+                    />
+                    <MaterialCommunityIcons name="percent-outline" size={18} color={Colors.textSecondary} />
+                  </View>
+                  {formErrors.commissionCharge && <Text style={styles.fieldErrorText}>{formErrors.commissionCharge.message}</Text>}
+                </View>
+              )}
+            />
           </View>
 
-          <View style={styles.row}>
-            <View style={[styles.inputGroup, styles.half]}>
-              <Text style={styles.label}>Transport Charge</Text>
-              <View style={styles.inputBox}>
-                <TextInput
-                  style={styles.input}
-                  value={transportCharge}
-                  onChangeText={setTransportCharge}
-                  placeholder="0"
-                  placeholderTextColor={Colors.textSecondary}
-                  keyboardType="numeric"
-                />
-                <MaterialCommunityIcons name="truck-outline" size={18} color={Colors.textSecondary} />
+          <Controller
+            control={control}
+            name="otherDeduction"
+            render={({ field: { onChange, value } }) => (
+              <View style={styles.inputGroup}>
+                <Text style={styles.label}>Other Deduction</Text>
+                <View style={[styles.inputBox, formErrors.otherDeduction && { borderColor: Colors.tertiary }]}>
+                  <TextInput
+                    style={styles.input}
+                    value={value}
+                    onChangeText={onChange}
+                    placeholder="0"
+                    placeholderTextColor={Colors.textSecondary}
+                    keyboardType="numeric"
+                  />
+                  <MaterialCommunityIcons name="minus-circle-outline" size={18} color={Colors.textSecondary} />
+                </View>
+                {formErrors.otherDeduction && <Text style={styles.fieldErrorText}>{formErrors.otherDeduction.message}</Text>}
               </View>
-            </View>
-            <View style={[styles.inputGroup, styles.half]}>
-              <Text style={styles.label}>Commission Charge</Text>
-              <View style={styles.inputBox}>
-                <TextInput
-                  style={styles.input}
-                  value={commissionCharge}
-                  onChangeText={setCommissionCharge}
-                  placeholder="0"
-                  placeholderTextColor={Colors.textSecondary}
-                  keyboardType="numeric"
-                />
-                <MaterialCommunityIcons name="percent-outline" size={18} color={Colors.textSecondary} />
-              </View>
-            </View>
-          </View>
-
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Other Deduction</Text>
-            <View style={styles.inputBox}>
-              <TextInput
-                style={styles.input}
-                value={otherDeduction}
-                onChangeText={setOtherDeduction}
-                placeholder="0"
-                placeholderTextColor={Colors.textSecondary}
-                keyboardType="numeric"
-              />
-              <MaterialCommunityIcons name="minus-circle-outline" size={18} color={Colors.textSecondary} />
-            </View>
-          </View>
+            )}
+          />
 
           <View style={styles.summaryGrid}>
             <View style={styles.summaryBox}>
@@ -445,19 +573,26 @@ export function SalesEntryScreen({
             </View>
           </View>
 
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Notes</Text>
-            <View style={[styles.inputBox, styles.textArea]}>
-              <TextInput
-                style={[styles.input, styles.multiLine]}
-                value={notes}
-                onChangeText={setNotes}
-                placeholder="Optional sale remarks"
-                placeholderTextColor={Colors.textSecondary}
-                multiline
-              />
-            </View>
-          </View>
+          <Controller
+            control={control}
+            name="notes"
+            render={({ field: { onChange, value } }) => (
+              <View style={styles.inputGroup}>
+                <Text style={styles.label}>Notes</Text>
+                <View style={[styles.inputBox, styles.textArea, formErrors.notes && { borderColor: Colors.tertiary }]}>
+                  <TextInput
+                    style={[styles.input, styles.multiLine]}
+                    value={value}
+                    onChangeText={onChange}
+                    placeholder="Optional sale remarks"
+                    placeholderTextColor={Colors.textSecondary}
+                    multiline
+                  />
+                </View>
+                {formErrors.notes && <Text style={styles.fieldErrorText}>{formErrors.notes.message}</Text>}
+              </View>
+            )}
+          />
         </View>
 
         {message ? (
@@ -468,10 +603,10 @@ export function SalesEntryScreen({
         ) : null}
 
         <TouchableOpacity
-          style={[styles.primaryBtn, (!canSubmit || submitting || user?.role === 'FARMER') && styles.disabledBtn]}
-          disabled={!canSubmit || submitting || user?.role === 'FARMER'}
-          onPress={() => void submitSale('DRAFT')}
-          activeOpacity={canSubmit ? 0.85 : 1}
+          style={[styles.primaryBtn, (submitting || user?.role === 'FARMER') && styles.disabledBtn]}
+          disabled={submitting || user?.role === 'FARMER'}
+          onPress={handleSubmit((data) => onSubmitSale(data, 'DRAFT'))}
+          activeOpacity={0.85}
         >
           {submitting ? (
             <ActivityIndicator color="#FFF" />
@@ -486,21 +621,21 @@ export function SalesEntryScreen({
         <TouchableOpacity
           style={[
             styles.finalizeBtn,
-            (!canFinalize || submitting || user?.role !== 'OWNER') && styles.finalizeDisabled,
+            (submitting || user?.role !== 'OWNER') && styles.finalizeDisabled,
           ]}
-          disabled={!canFinalize || submitting || user?.role !== 'OWNER'}
-          onPress={() => void submitSale('CONFIRMED')}
-          activeOpacity={canFinalize ? 0.85 : 1}
+          disabled={submitting || user?.role !== 'OWNER'}
+          onPress={handleSubmit((data) => onSubmitSale(data, 'CONFIRMED'))}
+          activeOpacity={0.85}
         >
           <Ionicons
             name="checkmark-circle-outline"
             size={18}
-            color={canFinalize && user?.role === 'OWNER' ? Colors.primary : Colors.textSecondary}
+            color={user?.role === 'OWNER' ? Colors.primary : Colors.textSecondary}
           />
           <Text
             style={[
               styles.finalizeBtnText,
-              (!canFinalize || user?.role !== 'OWNER') && styles.disabledText,
+              user?.role !== 'OWNER' && styles.disabledText,
             ]}
           >
             Finalize Sale
@@ -790,5 +925,11 @@ const styles = StyleSheet.create({
   },
   disabledText: {
     color: Colors.textSecondary,
+  },
+  fieldErrorText: {
+    color: Colors.tertiary,
+    fontSize: 11,
+    marginTop: 4,
+    fontWeight: '600',
   },
 });

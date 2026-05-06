@@ -19,12 +19,16 @@ import { useAuth } from '@/context/AuthContext';
 import Toast from 'react-native-toast-message';
 import { ApiFarm, createBatch, listAllFarms } from '@/services/managementApi';
 
+import { useForm, Controller } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { z } from 'zod';
+
 function todayValue() {
   return new Date().toISOString().slice(0, 10);
 }
 
-function toOptionalNumber(value: string) {
-  if (value.trim() === '') return undefined;
+function toOptionalNumber(value: string | undefined) {
+  if (!value || value.trim() === '') return undefined;
   const next = Number(value);
   return Number.isNaN(next) ? undefined : next;
 }
@@ -34,22 +38,50 @@ function farmLabel(farm: ApiFarm) {
   return `${farm.code} • ${farm.name}${place ? ` • ${place}` : ''}`;
 }
 
+const batchSchema = z.object({
+  farmId: z.string().min(1, 'Farm is required'),
+  code: z.string().min(1, 'Batch code is required'),
+  placementDate: z.string().min(1, 'Placement date is required'),
+  placementCount: z.string().min(1, 'Placement count is required').refine((val) => !isNaN(Number(val)), {
+    message: 'Must be a number',
+  }),
+  chickCostTotal: z.string().optional().refine((val) => !val || !isNaN(Number(val)), {
+    message: 'Must be a number',
+  }),
+  chickRatePerBird: z.string().optional().refine((val) => !val || !isNaN(Number(val)), {
+    message: 'Must be a number',
+  }),
+  sourceHatchery: z.string().optional(),
+  targetCloseDate: z.string().optional(),
+  notes: z.string().optional(),
+});
+
+type BatchFormData = z.infer<typeof batchSchema>;
+
 export default function CreateBatchScreen() {
   const router = useRouter();
   const { accessToken, user } = useAuth();
   const [farms, setFarms] = useState<ApiFarm[]>([]);
-  const [selectedFarmId, setSelectedFarmId] = useState('');
-  const [code, setCode] = useState('');
-  const [placementDate, setPlacementDate] = useState(todayValue());
-  const [placementCount, setPlacementCount] = useState('');
-  const [chickCostTotal, setChickCostTotal] = useState('');
-  const [chickRatePerBird, setChickRatePerBird] = useState('');
-  const [sourceHatchery, setSourceHatchery] = useState('');
-  const [targetCloseDate, setTargetCloseDate] = useState('');
-  const [notes, setNotes] = useState('');
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
+
+  const { control, handleSubmit, setValue, watch, reset, formState: { errors: formErrors } } = useForm<BatchFormData>({
+    resolver: zodResolver(batchSchema),
+    defaultValues: {
+      farmId: '',
+      code: '',
+      placementDate: todayValue(),
+      placementCount: '',
+      chickCostTotal: '',
+      chickRatePerBird: '',
+      sourceHatchery: '',
+      targetCloseDate: '',
+      notes: '',
+    },
+  });
+
+  const selectedFarmId = watch('farmId');
 
   const availableFarms = useMemo(
     () => farms.filter((farm) => (farm.activeBatchCount ?? 0) === 0),
@@ -65,14 +97,17 @@ export default function CreateBatchScreen() {
     try {
       const response = await listAllFarms(accessToken);
       setFarms(response.data);
-      setSelectedFarmId((current) => current || response.data.find((farm) => farm.activeBatchCount === 0)?.id || '');
+      const firstEligible = response.data.find((farm) => farm.activeBatchCount === 0);
+      if (firstEligible && !selectedFarmId) {
+        setValue('farmId', firstEligible.id);
+      }
     } catch (error) {
       console.warn('Failed to load farms:', error);
       setMessage('Could not load farms from backend.');
     } finally {
       setLoading(false);
     }
-  }, [accessToken]);
+  }, [accessToken, selectedFarmId, setValue]);
 
   useFocusEffect(
     useCallback(() => {
@@ -82,22 +117,14 @@ export default function CreateBatchScreen() {
 
   useEffect(() => {
     if (!selectedFarmId && availableFarms[0]) {
-      setSelectedFarmId(availableFarms[0].id);
+      setValue('farmId', availableFarms[0].id);
     }
-  }, [availableFarms, selectedFarmId]);
+  }, [availableFarms, selectedFarmId, setValue]);
 
   const selectedFarm = farms.find((farm) => farm.id === selectedFarmId) ?? null;
-  const canSubmit = Boolean(
-    accessToken &&
-      selectedFarmId &&
-      code.trim() &&
-      placementDate &&
-      placementCount.trim(),
-  );
 
-  const handleSave = async () => {
-    if (!accessToken || !selectedFarmId) {
-      setMessage('Select a farm before saving.');
+  const handleSave = async (data: BatchFormData) => {
+    if (!accessToken) {
       return;
     }
 
@@ -106,25 +133,18 @@ export default function CreateBatchScreen() {
 
     try {
       const created = await createBatch(accessToken, {
-        farmId: selectedFarmId,
-        code: code.trim(),
-        placementDate,
-        placementCount: Number(placementCount),
-        chickCostTotal: toOptionalNumber(chickCostTotal),
-        chickRatePerBird: toOptionalNumber(chickRatePerBird),
-        sourceHatchery: sourceHatchery.trim() || undefined,
-        targetCloseDate: targetCloseDate.trim() || undefined,
-        notes: notes.trim() || undefined,
+        farmId: data.farmId,
+        code: data.code.trim(),
+        placementDate: data.placementDate,
+        placementCount: Number(data.placementCount),
+        chickCostTotal: toOptionalNumber(data.chickCostTotal),
+        chickRatePerBird: toOptionalNumber(data.chickRatePerBird),
+        sourceHatchery: data.sourceHatchery?.trim() || undefined,
+        targetCloseDate: data.targetCloseDate?.trim() || undefined,
+        notes: data.notes?.trim() || undefined,
       });
 
-      setMessage(`Batch ${created.code} created successfully.`);
-      setCode('');
-      setPlacementCount('');
-      setChickCostTotal('');
-      setChickRatePerBird('');
-      setSourceHatchery('');
-      setTargetCloseDate('');
-      setNotes('');
+      reset();
       Toast.show({type: 'success', text1: 'Success', text2: `Batch ${created.code} created successfully.`,
   position: 'bottom'});
       router.back();
@@ -161,31 +181,40 @@ export default function CreateBatchScreen() {
 
         <View style={styles.card}>
           <Text style={styles.sectionTitle}>Select Farm</Text>
-          {loading ? (
-            <View style={styles.loadingBox}>
-              <ActivityIndicator color={Colors.primary} />
-              <Text style={styles.loadingText}>Loading farms...</Text>
-            </View>
-          ) : availableFarms.length === 0 ? (
-            <Text style={styles.emptyText}>No eligible farms available for batch creation.</Text>
-          ) : (
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipRow}>
-              {availableFarms.map((farm) => {
-                const active = farm.id === selectedFarmId;
-                return (
-                  <TouchableOpacity
-                    key={farm.id}
-                    style={[styles.farmChip, active && styles.farmChipActive]}
-                    onPress={() => setSelectedFarmId(farm.id)}
-                  >
-                    <Text style={[styles.farmChipText, active && styles.farmChipTextActive]}>
-                      {farmLabel(farm)}
-                    </Text>
-                  </TouchableOpacity>
-                );
-              })}
-            </ScrollView>
-          )}
+          <Controller
+            control={control}
+            name="farmId"
+            render={({ field: { onChange, value } }) => (
+              <>
+                {loading ? (
+                  <View style={styles.loadingBox}>
+                    <ActivityIndicator color={Colors.primary} />
+                    <Text style={styles.loadingText}>Loading farms...</Text>
+                  </View>
+                ) : availableFarms.length === 0 ? (
+                  <Text style={styles.emptyText}>No eligible farms available for batch creation.</Text>
+                ) : (
+                  <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipRow}>
+                    {availableFarms.map((farm) => {
+                      const active = farm.id === value;
+                      return (
+                        <TouchableOpacity
+                          key={farm.id}
+                          style={[styles.farmChip, active && styles.farmChipActive]}
+                          onPress={() => onChange(farm.id)}
+                        >
+                          <Text style={[styles.farmChipText, active && styles.farmChipTextActive]}>
+                            {farmLabel(farm)}
+                          </Text>
+                        </TouchableOpacity>
+                      );
+                    })}
+                  </ScrollView>
+                )}
+                {formErrors.farmId && <Text style={styles.fieldErrorText}>{formErrors.farmId.message}</Text>}
+              </>
+            )}
+          />
 
           {selectedFarm ? (
             <View style={styles.summaryStrip}>
@@ -203,120 +232,184 @@ export default function CreateBatchScreen() {
         <View style={styles.card}>
           <Text style={styles.sectionTitle}>Batch Information</Text>
 
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Batch Code *</Text>
-            <View style={styles.inputBox}>
-              <TextInput
-                style={styles.input}
-                value={code}
-                onChangeText={setCode}
-                placeholder="BATCH-APR-2026-01"
-                placeholderTextColor={Colors.textSecondary}
+          <Controller
+            control={control}
+            name="code"
+            render={({ field: { onChange, value } }) => (
+              <View style={styles.inputGroup}>
+                <Text style={styles.label}>Batch Code *</Text>
+                <View style={[styles.inputBox, formErrors.code && { borderColor: Colors.tertiary }]}>
+                  <TextInput
+                    style={styles.input}
+                    value={value}
+                    onChangeText={onChange}
+                    placeholder="BATCH-APR-2026-01"
+                    placeholderTextColor={Colors.textSecondary}
+                  />
+                </View>
+                {formErrors.code && <Text style={styles.fieldErrorText}>{formErrors.code.message}</Text>}
+              </View>
+            )}
+          />
+
+          <Controller
+            control={control}
+            name="placementDate"
+            render={({ field: { onChange, value } }) => (
+              <View style={styles.inputGroup}>
+                <Text style={styles.label}>Placement Date *</Text>
+                <View style={[styles.inputBox, formErrors.placementDate && { borderColor: Colors.tertiary }]}>
+                  <TextInput
+                    style={styles.input}
+                    value={value}
+                    onChangeText={onChange}
+                    placeholder="YYYY-MM-DD"
+                    placeholderTextColor={Colors.textSecondary}
+                  />
+                  <Ionicons name="calendar-outline" size={18} color={Colors.textSecondary} />
+                </View>
+                {formErrors.placementDate && <Text style={styles.fieldErrorText}>{formErrors.placementDate.message}</Text>}
+              </View>
+            )}
+          />
+
+          <View style={styles.row}>
+            <View style={[styles.inputGroup, styles.half]}>
+              <Controller
+                control={control}
+                name="placementCount"
+                render={({ field: { onChange, value } }) => (
+                  <>
+                    <Text style={styles.label}>Placement Count *</Text>
+                    <View style={[styles.inputBox, formErrors.placementCount && { borderColor: Colors.tertiary }]}>
+                      <TextInput
+                        style={styles.input}
+                        value={value}
+                        onChangeText={onChange}
+                        placeholder="5000"
+                        placeholderTextColor={Colors.textSecondary}
+                        keyboardType="numeric"
+                      />
+                      <Ionicons name="layers-outline" size={18} color={Colors.textSecondary} />
+                    </View>
+                    {formErrors.placementCount && <Text style={styles.fieldErrorText}>{formErrors.placementCount.message}</Text>}
+                  </>
+                )}
               />
             </View>
-          </View>
-
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Placement Date *</Text>
-            <View style={styles.inputBox}>
-              <TextInput
-                style={styles.input}
-                value={placementDate}
-                onChangeText={setPlacementDate}
-                placeholder="YYYY-MM-DD"
-                placeholderTextColor={Colors.textSecondary}
+            <View style={[styles.inputGroup, styles.half]}>
+              <Controller
+                control={control}
+                name="chickRatePerBird"
+                render={({ field: { onChange, value } }) => (
+                  <>
+                    <Text style={styles.label}>Chick Rate / Bird</Text>
+                    <View style={[styles.inputBox, formErrors.chickRatePerBird && { borderColor: Colors.tertiary }]}>
+                      <TextInput
+                        style={styles.input}
+                        value={value}
+                        onChangeText={onChange}
+                        placeholder="44"
+                        placeholderTextColor={Colors.textSecondary}
+                        keyboardType="decimal-pad"
+                      />
+                      <Ionicons name="cash-outline" size={18} color={Colors.textSecondary} />
+                    </View>
+                    {formErrors.chickRatePerBird && <Text style={styles.fieldErrorText}>{formErrors.chickRatePerBird.message}</Text>}
+                  </>
+                )}
               />
-              <Ionicons name="calendar-outline" size={18} color={Colors.textSecondary} />
             </View>
           </View>
 
           <View style={styles.row}>
             <View style={[styles.inputGroup, styles.half]}>
-              <Text style={styles.label}>Placement Count *</Text>
-              <View style={styles.inputBox}>
-                <TextInput
-                  style={styles.input}
-                  value={placementCount}
-                  onChangeText={setPlacementCount}
-                  placeholder="5000"
-                  placeholderTextColor={Colors.textSecondary}
-                  keyboardType="numeric"
-                />
-                <Ionicons name="layers-outline" size={18} color={Colors.textSecondary} />
-              </View>
+              <Controller
+                control={control}
+                name="chickCostTotal"
+                render={({ field: { onChange, value } }) => (
+                  <>
+                    <Text style={styles.label}>Chick Cost Total</Text>
+                    <View style={[styles.inputBox, formErrors.chickCostTotal && { borderColor: Colors.tertiary }]}>
+                      <TextInput
+                        style={styles.input}
+                        value={value}
+                        onChangeText={onChange}
+                        placeholder="220000"
+                        placeholderTextColor={Colors.textSecondary}
+                        keyboardType="decimal-pad"
+                      />
+                      <Ionicons name="logo-usd" size={18} color={Colors.textSecondary} />
+                    </View>
+                    {formErrors.chickCostTotal && <Text style={styles.fieldErrorText}>{formErrors.chickCostTotal.message}</Text>}
+                  </>
+                )}
+              />
             </View>
             <View style={[styles.inputGroup, styles.half]}>
-              <Text style={styles.label}>Chick Rate / Bird</Text>
-              <View style={styles.inputBox}>
-                <TextInput
-                  style={styles.input}
-                  value={chickRatePerBird}
-                  onChangeText={setChickRatePerBird}
-                  placeholder="44"
-                  placeholderTextColor={Colors.textSecondary}
-                  keyboardType="decimal-pad"
-                />
-                <Ionicons name="cash-outline" size={18} color={Colors.textSecondary} />
-              </View>
-            </View>
-          </View>
-
-          <View style={styles.row}>
-            <View style={[styles.inputGroup, styles.half]}>
-              <Text style={styles.label}>Chick Cost Total</Text>
-              <View style={styles.inputBox}>
-                <TextInput
-                  style={styles.input}
-                  value={chickCostTotal}
-                  onChangeText={setChickCostTotal}
-                  placeholder="220000"
-                  placeholderTextColor={Colors.textSecondary}
-                  keyboardType="decimal-pad"
-                />
-                <Ionicons name="logo-usd" size={18} color={Colors.textSecondary} />
-              </View>
-            </View>
-            <View style={[styles.inputGroup, styles.half]}>
-              <Text style={styles.label}>Target Close Date</Text>
-              <View style={styles.inputBox}>
-                <TextInput
-                  style={styles.input}
-                  value={targetCloseDate}
-                  onChangeText={setTargetCloseDate}
-                  placeholder="YYYY-MM-DD"
-                  placeholderTextColor={Colors.textSecondary}
-                />
-                <Ionicons name="calendar-number-outline" size={18} color={Colors.textSecondary} />
-              </View>
-            </View>
-          </View>
-
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Source Hatchery</Text>
-            <View style={styles.inputBox}>
-              <TextInput
-                style={styles.input}
-                value={sourceHatchery}
-                onChangeText={setSourceHatchery}
-                placeholder="Sunrise Hatchery"
-                placeholderTextColor={Colors.textSecondary}
+              <Controller
+                control={control}
+                name="targetCloseDate"
+                render={({ field: { onChange, value } }) => (
+                  <>
+                    <Text style={styles.label}>Target Close Date</Text>
+                    <View style={[styles.inputBox, formErrors.targetCloseDate && { borderColor: Colors.tertiary }]}>
+                      <TextInput
+                        style={styles.input}
+                        value={value}
+                        onChangeText={onChange}
+                        placeholder="YYYY-MM-DD"
+                        placeholderTextColor={Colors.textSecondary}
+                      />
+                      <Ionicons name="calendar-number-outline" size={18} color={Colors.textSecondary} />
+                    </View>
+                    {formErrors.targetCloseDate && <Text style={styles.fieldErrorText}>{formErrors.targetCloseDate.message}</Text>}
+                  </>
+                )}
               />
             </View>
           </View>
 
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Notes</Text>
-            <View style={[styles.inputBox, styles.textArea]}>
-              <TextInput
-                style={[styles.input, styles.multiLine]}
-                value={notes}
-                onChangeText={setNotes}
-                placeholder="Phase 1 starter batch"
-                placeholderTextColor={Colors.textSecondary}
-                multiline
-              />
-            </View>
-          </View>
+          <Controller
+            control={control}
+            name="sourceHatchery"
+            render={({ field: { onChange, value } }) => (
+              <View style={styles.inputGroup}>
+                <Text style={styles.label}>Source Hatchery</Text>
+                <View style={[styles.inputBox, formErrors.sourceHatchery && { borderColor: Colors.tertiary }]}>
+                  <TextInput
+                    style={styles.input}
+                    value={value}
+                    onChangeText={onChange}
+                    placeholder="Sunrise Hatchery"
+                    placeholderTextColor={Colors.textSecondary}
+                  />
+                </View>
+                {formErrors.sourceHatchery && <Text style={styles.fieldErrorText}>{formErrors.sourceHatchery.message}</Text>}
+              </View>
+            )}
+          />
+
+          <Controller
+            control={control}
+            name="notes"
+            render={({ field: { onChange, value } }) => (
+              <View style={styles.inputGroup}>
+                <Text style={styles.label}>Notes</Text>
+                <View style={[styles.inputBox, styles.textArea, formErrors.notes && { borderColor: Colors.tertiary }]}>
+                  <TextInput
+                    style={[styles.input, styles.multiLine]}
+                    value={value}
+                    onChangeText={onChange}
+                    placeholder="Phase 1 starter batch"
+                    placeholderTextColor={Colors.textSecondary}
+                    multiline
+                  />
+                </View>
+                {formErrors.notes && <Text style={styles.fieldErrorText}>{formErrors.notes.message}</Text>}
+              </View>
+            )}
+          />
         </View>
 
         {message ? (
@@ -327,10 +420,10 @@ export default function CreateBatchScreen() {
         ) : null}
 
         <TouchableOpacity
-          style={[styles.saveButton, (!canSubmit || submitting) && styles.saveButtonDisabled]}
-          onPress={handleSave}
-          disabled={!canSubmit || submitting}
-          activeOpacity={canSubmit ? 0.85 : 1}
+          style={[styles.saveButton, submitting && styles.saveButtonDisabled]}
+          onPress={handleSubmit(handleSave)}
+          disabled={submitting}
+          activeOpacity={0.85}
         >
           {submitting ? (
             <ActivityIndicator color="#FFF" />
@@ -543,5 +636,11 @@ const styles = StyleSheet.create({
     color: '#FFF',
     fontSize: 15,
     fontWeight: '800',
+  },
+  fieldErrorText: {
+    color: Colors.tertiary,
+    fontSize: 11,
+    marginTop: 4,
+    fontWeight: '600',
   },
 });

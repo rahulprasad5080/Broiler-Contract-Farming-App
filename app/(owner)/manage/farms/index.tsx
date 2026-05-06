@@ -27,6 +27,10 @@ import {
   type UpdateFarmRequest,
 } from '@/services/managementApi';
 
+import { useForm, Controller } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { z } from 'zod';
+
 type FarmCard = {
   id: string;
   name: string;
@@ -42,20 +46,36 @@ type FarmCard = {
 
 const FARM_TYPES = ['Broiler', 'Layer', 'Breeder', 'Mixed'];
 
-type FarmFormState = {
-  name: string;
-  code: string;
-  location: string;
-  village: string;
-  district: string;
-  state: string;
-  capacity: string;
-  notes: string;
-  status: 'ACTIVE' | 'INACTIVE';
-  primaryFarmerId: string;
-  supervisorId: string;
-  assignmentUserIds: string[];
-};
+const quickFarmSchema = z.object({
+  name: z.string().min(1, 'Farm name is required'),
+  capacity: z.string().optional().refine((val) => !val || !isNaN(Number(val)), {
+    message: 'Must be a number',
+  }),
+  farmType: z.string(),
+  primaryFarmerId: z.string().optional(),
+  supervisorId: z.string().optional(),
+  assignmentUserIds: z.array(z.string()).optional(),
+});
+
+const editFarmSchema = z.object({
+  name: z.string().min(1, 'Farm name is required'),
+  code: z.string().min(1, 'Farm code is required'),
+  location: z.string().optional(),
+  village: z.string().optional(),
+  district: z.string().optional(),
+  state: z.string().optional(),
+  capacity: z.string().optional().refine((val) => !val || !isNaN(Number(val)), {
+    message: 'Must be a number',
+  }),
+  notes: z.string().optional(),
+  status: z.enum(['ACTIVE', 'INACTIVE']),
+  primaryFarmerId: z.string().optional(),
+  supervisorId: z.string().optional(),
+  assignmentUserIds: z.array(z.string()).optional(),
+});
+
+type QuickFarmFormData = z.infer<typeof quickFarmSchema>;
+type EditFarmFormData = z.infer<typeof editFarmSchema>;
 
 type AssignmentField = 'primaryFarmerId' | 'supervisorId' | 'assignmentUserIds';
 type AssignmentTarget = 'create' | 'edit' | 'quick';
@@ -69,57 +89,6 @@ type FarmUserOption = {
   role: ApiUser['role'];
   status: ApiUser['status'];
 };
-
-const EMPTY_FARM_FORM: FarmFormState = {
-  name: '',
-  code: '',
-  location: '',
-  village: '',
-  district: '',
-  state: '',
-  capacity: '',
-  notes: '',
-  status: 'ACTIVE',
-  primaryFarmerId: '',
-  supervisorId: '',
-  assignmentUserIds: [],
-};
-
-function farmFormFromApi(farm: ApiFarm): FarmFormState {
-  return {
-    name: farm.name,
-    code: farm.code,
-    location: farm.location ?? '',
-    village: farm.village ?? '',
-    district: farm.district ?? '',
-    state: farm.state ?? '',
-    capacity: farm.capacity?.toString() ?? '',
-    notes: farm.notes ?? '',
-    status: farm.status,
-    primaryFarmerId: farm.primaryFarmerId ?? '',
-    supervisorId: farm.supervisorId ?? '',
-    assignmentUserIds: farm.assignments.map((assignment) => assignment.userId),
-  };
-}
-
-function farmUpdatePayloadFromForm(form: FarmFormState): UpdateFarmRequest {
-  const capacity = Number(form.capacity);
-
-  return {
-    name: form.name.trim(),
-    code: form.code.trim(),
-    location: form.location.trim() || undefined,
-    village: form.village.trim() || undefined,
-    district: form.district.trim() || undefined,
-    state: form.state.trim() || undefined,
-    capacity: Number.isFinite(capacity) && capacity > 0 ? capacity : undefined,
-    notes: form.notes.trim() || undefined,
-    status: form.status,
-    primaryFarmerId: form.primaryFarmerId.trim() || undefined,
-    supervisorId: form.supervisorId.trim() || undefined,
-    assignmentUserIds: form.assignmentUserIds.length ? form.assignmentUserIds : undefined,
-  };
-}
 
 function normalizeUserOption(user: ApiUser): FarmUserOption {
   return {
@@ -203,14 +172,8 @@ export default function FarmListScreen() {
   const [showTypePicker, setShowTypePicker] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [showAssignmentPicker, setShowAssignmentPicker] = useState(false);
-  const [farmName, setFarmName] = useState('');
-  const [capacity, setCapacity] = useState('5000');
-  const [farmType, setFarmType] = useState('Broiler');
-  const [createPrimaryFarmerId, setCreatePrimaryFarmerId] = useState('');
-  const [createSupervisorId, setCreateSupervisorId] = useState('');
-  const [createAssignmentUserIds, setCreateAssignmentUserIds] = useState<string[]>([]);
+  
   const [editFarmId, setEditFarmId] = useState<string | null>(null);
-  const [editForm, setEditForm] = useState<FarmFormState>(EMPTY_FARM_FORM);
   const [users, setUsers] = useState<FarmUserOption[]>([]);
   const [assignmentField, setAssignmentField] = useState<AssignmentField | null>(null);
   const [assignmentTarget, setAssignmentTarget] = useState<AssignmentTarget | null>(null);
@@ -221,6 +184,45 @@ export default function FarmListScreen() {
   const [isSavingEdit, setIsSavingEdit] = useState(false);
   const [isSavingAssignment, setIsSavingAssignment] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const { control: quickControl, handleSubmit: handleQuickSubmit, setValue: setQuickValue, watch: watchQuick, reset: resetQuick, formState: { errors: quickErrors } } = useForm<QuickFarmFormData>({
+    resolver: zodResolver(quickFarmSchema),
+    defaultValues: {
+      name: '',
+      capacity: '5000',
+      farmType: 'Broiler',
+      primaryFarmerId: '',
+      supervisorId: '',
+      assignmentUserIds: [],
+    },
+  });
+
+  const { control: editControl, handleSubmit: handleEditSubmit, setValue: setEditValue, watch: watchEdit, reset: resetEdit, formState: { errors: editErrors } } = useForm<EditFarmFormData>({
+    resolver: zodResolver(editFarmSchema),
+    defaultValues: {
+      name: '',
+      code: '',
+      location: '',
+      village: '',
+      district: '',
+      state: '',
+      capacity: '',
+      notes: '',
+      status: 'ACTIVE',
+      primaryFarmerId: '',
+      supervisorId: '',
+      assignmentUserIds: [],
+    },
+  });
+
+  const quickPrimaryFarmerId = watchQuick('primaryFarmerId');
+  const quickSupervisorId = watchQuick('supervisorId');
+  const quickAssignmentUserIds = watchQuick('assignmentUserIds') || [];
+  const quickFarmType = watchQuick('farmType');
+
+  const editPrimaryFarmerId = watchEdit('primaryFarmerId');
+  const editSupervisorId = watchEdit('supervisorId');
+  const editAssignmentUserIds = watchEdit('assignmentUserIds') || [];
 
   const loadFarms = async () => {
     if (!accessToken) {
@@ -262,9 +264,21 @@ export default function FarmListScreen() {
 
     try {
       const farm = await fetchFarm(accessToken, farmId);
-      setShowEditModal(false);
       setEditFarmId(farm.id);
-      setEditForm(farmFormFromApi(farm));
+      resetEdit({
+        name: farm.name,
+        code: farm.code,
+        location: farm.location ?? '',
+        village: farm.village ?? '',
+        district: farm.district ?? '',
+        state: farm.state ?? '',
+        capacity: farm.capacity?.toString() ?? '',
+        notes: farm.notes ?? '',
+        status: farm.status,
+        primaryFarmerId: farm.primaryFarmerId ?? '',
+        supervisorId: farm.supervisorId ?? '',
+        assignmentUserIds: farm.assignments.map((assignment) => assignment.userId),
+      });
       setShowEditModal(true);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load farm details.');
@@ -285,7 +299,20 @@ export default function FarmListScreen() {
     try {
       const farm = await fetchFarm(accessToken, farmId);
       setEditFarmId(farm.id);
-      setEditForm(farmFormFromApi(farm));
+      resetEdit({
+        name: farm.name,
+        code: farm.code,
+        location: farm.location ?? '',
+        village: farm.village ?? '',
+        district: farm.district ?? '',
+        state: farm.state ?? '',
+        capacity: farm.capacity?.toString() ?? '',
+        notes: farm.notes ?? '',
+        status: farm.status,
+        primaryFarmerId: farm.primaryFarmerId ?? '',
+        supervisorId: farm.supervisorId ?? '',
+        assignmentUserIds: farm.assignments.map((assignment) => assignment.userId),
+      });
       setAssignmentField(field);
       setAssignmentTarget('quick');
       setAssignmentSearch('');
@@ -321,18 +348,34 @@ export default function FarmListScreen() {
       return;
     }
 
-    const nextForm: FarmFormState = {
-      ...editForm,
-      [assignmentField]: userId,
-    };
-
     setIsSavingAssignment(true);
     setError(null);
 
     try {
-      const updated = await updateFarm(accessToken, editFarmId, farmUpdatePayloadFromForm(nextForm));
+      const currentValues = watchEdit();
+      const updated = await updateFarm(accessToken, editFarmId, {
+        name: currentValues.name,
+        code: currentValues.code,
+        status: currentValues.status,
+        [assignmentField]: userId,
+      });
       setFarms((prev) => prev.map((farm) => (farm.id === updated.id ? toFarmCard(updated) : farm)));
-      setEditForm(farmFormFromApi(updated));
+      
+      resetEdit({
+        name: updated.name,
+        code: updated.code,
+        location: updated.location ?? '',
+        village: updated.village ?? '',
+        district: updated.district ?? '',
+        state: updated.state ?? '',
+        capacity: updated.capacity?.toString() ?? '',
+        notes: updated.notes ?? '',
+        status: updated.status,
+        primaryFarmerId: updated.primaryFarmerId ?? '',
+        supervisorId: updated.supervisorId ?? '',
+        assignmentUserIds: updated.assignments.map((assignment) => assignment.userId),
+      });
+
       setShowAssignmentPicker(false);
       setAssignmentField(null);
       setAssignmentTarget(null);
@@ -359,7 +402,7 @@ export default function FarmListScreen() {
   };
 
   const selectedUserIds =
-    assignmentTarget === 'create' ? createAssignmentUserIds : editForm.assignmentUserIds;
+    assignmentTarget === 'create' ? quickAssignmentUserIds : editAssignmentUserIds;
 
   const filteredUsers = users.filter((user) => {
     const query = assignmentSearch.trim().toLowerCase();
@@ -397,14 +440,14 @@ export default function FarmListScreen() {
   const currentSelectedId =
     assignmentTarget === 'create'
       ? assignmentField === 'primaryFarmerId'
-        ? createPrimaryFarmerId
+        ? quickPrimaryFarmerId
         : assignmentField === 'supervisorId'
-          ? createSupervisorId
+          ? quickSupervisorId
           : null
       : assignmentField === 'primaryFarmerId'
-        ? editForm.primaryFarmerId
+        ? editPrimaryFarmerId
         : assignmentField === 'supervisorId'
-          ? editForm.supervisorId
+          ? editSupervisorId
           : null;
 
   const handlePickUser = (userId: string) => {
@@ -412,19 +455,13 @@ export default function FarmListScreen() {
 
     if (assignmentField === 'assignmentUserIds') {
       if (assignmentTarget === 'create') {
-        setCreateAssignmentUserIds((prev) =>
-          prev.includes(userId) ? prev.filter((id) => id !== userId) : [...prev, userId],
-        );
+        const current = quickAssignmentUserIds;
+        const next = current.includes(userId) ? current.filter((id) => id !== userId) : [...current, userId];
+        setQuickValue('assignmentUserIds', next);
       } else {
-        setEditForm((prev) => {
-          const exists = prev.assignmentUserIds.includes(userId);
-          return {
-            ...prev,
-            assignmentUserIds: exists
-              ? prev.assignmentUserIds.filter((id) => id !== userId)
-              : [...prev.assignmentUserIds, userId],
-          };
-        });
+        const current = editAssignmentUserIds;
+        const next = current.includes(userId) ? current.filter((id) => id !== userId) : [...current, userId];
+        setEditValue('assignmentUserIds', next);
       }
       return;
     }
@@ -436,12 +473,16 @@ export default function FarmListScreen() {
 
     if (assignmentTarget === 'create') {
       if (assignmentField === 'primaryFarmerId') {
-        setCreatePrimaryFarmerId(userId);
+        setQuickValue('primaryFarmerId', userId);
       } else if (assignmentField === 'supervisorId') {
-        setCreateSupervisorId(userId);
+        setQuickValue('supervisorId', userId);
       }
     } else {
-      setEditForm((prev) => ({ ...prev, [assignmentField]: userId }));
+      if (assignmentField === 'primaryFarmerId') {
+        setEditValue('primaryFarmerId', userId);
+      } else if (assignmentField === 'supervisorId') {
+        setEditValue('supervisorId', userId);
+      }
     }
     closeAssignmentPicker();
   };
@@ -464,8 +505,8 @@ export default function FarmListScreen() {
     }
   };
 
-  const handleCreateFarm = async () => {
-    if (!accessToken || !farmName.trim()) {
+  const handleCreateFarm = async (data: QuickFarmFormData) => {
+    if (!accessToken) {
       return;
     }
 
@@ -474,20 +515,15 @@ export default function FarmListScreen() {
 
     try {
       const created = await createFarm(accessToken, {
-        name: farmName.trim(),
-        code: generateFarmCode(farmName, farmType),
-        capacity: Number(capacity) || undefined,
-        primaryFarmerId: createPrimaryFarmerId || undefined,
-        supervisorId: createSupervisorId || undefined,
-        assignmentUserIds: createAssignmentUserIds.length ? createAssignmentUserIds : undefined,
+        name: data.name.trim(),
+        code: generateFarmCode(data.name, data.farmType),
+        capacity: Number(data.capacity) || undefined,
+        primaryFarmerId: data.primaryFarmerId || undefined,
+        supervisorId: data.supervisorId || undefined,
+        assignmentUserIds: data.assignmentUserIds?.length ? data.assignmentUserIds : undefined,
       });
       setFarms((prev) => [toFarmCard(created), ...prev]);
-      setFarmName('');
-      setCapacity('5000');
-      setFarmType('Broiler');
-      setCreatePrimaryFarmerId('');
-      setCreateSupervisorId('');
-      setCreateAssignmentUserIds([]);
+      resetQuick();
       setShowQuickAdd(false);
       Toast.show({type: 'success', text1: 'Success', text2: 'Farm created successfully.',
   position: 'bottom'});
@@ -501,8 +537,8 @@ export default function FarmListScreen() {
     }
   };
 
-  const handleUpdateFarm = async () => {
-    if (!accessToken || !editFarmId || !editForm.name.trim() || !editForm.code.trim()) {
+  const handleUpdateFarm = async (data: EditFarmFormData) => {
+    if (!accessToken || !editFarmId) {
       return;
     }
 
@@ -511,24 +547,24 @@ export default function FarmListScreen() {
 
     try {
       const updated = await updateFarm(accessToken, editFarmId, {
-        name: editForm.name.trim(),
-        code: editForm.code.trim(),
-        location: editForm.location.trim() || undefined,
-        village: editForm.village.trim() || undefined,
-        district: editForm.district.trim() || undefined,
-        state: editForm.state.trim() || undefined,
-        capacity: editForm.capacity ? Number(editForm.capacity) : undefined,
-        notes: editForm.notes.trim() || undefined,
-        status: editForm.status,
-        primaryFarmerId: editForm.primaryFarmerId.trim() || undefined,
-        supervisorId: editForm.supervisorId.trim() || undefined,
-        assignmentUserIds: editForm.assignmentUserIds.length ? editForm.assignmentUserIds : undefined,
+        name: data.name.trim(),
+        code: data.code.trim(),
+        location: data.location?.trim() || undefined,
+        village: data.village?.trim() || undefined,
+        district: data.district?.trim() || undefined,
+        state: data.state?.trim() || undefined,
+        capacity: data.capacity ? Number(data.capacity) : undefined,
+        notes: data.notes?.trim() || undefined,
+        status: data.status,
+        primaryFarmerId: data.primaryFarmerId?.trim() || undefined,
+        supervisorId: data.supervisorId?.trim() || undefined,
+        assignmentUserIds: data.assignmentUserIds?.length ? data.assignmentUserIds : undefined,
       });
 
       setFarms((prev) => prev.map((farm) => (farm.id === updated.id ? toFarmCard(updated) : farm)));
       setShowEditModal(false);
       setEditFarmId(null);
-      setEditForm(EMPTY_FARM_FORM);
+      resetEdit();
       Toast.show({type: 'success', text1: 'Success', text2: 'Farm updated successfully.',
   position: 'bottom'});
     } catch (err) {
@@ -707,42 +743,69 @@ export default function FarmListScreen() {
 
           {showQuickAdd ? (
             <>
-              <Text style={styles.formLabel}>Farm Name</Text>
-              <View style={styles.inputBox}>
-                <TextInput
-                  style={styles.textInput}
-                  placeholder="e.g. Hilltop Farm"
-                  placeholderTextColor={Colors.textSecondary}
-                  value={farmName}
-                  onChangeText={setFarmName}
-                />
-              </View>
+              <Controller
+                control={quickControl}
+                name="name"
+                render={({ field: { onChange, value } }) => (
+                  <>
+                    <Text style={styles.formLabel}>Farm Name</Text>
+                    <View style={[styles.inputBox, quickErrors.name && { borderColor: Colors.tertiary }]}>
+                      <TextInput
+                        style={styles.textInput}
+                        placeholder="e.g. Hilltop Farm"
+                        placeholderTextColor={Colors.textSecondary}
+                        value={value}
+                        onChangeText={onChange}
+                      />
+                    </View>
+                    {quickErrors.name && <Text style={styles.fieldErrorText}>{quickErrors.name.message}</Text>}
+                  </>
+                )}
+              />
 
               <View style={styles.formRow}>
                 <View style={styles.formHalf}>
-                  <Text style={styles.formLabel}>Capacity</Text>
-                  <View style={styles.inputBox}>
-                    <TextInput
-                      style={styles.textInput}
-                      placeholder="5000"
-                      placeholderTextColor={Colors.textSecondary}
-                      value={capacity}
-                      onChangeText={setCapacity}
-                      keyboardType="numeric"
+                  <Controller
+                    control={quickControl}
+                    name="capacity"
+                    render={({ field: { onChange, value } }) => (
+                      <>
+                        <Text style={styles.formLabel}>Capacity</Text>
+                        <View style={[styles.inputBox, quickErrors.capacity && { borderColor: Colors.tertiary }]}>
+                          <TextInput
+                            style={styles.textInput}
+                            placeholder="5000"
+                            placeholderTextColor={Colors.textSecondary}
+                            value={value}
+                            onChangeText={onChange}
+                            keyboardType="numeric"
+                          />
+                        </View>
+                        {quickErrors.capacity && <Text style={styles.fieldErrorText}>{quickErrors.capacity.message}</Text>}
+                      </>
+                    )}
+                  />
+                </View>
+                <View style={[styles.formHalf, !Layout.isSmallDevice && { marginLeft: 12 }]}>
+                  <Controller
+                    control={quickControl}
+                    name="farmType"
+                    render={({ field: { value } }) => (
+                      <>
+                        <Text style={styles.formLabel}>Type</Text>
+                        <TouchableOpacity
+                          style={[styles.inputBox, styles.dropdownRow, quickErrors.farmType && { borderColor: Colors.tertiary }]}
+                          onPress={() => setShowTypePicker(true)}
+                        >
+                          <Text style={styles.textInput}>{value}</Text>
+                          <Ionicons name="chevron-down" size={16} color={Colors.textSecondary} />
+                        </TouchableOpacity>
+                        {quickErrors.farmType && <Text style={styles.fieldErrorText}>{quickErrors.farmType.message}</Text>}
+                      </>
+                    )}
                   />
                 </View>
               </View>
-              <View style={[styles.formHalf, !Layout.isSmallDevice && { marginLeft: 12 }]}>
-                <Text style={styles.formLabel}>Type</Text>
-                  <TouchableOpacity
-                    style={[styles.inputBox, styles.dropdownRow]}
-                    onPress={() => setShowTypePicker(true)}
-                  >
-                    <Text style={styles.textInput}>{farmType}</Text>
-                    <Ionicons name="chevron-down" size={16} color={Colors.textSecondary} />
-                </TouchableOpacity>
-              </View>
-            </View>
 
             <Text style={styles.formLabel}>Primary Farmer</Text>
             <TouchableOpacity
@@ -752,11 +815,11 @@ export default function FarmListScreen() {
               <Text
                 style={[
                   styles.selectorText,
-                  !createPrimaryFarmerId && styles.selectorPlaceholder,
+                  !quickPrimaryFarmerId && styles.selectorPlaceholder,
                 ]}
               >
-                {createPrimaryFarmerId
-                  ? getUserLabel(createPrimaryFarmerId)
+                {quickPrimaryFarmerId
+                  ? getUserLabel(quickPrimaryFarmerId)
                   : 'Search and select a primary farmer'}
               </Text>
               <Ionicons name="search-outline" size={18} color={Colors.textSecondary} />
@@ -768,10 +831,10 @@ export default function FarmListScreen() {
               onPress={() => openAssignmentPicker('supervisorId', 'create')}
             >
               <Text
-                style={[styles.selectorText, !createSupervisorId && styles.selectorPlaceholder]}
+                style={[styles.selectorText, !quickSupervisorId && styles.selectorPlaceholder]}
               >
-                {createSupervisorId
-                  ? getUserLabel(createSupervisorId)
+                {quickSupervisorId
+                  ? getUserLabel(quickSupervisorId)
                   : 'Search and select a supervisor'}
               </Text>
               <Ionicons name="search-outline" size={18} color={Colors.textSecondary} />
@@ -785,19 +848,19 @@ export default function FarmListScreen() {
               <Text
                 style={[
                   styles.selectorText,
-                  !createAssignmentUserIds.length && styles.selectorPlaceholder,
+                  !quickAssignmentUserIds.length && styles.selectorPlaceholder,
                 ]}
               >
-                {createAssignmentUserIds.length
-                  ? `${createAssignmentUserIds.length} user(s) selected`
+                {quickAssignmentUserIds.length
+                  ? `${quickAssignmentUserIds.length} user(s) selected`
                   : 'Search and select staff members'}
               </Text>
               <Ionicons name="people-outline" size={18} color={Colors.textSecondary} />
             </TouchableOpacity>
 
-            {createAssignmentUserIds.length ? (
+            {quickAssignmentUserIds.length ? (
               <View style={styles.chipWrap}>
-                {createAssignmentUserIds.map((userId) => (
+                {quickAssignmentUserIds.map((userId) => (
                   <View key={userId} style={styles.chip}>
                     <View style={styles.avatarMini}>
                       <Text style={styles.avatarMiniText}>{getUserInitials(getUserLabel(userId))}</Text>
@@ -815,7 +878,7 @@ export default function FarmListScreen() {
                     <TouchableOpacity
                       style={styles.chipRemoveBtn}
                       onPress={() =>
-                        setCreateAssignmentUserIds((prev) => prev.filter((id) => id !== userId))
+                        setQuickValue('assignmentUserIds', quickAssignmentUserIds.filter((id) => id !== userId))
                       }
                     >
                       <Ionicons name="close" size={14} color={Colors.primary} />
@@ -826,10 +889,10 @@ export default function FarmListScreen() {
             ) : null}
 
               <TouchableOpacity
-                style={[styles.createButton, isSubmitting && styles.buttonDisabled]}
-                onPress={handleCreateFarm}
-                disabled={isSubmitting}
-              >
+              style={[styles.createButton, isSubmitting && styles.buttonDisabled]}
+              onPress={handleQuickSubmit(handleCreateFarm)}
+              disabled={isSubmitting}
+            >
                 {isSubmitting ? (
                   <ActivityIndicator color="#FFF" />
                 ) : (
@@ -863,19 +926,19 @@ export default function FarmListScreen() {
                 key={type}
                 style={styles.pickerOption}
                 onPress={() => {
-                  setFarmType(type);
+                  setQuickValue('farmType', type);
                   setShowTypePicker(false);
                 }}
               >
                 <Text
                   style={[
                     styles.pickerOptionText,
-                    farmType === type && styles.pickerOptionTextActive,
+                    quickFarmType === type && styles.pickerOptionTextActive,
                   ]}
                 >
                   {type}
                 </Text>
-                {farmType === type ? (
+                {quickFarmType === type ? (
                   <Ionicons name="checkmark" size={18} color={Colors.primary} />
                 ) : null}
               </TouchableOpacity>
@@ -894,125 +957,201 @@ export default function FarmListScreen() {
             <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
               <Text style={styles.modalTitle}>Edit Farm</Text>
 
-            <Text style={styles.formLabel}>Farm Name</Text>
-            <View style={styles.inputBox}>
-              <TextInput
-                style={styles.textInput}
-                placeholder="Farm name"
-                placeholderTextColor={Colors.textSecondary}
-                value={editForm.name}
-                onChangeText={(value) => setEditForm((prev) => ({ ...prev, name: value }))}
-              />
-            </View>
+            <Controller
+              control={editControl}
+              name="name"
+              render={({ field: { onChange, value } }) => (
+                <>
+                  <Text style={styles.formLabel}>Farm Name *</Text>
+                  <View style={[styles.inputBox, editErrors.name && { borderColor: Colors.tertiary }]}>
+                    <TextInput
+                      style={styles.textInput}
+                      placeholder="e.g. Green Valley Farm"
+                      placeholderTextColor={Colors.textSecondary}
+                      value={value}
+                      onChangeText={onChange}
+                    />
+                  </View>
+                  {editErrors.name && <Text style={styles.fieldErrorText}>{editErrors.name.message}</Text>}
+                </>
+              )}
+            />
 
-            <Text style={styles.formLabel}>Farm Code</Text>
-            <View style={styles.inputBox}>
-              <TextInput
-                style={styles.textInput}
-                placeholder="FARM-001"
-                placeholderTextColor={Colors.textSecondary}
-                value={editForm.code}
-                onChangeText={(value) => setEditForm((prev) => ({ ...prev, code: value }))}
-              />
-            </View>
+            <Controller
+              control={editControl}
+              name="code"
+              render={({ field: { onChange, value } }) => (
+                <>
+                  <Text style={styles.formLabel}>Farm Code *</Text>
+                  <View style={[styles.inputBox, editErrors.code && { borderColor: Colors.tertiary }]}>
+                    <TextInput
+                      style={styles.textInput}
+                      placeholder="FARM-CODE"
+                      placeholderTextColor={Colors.textSecondary}
+                      value={value}
+                      onChangeText={onChange}
+                    />
+                  </View>
+                  {editErrors.code && <Text style={styles.fieldErrorText}>{editErrors.code.message}</Text>}
+                </>
+              )}
+            />
 
             <View style={styles.formRow}>
               <View style={styles.formHalf}>
-                <Text style={styles.formLabel}>Capacity</Text>
-                <View style={styles.inputBox}>
-                  <TextInput
-                    style={styles.textInput}
-                    placeholder="5000"
-                    placeholderTextColor={Colors.textSecondary}
-                    value={editForm.capacity}
-                    keyboardType="numeric"
-                    onChangeText={(value) => setEditForm((prev) => ({ ...prev, capacity: value }))}
-                  />
-                </View>
+                <Controller
+                  control={editControl}
+                  name="capacity"
+                  render={({ field: { onChange, value } }) => (
+                    <>
+                      <Text style={styles.formLabel}>Capacity</Text>
+                      <View style={[styles.inputBox, editErrors.capacity && { borderColor: Colors.tertiary }]}>
+                        <TextInput
+                          style={styles.textInput}
+                          placeholder="5000"
+                          placeholderTextColor={Colors.textSecondary}
+                          value={value}
+                          onChangeText={onChange}
+                          keyboardType="numeric"
+                        />
+                      </View>
+                      {editErrors.capacity && <Text style={styles.fieldErrorText}>{editErrors.capacity.message}</Text>}
+                    </>
+                  )}
+                />
               </View>
               <View style={[styles.formHalf, !Layout.isSmallDevice && { marginLeft: 12 }]}>
-                <Text style={styles.formLabel}>Status</Text>
-                <View style={styles.roleToggleRow}>
-                  {(['ACTIVE', 'INACTIVE'] as const).map((status) => (
-                    <TouchableOpacity
-                      key={status}
-                      style={[styles.roleToggle, editForm.status === status && styles.roleToggleActive]}
-                      onPress={() => setEditForm((prev) => ({ ...prev, status }))}
-                    >
-                      <Text
-                        style={[
-                          styles.roleToggleText,
-                          editForm.status === status && styles.roleToggleTextActive,
-                        ]}
+                <Controller
+                  control={editControl}
+                  name="status"
+                  render={({ field: { onChange, value } }) => (
+                    <>
+                      <Text style={styles.formLabel}>Status</Text>
+                      <TouchableOpacity
+                        style={[styles.inputBox, styles.dropdownRow, editErrors.status && { borderColor: Colors.tertiary }]}
+                        onPress={() => {
+                          onChange(value === 'ACTIVE' ? 'INACTIVE' : 'ACTIVE');
+                        }}
                       >
-                        {status}
-                      </Text>
-                    </TouchableOpacity>
-                  ))}
-                </View>
+                        <Text style={styles.textInput}>{value === 'ACTIVE' ? 'Active' : 'Inactive'}</Text>
+                        <MaterialCommunityIcons
+                          name={value === 'ACTIVE' ? 'toggle-switch' : 'toggle-switch-off'}
+                          size={24}
+                          color={value === 'ACTIVE' ? Colors.primary : Colors.textSecondary}
+                        />
+                      </TouchableOpacity>
+                      {editErrors.status && <Text style={styles.fieldErrorText}>{editErrors.status.message}</Text>}
+                    </>
+                  )}
+                />
               </View>
             </View>
 
-            <Text style={styles.formLabel}>Location</Text>
-            <View style={styles.inputBox}>
-              <TextInput
-                style={styles.textInput}
-                placeholder="Near Main Road"
-                placeholderTextColor={Colors.textSecondary}
-                value={editForm.location}
-                onChangeText={(value) => setEditForm((prev) => ({ ...prev, location: value }))}
-              />
-            </View>
+            <Controller
+              control={editControl}
+              name="state"
+              render={({ field: { onChange, value } }) => (
+                <>
+                  <Text style={styles.formLabel}>State</Text>
+                  <View style={[styles.inputBox, editErrors.state && { borderColor: Colors.tertiary }]}>
+                    <TextInput
+                      style={styles.textInput}
+                      placeholder="Madhya Pradesh"
+                      placeholderTextColor={Colors.textSecondary}
+                      value={value}
+                      onChangeText={onChange}
+                    />
+                  </View>
+                  {editErrors.state && <Text style={styles.fieldErrorText}>{editErrors.state.message}</Text>}
+                </>
+              )}
+            />
+
+            <Controller
+              control={editControl}
+              name="location"
+              render={({ field: { onChange, value } }) => (
+                <>
+                  <Text style={styles.formLabel}>Location</Text>
+                  <View style={[styles.inputBox, editErrors.location && { borderColor: Colors.tertiary }]}>
+                    <TextInput
+                      style={styles.textInput}
+                      placeholder="Near Main Road"
+                      placeholderTextColor={Colors.textSecondary}
+                      value={value}
+                      onChangeText={onChange}
+                    />
+                  </View>
+                  {editErrors.location && <Text style={styles.fieldErrorText}>{editErrors.location.message}</Text>}
+                </>
+              )}
+            />
 
             <View style={styles.formRow}>
               <View style={styles.formHalf}>
-                <Text style={styles.formLabel}>Village</Text>
-                <View style={styles.inputBox}>
-                  <TextInput
-                    style={styles.textInput}
-                    placeholder="Rampura"
-                    placeholderTextColor={Colors.textSecondary}
-                    value={editForm.village}
-                    onChangeText={(value) => setEditForm((prev) => ({ ...prev, village: value }))}
-                  />
-                </View>
+                <Controller
+                  control={editControl}
+                  name="village"
+                  render={({ field: { onChange, value } }) => (
+                    <>
+                      <Text style={styles.formLabel}>Village</Text>
+                      <View style={[styles.inputBox, editErrors.village && { borderColor: Colors.tertiary }]}>
+                        <TextInput
+                          style={styles.textInput}
+                          placeholder="Rampura"
+                          placeholderTextColor={Colors.textSecondary}
+                          value={value}
+                          onChangeText={onChange}
+                        />
+                      </View>
+                      {editErrors.village && <Text style={styles.fieldErrorText}>{editErrors.village.message}</Text>}
+                    </>
+                  )}
+                />
               </View>
               <View style={[styles.formHalf, !Layout.isSmallDevice && { marginLeft: 12 }]}>
-                <Text style={styles.formLabel}>District</Text>
-                <View style={styles.inputBox}>
-                  <TextInput
-                    style={styles.textInput}
-                    placeholder="Indore"
-                    placeholderTextColor={Colors.textSecondary}
-                    value={editForm.district}
-                    onChangeText={(value) => setEditForm((prev) => ({ ...prev, district: value }))}
-                  />
-                </View>
+                <Controller
+                  control={editControl}
+                  name="district"
+                  render={({ field: { onChange, value } }) => (
+                    <>
+                      <Text style={styles.formLabel}>District</Text>
+                      <View style={[styles.inputBox, editErrors.district && { borderColor: Colors.tertiary }]}>
+                        <TextInput
+                          style={styles.textInput}
+                          placeholder="Indore"
+                          placeholderTextColor={Colors.textSecondary}
+                          value={value}
+                          onChangeText={onChange}
+                        />
+                      </View>
+                      {editErrors.district && <Text style={styles.fieldErrorText}>{editErrors.district.message}</Text>}
+                    </>
+                  )}
+                />
               </View>
             </View>
 
-            <Text style={styles.formLabel}>State</Text>
-            <View style={styles.inputBox}>
-              <TextInput
-                style={styles.textInput}
-                placeholder="Madhya Pradesh"
-                placeholderTextColor={Colors.textSecondary}
-                value={editForm.state}
-                onChangeText={(value) => setEditForm((prev) => ({ ...prev, state: value }))}
-              />
-            </View>
-
-            <Text style={styles.formLabel}>Notes</Text>
-            <View style={[styles.inputBox, styles.textAreaBox]}>
-              <TextInput
-                style={[styles.textInput, styles.textArea]}
-                placeholder="Optional notes"
-                placeholderTextColor={Colors.textSecondary}
-                value={editForm.notes}
-                multiline
-                onChangeText={(value) => setEditForm((prev) => ({ ...prev, notes: value }))}
-              />
-            </View>
+            <Controller
+              control={editControl}
+              name="notes"
+              render={({ field: { onChange, value } }) => (
+                <>
+                  <Text style={styles.formLabel}>Notes</Text>
+                  <View style={[styles.inputBox, styles.textAreaBox, editErrors.notes && { borderColor: Colors.tertiary }]}>
+                    <TextInput
+                      style={[styles.textInput, styles.textArea]}
+                      placeholder="Optional notes"
+                      placeholderTextColor={Colors.textSecondary}
+                      value={value}
+                      onChangeText={onChange}
+                      multiline
+                    />
+                  </View>
+                  {editErrors.notes && <Text style={styles.fieldErrorText}>{editErrors.notes.message}</Text>}
+                </>
+              )}
+            />
 
             <View style={styles.assignmentCard}>
               <Text style={styles.assignmentSectionTitle}>Assignments</Text>
@@ -1029,11 +1168,11 @@ export default function FarmListScreen() {
                   <Text
                     style={[
                       styles.assignmentRowValue,
-                      !editForm.primaryFarmerId && styles.selectorPlaceholder,
+                      !editPrimaryFarmerId && styles.selectorPlaceholder,
                     ]}
                   >
-                    {editForm.primaryFarmerId
-                      ? getUserLabel(editForm.primaryFarmerId)
+                    {editPrimaryFarmerId
+                      ? getUserLabel(editPrimaryFarmerId)
                       : 'Search and select a primary farmer'}
                   </Text>
                 </View>
@@ -1049,11 +1188,11 @@ export default function FarmListScreen() {
                   <Text
                     style={[
                       styles.assignmentRowValue,
-                      !editForm.supervisorId && styles.selectorPlaceholder,
+                      !editSupervisorId && styles.selectorPlaceholder,
                     ]}
                   >
-                    {editForm.supervisorId
-                      ? getUserLabel(editForm.supervisorId)
+                    {editSupervisorId
+                      ? getUserLabel(editSupervisorId)
                       : 'Search and select a supervisor'}
                   </Text>
                 </View>
@@ -1069,20 +1208,20 @@ export default function FarmListScreen() {
                   <Text
                     style={[
                       styles.assignmentRowValue,
-                      !editForm.assignmentUserIds.length && styles.selectorPlaceholder,
+                      !editAssignmentUserIds.length && styles.selectorPlaceholder,
                     ]}
                   >
-                    {editForm.assignmentUserIds.length
-                      ? `${editForm.assignmentUserIds.length} user(s) selected`
+                    {editAssignmentUserIds.length
+                      ? `${editAssignmentUserIds.length} user(s) selected`
                       : 'Search and select staff members'}
                   </Text>
                 </View>
                 <Ionicons name="chevron-forward" size={18} color={Colors.textSecondary} />
               </TouchableOpacity>
 
-              {editForm.assignmentUserIds.length ? (
+              {editAssignmentUserIds.length ? (
                 <View style={styles.chipWrap}>
-                  {editForm.assignmentUserIds.map((userId) => {
+                  {editAssignmentUserIds.map((userId) => {
                     const option = getUserOption(userId);
 
                     return (
@@ -1103,10 +1242,7 @@ export default function FarmListScreen() {
                         <TouchableOpacity
                           style={styles.chipRemoveBtn}
                           onPress={() =>
-                            setEditForm((prev) => ({
-                              ...prev,
-                              assignmentUserIds: prev.assignmentUserIds.filter((id) => id !== userId),
-                            }))
+                            setEditValue('assignmentUserIds', editAssignmentUserIds.filter((id) => id !== userId))
                           }
                         >
                           <Ionicons name="close" size={14} color={Colors.primary} />
@@ -1120,7 +1256,7 @@ export default function FarmListScreen() {
 
               <TouchableOpacity
                 style={[styles.createButton, isSavingEdit && styles.buttonDisabled]}
-                onPress={handleUpdateFarm}
+                onPress={handleEditSubmit(handleUpdateFarm)}
                 disabled={isSavingEdit}
               >
                 {isSavingEdit ? (
@@ -1657,6 +1793,12 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   doneButtonText: { color: '#FFF', fontSize: 15, fontWeight: '700' },
+  fieldErrorText: {
+    color: Colors.tertiary,
+    fontSize: 10,
+    marginTop: 2,
+    fontWeight: '600',
+  },
   pickerOption: {
     flexDirection: 'row',
     justifyContent: 'space-between',

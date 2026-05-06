@@ -72,6 +72,18 @@ function statusColor(status: PartnerStatus) {
   return Colors.textSecondary;
 }
 
+import { useForm, Controller } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { z } from 'zod';
+
+const partnerSchema = z.object({
+  name: z.string().min(1, 'Partner name is required'),
+  type: z.enum(['Grower', 'Supplier', 'Trader']),
+  contact: z.string().min(1, 'Contact information is required'),
+});
+
+type PartnerFormData = z.infer<typeof partnerSchema>;
+
 export default function PartnerManagementScreen() {
   const router = useRouter();
   const { hasPermission } = useAuth();
@@ -79,9 +91,15 @@ export default function PartnerManagementScreen() {
   const [partners, setPartners] = useState<Partner[]>(INITIAL_PARTNERS);
   const [activeTab, setActiveTab] = useState<FilterTab>('All');
   const [showAddModal, setShowAddModal] = useState(false);
-  const [newName, setNewName] = useState('');
-  const [newContact, setNewContact] = useState('');
-  const [newType, setNewType] = useState<PartnerType>('Grower');
+
+  const { control, handleSubmit, reset, formState: { errors: formErrors } } = useForm<PartnerFormData>({
+    resolver: zodResolver(partnerSchema),
+    defaultValues: {
+      name: '',
+      type: 'Grower',
+      contact: '',
+    },
+  });
 
   const canManagePartners = hasPermission('manage:partners');
 
@@ -96,25 +114,21 @@ export default function PartnerManagementScreen() {
     return { active, farms };
   }, [partners]);
 
-  const handleAddPartner = () => {
-    if (!newName.trim()) return;
-
+  const handleAddPartner = (data: PartnerFormData) => {
     setPartners((prev) => [
       {
         id: String(Date.now()),
-        name: newName.trim(),
-        type: newType,
+        name: data.name.trim(),
+        type: data.type,
         farms: 0,
-        contact: newContact.trim() || 'Not assigned',
+        contact: data.contact.trim(),
         settlementDue: 'Rs 0',
-        commission: newType === 'Supplier' ? '3.0%' : '5.0%',
+        commission: data.type === 'Supplier' ? '3.0%' : '5.0%',
         status: 'Review',
       },
       ...prev,
     ]);
-    setNewName('');
-    setNewContact('');
-    setNewType('Grower');
+    reset();
     setShowAddModal(false);
   };
 
@@ -251,42 +265,69 @@ export default function PartnerManagementScreen() {
           <View style={styles.modalSheet} onStartShouldSetResponder={() => true}>
             <Text style={styles.modalTitle}>Add Partner</Text>
 
-            <Text style={styles.formLabel}>Partner Name</Text>
-            <View style={styles.inputBox}>
-              <TextInput
-                style={styles.textInput}
-                placeholder="e.g. Sunrise Growers"
-                placeholderTextColor={Colors.textSecondary}
-                value={newName}
-                onChangeText={setNewName}
-              />
-            </View>
+            <Controller
+              control={control}
+              name="name"
+              render={({ field: { onChange, value } }) => (
+                <>
+                  <Text style={styles.formLabel}>Partner Name</Text>
+                  <View style={[styles.inputBox, formErrors.name && { borderColor: Colors.tertiary }]}>
+                    <TextInput
+                      style={styles.textInput}
+                      placeholder="e.g. Sunrise Growers"
+                      placeholderTextColor={Colors.textSecondary}
+                      value={value}
+                      onChangeText={onChange}
+                    />
+                  </View>
+                  {formErrors.name && <Text style={styles.fieldErrorText}>{formErrors.name.message}</Text>}
+                </>
+              )}
+            />
 
-            <Text style={styles.formLabel}>Partner Type</Text>
-            <View style={styles.typeRow}>
-              {TYPES.map((type) => (
-                <TouchableOpacity
-                  key={type}
-                  style={[styles.typeToggle, newType === type && styles.typeToggleActive]}
-                  onPress={() => setNewType(type)}
-                >
-                  <Text style={[styles.typeToggleText, newType === type && styles.typeToggleTextActive]}>{type}</Text>
-                </TouchableOpacity>
-              ))}
-            </View>
+            <Controller
+              control={control}
+              name="type"
+              render={({ field: { onChange, value } }) => (
+                <>
+                  <Text style={styles.formLabel}>Partner Type</Text>
+                  <View style={styles.typeRow}>
+                    {TYPES.map((type) => (
+                      <TouchableOpacity
+                        key={type}
+                        style={[styles.typeToggle, value === type && styles.typeToggleActive]}
+                        onPress={() => onChange(type)}
+                      >
+                        <Text style={[styles.typeToggleText, value === type && styles.typeToggleTextActive]}>{type}</Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                  {formErrors.type && <Text style={styles.fieldErrorText}>{formErrors.type.message}</Text>}
+                </>
+              )}
+            />
 
-            <Text style={styles.formLabel}>Contact Person</Text>
-            <View style={styles.inputBox}>
-              <TextInput
-                style={styles.textInput}
-                placeholder="Name or phone"
-                placeholderTextColor={Colors.textSecondary}
-                value={newContact}
-                onChangeText={setNewContact}
-              />
-            </View>
+            <Controller
+              control={control}
+              name="contact"
+              render={({ field: { onChange, value } }) => (
+                <>
+                  <Text style={styles.formLabel}>Contact Person</Text>
+                  <View style={[styles.inputBox, formErrors.contact && { borderColor: Colors.tertiary }]}>
+                    <TextInput
+                      style={styles.textInput}
+                      placeholder="Name or phone"
+                      placeholderTextColor={Colors.textSecondary}
+                      value={value}
+                      onChangeText={onChange}
+                    />
+                  </View>
+                  {formErrors.contact && <Text style={styles.fieldErrorText}>{formErrors.contact.message}</Text>}
+                </>
+              )}
+            />
 
-            <TouchableOpacity style={styles.submitBtn} onPress={handleAddPartner}>
+            <TouchableOpacity style={styles.submitBtn} onPress={handleSubmit(handleAddPartner)}>
               <Text style={styles.submitBtnText}>Create Partner</Text>
             </TouchableOpacity>
           </View>
@@ -658,5 +699,11 @@ const styles = StyleSheet.create({
     color: '#FFF',
     fontSize: 15,
     fontWeight: '800',
+  },
+  fieldErrorText: {
+    color: Colors.tertiary,
+    fontSize: 10,
+    marginTop: 4,
+    fontWeight: '600',
   },
 });

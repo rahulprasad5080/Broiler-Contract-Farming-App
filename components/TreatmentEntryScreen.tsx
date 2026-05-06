@@ -25,6 +25,11 @@ import {
   listCatalogItems,
 } from '@/services/managementApi';
 
+import { useForm, Controller } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { z } from 'zod';
+import Toast from 'react-native-toast-message';
+
 type TreatmentEntryScreenProps = {
   title?: string;
   subtitle?: string;
@@ -35,7 +40,7 @@ function todayValue() {
 }
 
 function toOptionalNumber(value: string) {
-  if (value.trim() === '') return undefined;
+  if (!value || value.trim() === '') return undefined;
   const next = Number(value);
   return Number.isNaN(next) ? undefined : next;
 }
@@ -44,6 +49,19 @@ function batchLabel(batch: ApiBatch) {
   const farm = batch.farmName ? ` • ${batch.farmName}` : '';
   return `${batch.code}${farm}`;
 }
+
+const treatmentSchema = z.object({
+  batchId: z.string().min(1, 'Please select a batch'),
+  treatmentDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Date must be in YYYY-MM-DD format'),
+  kind: z.enum(['MEDICATION', 'VACCINATION', 'OTHER']),
+  catalogItemId: z.string().optional(),
+  quantity: z.string().optional().refine((val) => !val || !isNaN(Number(val)), {
+    message: 'Quantity must be a number',
+  }),
+  notes: z.string().optional(),
+});
+
+type TreatmentFormData = z.infer<typeof treatmentSchema>;
 
 export function TreatmentEntryScreen({
   title = 'Treatments',
@@ -54,17 +72,26 @@ export function TreatmentEntryScreen({
   
   const [batches, setBatches] = useState<ApiBatch[]>([]);
   const [catalogItems, setCatalogItems] = useState<ApiCatalogItem[]>([]);
-  const [selectedBatchId, setSelectedBatchId] = useState<string>('');
-  
-  const [treatmentDate, setTreatmentDate] = useState(todayValue());
-  const [kind, setKind] = useState<ApiTreatmentKind>('MEDICATION');
-  const [catalogItemId, setCatalogItemId] = useState<string>('');
-  const [quantity, setQuantity] = useState('');
-  const [notes, setNotes] = useState('');
   
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
+
+  const { control, handleSubmit, setValue, watch, reset, formState: { errors: formErrors } } = useForm<TreatmentFormData>({
+    resolver: zodResolver(treatmentSchema),
+    defaultValues: {
+      batchId: '',
+      treatmentDate: todayValue(),
+      kind: 'MEDICATION',
+      catalogItemId: '',
+      quantity: '',
+      notes: '',
+    },
+  });
+
+  const selectedBatchId = watch('batchId');
+  const kind = watch('kind');
+  const catalogItemId = watch('catalogItemId');
 
   const activeBatches = useMemo(
     () => batches.filter((batch) => batch.status === 'ACTIVE' || batch.status === 'READY_FOR_SALE'),
@@ -87,14 +114,18 @@ export function TreatmentEntryScreen({
       ]);
       setBatches(batchesRes.data);
       setCatalogItems(catalogRes.data.filter(item => item.isActive !== false));
-      setSelectedBatchId((current) => current || batchesRes.data[0]?.id || '');
+      
+      const firstActiveId = batchesRes.data.find(b => b.status === 'ACTIVE' || b.status === 'READY_FOR_SALE')?.id;
+      if (firstActiveId && !selectedBatchId) {
+        setValue('batchId', firstActiveId);
+      }
     } catch (error) {
       console.warn('Failed to load data for treatments:', error);
       setMessage('Could not load batches or catalog items.');
     } finally {
       setLoading(false);
     }
-  }, [accessToken]);
+  }, [accessToken, selectedBatchId, setValue]);
 
   useFocusEffect(
     useCallback(() => {
@@ -103,30 +134,15 @@ export function TreatmentEntryScreen({
   );
 
   useEffect(() => {
-    if (!selectedBatchId && activeBatches[0]) {
-      setSelectedBatchId(activeBatches[0].id);
-    }
-  }, [activeBatches, selectedBatchId]);
-
-  useEffect(() => {
     // Reset catalog selection when kind changes if it's no longer valid
     if (catalogItemId) {
       const valid = filteredCatalogItems.some(i => i.id === catalogItemId);
-      if (!valid) setCatalogItemId('');
+      if (!valid) setValue('catalogItemId', '');
     }
-  }, [kind, filteredCatalogItems, catalogItemId]);
+  }, [kind, filteredCatalogItems, catalogItemId, setValue]);
 
-  const selectedBatch = batches.find((batch) => batch.id === selectedBatchId) ?? null;
-
-  const canSubmit = Boolean(
-    accessToken &&
-      selectedBatchId &&
-      treatmentDate &&
-      kind
-  );
-
-  const handleSubmit = async () => {
-    if (!accessToken || !selectedBatchId) {
+  const onSubmit = async (data: TreatmentFormData) => {
+    if (!accessToken || !data.batchId) {
       setMessage('Select a batch before submitting.');
       return;
     }
@@ -134,24 +150,29 @@ export function TreatmentEntryScreen({
     setSubmitting(true);
     setMessage(null);
     try {
-      await createTreatment(accessToken, selectedBatchId, {
-        treatmentDate,
-        kind,
-        catalogItemId: catalogItemId || undefined,
-        quantity: toOptionalNumber(quantity),
-        notes: notes.trim() || undefined,
+      await createTreatment(accessToken, data.batchId, {
+        treatmentDate: data.treatmentDate,
+        kind: data.kind,
+        catalogItemId: data.catalogItemId || undefined,
+        quantity: toOptionalNumber(data.quantity ?? ''),
+        notes: data.notes?.trim() || undefined,
         clientReferenceId: `tx-${Date.now()}`,
       });
 
       setMessage('Treatment logged successfully.');
-      setQuantity('');
-      setNotes('');
-      setCatalogItemId('');
+      reset({
+        ...data,
+        quantity: '',
+        notes: '',
+        catalogItemId: '',
+      });
+      Toast.show({ type: 'success', text1: 'Success', text2: 'Treatment logged successfully.', position: 'bottom' });
     } catch (error) {
       console.warn('Failed to log treatment:', error);
       const fallback = error instanceof Error ? error.message : 'Failed to save treatment log.';
       setMessage(fallback);
       Alert.alert('Save Failed', fallback);
+      Toast.show({ type: 'error', text1: 'Error', text2: fallback, position: 'bottom' });
     } finally {
       setSubmitting(false);
     }
@@ -177,122 +198,166 @@ export function TreatmentEntryScreen({
         <Text style={styles.pageTitle}>{subtitle}</Text>
 
         <View style={styles.card}>
-          <Text style={styles.sectionTitle}>Choose Batch</Text>
-          {loading ? (
-            <View style={styles.loadingBox}>
-              <ActivityIndicator color={Colors.primary} />
-              <Text style={styles.loadingText}>Loading...</Text>
-            </View>
-          ) : activeBatches.length === 0 ? (
-            <View style={styles.emptyBox}>
-              <Text style={styles.emptyText}>No active batches found.</Text>
-            </View>
-          ) : (
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipRow}>
-              {activeBatches.map((batch) => {
-                const active = batch.id === selectedBatchId;
-                return (
-                  <TouchableOpacity
-                    key={batch.id}
-                    style={[styles.batchChip, active && styles.batchChipActive]}
-                    onPress={() => setSelectedBatchId(batch.id)}
-                  >
-                    <Text style={[styles.batchChipText, active && styles.batchChipTextActive]}>
-                      {batchLabel(batch)}
-                    </Text>
-                  </TouchableOpacity>
-                );
-              })}
-            </ScrollView>
-          )}
+          <Controller
+            control={control}
+            name="batchId"
+            render={({ field: { onChange, value } }) => (
+              <>
+                <Text style={styles.sectionTitle}>Choose Batch</Text>
+                {loading ? (
+                  <View style={styles.loadingBox}>
+                    <ActivityIndicator color={Colors.primary} />
+                    <Text style={styles.loadingText}>Loading...</Text>
+                  </View>
+                ) : activeBatches.length === 0 ? (
+                  <View style={styles.emptyBox}>
+                    <Text style={styles.emptyText}>No active batches found.</Text>
+                  </View>
+                ) : (
+                  <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipRow}>
+                    {activeBatches.map((batch) => {
+                      const active = batch.id === value;
+                      return (
+                        <TouchableOpacity
+                          key={batch.id}
+                          style={[styles.batchChip, active && styles.batchChipActive, formErrors.batchId && { borderColor: Colors.tertiary }]}
+                          onPress={() => onChange(batch.id)}
+                        >
+                          <Text style={[styles.batchChipText, active && styles.batchChipTextActive]}>
+                            {batchLabel(batch)}
+                          </Text>
+                        </TouchableOpacity>
+                      );
+                    })}
+                  </ScrollView>
+                )}
+                {formErrors.batchId && <Text style={styles.fieldErrorText}>{formErrors.batchId.message}</Text>}
+              </>
+            )}
+          />
         </View>
 
         <View style={styles.card}>
           <Text style={styles.sectionTitle}>Treatment Details</Text>
 
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Treatment Date *</Text>
-            <View style={styles.inputMock}>
-              <TextInput
-                style={styles.textInput}
-                value={treatmentDate}
-                onChangeText={setTreatmentDate}
-                placeholder="YYYY-MM-DD"
-                placeholderTextColor={Colors.textSecondary}
-              />
-              <Ionicons name="calendar-outline" size={20} color={Colors.textSecondary} />
-            </View>
-          </View>
+          <Controller
+            control={control}
+            name="treatmentDate"
+            render={({ field: { onChange, value } }) => (
+              <View style={styles.inputGroup}>
+                <Text style={styles.label}>Treatment Date *</Text>
+                <View style={[styles.inputMock, formErrors.treatmentDate && { borderColor: Colors.tertiary }]}>
+                  <TextInput
+                    style={styles.textInput}
+                    value={value}
+                    onChangeText={onChange}
+                    placeholder="YYYY-MM-DD"
+                    placeholderTextColor={Colors.textSecondary}
+                  />
+                  <Ionicons name="calendar-outline" size={20} color={Colors.textSecondary} />
+                </View>
+                {formErrors.treatmentDate && <Text style={styles.fieldErrorText}>{formErrors.treatmentDate.message}</Text>}
+              </View>
+            )}
+          />
 
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Type *</Text>
-            <View style={styles.chipRow}>
-              {(['MEDICATION', 'VACCINATION', 'OTHER'] as ApiTreatmentKind[]).map((k) => (
-                <TouchableOpacity
-                  key={k}
-                  style={[styles.typeChip, kind === k && styles.typeChipActive]}
-                  onPress={() => setKind(k)}
-                >
-                  <Text style={[styles.typeChipText, kind === k && styles.typeChipTextActive]}>
-                    {k.charAt(0) + k.slice(1).toLowerCase()}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-          </View>
-
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Item Used (Optional)</Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipRow}>
-              {filteredCatalogItems.length === 0 ? (
-                <Text style={styles.emptyText}>No {kind.toLowerCase()} items found in catalog.</Text>
-              ) : (
-                filteredCatalogItems.map((item) => {
-                  const active = item.id === catalogItemId;
-                  return (
+          <Controller
+            control={control}
+            name="kind"
+            render={({ field: { onChange, value } }) => (
+              <View style={styles.inputGroup}>
+                <Text style={styles.label}>Type *</Text>
+                <View style={styles.chipRow}>
+                  {(['MEDICATION', 'VACCINATION', 'OTHER'] as ApiTreatmentKind[]).map((k) => (
                     <TouchableOpacity
-                      key={item.id}
-                      style={[styles.catalogChip, active && styles.catalogChipActive]}
-                      onPress={() => setCatalogItemId(active ? '' : item.id)} // Toggle off
+                      key={k}
+                      style={[styles.typeChip, value === k && styles.typeChipActive, formErrors.kind && { borderColor: Colors.tertiary }]}
+                      onPress={() => onChange(k)}
                     >
-                      <Text style={[styles.catalogChipText, active && styles.catalogChipTextActive]}>
-                        {item.name}
+                      <Text style={[styles.typeChipText, value === k && styles.typeChipTextActive]}>
+                        {k.charAt(0) + k.slice(1).toLowerCase()}
                       </Text>
                     </TouchableOpacity>
-                  );
-                })
-              )}
-            </ScrollView>
-          </View>
+                  ))}
+                </View>
+                {formErrors.kind && <Text style={styles.fieldErrorText}>{formErrors.kind.message}</Text>}
+              </View>
+            )}
+          />
 
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Quantity/Dosage</Text>
-            <View style={styles.inputMock}>
-              <TextInput
-                style={styles.textInput}
-                value={quantity}
-                onChangeText={setQuantity}
-                placeholder="e.g. 50"
-                placeholderTextColor={Colors.textSecondary}
-                keyboardType="decimal-pad"
-              />
-              <MaterialCommunityIcons name="beaker-outline" size={20} color={Colors.textSecondary} />
-            </View>
-          </View>
+          <Controller
+            control={control}
+            name="catalogItemId"
+            render={({ field: { onChange, value } }) => (
+              <View style={styles.inputGroup}>
+                <Text style={styles.label}>Item Used (Optional)</Text>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipRow}>
+                  {filteredCatalogItems.length === 0 ? (
+                    <Text style={styles.emptyText}>No {kind.toLowerCase()} items found in catalog.</Text>
+                  ) : (
+                    filteredCatalogItems.map((item) => {
+                      const active = item.id === value;
+                      return (
+                        <TouchableOpacity
+                          key={item.id}
+                          style={[styles.catalogChip, active && styles.catalogChipActive]}
+                          onPress={() => onChange(active ? '' : item.id)} // Toggle off
+                        >
+                          <Text style={[styles.catalogChipText, active && styles.catalogChipTextActive]}>
+                            {item.name}
+                          </Text>
+                        </TouchableOpacity>
+                      );
+                    })
+                  )}
+                </ScrollView>
+                {formErrors.catalogItemId && <Text style={styles.fieldErrorText}>{formErrors.catalogItemId.message}</Text>}
+              </View>
+            )}
+          />
 
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Notes</Text>
-            <View style={[styles.inputMock, styles.textArea]}>
-              <TextInput
-                style={[styles.textInput, styles.multiLine]}
-                value={notes}
-                onChangeText={setNotes}
-                placeholder="Optional remarks"
-                placeholderTextColor={Colors.textSecondary}
-                multiline
-              />
-            </View>
-          </View>
+          <Controller
+            control={control}
+            name="quantity"
+            render={({ field: { onChange, value } }) => (
+              <View style={styles.inputGroup}>
+                <Text style={styles.label}>Quantity/Dosage</Text>
+                <View style={[styles.inputMock, formErrors.quantity && { borderColor: Colors.tertiary }]}>
+                  <TextInput
+                    style={styles.textInput}
+                    value={value}
+                    onChangeText={onChange}
+                    placeholder="e.g. 50"
+                    placeholderTextColor={Colors.textSecondary}
+                    keyboardType="decimal-pad"
+                  />
+                  <MaterialCommunityIcons name="beaker-outline" size={20} color={Colors.textSecondary} />
+                </View>
+                {formErrors.quantity && <Text style={styles.fieldErrorText}>{formErrors.quantity.message}</Text>}
+              </View>
+            )}
+          />
+
+          <Controller
+            control={control}
+            name="notes"
+            render={({ field: { onChange, value } }) => (
+              <View style={styles.inputGroup}>
+                <Text style={styles.label}>Notes</Text>
+                <View style={[styles.inputMock, styles.textArea, formErrors.notes && { borderColor: Colors.tertiary }]}>
+                  <TextInput
+                    style={[styles.textInput, styles.multiLine]}
+                    value={value}
+                    onChangeText={onChange}
+                    placeholder="Optional remarks"
+                    placeholderTextColor={Colors.textSecondary}
+                    multiline
+                  />
+                </View>
+                {formErrors.notes && <Text style={styles.fieldErrorText}>{formErrors.notes.message}</Text>}
+              </View>
+            )}
+          />
         </View>
 
         {message ? (
@@ -303,10 +368,10 @@ export function TreatmentEntryScreen({
         ) : null}
 
         <TouchableOpacity
-          style={[styles.submitBtn, (!canSubmit || submitting) && styles.submitBtnDisabled]}
-          onPress={handleSubmit}
-          disabled={!canSubmit || submitting}
-          activeOpacity={canSubmit ? 0.85 : 1}
+          style={[styles.submitBtn, submitting && styles.submitBtnDisabled]}
+          onPress={handleSubmit(onSubmit)}
+          disabled={submitting}
+          activeOpacity={0.85}
         >
           {submitting ? (
             <ActivityIndicator color="#FFF" />
@@ -385,4 +450,10 @@ const styles = StyleSheet.create({
   },
   submitBtnDisabled: { backgroundColor: '#9DB8A8' },
   submitBtnText: { color: '#FFF', fontSize: 15, fontWeight: '800' },
+  fieldErrorText: {
+    color: Colors.tertiary,
+    fontSize: 11,
+    marginTop: 4,
+    fontWeight: '600',
+  },
 });

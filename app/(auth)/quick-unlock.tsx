@@ -46,6 +46,16 @@ function PinDots({ value, hasError }: { value: string; hasError: boolean }) {
   );
 }
 
+import { useForm, Controller } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { z } from 'zod';
+
+const unlockPasswordSchema = z.object({
+  password: z.string().min(1, 'Password is required'),
+});
+
+type UnlockPasswordForm = z.infer<typeof unlockPasswordSchema>;
+
 export default function QuickUnlockScreen() {
   const { user, isLoading, unlockApp, unlockWithPassword } = useAuth();
   const didAutoPrompt = React.useRef(false);
@@ -55,9 +65,14 @@ export default function QuickUnlockScreen() {
   const [failedAttempts, setFailedAttempts] = React.useState(0);
   const [pinError, setPinError] = React.useState<string | null>(null);
   const [isAuthenticating, setIsAuthenticating] = React.useState(false);
-  const [password, setPassword] = React.useState("");
-  const [passwordError, setPasswordError] = React.useState<string | null>(null);
   const [showPassword, setShowPassword] = React.useState(false);
+
+  const { control, handleSubmit, setError: setFormError, formState: { errors: formErrors } } = useForm<UnlockPasswordForm>({
+    resolver: zodResolver(unlockPasswordSchema),
+    defaultValues: {
+      password: '',
+    },
+  });
 
   React.useEffect(() => {
     const loadMode = async () => {
@@ -176,22 +191,15 @@ export default function QuickUnlockScreen() {
 
   const usePassword = () => {
     setMode("password");
-    setPasswordError(null);
     setTimeout(() => passwordInputRef.current?.focus(), 220);
   };
 
-  const submitPassword = async () => {
-    if (!password.trim()) {
-      setPasswordError("Password is required");
-      return;
-    }
-
+  const submitPassword = async (data: UnlockPasswordForm) => {
     Keyboard.dismiss();
-    setPasswordError(null);
-    const errorMessage = await unlockWithPassword(password);
+    const errorMessage = await unlockWithPassword(data.password);
 
     if (errorMessage) {
-      setPasswordError(errorMessage);
+      setFormError('password', { message: errorMessage });
       Toast.show({type: "error",
         text1: "Unlock failed",
         text2: errorMessage, position: 'bottom'});
@@ -210,42 +218,47 @@ export default function QuickUnlockScreen() {
     if (mode === "password") {
       return (
         <View style={styles.passwordBlock}>
-          <View style={[styles.passwordInput, passwordError && styles.passwordInputError]}>
-            <Ionicons name="lock-closed-outline" size={20} color={Colors.textSecondary} />
-            <TextInput
-              ref={passwordInputRef}
-              value={password}
-              onChangeText={(value) => {
-                setPassword(value);
-                setPasswordError(null);
-              }}
-              placeholder="Enter your password"
-              placeholderTextColor="#8A94A3"
-              secureTextEntry={!showPassword}
-              autoCapitalize="none"
-              autoComplete="password"
-              textContentType="password"
-              style={styles.passwordTextInput}
-            />
-            <TouchableOpacity
-              onPress={() => setShowPassword((current) => !current)}
-              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-            >
-              <Ionicons
-                name={showPassword ? "eye-off-outline" : "eye-outline"}
-                size={22}
-                color={Colors.textSecondary}
-              />
-            </TouchableOpacity>
-          </View>
-          {passwordError ? (
-            <Text style={styles.errorText}>{passwordError}</Text>
-          ) : (
-            <Text style={styles.helperText}>Password unlock refreshes your secure session.</Text>
-          )}
+          <Controller
+            control={control}
+            name="password"
+            render={({ field: { onChange, value } }) => (
+              <>
+                <View style={[styles.passwordInput, formErrors.password && styles.passwordInputError]}>
+                  <Ionicons name="lock-closed-outline" size={20} color={Colors.textSecondary} />
+                  <TextInput
+                    ref={passwordInputRef}
+                    value={value}
+                    onChangeText={onChange}
+                    placeholder="Enter your password"
+                    placeholderTextColor="#8A94A3"
+                    secureTextEntry={!showPassword}
+                    autoCapitalize="none"
+                    autoComplete="password"
+                    textContentType="password"
+                    style={styles.passwordTextInput}
+                  />
+                  <TouchableOpacity
+                    onPress={() => setShowPassword((current) => !current)}
+                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                  >
+                    <Ionicons
+                      name={showPassword ? "eye-off-outline" : "eye-outline"}
+                      size={22}
+                      color={Colors.textSecondary}
+                    />
+                  </TouchableOpacity>
+                </View>
+                {formErrors.password ? (
+                  <Text style={styles.errorText}>{formErrors.password.message}</Text>
+                ) : (
+                  <Text style={styles.helperText}>Password unlock refreshes your secure session.</Text>
+                )}
+              </>
+            )}
+          />
           <TouchableOpacity
             style={[styles.primaryButton, isLoading && styles.disabledButton]}
-            onPress={() => void submitPassword()}
+            onPress={handleSubmit(submitPassword)}
             disabled={isLoading}
             activeOpacity={0.86}
           >

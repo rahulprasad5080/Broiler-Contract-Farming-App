@@ -18,14 +18,29 @@ import {
   maskMobileNumber,
 } from "../../services/authValidation";
 
+import { useForm, Controller } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { z } from 'zod';
+
+const quickPasswordSchema = z.object({
+  password: z.string().min(1, 'Password is required'),
+});
+
+type QuickPasswordForm = z.infer<typeof quickPasswordSchema>;
+
 export default function QuickLoginPasswordScreen() {
   const router = useRouter();
   const { user, isLoading, unlockWithPassword } = useAuth();
-  const [password, setPassword] = React.useState("");
   const [showPassword, setShowPassword] = React.useState(false);
-  const [passwordError, setPasswordError] = React.useState<string | null>(null);
 
-  const handleLogin = async () => {
+  const { control, handleSubmit, setError: setFormError, formState: { errors: formErrors } } = useForm<QuickPasswordForm>({
+    resolver: zodResolver(quickPasswordSchema),
+    defaultValues: {
+      password: '',
+    },
+  });
+
+  const handleLogin = async (data: QuickPasswordForm) => {
     if (!user) {
       Toast.show({type: "error",
         text1: "Session expired",
@@ -34,17 +49,10 @@ export default function QuickLoginPasswordScreen() {
       return;
     }
 
-    const validationError = password.trim() ? null : "Password is required";
-    if (validationError) {
-      setPasswordError(validationError);
-      return;
-    }
-
-    setPasswordError(null);
-    const errorMessage = await unlockWithPassword(password);
+    const errorMessage = await unlockWithPassword(data.password);
 
     if (errorMessage) {
-      setPasswordError(errorMessage);
+      setFormError('password', { message: errorMessage });
       Toast.show({type: "error",
         text1: "Login failed",
         text2: errorMessage, position: 'bottom'});
@@ -72,54 +80,59 @@ export default function QuickLoginPasswordScreen() {
           <Text style={styles.title}>Welcome Back</Text>
           <Text style={styles.subtitle}>Continue as {maskMobileNumber(user?.phone)}</Text>
 
-          <View
-            style={[
-              styles.inputWrap,
-              passwordError ? styles.inputWrapError : null,
-            ]}
-          >
-            <Ionicons
-              name="lock-closed-outline"
-              size={20}
-              color={Colors.textSecondary}
-            />
-            <TextInput
-              style={styles.input}
-              value={password}
-              onChangeText={(value) => {
-                setPassword(value);
-                setPasswordError(null);
-              }}
-              placeholder="Enter your password"
-              placeholderTextColor="#7A8694"
-              secureTextEntry={!showPassword}
-              autoCapitalize="none"
-              autoComplete="password"
-              textContentType="password"
-            />
-            <TouchableOpacity
-              onPress={() => setShowPassword((current) => !current)}
-              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-            >
-              <Ionicons
-                name={showPassword ? "eye-off-outline" : "eye-outline"}
-                size={22}
-                color={Colors.textSecondary}
-              />
-            </TouchableOpacity>
-          </View>
+          <Controller
+            control={control}
+            name="password"
+            render={({ field: { onChange, value } }) => (
+              <>
+                <View
+                  style={[
+                    styles.inputWrap,
+                    formErrors.password ? styles.inputWrapError : null,
+                  ]}
+                >
+                  <Ionicons
+                    name="lock-closed-outline"
+                    size={20}
+                    color={Colors.textSecondary}
+                  />
+                  <TextInput
+                    style={styles.input}
+                    value={value}
+                    onChangeText={onChange}
+                    placeholder="Enter your password"
+                    placeholderTextColor="#7A8694"
+                    secureTextEntry={!showPassword}
+                    autoCapitalize="none"
+                    autoComplete="password"
+                    textContentType="password"
+                  />
+                  <TouchableOpacity
+                    onPress={() => setShowPassword((current) => !current)}
+                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                  >
+                    <Ionicons
+                      name={showPassword ? "eye-off-outline" : "eye-outline"}
+                      size={22}
+                      color={Colors.textSecondary}
+                    />
+                  </TouchableOpacity>
+                </View>
 
-          {passwordError ? (
-            <Text style={styles.errorText}>{passwordError}</Text>
-          ) : (
-            <Text style={styles.helperText}>
-              Use your account password to unlock this device.
-            </Text>
-          )}
+                {formErrors.password ? (
+                  <Text style={styles.errorText}>{formErrors.password.message}</Text>
+                ) : (
+                  <Text style={styles.helperText}>
+                    Use your account password to unlock this device.
+                  </Text>
+                )}
+              </>
+            )}
+          />
 
           <TouchableOpacity
             style={[styles.loginButton, isLoading && styles.buttonDisabled]}
-            onPress={handleLogin}
+            onPress={handleSubmit(handleLogin)}
             disabled={isLoading}
             activeOpacity={0.85}
           >

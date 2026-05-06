@@ -13,6 +13,18 @@ import {
   listAllTraders,
 } from '@/services/managementApi';
 
+import { useForm, Controller } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { z } from 'zod';
+
+const traderSchema = z.object({
+  name: z.string().min(1, 'Name is required'),
+  phone: z.string().optional(),
+  address: z.string().optional(),
+});
+
+type TraderFormData = z.infer<typeof traderSchema>;
+
 export default function SupervisorTradersScreen() {
   const router = useRouter();
   const { accessToken } = useAuth();
@@ -22,9 +34,14 @@ export default function SupervisorTradersScreen() {
   const [saving, setSaving] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
   
-  const [name, setName] = useState('');
-  const [phone, setPhone] = useState('');
-  const [address, setAddress] = useState('');
+  const { control, handleSubmit, reset, formState: { errors: formErrors } } = useForm<TraderFormData>({
+    resolver: zodResolver(traderSchema),
+    defaultValues: {
+      name: '',
+      phone: '',
+      address: '',
+    },
+  });
 
   const fetchTraders = async () => {
     if (!accessToken) return;
@@ -43,24 +60,18 @@ export default function SupervisorTradersScreen() {
     fetchTraders();
   }, [accessToken]);
 
-  const handleSave = async () => {
+  const handleSave = async (data: TraderFormData) => {
     if (!accessToken) return;
-    if (!name.trim()) {
-      Toast.show({ type: 'error', text1: 'Validation Error', text2: 'Name is required' });
-      return;
-    }
 
     setSaving(true);
     try {
       const created = await createTrader(accessToken, {
-        name: name.trim(),
-        phone: phone.trim() || undefined,
-        address: address.trim() || undefined,
+        name: data.name.trim(),
+        phone: data.phone?.trim() || undefined,
+        address: data.address?.trim() || undefined,
       });
       setTraders((prev) => [created, ...prev]);
-      setName('');
-      setPhone('');
-      setAddress('');
+      reset();
       setShowAddModal(false);
       Toast.show({ type: 'success', text1: 'Success', text2: 'Trader added' });
     } catch (error) {
@@ -123,22 +134,68 @@ export default function SupervisorTradersScreen() {
           <View style={styles.modalSheet} onStartShouldSetResponder={() => true}>
             <Text style={styles.modalTitle}>Add Trader</Text>
 
-            <Text style={styles.label}>Trader Name *</Text>
-            <View style={styles.inputBox}>
-              <TextInput style={styles.input} value={name} onChangeText={setName} placeholder="e.g., Ramesh Traders" placeholderTextColor={Colors.textSecondary} />
-            </View>
+            <Controller
+              control={control}
+              name="name"
+              render={({ field: { onChange, value } }) => (
+                <>
+                  <Text style={styles.label}>Trader Name *</Text>
+                  <View style={[styles.inputBox, formErrors.name && { borderColor: Colors.tertiary }]}>
+                    <TextInput
+                      style={styles.input}
+                      value={value}
+                      onChangeText={onChange}
+                      placeholder="e.g., Ramesh Traders"
+                      placeholderTextColor={Colors.textSecondary}
+                    />
+                  </View>
+                  {formErrors.name && <Text style={styles.fieldErrorText}>{formErrors.name.message}</Text>}
+                </>
+              )}
+            />
 
-            <Text style={styles.label}>Phone Number</Text>
-            <View style={styles.inputBox}>
-              <TextInput style={styles.input} value={phone} onChangeText={setPhone} placeholder="Optional" placeholderTextColor={Colors.textSecondary} keyboardType="phone-pad" />
-            </View>
+            <Controller
+              control={control}
+              name="phone"
+              render={({ field: { onChange, value } }) => (
+                <>
+                  <Text style={styles.label}>Phone Number</Text>
+                  <View style={[styles.inputBox, formErrors.phone && { borderColor: Colors.tertiary }]}>
+                    <TextInput
+                      style={styles.input}
+                      value={value}
+                      onChangeText={onChange}
+                      placeholder="Optional"
+                      placeholderTextColor={Colors.textSecondary}
+                      keyboardType="phone-pad"
+                    />
+                  </View>
+                  {formErrors.phone && <Text style={styles.fieldErrorText}>{formErrors.phone.message}</Text>}
+                </>
+              )}
+            />
 
-            <Text style={styles.label}>Address</Text>
-            <View style={styles.inputBox}>
-              <TextInput style={styles.input} value={address} onChangeText={setAddress} placeholder="Optional" placeholderTextColor={Colors.textSecondary} />
-            </View>
+            <Controller
+              control={control}
+              name="address"
+              render={({ field: { onChange, value } }) => (
+                <>
+                  <Text style={styles.label}>Address</Text>
+                  <View style={[styles.inputBox, formErrors.address && { borderColor: Colors.tertiary }]}>
+                    <TextInput
+                      style={styles.input}
+                      value={value}
+                      onChangeText={onChange}
+                      placeholder="Optional"
+                      placeholderTextColor={Colors.textSecondary}
+                    />
+                  </View>
+                  {formErrors.address && <Text style={styles.fieldErrorText}>{formErrors.address.message}</Text>}
+                </>
+              )}
+            />
 
-            <TouchableOpacity style={styles.submitBtn} onPress={handleSave} disabled={saving}>
+            <TouchableOpacity style={styles.submitBtn} onPress={handleSubmit(handleSave)} disabled={saving}>
               {saving ? <ActivityIndicator color="#FFF" /> : <Text style={styles.submitBtnText}>Save Trader</Text>}
             </TouchableOpacity>
           </View>
@@ -178,4 +235,10 @@ const styles = StyleSheet.create({
   input: { fontSize: 14, color: Colors.text, padding: 0 },
   submitBtn: { backgroundColor: Colors.primary, height: 50, borderRadius: 10, justifyContent: 'center', alignItems: 'center', marginTop: 24 },
   submitBtnText: { color: '#FFF', fontSize: 16, fontWeight: 'bold' },
+  fieldErrorText: {
+    color: Colors.tertiary,
+    fontSize: 10,
+    marginTop: 4,
+    fontWeight: '600',
+  },
 });

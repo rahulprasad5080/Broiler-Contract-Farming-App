@@ -18,6 +18,10 @@ import { useAuth } from '@/context/AuthContext';
 import Toast from 'react-native-toast-message';
 import { createFarm, listAllUsers, type ApiUser } from '@/services/managementApi';
 
+import { useForm, Controller } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { z } from 'zod';
+
 type AssignmentField = 'primaryFarmerId' | 'supervisorId' | 'assignmentUserIds';
 type PickerRoleFilter = 'all' | 'farmers' | 'supervisors' | 'staff';
 
@@ -74,21 +78,28 @@ function generateFarmCode(name: string) {
   return `FARM-${slug || 'NEW'}-${Date.now().toString().slice(-4)}`;
 }
 
+const farmSchema = z.object({
+  name: z.string().min(1, 'Farm name is required'),
+  code: z.string().min(1, 'Farm code is required'),
+  location: z.string().optional(),
+  village: z.string().optional(),
+  district: z.string().optional(),
+  state: z.string().optional(),
+  capacity: z.string().optional().refine((val) => !val || !isNaN(Number(val)), {
+    message: 'Must be a number',
+  }),
+  notes: z.string().optional(),
+  primaryFarmerId: z.string().optional(),
+  supervisorId: z.string().optional(),
+  assignmentUserIds: z.array(z.string()).optional(),
+});
+
+type FarmFormData = z.infer<typeof farmSchema>;
+
 export default function AddFarmScreen() {
   const router = useRouter();
   const { accessToken } = useAuth();
 
-  const [farmName, setFarmName] = useState('');
-  const [farmCode, setFarmCode] = useState(generateFarmCode(''));
-  const [location, setLocation] = useState('');
-  const [village, setVillage] = useState('');
-  const [district, setDistrict] = useState('');
-  const [state, setState] = useState('');
-  const [capacity, setCapacity] = useState('5000');
-  const [notes, setNotes] = useState('');
-  const [primaryFarmerId, setPrimaryFarmerId] = useState('');
-  const [supervisorId, setSupervisorId] = useState('');
-  const [assignmentUserIds, setAssignmentUserIds] = useState<string[]>([]);
   const [users, setUsers] = useState<FarmUserOption[]>([]);
   const [showAssignmentPicker, setShowAssignmentPicker] = useState(false);
   const [assignmentField, setAssignmentField] = useState<AssignmentField | null>(null);
@@ -97,6 +108,29 @@ export default function AddFarmScreen() {
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const { control, handleSubmit, setValue, watch, reset, formState: { errors: formErrors } } = useForm<FarmFormData>({
+    resolver: zodResolver(farmSchema),
+    defaultValues: {
+      name: '',
+      code: generateFarmCode(''),
+      location: '',
+      village: '',
+      district: '',
+      state: '',
+      capacity: '5000',
+      notes: '',
+      primaryFarmerId: '',
+      supervisorId: '',
+      assignmentUserIds: [],
+    },
+  });
+
+  const farmName = watch('name');
+  const farmCode = watch('code');
+  const primaryFarmerId = watch('primaryFarmerId');
+  const supervisorId = watch('supervisorId');
+  const assignmentUserIds = watch('assignmentUserIds') || [];
 
   const loadUsers = async () => {
     if (!accessToken) {
@@ -125,12 +159,12 @@ export default function AddFarmScreen() {
 
   useEffect(() => {
     if (!farmName.trim()) {
-      setFarmCode(generateFarmCode(''));
+      setValue('code', generateFarmCode(''));
       return;
     }
 
-    setFarmCode(generateFarmCode(farmName));
-  }, [farmName]);
+    setValue('code', generateFarmCode(farmName));
+  }, [farmName, setValue]);
 
   const roleFilterOptions: { key: PickerRoleFilter; label: string }[] = [
     { key: 'all', label: 'All' },
@@ -181,23 +215,23 @@ export default function AddFarmScreen() {
     if (!assignmentField) return;
 
     if (assignmentField === 'assignmentUserIds') {
-      setAssignmentUserIds((prev) =>
-        prev.includes(userId) ? prev.filter((id) => id !== userId) : [...prev, userId],
-      );
+      const current = assignmentUserIds;
+      const next = current.includes(userId) ? current.filter((id) => id !== userId) : [...current, userId];
+      setValue('assignmentUserIds', next);
       return;
     }
 
     if (assignmentField === 'primaryFarmerId') {
-      setPrimaryFarmerId(userId);
+      setValue('primaryFarmerId', userId);
     } else if (assignmentField === 'supervisorId') {
-      setSupervisorId(userId);
+      setValue('supervisorId', userId);
     }
 
     closeAssignmentPicker();
   };
 
-  const handleCreateFarm = async () => {
-    if (!accessToken || !farmName.trim()) {
+  const handleCreateFarm = async (data: FarmFormData) => {
+    if (!accessToken) {
       return;
     }
 
@@ -205,33 +239,23 @@ export default function AddFarmScreen() {
     setError(null);
 
     try {
-      const parsedCapacity = Number(capacity);
+      const parsedCapacity = Number(data.capacity);
 
       await createFarm(accessToken, {
-        name: farmName.trim(),
-        code: farmCode.trim(),
-        location: location.trim() || undefined,
-        village: village.trim() || undefined,
-        district: district.trim() || undefined,
-        state: state.trim() || undefined,
+        name: data.name.trim(),
+        code: data.code.trim(),
+        location: data.location?.trim() || undefined,
+        village: data.village?.trim() || undefined,
+        district: data.district?.trim() || undefined,
+        state: data.state?.trim() || undefined,
         capacity: Number.isFinite(parsedCapacity) && parsedCapacity > 0 ? parsedCapacity : undefined,
-        notes: notes.trim() || undefined,
-        primaryFarmerId: primaryFarmerId || undefined,
-        supervisorId: supervisorId || undefined,
-        assignmentUserIds: assignmentUserIds.length ? assignmentUserIds : undefined,
+        notes: data.notes?.trim() || undefined,
+        primaryFarmerId: data.primaryFarmerId || undefined,
+        supervisorId: data.supervisorId || undefined,
+        assignmentUserIds: data.assignmentUserIds?.length ? data.assignmentUserIds : undefined,
       });
 
-      setFarmName('');
-      setFarmCode(generateFarmCode(''));
-      setLocation('');
-      setVillage('');
-      setDistrict('');
-      setState('');
-      setCapacity('5000');
-      setNotes('');
-      setPrimaryFarmerId('');
-      setSupervisorId('');
-      setAssignmentUserIds([]);
+      reset();
       Toast.show({type: 'success', text1: 'Success', text2: 'Farm created successfully.',
   position: 'bottom'});
       router.back();
@@ -274,106 +298,178 @@ export default function AddFarmScreen() {
         <View style={styles.card}>
           <Text style={styles.sectionTitle}>Farm Details</Text>
 
-          <Text style={styles.label}>Farm Name *</Text>
-          <View style={styles.inputBox}>
-            <TextInput
-              style={styles.textInput}
-              placeholder="e.g., Green Valley Farm"
-              placeholderTextColor={Colors.textSecondary}
-              value={farmName}
-              onChangeText={setFarmName}
-            />
-          </View>
+          <Controller
+            control={control}
+            name="name"
+            render={({ field: { onChange, value } }) => (
+              <>
+                <Text style={styles.label}>Farm Name *</Text>
+                <View style={[styles.inputBox, formErrors.name && { borderColor: Colors.tertiary }]}>
+                  <TextInput
+                    style={styles.textInput}
+                    placeholder="e.g., Green Valley Farm"
+                    placeholderTextColor={Colors.textSecondary}
+                    value={value}
+                    onChangeText={onChange}
+                  />
+                </View>
+                {formErrors.name && <Text style={styles.fieldErrorText}>{formErrors.name.message}</Text>}
+              </>
+            )}
+          />
 
-          <Text style={styles.label}>Farm Code *</Text>
-          <View style={styles.inputBox}>
-            <TextInput
-              style={styles.textInput}
-              placeholder="Auto-generated"
-              placeholderTextColor={Colors.textSecondary}
-              value={farmCode}
-              editable={false}
-            />
-          </View>
+          <Controller
+            control={control}
+            name="code"
+            render={({ field: { value } }) => (
+              <>
+                <Text style={styles.label}>Farm Code *</Text>
+                <View style={[styles.inputBox, formErrors.code && { borderColor: Colors.tertiary }]}>
+                  <TextInput
+                    style={styles.textInput}
+                    placeholder="Auto-generated"
+                    placeholderTextColor={Colors.textSecondary}
+                    value={value}
+                    editable={false}
+                  />
+                </View>
+                {formErrors.code && <Text style={styles.fieldErrorText}>{formErrors.code.message}</Text>}
+              </>
+            )}
+          />
           <Text style={styles.helperText}>The code is generated from the farm name and can be saved as-is.</Text>
 
           <View style={styles.formRow}>
             <View style={styles.formHalf}>
-              <Text style={styles.label}>Capacity</Text>
-              <View style={styles.inputBox}>
-                <TextInput
-                  style={styles.textInput}
-                  placeholder="5000"
-                  placeholderTextColor={Colors.textSecondary}
-                  value={capacity}
-                  onChangeText={setCapacity}
-                  keyboardType="numeric"
-                />
-              </View>
+              <Controller
+                control={control}
+                name="capacity"
+                render={({ field: { onChange, value } }) => (
+                  <>
+                    <Text style={styles.label}>Capacity</Text>
+                    <View style={[styles.inputBox, formErrors.capacity && { borderColor: Colors.tertiary }]}>
+                      <TextInput
+                        style={styles.textInput}
+                        placeholder="5000"
+                        placeholderTextColor={Colors.textSecondary}
+                        value={value}
+                        onChangeText={onChange}
+                        keyboardType="numeric"
+                      />
+                    </View>
+                    {formErrors.capacity && <Text style={styles.fieldErrorText}>{formErrors.capacity.message}</Text>}
+                  </>
+                )}
+              />
             </View>
             <View style={[styles.formHalf, !Layout.isSmallDevice && { marginLeft: 12 }]}>
-              <Text style={styles.label}>State</Text>
-              <View style={styles.inputBox}>
-                <TextInput
-                  style={styles.textInput}
-                  placeholder="Madhya Pradesh"
-                  placeholderTextColor={Colors.textSecondary}
-                  value={state}
-                  onChangeText={setState}
-                />
-              </View>
+              <Controller
+                control={control}
+                name="state"
+                render={({ field: { onChange, value } }) => (
+                  <>
+                    <Text style={styles.label}>State</Text>
+                    <View style={[styles.inputBox, formErrors.state && { borderColor: Colors.tertiary }]}>
+                      <TextInput
+                        style={styles.textInput}
+                        placeholder="Madhya Pradesh"
+                        placeholderTextColor={Colors.textSecondary}
+                        value={value}
+                        onChangeText={onChange}
+                      />
+                    </View>
+                    {formErrors.state && <Text style={styles.fieldErrorText}>{formErrors.state.message}</Text>}
+                  </>
+                )}
+              />
             </View>
           </View>
 
-          <Text style={styles.label}>Location</Text>
-          <View style={styles.inputBox}>
-            <TextInput
-              style={styles.textInput}
-              placeholder="Near Main Road"
-              placeholderTextColor={Colors.textSecondary}
-              value={location}
-              onChangeText={setLocation}
-            />
-          </View>
+          <Controller
+            control={control}
+            name="location"
+            render={({ field: { onChange, value } }) => (
+              <>
+                <Text style={styles.label}>Location</Text>
+                <View style={[styles.inputBox, formErrors.location && { borderColor: Colors.tertiary }]}>
+                  <TextInput
+                    style={styles.textInput}
+                    placeholder="Near Main Road"
+                    placeholderTextColor={Colors.textSecondary}
+                    value={value}
+                    onChangeText={onChange}
+                  />
+                </View>
+                {formErrors.location && <Text style={styles.fieldErrorText}>{formErrors.location.message}</Text>}
+              </>
+            )}
+          />
 
           <View style={styles.formRow}>
             <View style={styles.formHalf}>
-              <Text style={styles.label}>Village</Text>
-              <View style={styles.inputBox}>
-                <TextInput
-                  style={styles.textInput}
-                  placeholder="Rampura"
-                  placeholderTextColor={Colors.textSecondary}
-                  value={village}
-                  onChangeText={setVillage}
-                />
-              </View>
+              <Controller
+                control={control}
+                name="village"
+                render={({ field: { onChange, value } }) => (
+                  <>
+                    <Text style={styles.label}>Village</Text>
+                    <View style={[styles.inputBox, formErrors.village && { borderColor: Colors.tertiary }]}>
+                      <TextInput
+                        style={styles.textInput}
+                        placeholder="Rampura"
+                        placeholderTextColor={Colors.textSecondary}
+                        value={value}
+                        onChangeText={onChange}
+                      />
+                    </View>
+                    {formErrors.village && <Text style={styles.fieldErrorText}>{formErrors.village.message}</Text>}
+                  </>
+                )}
+              />
             </View>
             <View style={[styles.formHalf, !Layout.isSmallDevice && { marginLeft: 12 }]}>
-              <Text style={styles.label}>District</Text>
-              <View style={styles.inputBox}>
-                <TextInput
-                  style={styles.textInput}
-                  placeholder="Indore"
-                  placeholderTextColor={Colors.textSecondary}
-                  value={district}
-                  onChangeText={setDistrict}
-                />
-              </View>
+              <Controller
+                control={control}
+                name="district"
+                render={({ field: { onChange, value } }) => (
+                  <>
+                    <Text style={styles.label}>District</Text>
+                    <View style={[styles.inputBox, formErrors.district && { borderColor: Colors.tertiary }]}>
+                      <TextInput
+                        style={styles.textInput}
+                        placeholder="Indore"
+                        placeholderTextColor={Colors.textSecondary}
+                        value={value}
+                        onChangeText={onChange}
+                      />
+                    </View>
+                    {formErrors.district && <Text style={styles.fieldErrorText}>{formErrors.district.message}</Text>}
+                  </>
+                )}
+              />
             </View>
           </View>
 
-          <Text style={styles.label}>Notes</Text>
-          <View style={[styles.inputBox, styles.textAreaBox]}>
-            <TextInput
-              style={[styles.textInput, styles.textArea]}
-              placeholder="Optional notes"
-              placeholderTextColor={Colors.textSecondary}
-              value={notes}
-              onChangeText={setNotes}
-              multiline
-            />
-          </View>
+          <Controller
+            control={control}
+            name="notes"
+            render={({ field: { onChange, value } }) => (
+              <>
+                <Text style={styles.label}>Notes</Text>
+                <View style={[styles.inputBox, styles.textAreaBox, formErrors.notes && { borderColor: Colors.tertiary }]}>
+                  <TextInput
+                    style={[styles.textInput, styles.textArea]}
+                    placeholder="Optional notes"
+                    placeholderTextColor={Colors.textSecondary}
+                    value={value}
+                    onChangeText={onChange}
+                    multiline
+                  />
+                </View>
+                {formErrors.notes && <Text style={styles.fieldErrorText}>{formErrors.notes.message}</Text>}
+              </>
+            )}
+          />
         </View>
 
         <View style={styles.card}>
@@ -437,7 +533,7 @@ export default function AddFarmScreen() {
                     </View>
                     <TouchableOpacity
                       style={styles.chipRemoveBtn}
-                      onPress={() => setAssignmentUserIds((prev) => prev.filter((id) => id !== userId))}
+                      onPress={() => setValue('assignmentUserIds', assignmentUserIds.filter((id) => id !== userId))}
                     >
                       <Ionicons name="close" size={14} color={Colors.primary} />
                     </TouchableOpacity>
@@ -450,7 +546,7 @@ export default function AddFarmScreen() {
 
         <TouchableOpacity
           style={[styles.saveButton, isSubmitting && styles.buttonDisabled]}
-          onPress={handleCreateFarm}
+          onPress={handleSubmit(handleCreateFarm)}
           disabled={isSubmitting}
         >
           {isSubmitting ? (
@@ -785,4 +881,10 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   doneButtonText: { color: '#FFF', fontSize: 15, fontWeight: '700' },
+  fieldErrorText: {
+    color: Colors.tertiary,
+    fontSize: 11,
+    marginTop: 4,
+    fontWeight: '600',
+  },
 });

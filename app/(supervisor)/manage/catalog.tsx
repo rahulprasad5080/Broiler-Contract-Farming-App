@@ -16,6 +16,19 @@ import {
 
 const CATALOG_TYPES: ApiCatalogItemType[] = ['FEED', 'VACCINE', 'MEDICINE', 'OTHER'];
 
+import { useForm, Controller } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { z } from 'zod';
+
+const catalogSchema = z.object({
+  name: z.string().min(1, 'Name is required'),
+  type: z.enum(['FEED', 'VACCINE', 'MEDICINE', 'OTHER']),
+  unit: z.string().optional(),
+  description: z.string().optional(),
+});
+
+type CatalogFormData = z.infer<typeof catalogSchema>;
+
 export default function SupervisorCatalogScreen() {
   const router = useRouter();
   const { accessToken } = useAuth();
@@ -24,10 +37,15 @@ export default function SupervisorCatalogScreen() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   
-  const [name, setName] = useState('');
-  const [type, setType] = useState<ApiCatalogItemType>('FEED');
-  const [unit, setUnit] = useState('');
-  const [description, setDescription] = useState('');
+  const { control, handleSubmit, reset, formState: { errors: formErrors } } = useForm<CatalogFormData>({
+    resolver: zodResolver(catalogSchema),
+    defaultValues: {
+      name: '',
+      type: 'FEED',
+      unit: '',
+      description: '',
+    },
+  });
 
   useEffect(() => {
     const fetchCatalog = async () => {
@@ -45,26 +63,20 @@ export default function SupervisorCatalogScreen() {
     fetchCatalog();
   }, [accessToken]);
 
-  const handleSave = async () => {
+  const handleSave = async (data: CatalogFormData) => {
     if (!accessToken) return;
-    if (!name.trim()) {
-      Toast.show({ type: 'error', text1: 'Validation Error', text2: 'Name is required' });
-      return;
-    }
 
     setSaving(true);
     try {
       const created = await createCatalogItem(accessToken, {
-        name: name.trim(),
-        type,
-        unit: unit.trim() || undefined,
-        description: description.trim() || undefined,
+        name: data.name.trim(),
+        type: data.type,
+        unit: data.unit?.trim() || undefined,
+        description: data.description?.trim() || undefined,
         isActive: true,
       });
       setItems((prev) => [created, ...prev]);
-      setName('');
-      setUnit('');
-      setDescription('');
+      reset();
       Toast.show({ type: 'success', text1: 'Success', text2: 'Catalog item added' });
     } catch (error) {
       console.warn('Failed to save catalog item', error);
@@ -88,31 +100,90 @@ export default function SupervisorCatalogScreen() {
         <View style={styles.card}>
           <Text style={styles.sectionTitle}>Add New Item</Text>
           
-          <Text style={styles.label}>Name *</Text>
-          <View style={styles.inputBox}>
-            <TextInput style={styles.input} value={name} onChangeText={setName} placeholder="e.g., Pre-starter Feed" placeholderTextColor={Colors.textSecondary} />
-          </View>
+          <Controller
+            control={control}
+            name="name"
+            render={({ field: { onChange, value } }) => (
+              <>
+                <Text style={styles.label}>Name *</Text>
+                <View style={[styles.inputBox, formErrors.name && { borderColor: Colors.tertiary }]}>
+                  <TextInput
+                    style={styles.input}
+                    value={value}
+                    onChangeText={onChange}
+                    placeholder="e.g., Pre-starter Feed"
+                    placeholderTextColor={Colors.textSecondary}
+                  />
+                </View>
+                {formErrors.name && <Text style={styles.fieldErrorText}>{formErrors.name.message}</Text>}
+              </>
+            )}
+          />
 
-          <Text style={styles.label}>Type *</Text>
-          <View style={styles.chipRow}>
-            {CATALOG_TYPES.map((t) => (
-              <TouchableOpacity key={t} style={[styles.chip, type === t && styles.chipActive]} onPress={() => setType(t)}>
-                <Text style={[styles.chipText, type === t && styles.chipTextActive]}>{t}</Text>
-              </TouchableOpacity>
-            ))}
-          </View>
+          <Controller
+            control={control}
+            name="type"
+            render={({ field: { onChange, value } }) => (
+              <>
+                <Text style={styles.label}>Type *</Text>
+                <View style={styles.chipRow}>
+                  {CATALOG_TYPES.map((t) => (
+                    <TouchableOpacity
+                      key={t}
+                      style={[styles.chip, value === t && styles.chipActive]}
+                      onPress={() => onChange(t)}
+                    >
+                      <Text style={[styles.chipText, value === t && styles.chipTextActive]}>{t}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+                {formErrors.type && <Text style={styles.fieldErrorText}>{formErrors.type.message}</Text>}
+              </>
+            )}
+          />
 
-          <Text style={styles.label}>Unit</Text>
-          <View style={styles.inputBox}>
-            <TextInput style={styles.input} value={unit} onChangeText={setUnit} placeholder="e.g., kg, ml, pieces" placeholderTextColor={Colors.textSecondary} />
-          </View>
+          <Controller
+            control={control}
+            name="unit"
+            render={({ field: { onChange, value } }) => (
+              <>
+                <Text style={styles.label}>Unit</Text>
+                <View style={[styles.inputBox, formErrors.unit && { borderColor: Colors.tertiary }]}>
+                  <TextInput
+                    style={styles.input}
+                    value={value}
+                    onChangeText={onChange}
+                    placeholder="e.g., kg, ml, pieces"
+                    placeholderTextColor={Colors.textSecondary}
+                  />
+                </View>
+                {formErrors.unit && <Text style={styles.fieldErrorText}>{formErrors.unit.message}</Text>}
+              </>
+            )}
+          />
 
-          <Text style={styles.label}>Description</Text>
-          <View style={[styles.inputBox, styles.textArea]}>
-            <TextInput style={[styles.input, styles.multiLine]} value={description} onChangeText={setDescription} placeholder="Optional" placeholderTextColor={Colors.textSecondary} multiline />
-          </View>
+          <Controller
+            control={control}
+            name="description"
+            render={({ field: { onChange, value } }) => (
+              <>
+                <Text style={styles.label}>Description</Text>
+                <View style={[styles.inputBox, styles.textArea, formErrors.description && { borderColor: Colors.tertiary }]}>
+                  <TextInput
+                    style={[styles.input, styles.multiLine]}
+                    value={value}
+                    onChangeText={onChange}
+                    placeholder="Optional"
+                    placeholderTextColor={Colors.textSecondary}
+                    multiline
+                  />
+                </View>
+                {formErrors.description && <Text style={styles.fieldErrorText}>{formErrors.description.message}</Text>}
+              </>
+            )}
+          />
 
-          <TouchableOpacity style={styles.submitBtn} onPress={handleSave} disabled={saving}>
+          <TouchableOpacity style={styles.submitBtn} onPress={handleSubmit(handleSave)} disabled={saving}>
             {saving ? <ActivityIndicator color="#FFF" /> : <Text style={styles.submitBtnText}>Add Item</Text>}
           </TouchableOpacity>
         </View>
@@ -180,6 +251,12 @@ const styles = StyleSheet.create({
     justifyContent: 'center', alignItems: 'center', marginTop: 20,
   },
   submitBtnText: { color: '#FFF', fontSize: 15, fontWeight: 'bold' },
+  fieldErrorText: {
+    color: Colors.tertiary,
+    fontSize: 10,
+    marginTop: 4,
+    fontWeight: '600',
+  },
   emptyText: { fontSize: 14, color: Colors.textSecondary, textAlign: 'center', paddingVertical: 20 },
   listItem: {
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',

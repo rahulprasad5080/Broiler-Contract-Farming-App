@@ -28,6 +28,10 @@ import {
 
 type TabKey = 'catalog' | 'costs';
 
+import { useForm, Controller } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { z } from 'zod';
+
 const CATALOG_TYPES: ApiCatalogItemType[] = ['FEED', 'VACCINE', 'MEDICINE', 'OTHER'];
 const COST_CATEGORIES: ApiCostCategory[] = [
   'FEED',
@@ -41,6 +45,43 @@ const COST_CATEGORIES: ApiCostCategory[] = [
   'MAINTENANCE',
 ];
 
+const catalogSchema = z.object({
+  name: z.string().min(1, 'Name is required'),
+  type: z.enum(['FEED', 'VACCINE', 'MEDICINE', 'OTHER']),
+  unit: z.string().optional(),
+  description: z.string().optional(),
+});
+
+const costSchema = z.object({
+  batchId: z.string().min(1, 'Batch ID is required'),
+  category: z.enum([
+    'FEED',
+    'VACCINE',
+    'MEDICINE',
+    'OTHER',
+    'CHICK_PURCHASE',
+    'LABOUR',
+    'UTILITIES',
+    'TRANSPORT',
+    'MAINTENANCE',
+  ]),
+  catalogItemId: z.string().optional(),
+  costDate: z.string().min(1, 'Date is required'),
+  amount: z.string().min(1, 'Amount is required').refine((val) => !isNaN(Number(val)), {
+    message: 'Must be a number',
+  }),
+  quantity: z.string().optional().refine((val) => !val || !isNaN(Number(val)), {
+    message: 'Must be a number',
+  }),
+  unitRate: z.string().optional().refine((val) => !val || !isNaN(Number(val)), {
+    message: 'Must be a number',
+  }),
+  notes: z.string().optional(),
+});
+
+type CatalogFormData = z.infer<typeof catalogSchema>;
+type CostFormData = z.infer<typeof costSchema>;
+
 const formatINR = (value?: number | null) => {
   if (value === null || value === undefined) return 'Rs 0';
   return `Rs ${Number(value).toLocaleString('en-IN')}`;
@@ -50,25 +91,39 @@ export default function InventoryScreen() {
   const { accessToken, hasPermission } = useAuth();
   const [activeTab, setActiveTab] = useState<TabKey>('catalog');
   const [catalogItems, setCatalogItems] = useState<ApiCatalogItem[]>([]);
-  const [selectedCatalogType, setSelectedCatalogType] = useState<ApiCatalogItemType>('FEED');
-  const [catalogName, setCatalogName] = useState('');
-  const [catalogUnit, setCatalogUnit] = useState('');
-  const [catalogDescription, setCatalogDescription] = useState('');
   const [catalogLoading, setCatalogLoading] = useState(false);
   const [savingCatalog, setSavingCatalog] = useState(false);
 
-  const [batchId, setBatchId] = useState('');
   const [costs, setCosts] = useState<ApiCost[]>([]);
-  const [selectedCostCategory, setSelectedCostCategory] = useState<ApiCostCategory>('FEED');
-  const [selectedCatalogItemId, setSelectedCatalogItemId] = useState('');
-  const [costDate, setCostDate] = useState('');
-  const [amount, setAmount] = useState('');
-  const [quantity, setQuantity] = useState('');
-  const [unitRate, setUnitRate] = useState('');
-  const [costNotes, setCostNotes] = useState('');
   const [loadingCosts, setLoadingCosts] = useState(false);
   const [savingCost, setSavingCost] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const { control: catalogControl, handleSubmit: handleCatalogSubmit, reset: resetCatalog, formState: { errors: catalogErrors } } = useForm<CatalogFormData>({
+    resolver: zodResolver(catalogSchema),
+    defaultValues: {
+      name: '',
+      type: 'FEED',
+      unit: '',
+      description: '',
+    },
+  });
+
+  const { control: costControl, handleSubmit: handleCostSubmit, setValue: setCostValue, watch: watchCost, reset: resetCost, formState: { errors: costErrors } } = useForm<CostFormData>({
+    resolver: zodResolver(costSchema),
+    defaultValues: {
+      batchId: '',
+      category: 'FEED',
+      catalogItemId: '',
+      costDate: new Date().toISOString().slice(0, 10),
+      amount: '',
+      quantity: '',
+      unitRate: '',
+      notes: '',
+    },
+  });
+
+  const costBatchId = watchCost('batchId');
 
   const canSeeCost = hasPermission('view:inventory-cost');
 
@@ -86,7 +141,7 @@ export default function InventoryScreen() {
         const response = await listCatalogItems(accessToken, { limit: 50 });
         setCatalogItems(response.data);
         if (response.data.length > 0) {
-          setSelectedCatalogItemId((current) => current || response.data[0].id);
+          setCostValue('catalogItemId', response.data[0].id);
         }
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to load catalog items.');
@@ -96,7 +151,7 @@ export default function InventoryScreen() {
     };
 
     void loadCatalog();
-  }, [accessToken]);
+  }, [accessToken, setCostValue]);
 
   const loadBatchCosts = async () => {
     if (!accessToken) {
@@ -104,7 +159,7 @@ export default function InventoryScreen() {
       return;
     }
 
-    if (!batchId.trim()) {
+    if (!costBatchId.trim()) {
       setError('Enter a batch ID first.');
       return;
     }
@@ -113,7 +168,7 @@ export default function InventoryScreen() {
     setError(null);
 
     try {
-      const response = await listBatchCosts(accessToken, batchId.trim());
+      const response = await listBatchCosts(accessToken, costBatchId.trim());
       setCosts(response.data);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load batch costs.');
@@ -122,14 +177,9 @@ export default function InventoryScreen() {
     }
   };
 
-  const submitCatalogItem = async () => {
+  const submitCatalogItem = async (data: CatalogFormData) => {
     if (!accessToken) {
       setError('Missing access token. Please sign in again.');
-      return;
-    }
-
-    if (!catalogName.trim()) {
-      setError('Catalog item name is required.');
       return;
     }
 
@@ -138,18 +188,16 @@ export default function InventoryScreen() {
 
     try {
       const created = await createCatalogItem(accessToken, {
-        name: catalogName.trim(),
-        type: selectedCatalogType,
-        unit: catalogUnit.trim() || undefined,
-        description: catalogDescription.trim() || undefined,
+        name: data.name.trim(),
+        type: data.type,
+        unit: data.unit?.trim() || undefined,
+        description: data.description?.trim() || undefined,
         isActive: true,
       });
 
       setCatalogItems((prev) => [created, ...prev]);
-      setCatalogName('');
-      setCatalogUnit('');
-      setCatalogDescription('');
-      setSelectedCatalogItemId(created.id);
+      resetCatalog();
+      setCostValue('catalogItemId', created.id);
       Toast.show({type: 'success', text1: 'Saved', text2: 'Catalog item created successfully.',
   position: 'bottom'});
     } catch (err) {
@@ -162,19 +210,9 @@ export default function InventoryScreen() {
     }
   };
 
-  const submitBatchCost = async () => {
+  const submitBatchCost = async (data: CostFormData) => {
     if (!accessToken) {
       setError('Missing access token. Please sign in again.');
-      return;
-    }
-
-    if (!batchId.trim()) {
-      setError('Batch ID is required.');
-      return;
-    }
-
-    if (!costDate.trim() || !amount.trim()) {
-      setError('Cost date and amount are required.');
       return;
     }
 
@@ -182,22 +220,22 @@ export default function InventoryScreen() {
     setError(null);
 
     try {
-      const created = await createBatchCost(accessToken, batchId.trim(), {
-        category: selectedCostCategory,
-        catalogItemId: selectedCatalogItemId || undefined,
-        costDate: costDate.trim(),
-        amount: Number(amount),
-        quantity: quantity.trim() ? Number(quantity) : undefined,
-        unitRate: unitRate.trim() ? Number(unitRate) : undefined,
-        notes: costNotes.trim() || undefined,
+      const created = await createBatchCost(accessToken, data.batchId.trim(), {
+        category: data.category,
+        catalogItemId: data.catalogItemId || undefined,
+        costDate: data.costDate.trim(),
+        amount: Number(data.amount),
+        quantity: data.quantity?.trim() ? Number(data.quantity) : undefined,
+        unitRate: data.unitRate?.trim() ? Number(data.unitRate) : undefined,
+        notes: data.notes?.trim() || undefined,
         clientReferenceId: `inventory-${Date.now()}`,
       });
 
       setCosts((prev) => [created, ...prev]);
-      setAmount('');
-      setQuantity('');
-      setUnitRate('');
-      setCostNotes('');
+      setCostValue('amount', '');
+      setCostValue('quantity', '');
+      setCostValue('unitRate', '');
+      setCostValue('notes', '');
       Toast.show({type: 'success', text1: 'Saved', text2: 'Batch cost created successfully.',
   position: 'bottom'});
     } catch (err) {
@@ -269,58 +307,94 @@ export default function InventoryScreen() {
               {catalogLoading ? <ActivityIndicator color={Colors.primary} /> : null}
             </View>
 
-            <Text style={styles.fieldLabel}>Name</Text>
-            <View style={styles.inputBox}>
-              <TextInput
-                style={styles.input}
-                value={catalogName}
-                onChangeText={setCatalogName}
-                placeholder="Broiler Starter Feed"
-                placeholderTextColor={Colors.textSecondary}
-              />
-            </View>
+            <Controller
+              control={catalogControl}
+              name="name"
+              render={({ field: { onChange, value } }) => (
+                <>
+                  <Text style={styles.fieldLabel}>Name</Text>
+                  <View style={[styles.inputBox, catalogErrors.name && { borderColor: Colors.tertiary }]}>
+                    <TextInput
+                      style={styles.input}
+                      value={value}
+                      onChangeText={onChange}
+                      placeholder="Broiler Starter Feed"
+                      placeholderTextColor={Colors.textSecondary}
+                    />
+                  </View>
+                  {catalogErrors.name && <Text style={styles.fieldErrorText}>{catalogErrors.name.message}</Text>}
+                </>
+              )}
+            />
 
-            <Text style={styles.fieldLabel}>Type</Text>
-            <View style={styles.chipRow}>
-              {CATALOG_TYPES.map((type) => (
-                <TouchableOpacity
-                  key={type}
-                  style={[styles.chip, selectedCatalogType === type && styles.chipActive]}
-                  onPress={() => setSelectedCatalogType(type)}
-                >
-                  <Text style={[styles.chipText, selectedCatalogType === type && styles.chipTextActive]}>{type}</Text>
-                </TouchableOpacity>
-              ))}
-            </View>
+            <Controller
+              control={catalogControl}
+              name="type"
+              render={({ field: { onChange, value } }) => (
+                <>
+                  <Text style={styles.fieldLabel}>Type</Text>
+                  <View style={styles.chipRow}>
+                    {CATALOG_TYPES.map((type) => (
+                      <TouchableOpacity
+                        key={type}
+                        style={[styles.chip, value === type && styles.chipActive]}
+                        onPress={() => onChange(type)}
+                      >
+                        <Text style={[styles.chipText, value === type && styles.chipTextActive]}>{type}</Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                  {catalogErrors.type && <Text style={styles.fieldErrorText}>{catalogErrors.type.message}</Text>}
+                </>
+              )}
+            />
 
             <View style={styles.row}>
               <View style={[styles.flexHalf, styles.rowGap]}>
-                <Text style={styles.fieldLabel}>Unit</Text>
-                <View style={styles.inputBox}>
-                  <TextInput
-                    style={styles.input}
-                    value={catalogUnit}
-                    onChangeText={setCatalogUnit}
-                    placeholder="Bag / ml / kg"
-                    placeholderTextColor={Colors.textSecondary}
-                  />
-                </View>
+                <Controller
+                  control={catalogControl}
+                  name="unit"
+                  render={({ field: { onChange, value } }) => (
+                    <>
+                      <Text style={styles.fieldLabel}>Unit</Text>
+                      <View style={[styles.inputBox, catalogErrors.unit && { borderColor: Colors.tertiary }]}>
+                        <TextInput
+                          style={styles.input}
+                          value={value}
+                          onChangeText={onChange}
+                          placeholder="Bag / ml / kg"
+                          placeholderTextColor={Colors.textSecondary}
+                        />
+                      </View>
+                      {catalogErrors.unit && <Text style={styles.fieldErrorText}>{catalogErrors.unit.message}</Text>}
+                    </>
+                  )}
+                />
               </View>
             </View>
 
-            <Text style={styles.fieldLabel}>Description</Text>
-            <View style={[styles.inputBox, styles.textArea]}>
-              <TextInput
-                style={[styles.input, styles.multiLineInput]}
-                value={catalogDescription}
-                onChangeText={setCatalogDescription}
-                placeholder="Optional item details"
-                placeholderTextColor={Colors.textSecondary}
-                multiline
-              />
-            </View>
+            <Controller
+              control={catalogControl}
+              name="description"
+              render={({ field: { onChange, value } }) => (
+                <>
+                  <Text style={styles.fieldLabel}>Description</Text>
+                  <View style={[styles.inputBox, styles.textArea, catalogErrors.description && { borderColor: Colors.tertiary }]}>
+                    <TextInput
+                      style={[styles.input, styles.multiLineInput]}
+                      value={value}
+                      onChangeText={onChange}
+                      placeholder="Optional item details"
+                      placeholderTextColor={Colors.textSecondary}
+                      multiline
+                    />
+                  </View>
+                  {catalogErrors.description && <Text style={styles.fieldErrorText}>{catalogErrors.description.message}</Text>}
+                </>
+              )}
+            />
 
-            <TouchableOpacity style={styles.primaryBtn} onPress={submitCatalogItem} disabled={savingCatalog}>
+            <TouchableOpacity style={styles.primaryBtn} onPress={handleCatalogSubmit(submitCatalogItem)} disabled={savingCatalog}>
               {savingCatalog ? <ActivityIndicator color="#FFF" /> : <Text style={styles.primaryBtnText}>Save Catalog Item</Text>}
             </TouchableOpacity>
           </View>
@@ -349,14 +423,14 @@ export default function InventoryScreen() {
                     </Text>
                   </View>
                   <TouchableOpacity
-                    style={[styles.smallBtn, selectedCatalogItemId === item.id && styles.smallBtnActive]}
+                    style={[styles.smallBtn, watchCost('catalogItemId') === item.id && styles.smallBtnActive]}
                     onPress={() => {
-                      setSelectedCatalogItemId(item.id);
+                      setCostValue('catalogItemId', item.id);
                       setActiveTab('costs');
                     }}
                   >
-                    <Text style={[styles.smallBtnText, selectedCatalogItemId === item.id && styles.smallBtnTextActive]}>
-                      {selectedCatalogItemId === item.id ? 'Selected' : 'Select'}
+                    <Text style={[styles.smallBtnText, watchCost('catalogItemId') === item.id && styles.smallBtnTextActive]}>
+                      {watchCost('catalogItemId') === item.id ? 'Selected' : 'Select'}
                     </Text>
                   </TouchableOpacity>
                 </View>
@@ -372,111 +446,183 @@ export default function InventoryScreen() {
             <Text style={styles.panelTitle}>Batch Cost Entry</Text>
             <Text style={styles.panelSubtitle}>Enter a batch ID, choose a category, and save the cost line.</Text>
 
-            <Text style={styles.fieldLabel}>Batch ID</Text>
-            <View style={styles.inputBox}>
-              <TextInput
-                style={styles.input}
-                value={batchId}
-                onChangeText={setBatchId}
-                placeholder="Batch ID"
-                placeholderTextColor={Colors.textSecondary}
-              />
-            </View>
+            <Controller
+              control={costControl}
+              name="batchId"
+              render={({ field: { onChange, value } }) => (
+                <>
+                  <Text style={styles.fieldLabel}>Batch ID</Text>
+                  <View style={[styles.inputBox, costErrors.batchId && { borderColor: Colors.tertiary }]}>
+                    <TextInput
+                      style={styles.input}
+                      value={value}
+                      onChangeText={onChange}
+                      placeholder="Batch ID"
+                      placeholderTextColor={Colors.textSecondary}
+                    />
+                  </View>
+                  {costErrors.batchId && <Text style={styles.fieldErrorText}>{costErrors.batchId.message}</Text>}
+                </>
+              )}
+            />
 
-            <Text style={styles.fieldLabel}>Category</Text>
-            <View style={styles.chipRow}>
-              {COST_CATEGORIES.map((category) => (
-                <TouchableOpacity
-                  key={category}
-                  style={[styles.chip, selectedCostCategory === category && styles.chipActive]}
-                  onPress={() => setSelectedCostCategory(category)}
-                >
-                  <Text style={[styles.chipText, selectedCostCategory === category && styles.chipTextActive]}>{category}</Text>
-                </TouchableOpacity>
-              ))}
-            </View>
+            <Controller
+              control={costControl}
+              name="category"
+              render={({ field: { onChange, value } }) => (
+                <>
+                  <Text style={styles.fieldLabel}>Category</Text>
+                  <View style={styles.chipRow}>
+                    {COST_CATEGORIES.map((category) => (
+                      <TouchableOpacity
+                        key={category}
+                        style={[styles.chip, value === category && styles.chipActive]}
+                        onPress={() => onChange(category)}
+                      >
+                        <Text style={[styles.chipText, value === category && styles.chipTextActive]}>{category}</Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                  {costErrors.category && <Text style={styles.fieldErrorText}>{costErrors.category.message}</Text>}
+                </>
+              )}
+            />
 
-            <Text style={styles.fieldLabel}>Catalog Item</Text>
-            <View style={styles.inputBox}>
-              <TextInput
-                style={styles.input}
-                value={selectedCatalogItemId}
-                onChangeText={setSelectedCatalogItemId}
-                placeholder="Catalog item ID"
-                placeholderTextColor={Colors.textSecondary}
-              />
+            <Controller
+              control={costControl}
+              name="catalogItemId"
+              render={({ field: { onChange, value } }) => (
+                <>
+                  <Text style={styles.fieldLabel}>Catalog Item</Text>
+                  <View style={[styles.inputBox, costErrors.catalogItemId && { borderColor: Colors.tertiary }]}>
+                    <TextInput
+                      style={styles.input}
+                      value={value}
+                      onChangeText={onChange}
+                      placeholder="Catalog item ID"
+                      placeholderTextColor={Colors.textSecondary}
+                    />
+                  </View>
+                  {costErrors.catalogItemId && <Text style={styles.fieldErrorText}>{costErrors.catalogItemId.message}</Text>}
+                </>
+              )}
+            />
+
+            <View style={styles.row}>
+              <View style={[styles.flexHalf, styles.rowGap]}>
+                <Controller
+                  control={costControl}
+                  name="costDate"
+                  render={({ field: { onChange, value } }) => (
+                    <>
+                      <Text style={styles.fieldLabel}>Cost Date</Text>
+                      <View style={[styles.inputBox, costErrors.costDate && { borderColor: Colors.tertiary }]}>
+                        <TextInput
+                          style={styles.input}
+                          value={value}
+                          onChangeText={onChange}
+                          placeholder="YYYY-MM-DD"
+                          placeholderTextColor={Colors.textSecondary}
+                        />
+                      </View>
+                      {costErrors.costDate && <Text style={styles.fieldErrorText}>{costErrors.costDate.message}</Text>}
+                    </>
+                  )}
+                />
+              </View>
+              <View style={styles.flexHalf}>
+                <Controller
+                  control={costControl}
+                  name="amount"
+                  render={({ field: { onChange, value } }) => (
+                    <>
+                      <Text style={styles.fieldLabel}>Amount</Text>
+                      <View style={[styles.inputBox, costErrors.amount && { borderColor: Colors.tertiary }]}>
+                        <TextInput
+                          style={styles.input}
+                          value={value}
+                          onChangeText={onChange}
+                          placeholder="0"
+                          placeholderTextColor={Colors.textSecondary}
+                          keyboardType="decimal-pad"
+                        />
+                      </View>
+                      {costErrors.amount && <Text style={styles.fieldErrorText}>{costErrors.amount.message}</Text>}
+                    </>
+                  )}
+                />
+              </View>
             </View>
 
             <View style={styles.row}>
               <View style={[styles.flexHalf, styles.rowGap]}>
-                <Text style={styles.fieldLabel}>Cost Date</Text>
-                <View style={styles.inputBox}>
-                  <TextInput
-                    style={styles.input}
-                    value={costDate}
-                    onChangeText={setCostDate}
-                    placeholder="YYYY-MM-DD"
-                    placeholderTextColor={Colors.textSecondary}
-                  />
-                </View>
+                <Controller
+                  control={costControl}
+                  name="quantity"
+                  render={({ field: { onChange, value } }) => (
+                    <>
+                      <Text style={styles.fieldLabel}>Quantity</Text>
+                      <View style={[styles.inputBox, costErrors.quantity && { borderColor: Colors.tertiary }]}>
+                        <TextInput
+                          style={styles.input}
+                          value={value}
+                          onChangeText={onChange}
+                          placeholder="Optional"
+                          placeholderTextColor={Colors.textSecondary}
+                          keyboardType="decimal-pad"
+                        />
+                      </View>
+                      {costErrors.quantity && <Text style={styles.fieldErrorText}>{costErrors.quantity.message}</Text>}
+                    </>
+                  )}
+                />
               </View>
               <View style={styles.flexHalf}>
-                <Text style={styles.fieldLabel}>Amount</Text>
-                <View style={styles.inputBox}>
-                  <TextInput
-                    style={styles.input}
-                    value={amount}
-                    onChangeText={setAmount}
-                    placeholder="0"
-                    placeholderTextColor={Colors.textSecondary}
-                    keyboardType="decimal-pad"
-                  />
-                </View>
+                <Controller
+                  control={costControl}
+                  name="unitRate"
+                  render={({ field: { onChange, value } }) => (
+                    <>
+                      <Text style={styles.fieldLabel}>Unit Rate</Text>
+                      <View style={[styles.inputBox, costErrors.unitRate && { borderColor: Colors.tertiary }]}>
+                        <TextInput
+                          style={styles.input}
+                          value={value}
+                          onChangeText={onChange}
+                          placeholder="Optional"
+                          placeholderTextColor={Colors.textSecondary}
+                          keyboardType="decimal-pad"
+                        />
+                      </View>
+                      {costErrors.unitRate && <Text style={styles.fieldErrorText}>{costErrors.unitRate.message}</Text>}
+                    </>
+                  )}
+                />
               </View>
             </View>
 
-            <View style={styles.row}>
-              <View style={[styles.flexHalf, styles.rowGap]}>
-                <Text style={styles.fieldLabel}>Quantity</Text>
-                <View style={styles.inputBox}>
-                  <TextInput
-                    style={styles.input}
-                    value={quantity}
-                    onChangeText={setQuantity}
-                    placeholder="Optional"
-                    placeholderTextColor={Colors.textSecondary}
-                    keyboardType="decimal-pad"
-                  />
-                </View>
-              </View>
-              <View style={styles.flexHalf}>
-                <Text style={styles.fieldLabel}>Unit Rate</Text>
-                <View style={styles.inputBox}>
-                  <TextInput
-                    style={styles.input}
-                    value={unitRate}
-                    onChangeText={setUnitRate}
-                    placeholder="Optional"
-                    placeholderTextColor={Colors.textSecondary}
-                    keyboardType="decimal-pad"
-                  />
-                </View>
-              </View>
-            </View>
+            <Controller
+              control={costControl}
+              name="notes"
+              render={({ field: { onChange, value } }) => (
+                <>
+                  <Text style={styles.fieldLabel}>Notes</Text>
+                  <View style={[styles.inputBox, styles.textArea, costErrors.notes && { borderColor: Colors.tertiary }]}>
+                    <TextInput
+                      style={[styles.input, styles.multiLineInput]}
+                      value={value}
+                      onChangeText={onChange}
+                      placeholder="Optional notes"
+                      placeholderTextColor={Colors.textSecondary}
+                      multiline
+                    />
+                  </View>
+                  {costErrors.notes && <Text style={styles.fieldErrorText}>{costErrors.notes.message}</Text>}
+                </>
+              )}
+            />
 
-            <Text style={styles.fieldLabel}>Notes</Text>
-            <View style={[styles.inputBox, styles.textArea]}>
-              <TextInput
-                style={[styles.input, styles.multiLineInput]}
-                value={costNotes}
-                onChangeText={setCostNotes}
-                placeholder="Optional notes"
-                placeholderTextColor={Colors.textSecondary}
-                multiline
-              />
-            </View>
-
-            <TouchableOpacity style={styles.primaryBtn} onPress={submitBatchCost} disabled={savingCost}>
+            <TouchableOpacity style={styles.primaryBtn} onPress={handleCostSubmit(submitBatchCost)} disabled={savingCost}>
               {savingCost ? <ActivityIndicator color="#FFF" /> : <Text style={styles.primaryBtnText}>Save Batch Cost</Text>}
             </TouchableOpacity>
 
@@ -806,5 +952,11 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '800',
     color: Colors.text,
+  },
+  fieldErrorText: {
+    color: Colors.tertiary,
+    fontSize: 10,
+    marginTop: 4,
+    fontWeight: '600',
   },
 });

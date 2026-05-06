@@ -67,15 +67,42 @@ type MenuItem = {
   toggle?: boolean;
 };
 
+import { useForm, Controller } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { z } from 'zod';
+
+const passwordSchema = z.object({
+  currentPassword: z.string().min(1, 'Current password is required'),
+  newPassword: z.string()
+    .min(6, 'Password must be at least 6 characters')
+    .regex(/[A-Za-z]/, 'Password must contain at least one letter')
+    .regex(/[0-9]/, 'Password must contain at least one number')
+    .regex(/[^A-Za-z0-9]/, 'Password must contain at least one special character'),
+  confirmPassword: z.string().min(1, 'Please confirm your new password'),
+}).refine((data) => data.newPassword === data.confirmPassword, {
+  message: "Passwords don't match",
+  path: ['confirmPassword'],
+}).refine((data) => data.newPassword !== data.currentPassword, {
+  message: "New password must be different from current password",
+  path: ['newPassword'],
+});
+
+type PasswordFormData = z.infer<typeof passwordSchema>;
+
 export default function ProfileScreen() {
   const { signOut, user, accessToken } = useAuth();
   const [showChangePassword, setShowChangePassword] = React.useState(false);
-  const [currentPassword, setCurrentPassword] = React.useState('');
-  const [newPassword, setNewPassword] = React.useState('');
-  const [confirmPassword, setConfirmPassword] = React.useState('');
   const [isSavingPassword, setIsSavingPassword] = React.useState(false);
-  const [passwordError, setPasswordError] = React.useState<string | null>(null);
   const [passwordSuccess, setPasswordSuccess] = React.useState<string | null>(null);
+
+  const { control, handleSubmit, reset, formState: { errors: formErrors } } = useForm<PasswordFormData>({
+    resolver: zodResolver(passwordSchema),
+    defaultValues: {
+      currentPassword: '',
+      newPassword: '',
+      confirmPassword: '',
+    },
+  });
 
   const initials = getInitials(user?.name || 'U');
   const roleLabel = getRoleLabel(user?.role);
@@ -89,68 +116,38 @@ export default function ProfileScreen() {
   };
 
   const openChangePassword = () => {
-    setPasswordError(null);
+    reset();
     setPasswordSuccess(null);
     setShowChangePassword(true);
   };
 
-  const submitPasswordChange = async () => {
+  const submitPasswordChange = async (data: PasswordFormData) => {
     if (!accessToken) {
-      setPasswordError('Missing access token. Please sign in again.');
-      return;
-    }
-
-    if (!currentPassword.trim() || !newPassword.trim()) {
-      setPasswordError('Current password and new password are required.');
-      return;
-    }
-
-    const passwordValidationError = getPasswordValidationError(
-      newPassword,
-      'New password is required.',
-    );
-    if (passwordValidationError) {
-      setPasswordError(passwordValidationError);
-      return;
-    }
-
-    if (newPassword === currentPassword) {
-      setPasswordError('New password must be different from the current password.');
-      return;
-    }
-
-    if (newPassword !== confirmPassword) {
-      setPasswordError('New password and confirm password do not match.');
+      Toast.show({ type: 'error', text1: 'Error', text2: 'Missing access token.' });
       return;
     }
 
     setIsSavingPassword(true);
-    setPasswordError(null);
     setPasswordSuccess(null);
 
     try {
       const response = await changePassword(accessToken, {
-        currentPassword,
-        newPassword,
+        currentPassword: data.currentPassword,
+        newPassword: data.newPassword,
       });
 
       setPasswordSuccess(response.message || 'Password updated. Please sign in again.');
-      setCurrentPassword('');
-      setNewPassword('');
-      setConfirmPassword('');
+      reset();
 
       setTimeout(() => {
         setShowChangePassword(false);
         setPasswordSuccess(null);
         void signOut();
       }, 1200);
-      Toast.show({type: 'success', text1: 'Success', text2: response.message || 'Password updated.',
-  position: 'bottom'});
+      Toast.show({type: 'success', text1: 'Success', text2: response.message || 'Password updated.', position: 'bottom'});
     } catch (error) {
       const msg = error instanceof Error ? error.message : 'Failed to update password.';
-      setPasswordError(msg);
-      Toast.show({type: 'error', text1: 'Error', text2: msg,
-  position: 'bottom'});
+      Toast.show({type: 'error', text1: 'Error', text2: msg, position: 'bottom'});
     } finally {
       setIsSavingPassword(false);
     }
@@ -309,43 +306,69 @@ export default function ProfileScreen() {
               </TouchableOpacity>
             </View>
 
-            <Text style={styles.inputLabel}>Current Password</Text>
-            <TextInput
-              style={styles.passwordInput}
-              value={currentPassword}
-              onChangeText={setCurrentPassword}
-              secureTextEntry
-              placeholder="Enter current password"
-              placeholderTextColor={Colors.textSecondary}
+            <Controller
+              control={control}
+              name="currentPassword"
+              render={({ field: { onChange, value } }) => (
+                <View>
+                  <Text style={styles.inputLabel}>Current Password</Text>
+                  <TextInput
+                    style={[styles.passwordInput, formErrors.currentPassword && { borderColor: Colors.tertiary }]}
+                    value={value}
+                    onChangeText={onChange}
+                    secureTextEntry
+                    placeholder="Enter current password"
+                    placeholderTextColor={Colors.textSecondary}
+                  />
+                  {formErrors.currentPassword && <Text style={styles.fieldErrorText}>{formErrors.currentPassword.message}</Text>}
+                </View>
+              )}
             />
 
-            <Text style={styles.inputLabel}>New Password</Text>
-            <TextInput
-              style={styles.passwordInput}
-              value={newPassword}
-              onChangeText={setNewPassword}
-              secureTextEntry
-              placeholder="Enter new password"
-              placeholderTextColor={Colors.textSecondary}
+            <Controller
+              control={control}
+              name="newPassword"
+              render={({ field: { onChange, value } }) => (
+                <View>
+                  <Text style={styles.inputLabel}>New Password</Text>
+                  <TextInput
+                    style={[styles.passwordInput, formErrors.newPassword && { borderColor: Colors.tertiary }]}
+                    value={value}
+                    onChangeText={onChange}
+                    secureTextEntry
+                    placeholder="Enter new password"
+                    placeholderTextColor={Colors.textSecondary}
+                  />
+                  {formErrors.newPassword && <Text style={styles.fieldErrorText}>{formErrors.newPassword.message}</Text>}
+                </View>
+              )}
             />
 
-            <Text style={styles.inputLabel}>Confirm New Password</Text>
-            <TextInput
-              style={styles.passwordInput}
-              value={confirmPassword}
-              onChangeText={setConfirmPassword}
-              secureTextEntry
-              placeholder="Re-enter new password"
-              placeholderTextColor={Colors.textSecondary}
+            <Controller
+              control={control}
+              name="confirmPassword"
+              render={({ field: { onChange, value } }) => (
+                <View>
+                  <Text style={styles.inputLabel}>Confirm New Password</Text>
+                  <TextInput
+                    style={[styles.passwordInput, formErrors.confirmPassword && { borderColor: Colors.tertiary }]}
+                    value={value}
+                    onChangeText={onChange}
+                    secureTextEntry
+                    placeholder="Re-enter new password"
+                    placeholderTextColor={Colors.textSecondary}
+                  />
+                  {formErrors.confirmPassword && <Text style={styles.fieldErrorText}>{formErrors.confirmPassword.message}</Text>}
+                </View>
+              )}
             />
 
             <Text style={styles.passwordHint}>{PASSWORD_REQUIREMENT_TEXT}</Text>
-            {passwordError ? <Text style={styles.errorText}>{passwordError}</Text> : null}
             {passwordSuccess ? <Text style={styles.successText}>{passwordSuccess}</Text> : null}
 
             <TouchableOpacity
               style={[styles.saveBtn, isSavingPassword && styles.saveBtnDisabled]}
-              onPress={submitPasswordChange}
+              onPress={handleSubmit(submitPasswordChange)}
               disabled={isSavingPassword}
             >
               <Text style={styles.saveBtnText}>{isSavingPassword ? 'Saving...' : 'Update Password'}</Text>
@@ -578,5 +601,11 @@ const styles = StyleSheet.create({
     color: '#FFF',
     fontSize: 15,
     fontWeight: '800',
+  },
+  fieldErrorText: {
+    color: Colors.tertiary,
+    fontSize: 10,
+    marginTop: 4,
+    fontWeight: '600',
   },
 });
