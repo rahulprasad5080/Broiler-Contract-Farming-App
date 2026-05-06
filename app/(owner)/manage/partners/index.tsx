@@ -144,7 +144,7 @@ export default function PartnerManagementScreen() {
         <View style={styles.lockedState}>
           <MaterialCommunityIcons name="shield-lock-outline" size={54} color={Colors.textSecondary} />
           <Text style={styles.lockedTitle}>Owner permission required</Text>
-          <Text style={styles.lockedText}>Only owner accounts can manage partners, contracts and settlements.</Text>
+          <Text style={styles.lockedText}>Only owner accounts can manage partners, contracts and payouts.</Text>
         </View>
       </SafeAreaView>
     );
@@ -170,7 +170,7 @@ export default function PartnerManagementScreen() {
           <View style={styles.summaryHeader}>
             <View>
               <Text style={styles.kicker}>PARTNER CONTROL</Text>
-              <Text style={styles.summaryTitle}>Contracts and settlements</Text>
+              <Text style={styles.summaryTitle}>Contracts and payouts</Text>
             </View>
             <View style={styles.permissionBadge}>
               <Ionicons name="shield-checkmark-outline" size={15} color={Colors.primary} />
@@ -237,7 +237,7 @@ export default function PartnerManagementScreen() {
                 <Text style={styles.metricValue}>{partner.farms}</Text>
               </View>
               <View style={styles.metricItem}>
-                <Text style={styles.metricLabel}>Settlement due</Text>
+                <Text style={styles.metricLabel}>Payout due</Text>
                 <Text style={styles.metricValue}>{partner.settlementDue}</Text>
               </View>
               <View style={styles.metricItem}>

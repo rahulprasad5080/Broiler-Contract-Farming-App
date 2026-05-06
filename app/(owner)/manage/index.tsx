@@ -21,7 +21,7 @@ export default function ManageIndexScreen() {
   const menuItems: MenuItem[] = [
     ...(hasPermission('manage:partners') ? [{
       title: 'Partners',
-      desc: 'Contracts, commission and settlements',
+      desc: 'Contracts, commission and payouts',
       icon: 'people-circle-outline',
       route: '/(owner)/manage/partners',
     } as MenuItem] : []),
@@ -29,7 +29,7 @@ export default function ManageIndexScreen() {
     { title: 'Batches', desc: 'Active & closed batches', icon: 'layers-outline', route: '/(owner)/manage/batches' },
     { title: 'Inventory', desc: 'Purchases and allocations', icon: 'cube-outline', route: '/(owner)/manage/inventory' },
     { title: 'Sales', desc: 'Entry and owner rate finalization', icon: 'cash-outline', route: '/(owner)/manage/sales' },
-    { title: 'Settlement', desc: 'Manual FCR based partner payouts', icon: 'receipt-outline', route: '/(owner)/manage/settlement' },
+    { title: 'Payout', desc: 'Manual FCR based partner payouts', icon: 'receipt-outline', route: '/(owner)/manage/settlement' },
     { title: 'Users', desc: 'Manage system users', icon: 'people-outline', route: '/(owner)/manage/users' },
   ];
 

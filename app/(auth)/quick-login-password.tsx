@@ -77,7 +77,7 @@ export default function QuickLoginPasswordScreen() {
             resizeMode="cover"
           />
 
-          <Text style={styles.title}>Welcome Back</Text>
+          <Text style={styles.title}>Welcome Back{user?.name ? `, ${user.name.split(' ')[0]}` : ''}</Text>
           <Text style={styles.subtitle}>Continue as {maskMobileNumber(user?.phone)}</Text>
 
           <Controller

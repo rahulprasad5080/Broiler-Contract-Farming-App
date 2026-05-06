@@ -63,7 +63,7 @@ export default function OwnerDashboard() {
     } as PortalItem] : []),
     { label: 'Daily Entry', icon: 'clipboard-list', provider: FontAwesome5, route: '/(owner)/manage/daily-entry' },
     { label: 'Sales', icon: 'rupee-sign', provider: FontAwesome5, route: '/(owner)/manage/sales' },
-    { label: 'Settlement', icon: 'file-invoice-dollar', provider: FontAwesome5, route: '/(owner)/manage/settlement' },
+    { label: 'Payout', icon: 'file-invoice-dollar', provider: FontAwesome5, route: '/(owner)/manage/settlement' },
     { label: 'Reports', icon: 'chart-bar', provider: FontAwesome5, route: '/(owner)/reports' },
     { label: 'Users', icon: 'user-friends', provider: FontAwesome5, route: '/(owner)/manage/users' },
     { label: 'Settings', icon: 'cog', provider: FontAwesome5, route: 'settings' },

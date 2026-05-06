@@ -157,15 +157,6 @@ export default function AddFarmScreen() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [accessToken]);
 
-  useEffect(() => {
-    if (!farmName.trim()) {
-      setValue('code', generateFarmCode(''));
-      return;
-    }
-
-    setValue('code', generateFarmCode(farmName));
-  }, [farmName, setValue]);
-
   const roleFilterOptions: { key: PickerRoleFilter; label: string }[] = [
     { key: 'all', label: 'All' },
     { key: 'farmers', label: 'Farmers' },
@@ -321,23 +312,23 @@ export default function AddFarmScreen() {
           <Controller
             control={control}
             name="code"
-            render={({ field: { value } }) => (
+            render={({ field: { onChange, value } }) => (
               <>
                 <Text style={styles.label}>Farm Code *</Text>
                 <View style={[styles.inputBox, formErrors.code && { borderColor: Colors.tertiary }]}>
                   <TextInput
                     style={styles.textInput}
-                    placeholder="Auto-generated"
+                    placeholder="e.g. BL-HILL-001"
                     placeholderTextColor={Colors.textSecondary}
                     value={value}
-                    editable={false}
+                    onChangeText={onChange}
                   />
                 </View>
                 {formErrors.code && <Text style={styles.fieldErrorText}>{formErrors.code.message}</Text>}
               </>
             )}
           />
-          <Text style={styles.helperText}>The code is generated from the farm name and can be saved as-is.</Text>
+          <Text style={styles.helperText}>Enter a unique identifier for this farm.</Text>
 
           <View style={styles.formRow}>
             <View style={styles.formHalf}>

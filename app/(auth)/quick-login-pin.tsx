@@ -50,7 +50,7 @@ function PinDots({ value, hasError }: { value: string; hasError: boolean }) {
 
 export default function QuickLoginPinScreen() {
   const router = useRouter();
-  const { unlockApp } = useAuth();
+  const { user, unlockApp } = useAuth();
   const [pin, setPin] = React.useState("");
   const [hasError, setHasError] = React.useState(false);
   const [failedAttempts, setFailedAttempts] = React.useState(0);
@@ -159,7 +159,7 @@ export default function QuickLoginPinScreen() {
             resizeMode="cover"
           />
 
-          <Text style={styles.title}>Quick PIN Login</Text>
+          <Text style={styles.title}>Welcome Back{user?.name ? `, ${user.name.split(' ')[0]}` : ''}</Text>
           <Text style={styles.subtitle}>Enter your 4-digit PIN to unlock PoultryFlow</Text>
 
           <PinDots value={pin} hasError={hasError} />
@@ -242,8 +242,6 @@ const styles = StyleSheet.create({
   },
   container: {
     flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
     backgroundColor: "#FFFFFF",
     paddingHorizontal: 22,
     paddingVertical: 32,
@@ -271,8 +269,8 @@ const styles = StyleSheet.create({
   },
   title: {
     color: "#111827",
-    fontSize: 24,
-    lineHeight: 30,
+    fontSize: 22,
+    lineHeight: 28,
     fontWeight: "800",
     textAlign: "center",
   },

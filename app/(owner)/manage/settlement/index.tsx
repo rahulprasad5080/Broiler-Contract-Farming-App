@@ -42,7 +42,7 @@ export default function SettlementScreen() {
           <Ionicons name="arrow-back" size={24} color={Colors.primary} />
         </TouchableOpacity>
         <View style={styles.headerCopy}>
-          <Text style={styles.headerTitle}>Settlement</Text>
+          <Text style={styles.headerTitle}>Payout</Text>
           <Text style={styles.headerSub}>FCR based manual admin rate</Text>
         </View>
       </View>
@@ -52,7 +52,7 @@ export default function SettlementScreen() {
           {!canManage && (
             <View style={styles.lockedBox}>
               <Ionicons name="lock-closed-outline" size={18} color={Colors.textSecondary} />
-              <Text style={styles.lockedText}>Settlement is owner only.</Text>
+              <Text style={styles.lockedText}>Payout is owner only.</Text>
             </View>
           )}
 
@@ -60,7 +60,7 @@ export default function SettlementScreen() {
             <View>
               <Text style={styles.heroLabel}>CURRENT PAYABLE</Text>
               <Text style={styles.heroValue}>{formatINR(settlementAmount)}</Text>
-              <Text style={styles.heroSub}>Backend will persist final settlement after owner approval.</Text>
+              <Text style={styles.heroSub}>Backend will persist final payout after owner approval.</Text>
             </View>
             <View style={styles.heroIcon}>
               <MaterialCommunityIcons name="cash-check" size={28} color={Colors.primary} />
@@ -93,7 +93,7 @@ export default function SettlementScreen() {
 
           <View style={styles.formCard}>
             <View style={styles.formHeader}>
-              <Text style={styles.formTitle}>Manual Settlement Rate</Text>
+              <Text style={styles.formTitle}>Manual Payout Rate</Text>
               <View style={styles.ownerBadge}>
                 <Ionicons name="shield-checkmark-outline" size={14} color={Colors.primary} />
                 <Text style={styles.ownerBadgeText}>Owner</Text>
@@ -127,7 +127,7 @@ export default function SettlementScreen() {
 
             <TouchableOpacity style={[styles.primaryBtn, !canManage && styles.primaryBtnDisabled]} disabled={!canManage}>
               <Ionicons name="checkmark-circle-outline" size={19} color="#FFF" />
-              <Text style={styles.primaryBtnText}>Approve Settlement</Text>
+              <Text style={styles.primaryBtnText}>Approve Payout</Text>
             </TouchableOpacity>
           </View>
         </View>
