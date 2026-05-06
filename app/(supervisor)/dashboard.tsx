@@ -1,13 +1,14 @@
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import React from 'react';
 import { ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Colors } from '../../constants/Colors';
 import { Layout } from '../../constants/Layout';
 import { useAuth } from '../../context/AuthContext';
 
 export default function SupervisorDashboard() {
   const { signOut } = useAuth();
+  const insets = useSafeAreaInsets();
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -92,7 +93,7 @@ export default function SupervisorDashboard() {
         </View>
       </ScrollView>
 
-      <TouchableOpacity style={styles.fab}>
+      <TouchableOpacity style={[styles.fab, { bottom: 80 + (insets.bottom > 0 ? insets.bottom : 0) }]}>
         <Ionicons name="add" size={32} color="#FFF" />
       </TouchableOpacity>
 

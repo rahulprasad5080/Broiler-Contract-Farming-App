@@ -13,7 +13,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Colors } from '../../constants/Colors';
 import { Layout } from '../../constants/Layout';
 import { useAuth } from '../../context/AuthContext';
@@ -36,6 +36,7 @@ type QuickUser = {
 
 export default function OwnerDashboard() {
   const { hasPermission, user, accessToken } = useAuth();
+  const insets = useSafeAreaInsets();
   const router = useRouter();
   const [showSettingsPanel, setShowSettingsPanel] = useState(false);
   const [users, setUsers] = useState<QuickUser[]>([]);
@@ -152,7 +153,7 @@ export default function OwnerDashboard() {
           <TouchableOpacity style={styles.iconBtn} onPress={() => setShowSettingsPanel(true)}>
             <Ionicons name="people-outline" size={24} color={Colors.text} />
           </TouchableOpacity>
-          <TouchableOpacity style={styles.profileCircle}>
+          <TouchableOpacity style={styles.profileCircle} onPress={() => router.push('/(owner)/profile' as any)}>
             <Text style={styles.profileInitials}>{initials}</Text>
           </TouchableOpacity>
         </View>
@@ -265,7 +266,7 @@ export default function OwnerDashboard() {
       </ScrollView>
 
       <TouchableOpacity
-        style={styles.fab}
+        style={[styles.fab, { bottom: 80 + (insets.bottom > 0 ? insets.bottom : 0) }]}
         onPress={() => router.push('/(owner)/manage/daily-entry' as any)}
       >
         <Ionicons name="add" size={32} color="#FFF" />
