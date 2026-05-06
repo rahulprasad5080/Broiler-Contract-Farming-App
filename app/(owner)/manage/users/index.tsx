@@ -15,6 +15,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Colors } from '@/constants/Colors';
 import { Layout } from '@/constants/Layout';
 import { useAuth } from '@/context/AuthContext';
+import { useToast } from '@/context/ToastContext';
 import {
   createUser,
   fetchUser,
@@ -100,6 +101,7 @@ function userFormFromApi(user: ApiUser): UserFormState {
 export default function UserManagementScreen() {
   const router = useRouter();
   const { accessToken } = useAuth();
+  const { showToast } = useToast();
 
   const [users, setUsers] = useState<UserCard[]>([]);
   const [activeTab, setActiveTab] = useState<FilterTab>('All Users');
@@ -219,8 +221,11 @@ export default function UserManagementScreen() {
       setNewRole('Farmer');
       setNewPassword('Broiler@1234');
       setShowAddModal(false);
+      showToast({ tone: 'success', title: 'Success', message: 'User created successfully.' });
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to create user.');
+      const msg = err instanceof Error ? err.message : 'Failed to create user.';
+      setError(msg);
+      showToast({ tone: 'error', title: 'Error', message: msg });
     } finally {
       setIsSubmitting(false);
     }
@@ -257,8 +262,11 @@ export default function UserManagementScreen() {
       setEditUserId(null);
       setEditForm(EMPTY_USER_FORM);
       loadUsers();
+      showToast({ tone: 'success', title: 'Success', message: 'User updated successfully.' });
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to update user.');
+      const msg = err instanceof Error ? err.message : 'Failed to update user.';
+      setError(msg);
+      showToast({ tone: 'error', title: 'Error', message: msg });
     } finally {
       setIsSavingEdit(false);
     }

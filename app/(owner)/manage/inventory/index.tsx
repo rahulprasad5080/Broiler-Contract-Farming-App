@@ -14,6 +14,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Colors } from '@/constants/Colors';
 import { Layout } from '@/constants/Layout';
 import { useAuth } from '@/context/AuthContext';
+import { useToast } from '@/context/ToastContext';
 import {
   createBatchCost,
   createCatalogItem,
@@ -47,6 +48,7 @@ const formatINR = (value?: number | null) => {
 
 export default function InventoryScreen() {
   const { accessToken, hasPermission } = useAuth();
+  const { showToast } = useToast();
   const [activeTab, setActiveTab] = useState<TabKey>('catalog');
   const [catalogItems, setCatalogItems] = useState<ApiCatalogItem[]>([]);
   const [selectedCatalogType, setSelectedCatalogType] = useState<ApiCatalogItemType>('FEED');
@@ -149,9 +151,11 @@ export default function InventoryScreen() {
       setCatalogUnit('');
       setCatalogDescription('');
       setSelectedCatalogItemId(created.id);
-      Alert.alert('Saved', 'Catalog item created successfully.');
+      showToast({ tone: 'success', title: 'Saved', message: 'Catalog item created successfully.' });
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to create catalog item.');
+      const msg = err instanceof Error ? err.message : 'Failed to create catalog item.';
+      setError(msg);
+      showToast({ tone: 'error', title: 'Error', message: msg });
     } finally {
       setSavingCatalog(false);
     }
@@ -193,9 +197,11 @@ export default function InventoryScreen() {
       setQuantity('');
       setUnitRate('');
       setCostNotes('');
-      Alert.alert('Saved', 'Batch cost created successfully.');
+      showToast({ tone: 'success', title: 'Saved', message: 'Batch cost created successfully.' });
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to create batch cost.');
+      const msg = err instanceof Error ? err.message : 'Failed to create batch cost.';
+      setError(msg);
+      showToast({ tone: 'error', title: 'Error', message: msg });
     } finally {
       setSavingCost(false);
     }

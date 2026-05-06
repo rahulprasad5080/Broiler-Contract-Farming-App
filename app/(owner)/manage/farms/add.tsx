@@ -15,6 +15,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Colors } from '@/constants/Colors';
 import { Layout } from '@/constants/Layout';
 import { useAuth } from '@/context/AuthContext';
+import { useToast } from '@/context/ToastContext';
 import { createFarm, listAllUsers, type ApiUser } from '@/services/managementApi';
 
 type AssignmentField = 'primaryFarmerId' | 'supervisorId' | 'assignmentUserIds';
@@ -76,6 +77,7 @@ function generateFarmCode(name: string) {
 export default function AddFarmScreen() {
   const router = useRouter();
   const { accessToken } = useAuth();
+  const { showToast } = useToast();
 
   const [farmName, setFarmName] = useState('');
   const [farmCode, setFarmCode] = useState(generateFarmCode(''));
@@ -231,9 +233,12 @@ export default function AddFarmScreen() {
       setPrimaryFarmerId('');
       setSupervisorId('');
       setAssignmentUserIds([]);
+      showToast({ tone: 'success', title: 'Success', message: 'Farm created successfully.' });
       router.back();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to create farm.');
+      const msg = err instanceof Error ? err.message : 'Failed to create farm.';
+      setError(msg);
+      showToast({ tone: 'error', title: 'Error', message: msg });
     } finally {
       setIsSubmitting(false);
     }

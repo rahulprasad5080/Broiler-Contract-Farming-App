@@ -15,6 +15,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Colors } from '@/constants/Colors';
 import { Layout } from '@/constants/Layout';
 import { useAuth } from '@/context/AuthContext';
+import { useToast } from '@/context/ToastContext';
 import {
   createFarm,
   fetchFarm,
@@ -195,6 +196,7 @@ function generateFarmCode(name: string, farmType: string) {
 export default function FarmListScreen() {
   const router = useRouter();
   const { accessToken } = useAuth();
+  const { showToast } = useToast();
 
   const [farms, setFarms] = useState<FarmCard[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
@@ -337,8 +339,11 @@ export default function FarmListScreen() {
       setAssignmentTarget(null);
       setAssignmentSearch('');
       setAssignmentRoleFilter('all');
+      showToast({ tone: 'success', title: 'Assigned', message: 'Staff assigned successfully.' });
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to assign staff to farm.');
+      const msg = err instanceof Error ? err.message : 'Failed to assign staff to farm.';
+      setError(msg);
+      showToast({ tone: 'error', title: 'Error', message: msg });
     } finally {
       setIsSavingAssignment(false);
     }
@@ -483,8 +488,11 @@ export default function FarmListScreen() {
       setCreateSupervisorId('');
       setCreateAssignmentUserIds([]);
       setShowQuickAdd(false);
+      showToast({ tone: 'success', title: 'Success', message: 'Farm created successfully.' });
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to create farm.');
+      const msg = err instanceof Error ? err.message : 'Failed to create farm.';
+      setError(msg);
+      showToast({ tone: 'error', title: 'Error', message: msg });
     } finally {
       setIsSubmitting(false);
     }
@@ -518,8 +526,11 @@ export default function FarmListScreen() {
       setShowEditModal(false);
       setEditFarmId(null);
       setEditForm(EMPTY_FARM_FORM);
+      showToast({ tone: 'success', title: 'Success', message: 'Farm updated successfully.' });
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to update farm.');
+      const msg = err instanceof Error ? err.message : 'Failed to update farm.';
+      setError(msg);
+      showToast({ tone: 'error', title: 'Error', message: msg });
     } finally {
       setIsSavingEdit(false);
     }
