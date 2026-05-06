@@ -16,6 +16,9 @@ import { Colors } from '@/constants/Colors';
 import { Layout } from '@/constants/Layout';
 import { useAuth } from '@/context/AuthContext';
 import Toast from 'react-native-toast-message';
+import { z } from 'zod';
+import { useForm, Controller } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
 import {
   createUser,
   fetchUser,
@@ -46,6 +49,19 @@ const EMPTY_USER_FORM: UserFormState = {
   role: 'Farmer',
   status: 'Active',
 };
+
+const userSchema = z.object({
+  name: z.string().min(2, 'Name must be at least 2 characters'),
+  phone: z.string().regex(/^[0-9]{10}$/, 'Phone must be exactly 10 digits'),
+  role: z.enum(['Supervisor', 'Farmer']),
+  password: z.string()
+    .min(6, 'Password must be at least 6 characters')
+    .regex(/[A-Za-z]/, 'Password must contain at least one letter')
+    .regex(/[0-9]/, 'Password must contain at least one number')
+    .regex(/[^A-Za-z0-9]/, 'Password must contain at least one special character'),
+});
+
+type AddUserFormData = z.infer<typeof userSchema>;
 
 interface UserCard {
   id: string;
@@ -106,10 +122,16 @@ export default function UserManagementScreen() {
   const [activeTab, setActiveTab] = useState<FilterTab>('All Users');
   const [showAddModal, setShowAddModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
-  const [newName, setNewName] = useState('');
-  const [newPhone, setNewPhone] = useState('');
-  const [newRole, setNewRole] = useState<Role>('Farmer');
-  const [newPassword, setNewPassword] = useState('Broiler@1234');
+  
+  const { control, handleSubmit, reset: resetAddForm, formState: { errors: formErrors } } = useForm<AddUserFormData>({
+    resolver: zodResolver(userSchema),
+    defaultValues: {
+      name: '',
+      phone: '',
+      role: 'Farmer',
+      password: '',
+    },
+  });
   const [editUserId, setEditUserId] = useState<string | null>(null);
   const [editForm, setEditForm] = useState<UserFormState>(EMPTY_USER_FORM);
   const [isLoading, setIsLoading] = useState(true);
@@ -117,6 +139,7 @@ export default function UserManagementScreen() {
   const [isSavingEdit, setIsSavingEdit] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [farms, setFarms] = useState<ApiFarm[]>([]);
+  const [showPassword, setShowPassword] = useState(false);
 
   const loadUsers = async () => {
     if (!accessToken) {
@@ -178,29 +201,18 @@ export default function UserManagementScreen() {
     return true;
   });
 
-  const handleAddUser = async () => {
-    const trimmedName = newName.trim();
-    const trimmedPhone = newPhone.trim();
-    const trimmedPassword = newPassword.trim();
-
-    if (!accessToken || !trimmedName) {
-      return;
-    }
-
-    if (!trimmedPhone) {
-      setError('Provide a phone number for the new user.');
-      return;
-    }
+  const onAddSubmit = async (data: AddUserFormData) => {
+    if (!accessToken) return;
 
     setIsSubmitting(true);
     setError(null);
 
     try {
       const created = await createUser(accessToken, {
-        name: trimmedName,
-        phone: trimmedPhone,
-        role: newRole === 'Supervisor' ? 'SUPERVISOR' : 'FARMER',
-        password: trimmedPassword || 'Broiler@1234',
+        name: data.name.trim(),
+        phone: data.phone.trim(),
+        role: data.role === 'Supervisor' ? 'SUPERVISOR' : 'FARMER',
+        password: data.password.trim() || 'Broiler@1234',
       });
 
       setUsers((prev) => [
@@ -215,10 +227,7 @@ export default function UserManagementScreen() {
         ...prev,
       ]);
 
-      setNewName('');
-      setNewPhone('');
-      setNewRole('Farmer');
-      setNewPassword('Broiler@1234');
+      resetAddForm();
       setShowAddModal(false);
       Toast.show({type: 'success', text1: 'Success', text2: 'User created successfully.', position: 'bottom'});
     } catch (err) {
@@ -326,7 +335,7 @@ export default function UserManagementScreen() {
           </View>
         </View>
 
-        <TouchableOpacity style={styles.addBtn} onPress={() => setShowAddModal(true)}>
+        <TouchableOpacity style={styles.addBtn} onPress={() => { setError(null); resetAddForm(); setShowAddModal(true); }}>
           <MaterialCommunityIcons name="account-plus-outline" size={20} color="#FFF" />
           <Text style={styles.addBtnText}>Add New User</Text>
         </TouchableOpacity>
@@ -426,63 +435,103 @@ export default function UserManagementScreen() {
         <TouchableOpacity style={styles.modalOverlay} activeOpacity={1} onPress={() => setShowAddModal(false)}>
           <View style={styles.modalSheet} onStartShouldSetResponder={() => true}>
             <Text style={styles.modalTitle}>Add New User</Text>
+            {error ? <Text style={styles.errorText}>{error}</Text> : null}
 
-            <Text style={styles.formLabel}>Full Name</Text>
-            <View style={styles.inputBox}>
-              <TextInput
-                style={styles.textInput}
-                placeholder="e.g. John Doe"
-                placeholderTextColor={Colors.textSecondary}
-                value={newName}
-                onChangeText={setNewName}
-              />
-            </View>
+            <Controller
+              control={control}
+              name="name"
+              render={({ field: { onChange, value } }) => (
+                <View>
+                  <Text style={styles.formLabel}>Full Name</Text>
+                  <View style={[styles.inputBox, formErrors.name && { borderColor: Colors.tertiary }]}>
+                    <TextInput
+                      style={styles.textInput}
+                      placeholder="e.g. John Doe"
+                      placeholderTextColor={Colors.textSecondary}
+                      value={value}
+                      onChangeText={onChange}
+                    />
+                  </View>
+                  {formErrors.name && <Text style={styles.fieldErrorText}>{formErrors.name.message}</Text>}
+                </View>
+              )}
+            />
 
-            <Text style={styles.formLabel}>Phone</Text>
-            <View style={styles.inputBox}>
-              <TextInput
-                style={styles.textInput}
-                placeholder="9876500001"
-                placeholderTextColor={Colors.textSecondary}
-                value={newPhone}
-                keyboardType="phone-pad"
-                maxLength={10}
-                onChangeText={setNewPhone}
-              />
-            </View>
+            <Controller
+              control={control}
+              name="phone"
+              render={({ field: { onChange, value } }) => (
+                <View>
+                  <Text style={styles.formLabel}>Phone</Text>
+                  <View style={[styles.inputBox, formErrors.phone && { borderColor: Colors.tertiary }]}>
+                    <TextInput
+                      style={styles.textInput}
+                      placeholder="9876500001"
+                      placeholderTextColor={Colors.textSecondary}
+                      value={value}
+                      keyboardType="phone-pad"
+                      maxLength={10}
+                      onChangeText={onChange}
+                    />
+                  </View>
+                  {formErrors.phone && <Text style={styles.fieldErrorText}>{formErrors.phone.message}</Text>}
+                </View>
+              )}
+            />
 
             <Text style={styles.helperText}>Phone number is required for new users.</Text>
 
-            <Text style={styles.formLabel}>Role</Text>
-            <View style={styles.roleToggleRow}>
-              {(['Farmer', 'Supervisor'] as Role[]).map((role) => (
-                <TouchableOpacity
-                  key={role}
-                  style={[styles.roleToggle, newRole === role && styles.roleToggleActive]}
-                  onPress={() => setNewRole(role)}
-                >
-                  <Text style={[styles.roleToggleText, newRole === role && styles.roleToggleTextActive]}>
-                    {role}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </View>
+            <Controller
+              control={control}
+              name="role"
+              render={({ field: { onChange, value } }) => (
+                <View>
+                  <Text style={styles.formLabel}>Role</Text>
+                  <View style={styles.roleToggleRow}>
+                    {(['Farmer', 'Supervisor'] as Role[]).map((role) => (
+                      <TouchableOpacity
+                        key={role}
+                        style={[styles.roleToggle, value === role && styles.roleToggleActive]}
+                        onPress={() => onChange(role)}
+                      >
+                        <Text style={[styles.roleToggleText, value === role && styles.roleToggleTextActive]}>
+                          {role}
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                  {formErrors.role && <Text style={styles.fieldErrorText}>{formErrors.role.message}</Text>}
+                </View>
+              )}
+            />
 
-            <Text style={styles.formLabel}>Temporary Password</Text>
-            <View style={styles.inputBox}>
-              <TextInput
-                style={styles.textInput}
-                placeholder="Broiler@1234"
-                placeholderTextColor={Colors.textSecondary}
-                value={newPassword}
-                onChangeText={setNewPassword}
-                secureTextEntry
-              />
-            </View>
+            <Controller
+              control={control}
+              name="password"
+              render={({ field: { onChange, value } }) => (
+                <View>
+                  <Text style={styles.formLabel}>Temporary Password</Text>
+                  <View style={[styles.inputBox, { flexDirection: 'row', alignItems: 'center' }, formErrors.password && { borderColor: Colors.tertiary }]}>
+                    <TextInput
+                      style={[styles.textInput, { flex: 1 }]}
+                      placeholder="Broiler@1234"
+                      placeholderTextColor={Colors.textSecondary}
+                      value={value}
+                      onChangeText={onChange}
+                      secureTextEntry={!showPassword}
+                    />
+                    <TouchableOpacity onPress={() => setShowPassword(!showPassword)} style={{ padding: 4 }}>
+                      <Ionicons name={showPassword ? "eye-off-outline" : "eye-outline"} size={20} color={Colors.textSecondary} />
+                    </TouchableOpacity>
+                  </View>
+                  {formErrors.password && <Text style={styles.fieldErrorText}>{formErrors.password.message}</Text>}
+                </View>
+              )}
+            />
 
             <TouchableOpacity
               style={[styles.submitBtn, isSubmitting && styles.buttonDisabled]}
-              onPress={handleAddUser}
+              onPress={handleSubmit(onAddSubmit)}
               disabled={isSubmitting}
             >
               {isSubmitting ? <ActivityIndicator color="#FFF" /> : <Text style={styles.submitBtnText}>Create User</Text>}
@@ -497,6 +546,7 @@ export default function UserManagementScreen() {
           <View style={styles.modalSheet} onStartShouldSetResponder={() => true}>
             <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
               <Text style={styles.modalTitle}>Edit User</Text>
+              {error ? <Text style={styles.errorText}>{error}</Text> : null}
 
               <Text style={styles.formLabel}>Full Name</Text>
               <View style={styles.inputBox}>
@@ -627,6 +677,12 @@ const styles = StyleSheet.create({
     color: Colors.tertiary,
     borderWidth: 1,
     borderColor: '#FECACA',
+  },
+  fieldErrorText: {
+    color: Colors.tertiary,
+    fontSize: 12,
+    marginTop: 4,
+    marginLeft: 4,
   },
   statsRow: { flexDirection: 'row', marginBottom: 16 },
   statsCard: {
