@@ -8,6 +8,7 @@ export default function FarmerLayout() {
       screenOptions={{ headerShown: false }}
     >
       <Tabs.Screen name="dashboard" />
+      <Tabs.Screen name="farms" />
       <Tabs.Screen name="tasks" />
       <Tabs.Screen name="reports" />
       <Tabs.Screen name="profile" />

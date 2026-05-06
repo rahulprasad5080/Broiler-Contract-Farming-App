@@ -9,6 +9,8 @@ export default function SupervisorLayout() {
     >
       <Tabs.Screen name="dashboard" />
       <Tabs.Screen name="tasks" />
+      <Tabs.Screen name="review" />
+      <Tabs.Screen name="manage" />
       <Tabs.Screen name="reports" />
       <Tabs.Screen name="profile" />
     </Tabs>

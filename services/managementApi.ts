@@ -144,6 +144,21 @@ export type ApiSale = {
   updatedAt: string;
 };
 
+export type ApiTreatment = {
+  id: string;
+  organizationId: string;
+  batchId: string;
+  kind: ApiTreatmentKind;
+  catalogItemId?: string | null;
+  treatmentDate: string;
+  quantity?: number | null;
+  notes?: string | null;
+  clientReferenceId?: string | null;
+  createdById?: string | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
 export type ApiCatalogItem = {
   id: string;
   organizationId: string;
@@ -180,6 +195,7 @@ export type ApiComment = {
   targetType: ApiCommentTargetType;
   targetId: string;
   comment: string;
+  correctionNote?: string | null;
   createdById?: string | null;
   createdAt: string;
   updatedAt: string;
@@ -308,8 +324,20 @@ export type CreateCostRequest = {
   clientReferenceId?: string;
 };
 
+export type CreateTreatmentRequest = {
+  kind: ApiTreatmentKind;
+  catalogItemId?: string;
+  treatmentDate: string;
+  quantity?: number;
+  notes?: string;
+  clientReferenceId?: string;
+};
+
 export type CreateCommentRequest = {
+  targetType: ApiCommentTargetType;
+  targetId: string;
   comment: string;
+  correctionNote?: string;
 };
 
 async function fetchAllPages<T>(
@@ -623,6 +651,8 @@ export async function createBatchCost(token: string, batchId: string, payload: C
   });
 }
 
+
+
 export async function listBatchComments(token: string, batchId: string) {
   return apiRequest<ListResponse<ApiComment>>(`/batches/${batchId}/comments`, {
     method: "GET",
@@ -636,6 +666,25 @@ export async function createBatchComment(
   payload: CreateCommentRequest,
 ) {
   return apiRequest<ApiComment>(`/batches/${batchId}/comments`, {
+    method: "POST",
+    token,
+    body: payload,
+  });
+}
+
+export async function listTreatments(token: string, batchId: string) {
+  return apiRequest<ListResponse<ApiTreatment>>(`/batches/${batchId}/treatments`, {
+    method: "GET",
+    token,
+  });
+}
+
+export async function createTreatment(
+  token: string,
+  batchId: string,
+  payload: CreateTreatmentRequest,
+) {
+  return apiRequest<ApiTreatment>(`/batches/${batchId}/treatments`, {
     method: "POST",
     token,
     body: payload,

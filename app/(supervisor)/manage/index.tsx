@@ -6,30 +6,23 @@ import { Layout } from '@/constants/Layout';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 
-export default function FarmerTasksIndexScreen() {
+export default function SupervisorManageScreen() {
   const router = useRouter();
 
   const menuItems = [
-    { title: 'Daily Entry', desc: 'Log mortality, feed, and weight', icon: 'clipboard-outline', route: '/(farmer)/tasks/daily' },
-    { title: 'Treatments', desc: 'Log vaccines and medicines given', icon: 'medical-outline', route: '/(farmer)/tasks/treatments' },
-    { title: 'Comments & Notes', desc: 'View supervisor feedback and notes', icon: 'chatbubbles-outline', route: '/(farmer)/tasks/comments' },
-    { title: 'Sales Entry', desc: 'Record birds sold and total weight', icon: 'cash-outline', route: '/(farmer)/tasks/sales' },
+    { title: 'Farms', desc: 'View and manage farms', icon: 'business-outline', route: '/(owner)/manage/farms' },
+    { title: 'Batches', desc: 'Manage broiler batches', icon: 'layers-outline', route: '/(owner)/manage/batches' },
+    { title: 'Catalog Master', desc: 'Manage feed, vaccines, medicines', icon: 'archive-outline', route: '/(supervisor)/manage/catalog' },
+    { title: 'Traders', desc: 'Manage buyers and traders', icon: 'people-outline', route: '/(supervisor)/manage/traders' },
   ];
 
   return (
     <SafeAreaView style={styles.safeArea}>
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>Tasks & Entries</Text>
+        <Text style={styles.headerTitle}>Management</Text>
       </View>
       
       <ScrollView contentContainerStyle={styles.container}>
-        <View style={styles.infoCard}>
-          <Ionicons name="leaf-outline" size={24} color={Colors.primary} />
-          <Text style={styles.infoText}>
-            You are assigned to: Green Valley Farm
-          </Text>
-        </View>
-
         <View style={styles.grid}>
           {menuItems.map((item, index) => (
             <TouchableOpacity 
@@ -56,7 +49,8 @@ export default function FarmerTasksIndexScreen() {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#F9FAFB',  },
+    backgroundColor: '#F9FAFB',
+  },
   header: {
     padding: Layout.spacing.lg,
     backgroundColor: '#FFF',
@@ -74,23 +68,6 @@ const styles = StyleSheet.create({
     alignSelf: 'center',
     width: '100%',
     maxWidth: Layout.contentMaxWidth,
-  },
-  infoCard: {
-    flexDirection: 'row',
-    backgroundColor: '#E8F5E9',
-    padding: 16,
-    borderRadius: 12,
-    marginBottom: Layout.spacing.lg,
-    borderWidth: 1,
-    borderColor: '#C8E6C9',
-    alignItems: 'center',
-  },
-  infoText: {
-    flex: 1,
-    marginLeft: 12,
-    fontSize: 14,
-    color: '#2E7D32',
-    fontWeight: '600',
   },
   grid: {
     gap: Layout.spacing.md,

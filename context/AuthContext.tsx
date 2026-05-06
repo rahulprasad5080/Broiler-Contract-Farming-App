@@ -109,7 +109,10 @@ function getPermissionsForRole(role: UserRole): Permission[] {
   }
 
   if (role === "SUPERVISOR") {
-    return ["create:daily-entry", "create:sales", "view:reports"];
+    return [
+      "create:daily-entry", "create:sales", "view:reports", 
+      "manage:farms", "manage:batches", "manage:partners", "manage:inventory"
+    ];
   }
 
   if (role === "FARMER") {

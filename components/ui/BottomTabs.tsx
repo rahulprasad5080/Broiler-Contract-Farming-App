@@ -11,7 +11,9 @@ export function BottomTabs({ state, descriptors, navigation }: BottomTabBarProps
   // Navigation states se data nikalna
   const tabs: { name: string; label: string; icon: keyof typeof Ionicons.glyphMap }[] = [
     { name: 'dashboard', label: 'Dashboard', icon: 'grid' },
+    { name: 'farms', label: 'Farms', icon: 'business-outline' },
     { name: 'tasks', label: 'Tasks', icon: 'checkmark-circle-outline' },
+    { name: 'review', label: 'Review', icon: 'shield-checkmark-outline' },
     { name: 'manage', label: 'Manage', icon: 'briefcase-outline' },
     { name: 'reports', label: 'Reports', icon: 'stats-chart-outline' },
     { name: 'profile', label: 'Profile', icon: 'person-outline' },
