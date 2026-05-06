@@ -310,7 +310,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         router.replace(
           (quickAuthEnabled
             ? "/(auth)/quick-unlock"
-            : "/(auth)/setup-security") as never,
+            : "/(auth)/login-success") as never,
         );
 
         return null;
