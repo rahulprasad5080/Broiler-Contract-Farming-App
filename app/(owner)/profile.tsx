@@ -15,7 +15,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Colors } from '../../constants/Colors';
 import { Layout } from '../../constants/Layout';
 import { useAuth } from '../../context/AuthContext';
-import { useToast } from '../../context/ToastContext';
+import Toast from 'react-native-toast-message';
 import { changePassword } from '@/services/authApi';
 import {
   formatDisplayMobileNumber,
@@ -69,7 +69,6 @@ type MenuItem = {
 
 export default function ProfileScreen() {
   const { signOut, user, accessToken } = useAuth();
-  const { showToast } = useToast();
   const [showChangePassword, setShowChangePassword] = React.useState(false);
   const [currentPassword, setCurrentPassword] = React.useState('');
   const [newPassword, setNewPassword] = React.useState('');
@@ -145,11 +144,13 @@ export default function ProfileScreen() {
         setPasswordSuccess(null);
         void signOut();
       }, 1200);
-      showToast({ tone: 'success', title: 'Success', message: response.message || 'Password updated.' });
+      Toast.show({type: 'success', text1: 'Success', text2: response.message || 'Password updated.',
+  position: 'bottom'});
     } catch (error) {
       const msg = error instanceof Error ? error.message : 'Failed to update password.';
       setPasswordError(msg);
-      showToast({ tone: 'error', title: 'Error', message: msg });
+      Toast.show({type: 'error', text1: 'Error', text2: msg,
+  position: 'bottom'});
     } finally {
       setIsSavingPassword(false);
     }

@@ -15,7 +15,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 
 import { Colors } from "../../constants/Colors";
 import { useAuth } from "../../context/AuthContext";
-import { useToast } from "../../context/ToastContext";
+import Toast from 'react-native-toast-message';
 import {
   authenticateWithBiometrics,
   hasQuickPin,
@@ -48,7 +48,6 @@ function PinDots({ value, hasError }: { value: string; hasError: boolean }) {
 
 export default function QuickUnlockScreen() {
   const { user, isLoading, unlockApp, unlockWithPassword } = useAuth();
-  const { showToast } = useToast();
   const didAutoPrompt = React.useRef(false);
   const passwordInputRef = React.useRef<TextInput>(null);
   const [mode, setMode] = React.useState<UnlockMode>("loading");
@@ -93,16 +92,14 @@ export default function QuickUnlockScreen() {
       }
 
       if (result.error) {
-        showToast({
-          tone: "error",
-          title: "Unlock failed",
-          message: result.error,
-        });
+        Toast.show({type: "error",
+          text1: "Unlock failed",
+          text2: result.error, position: 'bottom'});
       }
     } finally {
       setIsAuthenticating(false);
     }
-  }, [isAuthenticating, showToast, unlockApp]);
+  }, [isAuthenticating, unlockApp]);
 
   React.useEffect(() => {
     if (mode !== "biometric" || didAutoPrompt.current) {
@@ -137,25 +134,21 @@ export default function QuickUnlockScreen() {
       setPinError("Incorrect PIN");
 
       if (nextAttempts >= MAX_PIN_ATTEMPTS) {
-        showToast({
-          tone: "error",
-          title: "Too many attempts",
-          message: "Use your password to continue.",
-        });
+        Toast.show({type: "error",
+          text1: "Too many attempts",
+          text2: "Use your password to continue.", position: 'bottom'});
         setMode("password");
         setTimeout(() => passwordInputRef.current?.focus(), 220);
         return;
       }
 
-      showToast({
-        tone: "error",
-        title: "Incorrect PIN",
-        message: `${MAX_PIN_ATTEMPTS - nextAttempts} attempt(s) remaining.`,
-      });
+      Toast.show({type: "error",
+        text1: "Incorrect PIN",
+        text2: `${MAX_PIN_ATTEMPTS - nextAttempts} attempt(s) remaining.`, position: 'bottom'});
     };
 
     void verifyPin();
-  }, [failedAttempts, mode, pin, showToast, unlockApp]);
+  }, [failedAttempts, mode, pin, unlockApp]);
 
   const pressKey = async (key: string) => {
     setPinError(null);
@@ -172,11 +165,9 @@ export default function QuickUnlockScreen() {
         return;
       }
 
-      showToast({
-        tone: "info",
-        title: "Biometric not enabled",
-        message: "Use PIN or password to continue.",
-      });
+      Toast.show({type: "info",
+        text1: "Biometric not enabled",
+        text2: "Use PIN or password to continue.", position: 'bottom'});
       return;
     }
 
@@ -201,11 +192,9 @@ export default function QuickUnlockScreen() {
 
     if (errorMessage) {
       setPasswordError(errorMessage);
-      showToast({
-        tone: "error",
-        title: "Unlock failed",
-        message: errorMessage,
-      });
+      Toast.show({type: "error",
+        text1: "Unlock failed",
+        text2: errorMessage, position: 'bottom'});
     }
   };
 

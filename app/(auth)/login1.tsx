@@ -18,7 +18,7 @@ import { z } from "zod";
 
 import { Colors } from "../../constants/Colors";
 import { useAuth } from "../../context/AuthContext";
-import { useToast } from "../../context/ToastContext";
+import Toast from 'react-native-toast-message';
 import {
   getMobileValidationError,
   normalizeMobileNumber,
@@ -44,7 +44,6 @@ type LoginForm = z.input<typeof loginSchema>;
 
 export default function LoginScreen() {
   const { signIn, isLoading } = useAuth();
-  const { showToast } = useToast();
   const [showPassword, setShowPassword] = React.useState(false);
 
   const { control, handleSubmit } = useForm<LoginForm>({
@@ -59,11 +58,9 @@ export default function LoginScreen() {
     const errorMessage = await signIn(data.phone, data.password);
 
     if (errorMessage) {
-      showToast({
-        tone: "error",
-        title: "Login failed",
-        message: errorMessage,
-      });
+      Toast.show({type: "error",
+        text1: "Login failed",
+        text2: errorMessage, position: 'bottom'});
     }
   };
 

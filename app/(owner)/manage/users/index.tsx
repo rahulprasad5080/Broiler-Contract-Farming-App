@@ -15,7 +15,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Colors } from '@/constants/Colors';
 import { Layout } from '@/constants/Layout';
 import { useAuth } from '@/context/AuthContext';
-import { useToast } from '@/context/ToastContext';
+import Toast from 'react-native-toast-message';
 import {
   createUser,
   fetchUser,
@@ -101,7 +101,6 @@ function userFormFromApi(user: ApiUser): UserFormState {
 export default function UserManagementScreen() {
   const router = useRouter();
   const { accessToken } = useAuth();
-  const { showToast } = useToast();
 
   const [users, setUsers] = useState<UserCard[]>([]);
   const [activeTab, setActiveTab] = useState<FilterTab>('All Users');
@@ -221,11 +220,13 @@ export default function UserManagementScreen() {
       setNewRole('Farmer');
       setNewPassword('Broiler@1234');
       setShowAddModal(false);
-      showToast({ tone: 'success', title: 'Success', message: 'User created successfully.' });
+      Toast.show({type: 'success', text1: 'Success', text2: 'User created successfully.',
+  position: 'bottom'});
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Failed to create user.';
       setError(msg);
-      showToast({ tone: 'error', title: 'Error', message: msg });
+      Toast.show({type: 'error', text1: 'Error', text2: msg,
+  position: 'bottom'});
     } finally {
       setIsSubmitting(false);
     }
@@ -262,11 +263,13 @@ export default function UserManagementScreen() {
       setEditUserId(null);
       setEditForm(EMPTY_USER_FORM);
       loadUsers();
-      showToast({ tone: 'success', title: 'Success', message: 'User updated successfully.' });
+      Toast.show({type: 'success', text1: 'Success', text2: 'User updated successfully.',
+  position: 'bottom'});
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Failed to update user.';
       setError(msg);
-      showToast({ tone: 'error', title: 'Error', message: msg });
+      Toast.show({type: 'error', text1: 'Error', text2: msg,
+  position: 'bottom'});
     } finally {
       setIsSavingEdit(false);
     }

@@ -12,7 +12,7 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { Colors } from "../../constants/Colors";
-import { useToast } from "../../context/ToastContext";
+import Toast from 'react-native-toast-message';
 import { saveQuickPin } from "../../services/authSecurity";
 
 function PinDots({ value }: { value: string }) {
@@ -30,7 +30,6 @@ function PinDots({ value }: { value: string }) {
 
 export default function SetPinScreen() {
   const router = useRouter();
-  const { showToast } = useToast();
   const [pin, setPin] = React.useState("");
   const [confirmPin, setConfirmPin] = React.useState("");
   const [activeField, setActiveField] = React.useState<"pin" | "confirm">("pin");
@@ -71,21 +70,15 @@ export default function SetPinScreen() {
 
     try {
       await saveQuickPin(pin);
-      showToast({
-        tone: "success",
-        title: "PIN saved",
-        message: "Your quick login PIN is ready for this device.",
-      });
+      Toast.show({type: "success",
+        text1: "PIN saved",
+        text2: "Your quick login PIN is ready for this device.", position: 'bottom'});
       router.replace("/(auth)/enable-biometric" as never);
     } catch (error) {
-      showToast({
-        tone: "error",
-        title: "Unable to save PIN",
-        message:
-          error instanceof Error && error.message.trim()
-            ? error.message
-            : "Please try again.",
-      });
+      Toast.show({type: "error",
+        text1: "Unable to save PIN",
+        text2: error instanceof Error && error.message.trim()
+            ? error.text2: "Please try again.", position: 'bottom'});
     } finally {
       setIsSaving(false);
     }

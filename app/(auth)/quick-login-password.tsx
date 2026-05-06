@@ -13,7 +13,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 
 import { Colors } from "../../constants/Colors";
 import { useAuth } from "../../context/AuthContext";
-import { useToast } from "../../context/ToastContext";
+import Toast from 'react-native-toast-message';
 import {
   maskMobileNumber,
 } from "../../services/authValidation";
@@ -21,18 +21,15 @@ import {
 export default function QuickLoginPasswordScreen() {
   const router = useRouter();
   const { user, isLoading, unlockWithPassword } = useAuth();
-  const { showToast } = useToast();
   const [password, setPassword] = React.useState("");
   const [showPassword, setShowPassword] = React.useState(false);
   const [passwordError, setPasswordError] = React.useState<string | null>(null);
 
   const handleLogin = async () => {
     if (!user) {
-      showToast({
-        tone: "error",
-        title: "Session expired",
-        message: "Please log in again with your mobile number.",
-      });
+      Toast.show({type: "error",
+        text1: "Session expired",
+        text2: "Please log in again with your mobile number.", position: 'bottom'});
       router.replace("/(auth)/login1" as never);
       return;
     }
@@ -48,11 +45,9 @@ export default function QuickLoginPasswordScreen() {
 
     if (errorMessage) {
       setPasswordError(errorMessage);
-      showToast({
-        tone: "error",
-        title: "Login failed",
-        message: errorMessage,
-      });
+      Toast.show({type: "error",
+        text1: "Login failed",
+        text2: errorMessage, position: 'bottom'});
     }
   };
 

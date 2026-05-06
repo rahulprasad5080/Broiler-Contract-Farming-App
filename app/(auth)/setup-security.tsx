@@ -15,7 +15,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 
 import { Colors } from "../../constants/Colors";
 import { useAuth } from "../../context/AuthContext";
-import { useToast } from "../../context/ToastContext";
+import Toast from 'react-native-toast-message';
 import {
   authenticateWithBiometrics,
   saveQuickPin,
@@ -41,7 +41,6 @@ function PinDots({ value, hasError }: { value: string; hasError: boolean }) {
 
 export default function SetupSecurityScreen() {
   const { unlockApp } = useAuth();
-  const { showToast } = useToast();
   const inputRef = React.useRef<TextInput>(null);
   const [pin, setPin] = React.useState("");
   const [enableBiometric, setEnableBiometric] = React.useState(false);
@@ -76,11 +75,9 @@ export default function SetupSecurityScreen() {
         const result = await authenticateWithBiometrics("Enable quick unlock");
         if (!result.success) {
           if (result.error) {
-            showToast({
-              tone: "error",
-              title: "Biometric setup",
-              message: result.error,
-            });
+            Toast.show({type: "error",
+              text1: "Biometric setup",
+              text2: result.error, position: 'bottom'});
           }
         } else {
           await setBiometricEnabled(true);
@@ -88,23 +85,17 @@ export default function SetupSecurityScreen() {
         }
       }
 
-      showToast({
-        tone: "success",
-        title: "Security ready",
-        message: biometricWasEnabled
+      Toast.show({type: "success",
+        text1: "Security ready",
+        text2: biometricWasEnabled
           ? "PIN and biometric unlock are ready on this device."
-          : "Your quick unlock PIN is ready on this device.",
-      });
+          : "Your quick unlock PIN is ready on this device.", position: 'bottom'});
       unlockApp();
     } catch (error) {
-      showToast({
-        tone: "error",
-        title: "Unable to continue",
-        message:
-          error instanceof Error && error.message.trim()
-            ? error.message
-            : "Please try again.",
-      });
+      Toast.show({type: "error",
+        text1: "Unable to continue",
+        text2: error instanceof Error && error.message.trim()
+            ? error.text2: "Please try again.", position: 'bottom'});
     } finally {
       setIsSaving(false);
     }

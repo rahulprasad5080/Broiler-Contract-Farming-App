@@ -12,7 +12,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 
 import { Colors } from "../../constants/Colors";
 import { useAuth } from "../../context/AuthContext";
-import { useToast } from "../../context/ToastContext";
+import Toast from 'react-native-toast-message';
 import {
   authenticateWithBiometrics,
   setBiometricEnabled,
@@ -21,7 +21,6 @@ import {
 export default function EnableBiometricScreen() {
   const router = useRouter();
   const { unlockApp } = useAuth();
-  const { showToast } = useToast();
   const [isEnabling, setIsEnabling] = React.useState(false);
 
   const enableBiometric = async () => {
@@ -36,21 +35,17 @@ export default function EnableBiometricScreen() {
 
       if (result.success) {
         await setBiometricEnabled(true);
-        showToast({
-          tone: "success",
-          title: "Biometric enabled",
-          message: "Fingerprint or face unlock is ready for future logins.",
-        });
+        Toast.show({type: "success",
+          text1: "Biometric enabled",
+          text2: "Fingerprint or face unlock is ready for future logins.", position: 'bottom'});
         unlockApp();
         return;
       }
 
       if (result.error) {
-        showToast({
-          tone: "error",
-          title: "Biometric authentication",
-          message: result.error,
-        });
+        Toast.show({type: "error",
+          text1: "Biometric authentication",
+          text2: result.error, position: 'bottom'});
       }
     } finally {
       setIsEnabling(false);

@@ -16,7 +16,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Colors } from '@/constants/Colors';
 import { Layout } from '@/constants/Layout';
 import { useAuth } from '@/context/AuthContext';
-import { useToast } from '@/context/ToastContext';
+import Toast from 'react-native-toast-message';
 import { ApiFarm, createBatch, listAllFarms } from '@/services/managementApi';
 
 function todayValue() {
@@ -37,7 +37,6 @@ function farmLabel(farm: ApiFarm) {
 export default function CreateBatchScreen() {
   const router = useRouter();
   const { accessToken, user } = useAuth();
-  const { showToast } = useToast();
   const [farms, setFarms] = useState<ApiFarm[]>([]);
   const [selectedFarmId, setSelectedFarmId] = useState('');
   const [code, setCode] = useState('');
@@ -126,13 +125,15 @@ export default function CreateBatchScreen() {
       setSourceHatchery('');
       setTargetCloseDate('');
       setNotes('');
-      showToast({ tone: 'success', title: 'Success', message: `Batch ${created.code} created successfully.` });
+      Toast.show({type: 'success', text1: 'Success', text2: `Batch ${created.code} created successfully.`,
+  position: 'bottom'});
       router.back();
     } catch (error) {
       console.warn('Failed to create batch:', error);
       const fallback = error instanceof Error ? error.message : 'Failed to create batch.';
       setMessage(fallback);
-      showToast({ tone: 'error', title: 'Batch create failed', message: fallback });
+      Toast.show({type: 'error', text1: 'Batch create failed', text2: fallback,
+  position: 'bottom'});
     } finally {
       setSubmitting(false);
     }

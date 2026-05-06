@@ -13,7 +13,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 
 import { Colors } from "../../constants/Colors";
 import { useAuth } from "../../context/AuthContext";
-import { useToast } from "../../context/ToastContext";
+import Toast from 'react-native-toast-message';
 import {
   authenticateWithBiometrics,
   hasQuickPin,
@@ -23,7 +23,6 @@ import {
 export default function QuickLoginBiometricScreen() {
   const router = useRouter();
   const { unlockApp } = useAuth();
-  const { showToast } = useToast();
   const didAutoPrompt = React.useRef(false);
   const [isAuthenticating, setIsAuthenticating] = React.useState(false);
 
@@ -43,11 +42,9 @@ export default function QuickLoginBiometricScreen() {
 
     try {
       if (!(await isBiometricEnabled())) {
-        showToast({
-          tone: "info",
-          title: "Biometric not enabled",
-          message: "Use your PIN or password to continue on this device.",
-        });
+        Toast.show({type: "info",
+          text1: "Biometric not enabled",
+          text2: "Use your PIN or password to continue on this device.", position: 'bottom'});
         await routeToFallback();
         return;
       }
@@ -59,16 +56,14 @@ export default function QuickLoginBiometricScreen() {
       }
 
       if (result.error) {
-        showToast({
-          tone: "error",
-          title: "Biometric authentication",
-          message: result.error,
-        });
+        Toast.show({type: "error",
+          text1: "Biometric authentication",
+          text2: result.error, position: 'bottom'});
       }
     } finally {
       setIsAuthenticating(false);
     }
-  }, [isAuthenticating, routeToFallback, showToast, unlockApp]);
+  }, [isAuthenticating, routeToFallback, unlockApp]);
 
   React.useEffect(() => {
     if (didAutoPrompt.current) {
