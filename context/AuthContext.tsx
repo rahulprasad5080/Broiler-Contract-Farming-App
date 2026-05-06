@@ -263,7 +263,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           return;
         }
 
-        if (!inSetupScreen && !cancelled) {
+        // Prevent redirecting to dashboard if we are still technically on the login screen
+        // because signIn() is handling the redirect to login-success asynchronously.
+        if (!inSetupScreen && currentAuthScreen !== LOGIN_SCREEN && !cancelled) {
           router.replace(getDashboardRoute(user.role) as never);
         }
         return;
