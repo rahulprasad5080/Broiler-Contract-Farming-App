@@ -1,10 +1,10 @@
+import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import React from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput } from 'react-native';
+import { ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useAuth } from '../../context/AuthContext';
 import { Colors } from '../../constants/Colors';
 import { Layout } from '../../constants/Layout';
-import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import { useAuth } from '../../context/AuthContext';
 
 export default function SupervisorDashboard() {
   const { signOut } = useAuth();
@@ -12,16 +12,10 @@ export default function SupervisorDashboard() {
   return (
     <SafeAreaView style={styles.safeArea}>
       <View style={styles.topBar}>
-        <TouchableOpacity onPress={signOut}>
-          <Ionicons name="arrow-back" size={24} color={Colors.primary} />
-        </TouchableOpacity>
         <Text style={styles.topBarTitle}>Broiler Manager</Text>
         <View style={styles.topBarRight}>
           <TouchableOpacity style={styles.iconBtn}>
             <Ionicons name="search-outline" size={24} color={Colors.textSecondary} />
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.iconBtn}>
-            <Ionicons name="notifications-outline" size={24} color={Colors.textSecondary} />
           </TouchableOpacity>
         </View>
       </View>

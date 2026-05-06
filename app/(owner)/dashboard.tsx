@@ -1,3 +1,6 @@
+import { listAllUsers, updateUserStatus, type ApiUser } from '@/services/managementApi';
+import { FontAwesome5, Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
@@ -6,17 +9,14 @@ import {
   StyleSheet,
   Switch,
   Text,
+  TextInput,
   TouchableOpacity,
   View,
-  TextInput,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useAuth } from '../../context/AuthContext';
 import { Colors } from '../../constants/Colors';
 import { Layout } from '../../constants/Layout';
-import { Ionicons, MaterialCommunityIcons, FontAwesome5 } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
-import { listAllUsers, updateUserStatus, type ApiUser } from '@/services/managementApi';
+import { useAuth } from '../../context/AuthContext';
 
 type PortalItem = {
   label: string;
@@ -146,16 +146,11 @@ export default function OwnerDashboard() {
   return (
     <SafeAreaView style={styles.safeArea}>
       <View style={styles.topBar}>
-        <TouchableOpacity>
-          <Ionicons name="menu-outline" size={28} color={Colors.text} />
-        </TouchableOpacity>
+
         <Text style={styles.topBarTitle}>Broiler Manager</Text>
         <View style={styles.topBarRight}>
-          <TouchableOpacity style={styles.iconBtn}>
-            <Ionicons name="notifications-outline" size={24} color={Colors.text} />
-          </TouchableOpacity>
           <TouchableOpacity style={styles.iconBtn} onPress={() => setShowSettingsPanel(true)}>
-            <Ionicons name="settings-outline" size={24} color={Colors.text} />
+            <Ionicons name="people-outline" size={24} color={Colors.text} />
           </TouchableOpacity>
           <TouchableOpacity style={styles.profileCircle}>
             <Text style={styles.profileInitials}>{initials}</Text>
