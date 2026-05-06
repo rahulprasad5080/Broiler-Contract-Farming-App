@@ -220,13 +220,11 @@ export default function UserManagementScreen() {
       setNewRole('Farmer');
       setNewPassword('Broiler@1234');
       setShowAddModal(false);
-      Toast.show({type: 'success', text1: 'Success', text2: 'User created successfully.',
-  position: 'bottom'});
+      Toast.show({type: 'success', text1: 'Success', text2: 'User created successfully.', position: 'bottom'});
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Failed to create user.';
       setError(msg);
-      Toast.show({type: 'error', text1: 'Error', text2: msg,
-  position: 'bottom'});
+      Toast.show({type: 'error', text1: 'Error', text2: msg, position: 'bottom'});
     } finally {
       setIsSubmitting(false);
     }
@@ -263,13 +261,11 @@ export default function UserManagementScreen() {
       setEditUserId(null);
       setEditForm(EMPTY_USER_FORM);
       loadUsers();
-      Toast.show({type: 'success', text1: 'Success', text2: 'User updated successfully.',
-  position: 'bottom'});
+      Toast.show({type: 'success', text1: 'Success', text2: 'User updated successfully.', position: 'bottom'});
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Failed to update user.';
       setError(msg);
-      Toast.show({type: 'error', text1: 'Error', text2: msg,
-  position: 'bottom'});
+      Toast.show({type: 'error', text1: 'Error', text2: msg, position: 'bottom'});
     } finally {
       setIsSavingEdit(false);
     }
@@ -492,6 +488,7 @@ export default function UserManagementScreen() {
               {isSubmitting ? <ActivityIndicator color="#FFF" /> : <Text style={styles.submitBtnText}>Create User</Text>}
             </TouchableOpacity>
           </View>
+          <Toast position="bottom" bottomOffset={100} />
         </TouchableOpacity>
       </Modal>
 
@@ -589,6 +586,7 @@ export default function UserManagementScreen() {
               </TouchableOpacity>
             </ScrollView>
           </View>
+          <Toast position="bottom" bottomOffset={100} />
         </TouchableOpacity>
       </Modal>
     </SafeAreaView>

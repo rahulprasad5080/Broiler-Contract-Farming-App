@@ -351,6 +351,7 @@ export default function ProfileScreen() {
               <Text style={styles.saveBtnText}>{isSavingPassword ? 'Saving...' : 'Update Password'}</Text>
             </TouchableOpacity>
           </View>
+          <Toast position="bottom" bottomOffset={100} />
         </View>
       </Modal>
     </SafeAreaView>

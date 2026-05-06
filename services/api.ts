@@ -62,14 +62,56 @@ function buildUrl(baseUrl: string, path: string, query?: RequestOptions["query"]
 }
 
 function getErrorMessage(response: Response, payload: unknown) {
-  return (
-    (payload &&
-    typeof payload === "object" &&
-    "message" in payload &&
-    typeof (payload as { message?: unknown }).message === "string"
-      ? String((payload as { message: string }).message)
-      : response.statusText) || "Request failed"
-  );
+  if (payload && typeof payload === "object") {
+    const p = payload as Record<string, unknown>;
+    
+    // Express-validator or Spring Boot errors array
+    if (Array.isArray(p.errors) && p.errors.length > 0) {
+      const firstErr = p.errors[0];
+      if (typeof firstErr === 'string') return p.errors.join(', ');
+      if (firstErr && typeof firstErr === 'object') {
+        const msgs = p.errors.map((e: any) => e.msg || e.defaultMessage || e.message).filter(Boolean);
+        if (msgs.length > 0) return msgs.join(', ');
+      }
+    }
+    
+    // Laravel style errors object
+    if (p.errors && typeof p.errors === 'object' && !Array.isArray(p.errors)) {
+      const errorValues = Object.values(p.errors).flat();
+      if (errorValues.length > 0 && typeof errorValues[0] === 'string') {
+        return errorValues.join(', ');
+      }
+    }
+
+    // Prisma or Generic details array
+    if (Array.isArray(p.details) && p.details.length > 0) {
+      if (typeof p.details[0] === 'string') return p.details.join(', ');
+      if (p.details[0] && typeof p.details[0] === 'object') {
+        const msgs = p.details.map((e: any) => e.message || e.msg).filter(Boolean);
+        if (msgs.length > 0) return msgs.join(', ');
+      }
+    }
+
+    // NestJS / Default string or array messages
+    if (Array.isArray(p.message) && p.message.length > 0 && typeof p.message[0] === 'string') {
+      return p.message.join(', ');
+    }
+    
+    // Fallback: If the message is just a generic 'Validation failed', try to get more details if possible
+    if (typeof p.message === "string" && p.message.trim()) {
+      if (p.message.toLowerCase() === 'validation failed' || p.message.toLowerCase() === 'bad request') {
+         // if there's any other string property that might contain the real error
+         if (typeof p.error === 'string' && p.error !== p.message) return `${p.message}: ${p.error}`;
+      }
+      return p.message;
+    }
+    
+    if (typeof p.error === "string" && p.error.trim()) {
+      return p.error;
+    }
+  }
+
+  return response.statusText || "Request failed";
 }
 
 async function fetchWithBase(

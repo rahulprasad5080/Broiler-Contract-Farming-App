@@ -1131,6 +1131,7 @@ export default function FarmListScreen() {
               </TouchableOpacity>
             </ScrollView>
           </View>
+          <Toast position="bottom" bottomOffset={100} />
         </TouchableOpacity>
       </Modal>
 
@@ -1254,6 +1255,7 @@ export default function FarmListScreen() {
               </TouchableOpacity>
             ) : null}
           </View>
+          <Toast position="bottom" bottomOffset={100} />
         </TouchableOpacity>
       </Modal>
     </SafeAreaView>

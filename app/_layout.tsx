@@ -12,7 +12,7 @@ export default function RootLayout() {
         <StatusBar style="dark" backgroundColor={Colors.surface} translucent />
         <Stack screenOptions={{ headerShown: false }} />
       </AuthProvider>
-      <Toast />
+      <Toast topOffset={60} bottomOffset={100} config={undefined} />
     </SafeAreaProvider>
   );
 }
