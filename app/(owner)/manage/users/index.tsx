@@ -24,44 +24,56 @@ import {
   fetchUser,
   listAllFarms,
   listAllUsers,
+  resetUserPassword,
   updateUser,
   updateUserStatus,
   type ApiFarm,
   type ApiUser,
 } from '@/services/managementApi';
+import {
+  PASSWORD_REQUIREMENT_TEXT,
+  getPasswordValidationError,
+} from '@/services/authValidation';
+import {
+  showRequestErrorToast,
+  showSuccessToast,
+} from '@/services/apiFeedback';
 
 type Role = 'Supervisor' | 'Farmer';
 type Status = 'Active' | 'Invited' | 'Inactive';
 type FilterTab = 'All Users' | 'Supervisors' | 'Farmers' | 'Inactive';
 
-type UserFormState = {
-  name: string;
-  email: string;
-  phone: string;
-  role: Role;
-  status: Status;
-};
+const passwordFieldSchema = z.string().superRefine((value, ctx) => {
+  const validationError = getPasswordValidationError(value);
 
-const EMPTY_USER_FORM: UserFormState = {
-  name: '',
-  email: '',
-  phone: '',
-  role: 'Farmer',
-  status: 'Active',
-};
+  if (validationError) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: validationError,
+    });
+  }
+});
 
 const userSchema = z.object({
   name: z.string().min(2, 'Name must be at least 2 characters'),
   phone: z.string().regex(/^[0-9]{10}$/, 'Phone must be exactly 10 digits'),
   role: z.enum(['Supervisor', 'Farmer']),
-  password: z.string()
-    .min(6, 'Password must be at least 6 characters')
-    .regex(/[A-Za-z]/, 'Password must contain at least one letter')
-    .regex(/[0-9]/, 'Password must contain at least one number')
-    .regex(/[^A-Za-z0-9]/, 'Password must contain at least one special character'),
+  password: passwordFieldSchema,
 });
 
 type AddUserFormData = z.infer<typeof userSchema>;
+
+const resetPasswordSchema = z
+  .object({
+    newPassword: passwordFieldSchema,
+    confirmPassword: z.string().min(1, 'Please confirm the new password'),
+  })
+  .refine((data) => data.newPassword === data.confirmPassword, {
+    message: "Passwords don't match",
+    path: ['confirmPassword'],
+  });
+
+type ResetPasswordFormData = z.infer<typeof resetPasswordSchema>;
 
 interface UserCard {
   id: string;
@@ -104,16 +116,6 @@ function toUserCard(user: ApiUser, farms: ApiFarm[]): UserCard {
   };
 }
 
-function userFormFromApi(user: ApiUser): UserFormState {
-  return {
-    name: user.name,
-    email: user.email ?? '',
-    phone: user.phone ?? '',
-    role: toRole(user.role),
-    status: toStatus(user.status),
-  };
-}
-
 const editUserSchema = z.object({
   name: z.string().min(2, 'Name must be at least 2 characters'),
   email: z.string().email('Invalid email address').or(z.literal('')),
@@ -143,7 +145,7 @@ export default function UserManagementScreen() {
     },
   });
 
-  const { control: editControl, handleSubmit: handleEditSubmit, setValue: setEditValue, reset: resetEditForm, formState: { errors: editErrors } } = useForm<EditUserFormData>({
+  const { control: editControl, handleSubmit: handleEditSubmit, reset: resetEditForm, formState: { errors: editErrors } } = useForm<EditUserFormData>({
     resolver: zodResolver(editUserSchema),
     defaultValues: {
       name: '',
@@ -154,13 +156,28 @@ export default function UserManagementScreen() {
     },
   });
 
+  const {
+    control: resetPasswordControl,
+    handleSubmit: handleResetPasswordSubmit,
+    reset: resetPasswordForm,
+    formState: { errors: resetPasswordErrors },
+  } = useForm<ResetPasswordFormData>({
+    resolver: zodResolver(resetPasswordSchema),
+    defaultValues: {
+      newPassword: '',
+      confirmPassword: '',
+    },
+  });
+
   const [editUserId, setEditUserId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSavingEdit, setIsSavingEdit] = useState(false);
+  const [isResettingPassword, setIsResettingPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [farms, setFarms] = useState<ApiFarm[]>([]);
   const [showPassword, setShowPassword] = useState(false);
+  const [showResetPasswordFields, setShowResetPasswordFields] = useState(false);
 
   const loadUsers = async () => {
     if (!accessToken) {
@@ -203,6 +220,8 @@ export default function UserManagementScreen() {
     try {
       const user = await fetchUser(accessToken, userId);
       setEditUserId(user.id);
+      setShowResetPasswordFields(false);
+      resetPasswordForm();
       
       resetEditForm({
         name: user.name,
@@ -258,11 +277,13 @@ export default function UserManagementScreen() {
 
       resetAddForm();
       setShowAddModal(false);
-      Toast.show({type: 'success', text1: 'Success', text2: 'User created successfully.', position: 'bottom'});
+      showSuccessToast('User created successfully.');
     } catch (err) {
-      const msg = err instanceof Error ? err.message : 'Failed to create user.';
+      const msg = showRequestErrorToast(err, {
+        title: 'Create user failed',
+        fallbackMessage: 'Failed to create user.',
+      });
       setError(msg);
-      Toast.show({type: 'error', text1: 'Error', text2: msg, position: 'bottom'});
     } finally {
       setIsSubmitting(false);
     }
@@ -299,13 +320,42 @@ export default function UserManagementScreen() {
       setEditUserId(null);
       resetEditForm();
       loadUsers();
-      Toast.show({type: 'success', text1: 'Success', text2: 'User updated successfully.', position: 'bottom'});
+      showSuccessToast('User updated successfully.');
     } catch (err) {
-      const msg = err instanceof Error ? err.message : 'Failed to update user.';
+      const msg = showRequestErrorToast(err, {
+        title: 'Update user failed',
+        fallbackMessage: 'Failed to update user.',
+      });
       setError(msg);
-      Toast.show({type: 'error', text1: 'Error', text2: msg, position: 'bottom'});
     } finally {
       setIsSavingEdit(false);
+    }
+  };
+
+  const handleAdminResetPassword = async (data: ResetPasswordFormData) => {
+    if (!accessToken || !editUserId) {
+      return;
+    }
+
+    setIsResettingPassword(true);
+    setError(null);
+
+    try {
+      const response = await resetUserPassword(accessToken, editUserId, {
+        newPassword: data.newPassword,
+      });
+
+      resetPasswordForm();
+      setShowResetPasswordFields(false);
+      showSuccessToast(response.message || 'Password reset successfully.');
+    } catch (err) {
+      const msg = showRequestErrorToast(err, {
+        title: 'Reset password failed',
+        fallbackMessage: 'Failed to reset password.',
+      });
+      setError(msg);
+    } finally {
+      setIsResettingPassword(false);
     }
   };
 
@@ -554,6 +604,7 @@ export default function UserManagementScreen() {
                     </TouchableOpacity>
                   </View>
                   {formErrors.password && <Text style={styles.fieldErrorText}>{formErrors.password.message}</Text>}
+                  {!formErrors.password ? <Text style={styles.helperText}>{PASSWORD_REQUIREMENT_TEXT}</Text> : null}
                 </View>
               )}
             />
@@ -709,6 +760,100 @@ export default function UserManagementScreen() {
                   <Text style={styles.submitBtnText}>Update User</Text>
                 )}
               </TouchableOpacity>
+
+              <View style={styles.resetPasswordCard}>
+                <TouchableOpacity
+                  style={styles.secondaryBtn}
+                  onPress={() => {
+                    setShowResetPasswordFields((prev) => !prev);
+                    resetPasswordForm();
+                    setError(null);
+                  }}
+                  disabled={isResettingPassword}
+                >
+                  <Text style={styles.secondaryBtnText}>
+                    {showResetPasswordFields ? 'Cancel Password Reset' : 'Reset Password'}
+                  </Text>
+                </TouchableOpacity>
+
+                {showResetPasswordFields ? (
+                  <View>
+                    <Controller
+                      control={resetPasswordControl}
+                      name="newPassword"
+                      render={({ field: { onChange, value } }) => (
+                        <View>
+                          <Text style={styles.formLabel}>New Password</Text>
+                          <View
+                            style={[
+                              styles.inputBox,
+                              resetPasswordErrors.newPassword && { borderColor: Colors.tertiary },
+                            ]}
+                          >
+                            <TextInput
+                              style={styles.textInput}
+                              placeholder="Enter a strong password"
+                              placeholderTextColor={Colors.textSecondary}
+                              value={value}
+                              onChangeText={onChange}
+                              secureTextEntry
+                            />
+                          </View>
+                          {resetPasswordErrors.newPassword ? (
+                            <Text style={styles.fieldErrorText}>
+                              {resetPasswordErrors.newPassword.message}
+                            </Text>
+                          ) : null}
+                        </View>
+                      )}
+                    />
+
+                    <Controller
+                      control={resetPasswordControl}
+                      name="confirmPassword"
+                      render={({ field: { onChange, value } }) => (
+                        <View>
+                          <Text style={styles.formLabel}>Confirm Password</Text>
+                          <View
+                            style={[
+                              styles.inputBox,
+                              resetPasswordErrors.confirmPassword && { borderColor: Colors.tertiary },
+                            ]}
+                          >
+                            <TextInput
+                              style={styles.textInput}
+                              placeholder="Re-enter the new password"
+                              placeholderTextColor={Colors.textSecondary}
+                              value={value}
+                              onChangeText={onChange}
+                              secureTextEntry
+                            />
+                          </View>
+                          {resetPasswordErrors.confirmPassword ? (
+                            <Text style={styles.fieldErrorText}>
+                              {resetPasswordErrors.confirmPassword.message}
+                            </Text>
+                          ) : null}
+                        </View>
+                      )}
+                    />
+
+                    <Text style={styles.helperText}>{PASSWORD_REQUIREMENT_TEXT}</Text>
+
+                    <TouchableOpacity
+                      style={[styles.submitBtn, isResettingPassword && styles.buttonDisabled]}
+                      onPress={handleResetPasswordSubmit(handleAdminResetPassword)}
+                      disabled={isResettingPassword}
+                    >
+                      {isResettingPassword ? (
+                        <ActivityIndicator color="#FFF" />
+                      ) : (
+                        <Text style={styles.submitBtnText}>Confirm Password Reset</Text>
+                      )}
+                    </TouchableOpacity>
+                  </View>
+                ) : null}
+              </View>
             </ScrollView>
           </View>
           <Toast position="bottom" bottomOffset={100} />
@@ -884,6 +1029,25 @@ const styles = StyleSheet.create({
     fontSize: 12,
     lineHeight: 16,
     color: Colors.textSecondary,
+  },
+  secondaryBtn: {
+    minHeight: 46,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: Colors.primary,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginTop: 18,
+    backgroundColor: '#F6FBF7',
+  },
+  secondaryBtnText: {
+    color: Colors.primary,
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  resetPasswordCard: {
+    marginTop: 8,
+    paddingTop: 8,
   },
   submitBtn: {
     backgroundColor: Colors.primary,

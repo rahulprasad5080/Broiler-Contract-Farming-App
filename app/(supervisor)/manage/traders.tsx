@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, TextInput, Modal } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Colors } from '@/constants/Colors';
@@ -6,12 +6,15 @@ import { Layout } from '@/constants/Layout';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useAuth } from '@/context/AuthContext';
-import Toast from 'react-native-toast-message';
 import {
   ApiTrader,
   createTrader,
   listAllTraders,
 } from '@/services/managementApi';
+import {
+  showRequestErrorToast,
+  showSuccessToast,
+} from '@/services/apiFeedback';
 
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -43,7 +46,7 @@ export default function SupervisorTradersScreen() {
     },
   });
 
-  const fetchTraders = async () => {
+  const fetchTraders = useCallback(async () => {
     if (!accessToken) return;
     setLoading(true);
     try {
@@ -51,14 +54,18 @@ export default function SupervisorTradersScreen() {
       setTraders(res.data);
     } catch (error) {
       console.warn('Failed to fetch traders', error);
+      showRequestErrorToast(error, {
+        title: 'Unable to load traders',
+        fallbackMessage: 'Failed to fetch traders.',
+      });
     } finally {
       setLoading(false);
     }
-  };
+  }, [accessToken]);
 
   useEffect(() => {
-    fetchTraders();
-  }, [accessToken]);
+    void fetchTraders();
+  }, [fetchTraders]);
 
   const handleSave = async (data: TraderFormData) => {
     if (!accessToken) return;
@@ -73,10 +80,13 @@ export default function SupervisorTradersScreen() {
       setTraders((prev) => [created, ...prev]);
       reset();
       setShowAddModal(false);
-      Toast.show({ type: 'success', text1: 'Success', text2: 'Trader added' });
+      showSuccessToast('Trader added.');
     } catch (error) {
       console.warn('Failed to save trader', error);
-      Toast.show({ type: 'error', text1: 'Error', text2: 'Failed to add trader' });
+      showRequestErrorToast(error, {
+        title: 'Trader save failed',
+        fallbackMessage: 'Failed to add trader.',
+      });
     } finally {
       setSaving(false);
     }

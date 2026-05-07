@@ -1,10 +1,9 @@
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useFocusEffect } from '@react-navigation/native';
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
-  Alert,
   ScrollView,
   StyleSheet,
   Text,
@@ -25,7 +24,10 @@ import {
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import Toast from 'react-native-toast-message';
+import {
+  showRequestErrorToast,
+  showSuccessToast,
+} from '@/services/apiFeedback';
 
 type DailyEntryScreenProps = {
   title?: string;
@@ -123,7 +125,12 @@ export function DailyEntryScreen({
       }
     } catch (error) {
       console.warn('Failed to load batches for daily entry:', error);
-      setMessage('Could not load batches from backend.');
+      setMessage(
+        showRequestErrorToast(error, {
+          title: 'Unable to load batches',
+          fallbackMessage: 'Could not load batches from backend.',
+        }),
+      );
     } finally {
       setLoading(false);
     }
@@ -183,13 +190,15 @@ export function DailyEntryScreen({
         avgWeightGrams: '',
         notes: '',
       });
-      Toast.show({ type: 'success', text1: 'Success', text2: 'Daily log saved successfully.', position: 'bottom' });
+      showSuccessToast('Daily log saved successfully.');
     } catch (error) {
       console.warn('Failed to create daily log:', error);
-      const fallback = error instanceof Error ? error.message : 'Failed to save daily log.';
-      setMessage(fallback);
-      Alert.alert('Daily log save failed', fallback);
-      Toast.show({ type: 'error', text1: 'Error', text2: fallback, position: 'bottom' });
+      setMessage(
+        showRequestErrorToast(error, {
+          title: 'Daily log save failed',
+          fallbackMessage: 'Failed to save daily log.',
+        }),
+      );
     } finally {
       setSubmitting(false);
     }

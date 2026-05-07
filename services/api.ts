@@ -61,51 +61,80 @@ function buildUrl(baseUrl: string, path: string, query?: RequestOptions["query"]
   return url;
 }
 
+function collectTextMessages(value: unknown): string[] {
+  if (typeof value === "string") {
+    const message = value.trim();
+    return message ? [message] : [];
+  }
+
+  if (Array.isArray(value)) {
+    return value.flatMap((item) => collectTextMessages(item));
+  }
+
+  if (value && typeof value === "object") {
+    const record = value as Record<string, unknown>;
+    const priorityKeys = ["message", "msg", "error"];
+    const priorityMessages = priorityKeys.flatMap((key) => collectTextMessages(record[key]));
+    const nestedMessages = Object.entries(record)
+      .filter(([key]) => !priorityKeys.includes(key))
+      .flatMap(([, nestedValue]) => collectTextMessages(nestedValue));
+
+    return [...priorityMessages, ...nestedMessages];
+  }
+
+  return [];
+}
+
+function uniqueMessages(messages: string[]) {
+  return Array.from(
+    new Set(
+      messages
+        .map((message) => message.trim())
+        .filter(Boolean),
+    ),
+  );
+}
+
+function isGenericErrorMessage(message: string) {
+  const normalized = message.trim().toLowerCase();
+  return (
+    normalized === "validation failed" ||
+    normalized === "bad request" ||
+    normalized === "request failed"
+  );
+}
+
 function getErrorMessage(response: Response, payload: unknown) {
   if (payload && typeof payload === "object") {
     const p = payload as Record<string, unknown>;
-    
-    // Express-validator or Spring Boot errors array
-    if (Array.isArray(p.errors) && p.errors.length > 0) {
-      const firstErr = p.errors[0];
-      if (typeof firstErr === 'string') return p.errors.join(', ');
-      if (firstErr && typeof firstErr === 'object') {
-        const msgs = p.errors.map((e: any) => e.msg || e.defaultMessage || e.message).filter(Boolean);
-        if (msgs.length > 0) return msgs.join(', ');
-      }
+
+    const detailMessages = uniqueMessages([
+      ...collectTextMessages(p.details),
+      ...collectTextMessages(p.fields),
+    ]);
+    if (
+      detailMessages.length > 0 &&
+      (typeof p.message !== "string" || isGenericErrorMessage(p.message))
+    ) {
+      return detailMessages.join(", ");
     }
-    
-    // Laravel style errors object
-    if (p.errors && typeof p.errors === 'object' && !Array.isArray(p.errors)) {
-      const errorValues = Object.values(p.errors).flat();
-      if (errorValues.length > 0 && typeof errorValues[0] === 'string') {
-        return errorValues.join(', ');
+
+    const errorMessages = uniqueMessages(collectTextMessages(p.errors));
+    if (errorMessages.length > 0) {
+      return errorMessages.join(", ");
+    }
+
+    if (Array.isArray(p.message)) {
+      const messageList = uniqueMessages(collectTextMessages(p.message));
+      if (messageList.length > 0) {
+        return messageList.join(", ");
       }
     }
 
-    // Prisma or Generic details array
-    if (Array.isArray(p.details) && p.details.length > 0) {
-      if (typeof p.details[0] === 'string') return p.details.join(', ');
-      if (p.details[0] && typeof p.details[0] === 'object') {
-        const msgs = p.details.map((e: any) => e.message || e.msg).filter(Boolean);
-        if (msgs.length > 0) return msgs.join(', ');
-      }
-    }
-
-    // NestJS / Default string or array messages
-    if (Array.isArray(p.message) && p.message.length > 0 && typeof p.message[0] === 'string') {
-      return p.message.join(', ');
-    }
-    
-    // Fallback: If the message is just a generic 'Validation failed', try to get more details if possible
     if (typeof p.message === "string" && p.message.trim()) {
-      if (p.message.toLowerCase() === 'validation failed' || p.message.toLowerCase() === 'bad request') {
-         // if there's any other string property that might contain the real error
-         if (typeof p.error === 'string' && p.error !== p.message) return `${p.message}: ${p.error}`;
-      }
       return p.message;
     }
-    
+
     if (typeof p.error === "string" && p.error.trim()) {
       return p.error;
     }

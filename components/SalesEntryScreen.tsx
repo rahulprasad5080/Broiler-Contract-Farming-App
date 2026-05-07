@@ -1,10 +1,9 @@
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import { useRouter } from 'expo-router';
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
-  Alert,
   ScrollView,
   StyleSheet,
   Text,
@@ -27,7 +26,10 @@ import {
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import Toast from 'react-native-toast-message';
+import {
+  showRequestErrorToast,
+  showSuccessToast,
+} from '@/services/apiFeedback';
 
 type SalesEntryScreenProps = {
   title?: string;
@@ -117,7 +119,6 @@ export function SalesEntryScreen({
 
   const selectedBatchId = watch('batchId');
   const traderId = watch('traderId');
-  const birdCount = watch('birdCount');
   const totalWeightKg = watch('totalWeightKg');
   const ratePerKg = watch('ratePerKg');
   const transportCharge = watch('transportCharge');
@@ -168,7 +169,12 @@ export function SalesEntryScreen({
       }
     } catch (error) {
       console.warn('Failed to load sales lookups:', error);
-      setMessage('Could not load batches or traders from backend.');
+      setMessage(
+        showRequestErrorToast(error, {
+          title: 'Unable to load sales data',
+          fallbackMessage: 'Could not load batches or traders from backend.',
+        }),
+      );
     } finally {
       setLoading(false);
     }
@@ -233,13 +239,15 @@ export function SalesEntryScreen({
         paymentReceivedAmount: '',
         notes: '',
       });
-      Toast.show({ type: 'success', text1: 'Success', text2: 'Sale saved successfully.', position: 'bottom' });
+      showSuccessToast('Sale saved successfully.');
     } catch (error) {
       console.warn('Failed to save sale:', error);
-      const fallback = error instanceof Error ? error.message : 'Failed to save sale.';
-      setMessage(fallback);
-      Alert.alert('Sale save failed', fallback);
-      Toast.show({ type: 'error', text1: 'Error', text2: fallback, position: 'bottom' });
+      setMessage(
+        showRequestErrorToast(error, {
+          title: 'Sale save failed',
+          fallbackMessage: 'Failed to save sale.',
+        }),
+      );
     } finally {
       setSubmitting(false);
     }

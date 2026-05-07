@@ -7,9 +7,9 @@ import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useAuth } from '@/context/AuthContext';
 import { ApiDailyLog, createBatchComment, listDailyLogs, updateDailyLog } from '@/services/managementApi';
+import { showRequestErrorToast, showSuccessToast } from '@/services/apiFeedback';
 import { useFocusEffect } from '@react-navigation/native';
 import { format } from 'date-fns';
-import Toast from 'react-native-toast-message';
 
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -56,6 +56,10 @@ export default function SupervisorReviewLogsScreen() {
       setLogs(res.data.sort((a, b) => new Date(b.logDate).getTime() - new Date(a.logDate).getTime()));
     } catch (error) {
       console.warn('Failed to load daily logs:', error);
+      showRequestErrorToast(error, {
+        title: 'Unable to load daily logs',
+        fallbackMessage: 'Failed to load daily logs.',
+      });
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -109,12 +113,15 @@ export default function SupervisorReviewLogsScreen() {
         });
       }
 
-      Toast.show({ type: 'success', text1: 'Corrected', text2: 'Daily log updated successfully' });
+      showSuccessToast('Daily log updated successfully.', 'Corrected');
       setSelectedLog(null);
       fetchLogs();
     } catch (error) {
       console.warn('Failed to correct log', error);
-      Toast.show({ type: 'error', text1: 'Error', text2: 'Failed to update log' });
+      showRequestErrorToast(error, {
+        title: 'Correction failed',
+        fallbackMessage: 'Failed to update log.',
+      });
     } finally {
       setSaving(false);
     }

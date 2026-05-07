@@ -95,7 +95,7 @@ export default function SetupSecurityScreen() {
       Toast.show({type: "error",
         text1: "Unable to continue",
         text2: error instanceof Error && error.message.trim()
-            ? error.text2: "Please try again.", position: 'bottom'});
+            ? error.message : "Please try again.", position: 'bottom'});
     } finally {
       setIsSaving(false);
     }

@@ -4,7 +4,6 @@ import { useFocusEffect } from '@react-navigation/native';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
-  Alert,
   ScrollView,
   StyleSheet,
   Text,
@@ -28,7 +27,10 @@ import {
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import Toast from 'react-native-toast-message';
+import {
+  showRequestErrorToast,
+  showSuccessToast,
+} from '@/services/apiFeedback';
 
 type TreatmentEntryScreenProps = {
   title?: string;
@@ -37,12 +39,6 @@ type TreatmentEntryScreenProps = {
 
 function todayValue() {
   return new Date().toISOString().slice(0, 10);
-}
-
-function toOptionalNumber(value: string) {
-  if (!value || value.trim() === '') return undefined;
-  const next = Number(value);
-  return Number.isNaN(next) ? undefined : next;
 }
 
 function batchLabel(batch: ApiBatch) {
@@ -121,7 +117,12 @@ export function TreatmentEntryScreen({
       }
     } catch (error) {
       console.warn('Failed to load data for treatments:', error);
-      setMessage('Could not load batches or catalog items.');
+      setMessage(
+        showRequestErrorToast(error, {
+          title: 'Unable to load treatment data',
+          fallbackMessage: 'Could not load batches or catalog items.',
+        }),
+      );
     } finally {
       setLoading(false);
     }
@@ -150,11 +151,17 @@ export function TreatmentEntryScreen({
     setSubmitting(true);
     setMessage(null);
     try {
+      const selectedCatalogItem =
+        filteredCatalogItems.find((item) => item.id === data.catalogItemId) ?? null;
+
       await createTreatment(accessToken, data.batchId, {
         treatmentDate: data.treatmentDate,
         kind: data.kind,
         catalogItemId: data.catalogItemId || undefined,
-        quantity: toOptionalNumber(data.quantity ?? ''),
+        treatmentName:
+          selectedCatalogItem?.name ??
+          `${data.kind.charAt(0)}${data.kind.slice(1).toLowerCase()}`,
+        dosage: data.quantity?.trim() || undefined,
         notes: data.notes?.trim() || undefined,
         clientReferenceId: `tx-${Date.now()}`,
       });
@@ -166,13 +173,15 @@ export function TreatmentEntryScreen({
         notes: '',
         catalogItemId: '',
       });
-      Toast.show({ type: 'success', text1: 'Success', text2: 'Treatment logged successfully.', position: 'bottom' });
+      showSuccessToast('Treatment logged successfully.');
     } catch (error) {
       console.warn('Failed to log treatment:', error);
-      const fallback = error instanceof Error ? error.message : 'Failed to save treatment log.';
-      setMessage(fallback);
-      Alert.alert('Save Failed', fallback);
-      Toast.show({ type: 'error', text1: 'Error', text2: fallback, position: 'bottom' });
+      setMessage(
+        showRequestErrorToast(error, {
+          title: 'Treatment save failed',
+          fallbackMessage: 'Failed to save treatment log.',
+        }),
+      );
     } finally {
       setSubmitting(false);
     }

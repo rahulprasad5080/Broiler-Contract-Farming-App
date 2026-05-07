@@ -22,6 +22,13 @@ import {
   getPasswordValidationError,
   PASSWORD_REQUIREMENT_TEXT,
 } from '../../services/authValidation';
+import {
+  showRequestErrorToast,
+  showSuccessToast,
+} from '@/services/apiFeedback';
+import { useForm, Controller } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { z } from 'zod';
 
 const getInitials = (name: string) =>
   name
@@ -67,17 +74,20 @@ type MenuItem = {
   toggle?: boolean;
 };
 
-import { useForm, Controller } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import { z } from 'zod';
+const passwordFieldSchema = z.string().superRefine((value, ctx) => {
+  const validationError = getPasswordValidationError(value);
+
+  if (validationError) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: validationError,
+    });
+  }
+});
 
 const passwordSchema = z.object({
   currentPassword: z.string().min(1, 'Current password is required'),
-  newPassword: z.string()
-    .min(6, 'Password must be at least 6 characters')
-    .regex(/[A-Za-z]/, 'Password must contain at least one letter')
-    .regex(/[0-9]/, 'Password must contain at least one number')
-    .regex(/[^A-Za-z0-9]/, 'Password must contain at least one special character'),
+  newPassword: passwordFieldSchema,
   confirmPassword: z.string().min(1, 'Please confirm your new password'),
 }).refine((data) => data.newPassword === data.confirmPassword, {
   message: "Passwords don't match",
@@ -144,10 +154,12 @@ export default function ProfileScreen() {
         setPasswordSuccess(null);
         void signOut();
       }, 1200);
-      Toast.show({type: 'success', text1: 'Success', text2: response.message || 'Password updated.', position: 'bottom'});
+      showSuccessToast(response.message || 'Password updated.');
     } catch (error) {
-      const msg = error instanceof Error ? error.message : 'Failed to update password.';
-      Toast.show({type: 'error', text1: 'Error', text2: msg, position: 'bottom'});
+      showRequestErrorToast(error, {
+        title: 'Password update failed',
+        fallbackMessage: 'Failed to update password.',
+      });
     } finally {
       setIsSavingPassword(false);
     }

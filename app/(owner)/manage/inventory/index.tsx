@@ -2,7 +2,6 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import React, { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
-  Alert,
   ScrollView,
   StyleSheet,
   Text,
@@ -14,7 +13,6 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Colors } from '@/constants/Colors';
 import { Layout } from '@/constants/Layout';
 import { useAuth } from '@/context/AuthContext';
-import Toast from 'react-native-toast-message';
 import {
   createBatchCost,
   createCatalogItem,
@@ -25,12 +23,15 @@ import {
   type ApiCost,
   type ApiCostCategory,
 } from '@/services/managementApi';
-
-type TabKey = 'catalog' | 'costs';
-
+import {
+  showRequestErrorToast,
+  showSuccessToast,
+} from '@/services/apiFeedback';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
+
+type TabKey = 'catalog' | 'costs';
 
 const CATALOG_TYPES: ApiCatalogItemType[] = ['FEED', 'VACCINE', 'MEDICINE', 'OTHER'];
 const COST_CATEGORIES: ApiCostCategory[] = [
@@ -48,8 +49,8 @@ const COST_CATEGORIES: ApiCostCategory[] = [
 const catalogSchema = z.object({
   name: z.string().min(1, 'Name is required'),
   type: z.enum(['FEED', 'VACCINE', 'MEDICINE', 'OTHER']),
-  unit: z.string().optional(),
-  description: z.string().optional(),
+  unit: z.string().min(1, 'Unit is required'),
+  manufacturer: z.string().optional(),
 });
 
 const costSchema = z.object({
@@ -105,11 +106,11 @@ export default function InventoryScreen() {
       name: '',
       type: 'FEED',
       unit: '',
-      description: '',
+      manufacturer: '',
     },
   });
 
-  const { control: costControl, handleSubmit: handleCostSubmit, setValue: setCostValue, watch: watchCost, reset: resetCost, formState: { errors: costErrors } } = useForm<CostFormData>({
+  const { control: costControl, handleSubmit: handleCostSubmit, setValue: setCostValue, watch: watchCost, formState: { errors: costErrors } } = useForm<CostFormData>({
     resolver: zodResolver(costSchema),
     defaultValues: {
       batchId: '',
@@ -144,7 +145,12 @@ export default function InventoryScreen() {
           setCostValue('catalogItemId', response.data[0].id);
         }
       } catch (err) {
-        setError(err instanceof Error ? err.message : 'Failed to load catalog items.');
+        setError(
+          showRequestErrorToast(err, {
+            title: 'Unable to load catalog',
+            fallbackMessage: 'Failed to load catalog items.',
+          }),
+        );
       } finally {
         setCatalogLoading(false);
       }
@@ -171,7 +177,12 @@ export default function InventoryScreen() {
       const response = await listBatchCosts(accessToken, costBatchId.trim());
       setCosts(response.data);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load batch costs.');
+      setError(
+        showRequestErrorToast(err, {
+          title: 'Unable to load costs',
+          fallbackMessage: 'Failed to load batch costs.',
+        }),
+      );
     } finally {
       setLoadingCosts(false);
     }
@@ -190,21 +201,20 @@ export default function InventoryScreen() {
       const created = await createCatalogItem(accessToken, {
         name: data.name.trim(),
         type: data.type,
-        unit: data.unit?.trim() || undefined,
-        description: data.description?.trim() || undefined,
-        isActive: true,
+        unit: data.unit.trim(),
+        manufacturer: data.manufacturer?.trim() || undefined,
       });
 
       setCatalogItems((prev) => [created, ...prev]);
       resetCatalog();
       setCostValue('catalogItemId', created.id);
-      Toast.show({type: 'success', text1: 'Saved', text2: 'Catalog item created successfully.',
-  position: 'bottom'});
+      showSuccessToast('Catalog item created successfully.', 'Saved');
     } catch (err) {
-      const msg = err instanceof Error ? err.message : 'Failed to create catalog item.';
+      const msg = showRequestErrorToast(err, {
+        title: 'Catalog save failed',
+        fallbackMessage: 'Failed to create catalog item.',
+      });
       setError(msg);
-      Toast.show({type: 'error', text1: 'Error', text2: msg,
-  position: 'bottom'});
     } finally {
       setSavingCatalog(false);
     }
@@ -220,14 +230,23 @@ export default function InventoryScreen() {
     setError(null);
 
     try {
+      const selectedCatalogItem =
+        catalogItems.find((item) => item.id === data.catalogItemId) ?? null;
+      const trimmedNotes = data.notes?.trim() || undefined;
+
       const created = await createBatchCost(accessToken, data.batchId.trim(), {
         category: data.category,
         catalogItemId: data.catalogItemId || undefined,
-        costDate: data.costDate.trim(),
-        amount: Number(data.amount),
+        expenseDate: data.costDate.trim(),
+        description:
+          selectedCatalogItem?.name ||
+          trimmedNotes ||
+          `${data.category.replaceAll('_', ' ')} expense`,
         quantity: data.quantity?.trim() ? Number(data.quantity) : undefined,
-        unitRate: data.unitRate?.trim() ? Number(data.unitRate) : undefined,
-        notes: data.notes?.trim() || undefined,
+        unit: selectedCatalogItem?.unit || undefined,
+        rate: data.unitRate?.trim() ? Number(data.unitRate) : undefined,
+        totalAmount: Number(data.amount),
+        notes: trimmedNotes,
         clientReferenceId: `inventory-${Date.now()}`,
       });
 
@@ -236,13 +255,13 @@ export default function InventoryScreen() {
       setCostValue('quantity', '');
       setCostValue('unitRate', '');
       setCostValue('notes', '');
-      Toast.show({type: 'success', text1: 'Saved', text2: 'Batch cost created successfully.',
-  position: 'bottom'});
+      showSuccessToast('Batch cost created successfully.', 'Saved');
     } catch (err) {
-      const msg = err instanceof Error ? err.message : 'Failed to create batch cost.';
+      const msg = showRequestErrorToast(err, {
+        title: 'Cost save failed',
+        fallbackMessage: 'Failed to create batch cost.',
+      });
       setError(msg);
-      Toast.show({type: 'error', text1: 'Error', text2: msg,
-  position: 'bottom'});
     } finally {
       setSavingCost(false);
     }
@@ -253,7 +272,7 @@ export default function InventoryScreen() {
     setActiveTab('costs');
   };
 
-  const totalCost = costs.reduce((sum, item) => sum + (Number(item.amount) || 0), 0);
+  const totalCost = costs.reduce((sum, item) => sum + (Number(item.totalAmount) || 0), 0);
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -375,21 +394,21 @@ export default function InventoryScreen() {
 
             <Controller
               control={catalogControl}
-              name="description"
+              name="manufacturer"
               render={({ field: { onChange, value } }) => (
                 <>
-                  <Text style={styles.fieldLabel}>Description</Text>
-                  <View style={[styles.inputBox, styles.textArea, catalogErrors.description && { borderColor: Colors.tertiary }]}>
+                  <Text style={styles.fieldLabel}>Manufacturer</Text>
+                  <View style={[styles.inputBox, catalogErrors.manufacturer && { borderColor: Colors.tertiary }]}>
                     <TextInput
                       style={[styles.input, styles.multiLineInput]}
                       value={value}
                       onChangeText={onChange}
-                      placeholder="Optional item details"
+                      placeholder="Optional brand or manufacturer"
                       placeholderTextColor={Colors.textSecondary}
                       multiline
                     />
                   </View>
-                  {catalogErrors.description && <Text style={styles.fieldErrorText}>{catalogErrors.description.message}</Text>}
+                  {catalogErrors.manufacturer && <Text style={styles.fieldErrorText}>{catalogErrors.manufacturer.message}</Text>}
                 </>
               )}
             />
@@ -419,7 +438,7 @@ export default function InventoryScreen() {
                     <Text style={styles.listSub}>
                       {item.type}
                       {item.unit ? ` · ${item.unit}` : ''}
-                      {item.description ? ` · ${item.description}` : ''}
+                      {item.manufacturer ? ` · ${item.manufacturer}` : ''}
                     </Text>
                   </View>
                   <TouchableOpacity
@@ -645,11 +664,11 @@ export default function InventoryScreen() {
                   <View style={styles.listMeta}>
                     <Text style={styles.listTitle}>{item.category}</Text>
                     <Text style={styles.listSub}>
-                      {item.costDate}
+                      {item.expenseDate}
                       {item.clientReferenceId ? ` · ${item.clientReferenceId}` : ''}
                     </Text>
                   </View>
-                  <Text style={styles.costAmount}>{canSeeCost ? formatINR(item.amount) : 'Hidden'}</Text>
+                  <Text style={styles.costAmount}>{canSeeCost ? formatINR(item.totalAmount) : 'Hidden'}</Text>
                 </View>
               ))
             ) : (

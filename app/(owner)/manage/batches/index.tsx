@@ -20,6 +20,10 @@ import {
   listAllBatches,
   updateBatchStatus,
 } from '@/services/managementApi';
+import {
+  showRequestErrorToast,
+  showSuccessToast,
+} from '@/services/apiFeedback';
 
 export default function BatchManagementScreen() {
   const router = useRouter();
@@ -80,11 +84,15 @@ export default function BatchManagementScreen() {
             });
             await loadBatches();
             setMessage(`${batch.code} closed successfully.`);
+            showSuccessToast(`${batch.code} closed successfully.`, 'Batch closed');
           } catch (error) {
             console.warn('Failed to close batch:', error);
-            const fallback = error instanceof Error ? error.message : 'Failed to close batch.';
-            setMessage(fallback);
-            Alert.alert('Close batch failed', fallback);
+            setMessage(
+              showRequestErrorToast(error, {
+                title: 'Close batch failed',
+                fallbackMessage: 'Failed to close batch.',
+              }),
+            );
           } finally {
             setClosingId('');
           }

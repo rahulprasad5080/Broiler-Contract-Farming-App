@@ -148,13 +148,16 @@ export type ApiTreatment = {
   id: string;
   organizationId: string;
   batchId: string;
+  dailyLogId?: string | null;
   kind: ApiTreatmentKind;
   catalogItemId?: string | null;
   treatmentDate: string;
-  quantity?: number | null;
+  treatmentName: string;
+  dosage?: string | null;
+  birdCount?: number | null;
   notes?: string | null;
   clientReferenceId?: string | null;
-  createdById?: string | null;
+  administeredById?: string | null;
   createdAt: string;
   updatedAt: string;
 };
@@ -164,9 +167,10 @@ export type ApiCatalogItem = {
   organizationId: string;
   name: string;
   type: ApiCatalogItemType;
-  unit?: string | null;
-  description?: string | null;
-  isActive?: boolean;
+  unit: string;
+  defaultRate?: number | null;
+  manufacturer?: string | null;
+  isActive: boolean;
   createdAt: string;
   updatedAt: string;
 };
@@ -177,13 +181,17 @@ export type ApiCost = {
   batchId: string;
   category: ApiCostCategory;
   catalogItemId?: string | null;
-  costDate: string;
-  amount: number;
+  expenseDate: string;
+  description: string;
   quantity?: number | null;
-  unitRate?: number | null;
+  unit?: string | null;
+  rate?: number | null;
+  totalAmount: number;
+  vendorName?: string | null;
+  invoiceNumber?: string | null;
   notes?: string | null;
   clientReferenceId?: string | null;
-  createdById?: string | null;
+  createdById: string;
   createdAt: string;
   updatedAt: string;
 };
@@ -219,6 +227,10 @@ export type UpdateUserRequest = {
 
 export type UpdateUserStatusRequest = {
   status: ApiUserStatus;
+};
+
+export type ResetUserPasswordRequest = {
+  newPassword: string;
 };
 
 export type CreateFarmRequest = {
@@ -306,29 +318,36 @@ export type UpdateTraderRequest = Partial<CreateTraderRequest>;
 export type CreateCatalogItemRequest = {
   name: string;
   type: ApiCatalogItemType;
-  unit?: string;
-  description?: string;
-  isActive?: boolean;
+  unit: string;
+  defaultRate?: number;
+  manufacturer?: string;
 };
 
 export type UpdateCatalogItemRequest = Partial<CreateCatalogItemRequest>;
 
-export type CreateCostRequest = {
+export type CreateBatchCostRequest = {
   category: ApiCostCategory;
   catalogItemId?: string;
-  costDate: string;
-  amount: number;
+  expenseDate: string;
+  description: string;
   quantity?: number;
-  unitRate?: number;
+  unit?: string;
+  rate?: number;
+  totalAmount?: number;
+  vendorName?: string;
+  invoiceNumber?: string;
   notes?: string;
   clientReferenceId?: string;
 };
 
 export type CreateTreatmentRequest = {
+  dailyLogId?: string;
   kind: ApiTreatmentKind;
   catalogItemId?: string;
   treatmentDate: string;
-  quantity?: number;
+  treatmentName: string;
+  dosage?: string;
+  birdCount?: number;
   notes?: string;
   clientReferenceId?: string;
 };
@@ -419,6 +438,18 @@ export async function updateUserStatus(
 ) {
   return apiRequest<ApiUser>(`/users/${userId}/status`, {
     method: "PATCH",
+    token,
+    body: payload,
+  });
+}
+
+export async function resetUserPassword(
+  token: string,
+  userId: string,
+  payload: ResetUserPasswordRequest,
+) {
+  return apiRequest<{ message: string }>(`/users/${userId}/reset-password`, {
+    method: "POST",
     token,
     body: payload,
   });
@@ -643,7 +674,11 @@ export async function listBatchCosts(token: string, batchId: string) {
   });
 }
 
-export async function createBatchCost(token: string, batchId: string, payload: CreateCostRequest) {
+export async function createBatchCost(
+  token: string,
+  batchId: string,
+  payload: CreateBatchCostRequest,
+) {
   return apiRequest<ApiCost>(`/batches/${batchId}/costs`, {
     method: "POST",
     token,

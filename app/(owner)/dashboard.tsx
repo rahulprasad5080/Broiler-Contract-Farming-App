@@ -17,6 +17,10 @@ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import { Colors } from '../../constants/Colors';
 import { Layout } from '../../constants/Layout';
 import { useAuth } from '../../context/AuthContext';
+import {
+  showRequestErrorToast,
+  showSuccessToast,
+} from '@/services/apiFeedback';
 
 type PortalItem = {
   label: string;
@@ -91,7 +95,12 @@ export default function OwnerDashboard() {
         })),
       );
     } catch (err) {
-      setSettingsError(err instanceof Error ? err.message : 'Failed to load users.');
+      setSettingsError(
+        showRequestErrorToast(err, {
+          title: 'Unable to load users',
+          fallbackMessage: 'Failed to load users.',
+        }),
+      );
     } finally {
       setLoadingUsers(false);
     }
@@ -137,8 +146,17 @@ export default function OwnerDashboard() {
             : item,
         ),
       );
+      showSuccessToast(
+        `${updated.name} is now ${updated.status === 'ACTIVE' ? 'active' : 'inactive'}.`,
+        'User updated',
+      );
     } catch (err) {
-      setSettingsError(err instanceof Error ? err.message : 'Failed to update user status.');
+      setSettingsError(
+        showRequestErrorToast(err, {
+          title: 'User status update failed',
+          fallbackMessage: 'Failed to update user status.',
+        }),
+      );
     } finally {
       setSavingUserId(null);
     }

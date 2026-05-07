@@ -1,30 +1,40 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, TextInput } from 'react-native';
+import {
+  View,
+  Text,
+  StyleSheet,
+  ScrollView,
+  TouchableOpacity,
+  ActivityIndicator,
+  TextInput,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Colors } from '@/constants/Colors';
 import { Layout } from '@/constants/Layout';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useAuth } from '@/context/AuthContext';
-import Toast from 'react-native-toast-message';
 import {
   ApiCatalogItem,
   ApiCatalogItemType,
   createCatalogItem,
   listCatalogItems,
 } from '@/services/managementApi';
-
-const CATALOG_TYPES: ApiCatalogItemType[] = ['FEED', 'VACCINE', 'MEDICINE', 'OTHER'];
-
+import {
+  showRequestErrorToast,
+  showSuccessToast,
+} from '@/services/apiFeedback';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 
+const CATALOG_TYPES: ApiCatalogItemType[] = ['FEED', 'VACCINE', 'MEDICINE', 'OTHER'];
+
 const catalogSchema = z.object({
   name: z.string().min(1, 'Name is required'),
   type: z.enum(['FEED', 'VACCINE', 'MEDICINE', 'OTHER']),
-  unit: z.string().optional(),
-  description: z.string().optional(),
+  unit: z.string().min(1, 'Unit is required'),
+  manufacturer: z.string().optional(),
 });
 
 type CatalogFormData = z.infer<typeof catalogSchema>;
@@ -32,18 +42,18 @@ type CatalogFormData = z.infer<typeof catalogSchema>;
 export default function SupervisorCatalogScreen() {
   const router = useRouter();
   const { accessToken } = useAuth();
-  
+
   const [items, setItems] = useState<ApiCatalogItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  
+
   const { control, handleSubmit, reset, formState: { errors: formErrors } } = useForm<CatalogFormData>({
     resolver: zodResolver(catalogSchema),
     defaultValues: {
       name: '',
       type: 'FEED',
       unit: '',
-      description: '',
+      manufacturer: '',
     },
   });
 
@@ -56,6 +66,10 @@ export default function SupervisorCatalogScreen() {
         setItems(res.data);
       } catch (error) {
         console.warn('Failed to fetch catalog items', error);
+        showRequestErrorToast(error, {
+          title: 'Unable to load catalog',
+          fallbackMessage: 'Failed to fetch catalog items.',
+        });
       } finally {
         setLoading(false);
       }
@@ -71,16 +85,18 @@ export default function SupervisorCatalogScreen() {
       const created = await createCatalogItem(accessToken, {
         name: data.name.trim(),
         type: data.type,
-        unit: data.unit?.trim() || undefined,
-        description: data.description?.trim() || undefined,
-        isActive: true,
+        unit: data.unit.trim(),
+        manufacturer: data.manufacturer?.trim() || undefined,
       });
       setItems((prev) => [created, ...prev]);
       reset();
-      Toast.show({ type: 'success', text1: 'Success', text2: 'Catalog item added' });
+      showSuccessToast('Catalog item added.');
     } catch (error) {
       console.warn('Failed to save catalog item', error);
-      Toast.show({ type: 'error', text1: 'Error', text2: 'Failed to add item' });
+      showRequestErrorToast(error, {
+        title: 'Catalog save failed',
+        fallbackMessage: 'Failed to add item.',
+      });
     } finally {
       setSaving(false);
     }
@@ -96,10 +112,9 @@ export default function SupervisorCatalogScreen() {
       </View>
 
       <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
-        
         <View style={styles.card}>
           <Text style={styles.sectionTitle}>Add New Item</Text>
-          
+
           <Controller
             control={control}
             name="name"
@@ -127,13 +142,13 @@ export default function SupervisorCatalogScreen() {
               <>
                 <Text style={styles.label}>Type *</Text>
                 <View style={styles.chipRow}>
-                  {CATALOG_TYPES.map((t) => (
+                  {CATALOG_TYPES.map((type) => (
                     <TouchableOpacity
-                      key={t}
-                      style={[styles.chip, value === t && styles.chipActive]}
-                      onPress={() => onChange(t)}
+                      key={type}
+                      style={[styles.chip, value === type && styles.chipActive]}
+                      onPress={() => onChange(type)}
                     >
-                      <Text style={[styles.chipText, value === t && styles.chipTextActive]}>{t}</Text>
+                      <Text style={[styles.chipText, value === type && styles.chipTextActive]}>{type}</Text>
                     </TouchableOpacity>
                   ))}
                 </View>
@@ -147,7 +162,7 @@ export default function SupervisorCatalogScreen() {
             name="unit"
             render={({ field: { onChange, value } }) => (
               <>
-                <Text style={styles.label}>Unit</Text>
+                <Text style={styles.label}>Unit *</Text>
                 <View style={[styles.inputBox, formErrors.unit && { borderColor: Colors.tertiary }]}>
                   <TextInput
                     style={styles.input}
@@ -164,21 +179,21 @@ export default function SupervisorCatalogScreen() {
 
           <Controller
             control={control}
-            name="description"
+            name="manufacturer"
             render={({ field: { onChange, value } }) => (
               <>
-                <Text style={styles.label}>Description</Text>
-                <View style={[styles.inputBox, styles.textArea, formErrors.description && { borderColor: Colors.tertiary }]}>
+                <Text style={styles.label}>Manufacturer</Text>
+                <View style={[styles.inputBox, styles.textArea, formErrors.manufacturer && { borderColor: Colors.tertiary }]}>
                   <TextInput
                     style={[styles.input, styles.multiLine]}
                     value={value}
                     onChangeText={onChange}
-                    placeholder="Optional"
+                    placeholder="Optional brand or manufacturer"
                     placeholderTextColor={Colors.textSecondary}
                     multiline
                   />
                 </View>
-                {formErrors.description && <Text style={styles.fieldErrorText}>{formErrors.description.message}</Text>}
+                {formErrors.manufacturer && <Text style={styles.fieldErrorText}>{formErrors.manufacturer.message}</Text>}
               </>
             )}
           />
@@ -195,11 +210,15 @@ export default function SupervisorCatalogScreen() {
           ) : items.length === 0 ? (
             <Text style={styles.emptyText}>No items found.</Text>
           ) : (
-            items.map(item => (
+            items.map((item) => (
               <View key={item.id} style={styles.listItem}>
                 <View>
                   <Text style={styles.itemName}>{item.name}</Text>
-                  <Text style={styles.itemMeta}>{item.type} {item.unit ? `· ${item.unit}` : ''}</Text>
+                  <Text style={styles.itemMeta}>
+                    {item.type}
+                    {item.unit ? ` · ${item.unit}` : ''}
+                    {item.manufacturer ? ` · ${item.manufacturer}` : ''}
+                  </Text>
                 </View>
                 <View style={[styles.statusBadge, { backgroundColor: item.isActive ? '#E8F5E9' : '#FFEBEE' }]}>
                   <Text style={[styles.statusText, { color: item.isActive ? '#2E7D32' : '#C62828' }]}>
@@ -210,7 +229,6 @@ export default function SupervisorCatalogScreen() {
             ))
           )}
         </View>
-
       </ScrollView>
     </SafeAreaView>
   );

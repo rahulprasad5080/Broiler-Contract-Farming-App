@@ -78,7 +78,7 @@ export default function SetPinScreen() {
       Toast.show({type: "error",
         text1: "Unable to save PIN",
         text2: error instanceof Error && error.message.trim()
-            ? error.text2: "Please try again.", position: 'bottom'});
+            ? error.message : "Please try again.", position: 'bottom'});
     } finally {
       setIsSaving(false);
     }
