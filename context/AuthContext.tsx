@@ -85,6 +85,7 @@ const UNLOCK_SCREENS = [
   "quick-login-pin",
   "quick-login-password",
 ];
+const BACKGROUND_LOCK_TIMEOUT_MS = 5 * 60 * 1000;
 
 function getDashboardRoute(role: UserRole) {
   if (role === "OWNER") return "/(owner)/dashboard";
@@ -182,6 +183,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [isAppUnlocked, setIsAppUnlocked] = React.useState(false);
   const segments = useSegments();
   const router = useRouter();
+  const appStateRef = React.useRef<AppStateStatus>(AppState.currentState);
+  const backgroundedAtRef = React.useRef<number | null>(null);
+  const userRef = React.useRef<User | null>(null);
+  const isAppUnlockedRef = React.useRef(false);
+
+  React.useEffect(() => {
+    userRef.current = user;
+  }, [user]);
+
+  React.useEffect(() => {
+    isAppUnlockedRef.current = isAppUnlocked;
+  }, [isAppUnlocked]);
 
   const applySessionState = React.useCallback((session: AuthSession | null) => {
     setTokens(session?.tokens ?? null);
@@ -191,6 +204,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   React.useEffect(() => {
     return subscribeToStoredSession((session) => {
       applySessionState(session);
+
+      if (!session) {
+        backgroundedAtRef.current = null;
+        isAppUnlockedRef.current = false;
+        setIsAppUnlocked(false);
+      }
     });
   }, [applySessionState]);
 
@@ -224,6 +243,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           applySessionState(storedSession);
         }
       } finally {
+        backgroundedAtRef.current = null;
         setIsAppUnlocked(false);
         setIsLoading(false);
       }
@@ -234,13 +254,36 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   React.useEffect(() => {
     const subscription = AppState.addEventListener("change", (nextState: AppStateStatus) => {
-      if (user && isAppUnlocked && nextState !== "active") {
-        setIsAppUnlocked(false);
+      const previousState = appStateRef.current;
+      appStateRef.current = nextState;
+
+      if (!userRef.current || !isAppUnlockedRef.current) {
+        backgroundedAtRef.current = null;
+        return;
+      }
+
+      if (nextState === "active") {
+        if (previousState !== "active" && backgroundedAtRef.current !== null) {
+          const backgroundDuration = Date.now() - backgroundedAtRef.current;
+          backgroundedAtRef.current = null;
+
+          if (backgroundDuration >= BACKGROUND_LOCK_TIMEOUT_MS) {
+            isAppUnlockedRef.current = false;
+            setIsReady(false);
+            setIsAppUnlocked(false);
+          }
+        }
+
+        return;
+      }
+
+      if (previousState === "active" && backgroundedAtRef.current === null) {
+        backgroundedAtRef.current = Date.now();
       }
     });
 
     return () => subscription.remove();
-  }, [user, isAppUnlocked]);
+  }, []);
 
   React.useEffect(() => {
     if (isLoading) {
@@ -298,7 +341,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return () => {
       cancelled = true;
     };
-  }, [user, tokens, isLoading, isAppUnlocked, segments, router]);
+  }, [user, tokens, isLoading, isAppUnlocked, isReady, segments, router]);
 
   const persistSession = React.useCallback(
     async (session: AuthSession) => {
@@ -322,6 +365,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
         const quickAuthEnabled = await hasAnyQuickAuth();
         await persistSession(nextSession);
+        backgroundedAtRef.current = null;
         setIsAppUnlocked(!quickAuthEnabled);
         router.replace(
           (quickAuthEnabled
@@ -356,6 +400,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         };
 
         await persistSession(nextSession);
+        backgroundedAtRef.current = null;
         setIsAppUnlocked(true);
         router.replace(getDashboardRoute(normalizeUser(hydratedUser).role) as never);
         return null;
@@ -390,6 +435,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [applySessionState, router, tokens]);
 
   const unlockApp = React.useCallback(() => {
+    backgroundedAtRef.current = null;
     setIsAppUnlocked(true);
     router.replace(getDashboardRoute(user?.role ?? "FARMER") as never);
   }, [router, user?.role]);
