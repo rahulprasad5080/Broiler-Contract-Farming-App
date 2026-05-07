@@ -78,6 +78,7 @@ const AuthContext = React.createContext<AuthContextType | undefined>(undefined);
 
 const AUTH_GROUP = "(auth)";
 const LOGIN_SCREEN = "login1";
+const LOGIN_ROUTE = "/(auth)/login1";
 const SETUP_SCREENS = ["setup-security", "login-success2", "set-pin", "enable-biometric"];
 const UNLOCK_SCREENS = [
   "quick-unlock",
@@ -301,7 +302,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       if (!user) {
         if (!inAuthGroup || currentAuthScreen !== LOGIN_SCREEN) {
-          router.replace("/(auth)/login1");
+          router.replace(LOGIN_ROUTE as never);
         }
         if (!isReady) setIsReady(true);
         return;
@@ -431,7 +432,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     applySessionState(null);
     setIsAppUnlocked(false);
-    router.replace("/(auth)/login1");
+    router.replace(LOGIN_ROUTE as never);
   }, [applySessionState, router, tokens]);
 
   const unlockApp = React.useCallback(() => {
