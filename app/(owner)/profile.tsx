@@ -265,10 +265,6 @@ export default function ProfileScreen() {
             item={{ icon: 'lock-closed-outline', iconLib: 'Ionicons', label: 'Change Password', sub: 'Update your login password', chevron: true }}
             onPress={openChangePassword}
           />
-          <View style={styles.menuDivider} />
-          <MenuRow
-            item={{ icon: 'shield-checkmark-outline', iconLib: 'Ionicons', label: 'Two-Factor Auth', sub: 'Extra login protection', chevron: true }}
-          />
         </View>
 
         <Text style={styles.sectionTitle}>Farm Management</Text>
@@ -279,10 +275,6 @@ export default function ProfileScreen() {
           <View style={styles.menuDivider} />
           <MenuRow
             item={{ icon: 'account-group-outline', iconLib: 'MaterialCommunityIcons', label: 'Team Members', sub: '5 active staff', chevron: true }}
-          />
-          <View style={styles.menuDivider} />
-          <MenuRow
-            item={{ icon: 'file-chart-outline', iconLib: 'MaterialCommunityIcons', label: 'Export Reports', sub: 'PDF & CSV available', chevron: true }}
           />
         </View>
 
