@@ -1,9 +1,10 @@
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useFocusEffect } from '@react-navigation/native';
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
+  Animated,
   ScrollView,
   StyleSheet,
   Text,
@@ -31,6 +32,7 @@ import {
   showRequestErrorToast,
   showSuccessToast,
 } from '@/services/apiFeedback';
+import { useFormPersistence } from '@/hooks/useFormPersistence';
 
 type TreatmentEntryScreenProps = {
   title?: string;
@@ -59,6 +61,15 @@ const treatmentSchema = z.object({
 
 type TreatmentFormData = z.infer<typeof treatmentSchema>;
 
+const TREATMENT_DEFAULTS = {
+  batchId: '',
+  treatmentDate: todayValue(),
+  kind: 'MEDICATION' as const,
+  catalogItemId: '',
+  quantity: '',
+  notes: '',
+} satisfies TreatmentFormData;
+
 export function TreatmentEntryScreen({
   title = 'Treatments',
   subtitle = 'Log vaccines and medicines given to the batch.',
@@ -73,17 +84,28 @@ export function TreatmentEntryScreen({
   const [submitting, setSubmitting] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
 
+  const draftBannerOpacity = useRef(new Animated.Value(0)).current;
+
   const { control, handleSubmit, setValue, watch, reset, formState: { errors: formErrors } } = useForm<TreatmentFormData>({
     resolver: zodResolver(treatmentSchema),
-    defaultValues: {
-      batchId: '',
-      treatmentDate: todayValue(),
-      kind: 'MEDICATION',
-      catalogItemId: '',
-      quantity: '',
-      notes: '',
-    },
+    defaultValues: TREATMENT_DEFAULTS,
   });
+
+  const { clearPersistedData, isRestored } = useFormPersistence(
+    'form_draft_treatment_entry',
+    watch,
+    reset,
+    TREATMENT_DEFAULTS,
+  );
+
+  useEffect(() => {
+    if (!isRestored) return;
+    Animated.sequence([
+      Animated.timing(draftBannerOpacity, { toValue: 1, duration: 300, useNativeDriver: true }),
+      Animated.delay(2500),
+      Animated.timing(draftBannerOpacity, { toValue: 0, duration: 400, useNativeDriver: true }),
+    ]).start();
+  }, [isRestored, draftBannerOpacity]);
 
   const selectedBatchId = watch('batchId');
   const kind = watch('kind');
@@ -167,12 +189,14 @@ export function TreatmentEntryScreen({
       });
 
       setMessage('Treatment logged successfully.');
-      reset({
+      const nextValues = {
         ...data,
         quantity: '',
         notes: '',
         catalogItemId: '',
-      });
+      };
+      reset(nextValues);
+      clearPersistedData();
       showSuccessToast('Treatment logged successfully.');
     } catch (error) {
       console.warn('Failed to log treatment:', error);
@@ -204,6 +228,12 @@ export function TreatmentEntryScreen({
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
       >
+        {/* Draft restored banner */}
+        <Animated.View style={[styles.draftBanner, { opacity: draftBannerOpacity }]} pointerEvents="none">
+          <Ionicons name="cloud-done-outline" size={16} color={Colors.primary} />
+          <Text style={styles.draftBannerText}>Draft restored</Text>
+        </Animated.View>
+
         <Text style={styles.pageTitle}>{subtitle}</Text>
 
         <View style={styles.card}>
@@ -398,6 +428,23 @@ export function TreatmentEntryScreen({
 
 const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: Colors.background },
+  draftBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: '#E8F5E9',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#C8E6C9',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    marginBottom: 10,
+  },
+  draftBannerText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: Colors.primary,
+  },
   header: {
     flexDirection: 'row', alignItems: 'center', paddingHorizontal: Layout.screenPadding,
     paddingVertical: 14, backgroundColor: Colors.surface, borderBottomWidth: 1, borderBottomColor: Colors.border,

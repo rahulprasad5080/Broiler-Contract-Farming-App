@@ -1,9 +1,10 @@
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useFocusEffect } from '@react-navigation/native';
-import React, { useCallback, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
+  Animated,
   ScrollView,
   StyleSheet,
   Text,
@@ -28,6 +29,7 @@ import {
   showRequestErrorToast,
   showSuccessToast,
 } from '@/services/apiFeedback';
+import { useFormPersistence } from '@/hooks/useFormPersistence';
 
 type DailyEntryScreenProps = {
   title?: string;
@@ -75,6 +77,18 @@ const dailyEntrySchema = z.object({
 
 type DailyEntryFormData = z.infer<typeof dailyEntrySchema>;
 
+const DAILY_ENTRY_DEFAULTS = {
+  batchId: '',
+  logDate: todayValue(),
+  openingBirdCount: '',
+  mortalityCount: '',
+  cullCount: '',
+  feedConsumedKg: '',
+  waterConsumedLtr: '',
+  avgWeightGrams: '',
+  notes: '',
+} satisfies DailyEntryFormData;
+
 export function DailyEntryScreen({
   title = 'Daily Entry',
   subtitle = 'Capture mortality, feed, water, and average weight for the active batch.',
@@ -87,20 +101,28 @@ export function DailyEntryScreen({
   const [submitting, setSubmitting] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
 
+  const draftBannerOpacity = useRef(new Animated.Value(0)).current;
+
   const { control, handleSubmit, setValue, watch, reset, formState: { errors: formErrors } } = useForm<DailyEntryFormData>({
     resolver: zodResolver(dailyEntrySchema),
-    defaultValues: {
-      batchId: '',
-      logDate: todayValue(),
-      openingBirdCount: '',
-      mortalityCount: '',
-      cullCount: '',
-      feedConsumedKg: '',
-      waterConsumedLtr: '',
-      avgWeightGrams: '',
-      notes: '',
-    },
+    defaultValues: DAILY_ENTRY_DEFAULTS,
   });
+
+  const { clearPersistedData, isRestored } = useFormPersistence(
+    'form_draft_daily_entry',
+    watch,
+    reset,
+    DAILY_ENTRY_DEFAULTS,
+  );
+
+  useEffect(() => {
+    if (!isRestored) return;
+    Animated.sequence([
+      Animated.timing(draftBannerOpacity, { toValue: 1, duration: 300, useNativeDriver: true }),
+      Animated.delay(2500),
+      Animated.timing(draftBannerOpacity, { toValue: 0, duration: 400, useNativeDriver: true }),
+    ]).start();
+  }, [isRestored, draftBannerOpacity]);
 
   const selectedBatchId = watch('batchId');
 
@@ -181,7 +203,7 @@ export function DailyEntryScreen({
       });
 
       setMessage(`Saved daily log for ${created.logDate}.`);
-      reset({
+      const nextValues = {
         ...data,
         mortalityCount: '',
         cullCount: '',
@@ -189,7 +211,9 @@ export function DailyEntryScreen({
         waterConsumedLtr: '',
         avgWeightGrams: '',
         notes: '',
-      });
+      };
+      reset(nextValues);
+      clearPersistedData();
       showSuccessToast('Daily log saved successfully.');
     } catch (error) {
       console.warn('Failed to create daily log:', error);
@@ -221,6 +245,12 @@ export function DailyEntryScreen({
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
       >
+        {/* Draft restored banner */}
+        <Animated.View style={[styles.draftBanner, { opacity: draftBannerOpacity }]} pointerEvents="none">
+          <Ionicons name="cloud-done-outline" size={16} color={Colors.primary} />
+          <Text style={styles.draftBannerText}>Draft restored</Text>
+        </Animated.View>
+
         <Text style={styles.pageTitle}>{subtitle}</Text>
 
         <View style={styles.noticeCard}>
@@ -494,6 +524,23 @@ const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
     backgroundColor: Colors.background,
+  },
+  draftBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: '#E8F5E9',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#C8E6C9',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    marginBottom: 10,
+  },
+  draftBannerText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: Colors.primary,
   },
   header: {
     flexDirection: 'row',

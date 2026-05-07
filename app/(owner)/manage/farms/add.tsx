@@ -1,8 +1,9 @@
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
+  Animated,
   Modal,
   ScrollView,
   StyleSheet,
@@ -17,6 +18,7 @@ import { Layout } from '@/constants/Layout';
 import { useAuth } from '@/context/AuthContext';
 import Toast from 'react-native-toast-message';
 import { createFarm, listAllUsers, type ApiUser } from '@/services/managementApi';
+import { useFormPersistence } from '@/hooks/useFormPersistence';
 
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -96,6 +98,20 @@ const farmSchema = z.object({
 
 type FarmFormData = z.infer<typeof farmSchema>;
 
+const FARM_FORM_DEFAULTS: FarmFormData = {
+  name: '',
+  code: generateFarmCode(''),
+  location: '',
+  village: '',
+  district: '',
+  state: '',
+  capacity: '5000',
+  notes: '',
+  primaryFarmerId: '',
+  supervisorId: '',
+  assignmentUserIds: [],
+};
+
 export default function AddFarmScreen() {
   const router = useRouter();
   const { accessToken } = useAuth();
@@ -109,22 +125,30 @@ export default function AddFarmScreen() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Animated opacity for the "Draft restored" banner
+  const draftBannerOpacity = useRef(new Animated.Value(0)).current;
+
   const { control, handleSubmit, setValue, watch, reset, formState: { errors: formErrors } } = useForm<FarmFormData>({
     resolver: zodResolver(farmSchema),
-    defaultValues: {
-      name: '',
-      code: generateFarmCode(''),
-      location: '',
-      village: '',
-      district: '',
-      state: '',
-      capacity: '5000',
-      notes: '',
-      primaryFarmerId: '',
-      supervisorId: '',
-      assignmentUserIds: [],
-    },
+    defaultValues: FARM_FORM_DEFAULTS,
   });
+
+  const { clearPersistedData, isRestored } = useFormPersistence(
+    'form_draft_add_farm',
+    watch,
+    reset,
+    FARM_FORM_DEFAULTS,
+  );
+
+  // Show and fade out the draft-restored banner
+  useEffect(() => {
+    if (!isRestored) return;
+    Animated.sequence([
+      Animated.timing(draftBannerOpacity, { toValue: 1, duration: 300, useNativeDriver: true }),
+      Animated.delay(2500),
+      Animated.timing(draftBannerOpacity, { toValue: 0, duration: 400, useNativeDriver: true }),
+    ]).start();
+  }, [isRestored, draftBannerOpacity]);
 
   const farmName = watch('name');
   const farmCode = watch('code');
@@ -246,6 +270,7 @@ export default function AddFarmScreen() {
         assignmentUserIds: data.assignmentUserIds?.length ? data.assignmentUserIds : undefined,
       });
 
+      clearPersistedData();
       reset();
       Toast.show({type: 'success', text1: 'Success', text2: 'Farm created successfully.',
   position: 'bottom'});
@@ -281,6 +306,12 @@ export default function AddFarmScreen() {
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
       >
+        {/* Draft restored banner */}
+        <Animated.View style={[styles.draftBanner, { opacity: draftBannerOpacity }]} pointerEvents="none">
+          <Ionicons name="cloud-done-outline" size={16} color={Colors.primary} />
+          <Text style={styles.draftBannerText}>Draft restored</Text>
+        </Animated.View>
+
         <Text style={styles.pageTitle}>Create Farm</Text>
         <Text style={styles.pageSubtitle}>Set up farm details and assign staff in one place.</Text>
 
@@ -659,6 +690,23 @@ export default function AddFarmScreen() {
 
 const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: '#F4F5F7' },
+  draftBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: '#E8F5E9',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#C8E6C9',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    marginBottom: 12,
+  },
+  draftBannerText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: Colors.primary,
+  },
   header: {
     flexDirection: 'row',
     alignItems: 'center',

@@ -1,9 +1,10 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useFocusEffect } from '@react-navigation/native';
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
+  Animated,
   ScrollView,
   StyleSheet,
   Text,
@@ -17,6 +18,7 @@ import { Layout } from '@/constants/Layout';
 import { useAuth } from '@/context/AuthContext';
 import Toast from 'react-native-toast-message';
 import { ApiFarm, createBatch, listAllFarms } from '@/services/managementApi';
+import { useFormPersistence } from '@/hooks/useFormPersistence';
 
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -57,6 +59,18 @@ const batchSchema = z.object({
 
 type BatchFormData = z.infer<typeof batchSchema>;
 
+const BATCH_FORM_DEFAULTS = {
+  farmId: '',
+  code: '',
+  placementDate: todayValue(),
+  placementCount: '',
+  chickCostTotal: '',
+  chickRatePerBird: '',
+  sourceHatchery: '',
+  targetCloseDate: '',
+  notes: '',
+} satisfies BatchFormData;
+
 export default function CreateBatchScreen() {
   const router = useRouter();
   const { accessToken, user } = useAuth();
@@ -65,20 +79,30 @@ export default function CreateBatchScreen() {
   const [submitting, setSubmitting] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
 
+  // Animated opacity for the "Draft restored" banner
+  const draftBannerOpacity = useRef(new Animated.Value(0)).current;
+
   const { control, handleSubmit, setValue, watch, reset, formState: { errors: formErrors } } = useForm<BatchFormData>({
     resolver: zodResolver(batchSchema),
-    defaultValues: {
-      farmId: '',
-      code: '',
-      placementDate: todayValue(),
-      placementCount: '',
-      chickCostTotal: '',
-      chickRatePerBird: '',
-      sourceHatchery: '',
-      targetCloseDate: '',
-      notes: '',
-    },
+    defaultValues: BATCH_FORM_DEFAULTS,
   });
+
+  const { clearPersistedData, isRestored } = useFormPersistence(
+    'form_draft_create_batch',
+    watch,
+    reset,
+    BATCH_FORM_DEFAULTS,
+  );
+
+  // Show and fade out the draft-restored banner
+  useEffect(() => {
+    if (!isRestored) return;
+    Animated.sequence([
+      Animated.timing(draftBannerOpacity, { toValue: 1, duration: 300, useNativeDriver: true }),
+      Animated.delay(2500),
+      Animated.timing(draftBannerOpacity, { toValue: 0, duration: 400, useNativeDriver: true }),
+    ]).start();
+  }, [isRestored, draftBannerOpacity]);
 
   const selectedFarmId = watch('farmId');
 
@@ -143,6 +167,7 @@ export default function CreateBatchScreen() {
         notes: data.notes?.trim() || undefined,
       });
 
+      clearPersistedData();
       reset();
       Toast.show({type: 'success', text1: 'Success', text2: `Batch ${created.code} created successfully.`,
   position: 'bottom'});
@@ -171,6 +196,12 @@ export default function CreateBatchScreen() {
       </View>
 
       <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
+        {/* Draft restored banner */}
+        <Animated.View style={[styles.draftBanner, { opacity: draftBannerOpacity }]} pointerEvents="none">
+          <Ionicons name="cloud-done-outline" size={16} color={Colors.primary} />
+          <Text style={styles.draftBannerText}>Draft restored</Text>
+        </Animated.View>
+
         <View style={styles.noticeCard}>
           <Ionicons name="information-circle-outline" size={20} color={Colors.primary} />
           <Text style={styles.noticeText}>
@@ -439,6 +470,23 @@ const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
     backgroundColor: Colors.background,
+  },
+  draftBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: '#E8F5E9',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#C8E6C9',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    marginBottom: 10,
+  },
+  draftBannerText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: Colors.primary,
   },
   header: {
     flexDirection: 'row',

@@ -1,4 +1,5 @@
-import React, { useEffect, useState } from 'react';
+import { Ionicons } from '@expo/vector-icons';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -6,12 +7,12 @@ import {
   ScrollView,
   TouchableOpacity,
   ActivityIndicator,
+  Animated,
   TextInput,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Colors } from '@/constants/Colors';
 import { Layout } from '@/constants/Layout';
-import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useAuth } from '@/context/AuthContext';
 import {
@@ -27,6 +28,7 @@ import {
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
+import { useFormPersistence } from '@/hooks/useFormPersistence';
 
 const CATALOG_TYPES: ApiCatalogItemType[] = ['FEED', 'VACCINE', 'MEDICINE', 'OTHER'];
 
@@ -39,6 +41,13 @@ const catalogSchema = z.object({
 
 type CatalogFormData = z.infer<typeof catalogSchema>;
 
+const CATALOG_DEFAULTS = {
+  name: '',
+  type: 'FEED' as const,
+  unit: '',
+  manufacturer: '',
+} satisfies CatalogFormData;
+
 export default function SupervisorCatalogScreen() {
   const router = useRouter();
   const { accessToken } = useAuth();
@@ -47,15 +56,28 @@ export default function SupervisorCatalogScreen() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
-  const { control, handleSubmit, reset, formState: { errors: formErrors } } = useForm<CatalogFormData>({
+  const draftBannerOpacity = useRef(new Animated.Value(0)).current;
+
+  const { control, handleSubmit, reset, watch, formState: { errors: formErrors } } = useForm<CatalogFormData>({
     resolver: zodResolver(catalogSchema),
-    defaultValues: {
-      name: '',
-      type: 'FEED',
-      unit: '',
-      manufacturer: '',
-    },
+    defaultValues: CATALOG_DEFAULTS,
   });
+
+  const { clearPersistedData, isRestored } = useFormPersistence(
+    'form_draft_catalog_item',
+    watch,
+    reset,
+    CATALOG_DEFAULTS,
+  );
+
+  useEffect(() => {
+    if (!isRestored) return;
+    Animated.sequence([
+      Animated.timing(draftBannerOpacity, { toValue: 1, duration: 300, useNativeDriver: true }),
+      Animated.delay(2500),
+      Animated.timing(draftBannerOpacity, { toValue: 0, duration: 400, useNativeDriver: true }),
+    ]).start();
+  }, [isRestored, draftBannerOpacity]);
 
   useEffect(() => {
     const fetchCatalog = async () => {
@@ -89,6 +111,7 @@ export default function SupervisorCatalogScreen() {
         manufacturer: data.manufacturer?.trim() || undefined,
       });
       setItems((prev) => [created, ...prev]);
+      clearPersistedData();
       reset();
       showSuccessToast('Catalog item added.');
     } catch (error) {
@@ -113,6 +136,12 @@ export default function SupervisorCatalogScreen() {
 
       <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
         <View style={styles.card}>
+          {/* Draft restored banner */}
+          <Animated.View style={[styles.draftBanner, { opacity: draftBannerOpacity }]} pointerEvents="none">
+            <Ionicons name="cloud-done-outline" size={16} color={Colors.primary} />
+            <Text style={styles.draftBannerText}>Draft restored</Text>
+          </Animated.View>
+
           <Text style={styles.sectionTitle}>Add New Item</Text>
 
           <Controller
@@ -243,6 +272,23 @@ const styles = StyleSheet.create({
   backBtn: { marginRight: 16 },
   headerTitle: { fontSize: 20, fontWeight: 'bold', color: Colors.text },
   container: { padding: Layout.screenPadding, paddingBottom: 100, maxWidth: Layout.contentMaxWidth, alignSelf: 'center', width: '100%' },
+  draftBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: '#E8F5E9',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#C8E6C9',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    marginBottom: 12,
+  },
+  draftBannerText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: Colors.primary,
+  },
   card: {
     backgroundColor: '#FFF', borderRadius: 12, padding: 16, marginBottom: 16,
     borderWidth: 1, borderColor: Colors.border, ...Layout.cardShadow,

@@ -1,9 +1,10 @@
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import { useRouter } from 'expo-router';
-import React, { useCallback, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
+  Animated,
   ScrollView,
   StyleSheet,
   Text,
@@ -30,6 +31,7 @@ import {
   showRequestErrorToast,
   showSuccessToast,
 } from '@/services/apiFeedback';
+import { useFormPersistence } from '@/hooks/useFormPersistence';
 
 type SalesEntryScreenProps = {
   title?: string;
@@ -85,6 +87,20 @@ const salesEntrySchema = z.object({
 
 type SalesEntryFormData = z.infer<typeof salesEntrySchema>;
 
+const SALES_ENTRY_DEFAULTS = {
+  batchId: '',
+  traderId: '',
+  saleDate: todayValue(),
+  birdCount: '',
+  totalWeightKg: '',
+  ratePerKg: '',
+  paymentReceivedAmount: '',
+  transportCharge: '',
+  commissionCharge: '',
+  otherDeduction: '',
+  notes: '',
+} satisfies SalesEntryFormData;
+
 export function SalesEntryScreen({
   title = 'Sales Entry',
   subtitle = 'Record birds sold, weight, rate, and final sale status for a live batch.',
@@ -100,22 +116,28 @@ export function SalesEntryScreen({
   const [submitting, setSubmitting] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
 
+  const draftBannerOpacity = useRef(new Animated.Value(0)).current;
+
   const { control, handleSubmit, setValue, watch, reset, formState: { errors: formErrors } } = useForm<SalesEntryFormData>({
     resolver: zodResolver(salesEntrySchema),
-    defaultValues: {
-      batchId: '',
-      traderId: '',
-      saleDate: todayValue(),
-      birdCount: '',
-      totalWeightKg: '',
-      ratePerKg: '',
-      paymentReceivedAmount: '',
-      transportCharge: '',
-      commissionCharge: '',
-      otherDeduction: '',
-      notes: '',
-    },
+    defaultValues: SALES_ENTRY_DEFAULTS,
   });
+
+  const { clearPersistedData, isRestored } = useFormPersistence(
+    'form_draft_sales_entry',
+    watch,
+    reset,
+    SALES_ENTRY_DEFAULTS,
+  );
+
+  useEffect(() => {
+    if (!isRestored) return;
+    Animated.sequence([
+      Animated.timing(draftBannerOpacity, { toValue: 1, duration: 300, useNativeDriver: true }),
+      Animated.delay(2500),
+      Animated.timing(draftBannerOpacity, { toValue: 0, duration: 400, useNativeDriver: true }),
+    ]).start();
+  }, [isRestored, draftBannerOpacity]);
 
   const selectedBatchId = watch('batchId');
   const traderId = watch('traderId');
@@ -228,7 +250,7 @@ export function SalesEntryScreen({
           ? `Sale finalized for ${created.saleDate}.`
           : `Draft sale saved for ${created.saleDate}.`,
       );
-      reset({
+      const nextValues = {
         ...data,
         birdCount: '',
         totalWeightKg: '',
@@ -238,7 +260,9 @@ export function SalesEntryScreen({
         otherDeduction: '',
         paymentReceivedAmount: '',
         notes: '',
-      });
+      };
+      reset(nextValues);
+      clearPersistedData();
       showSuccessToast('Sale saved successfully.');
     } catch (error) {
       console.warn('Failed to save sale:', error);
@@ -270,6 +294,12 @@ export function SalesEntryScreen({
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
+        {/* Draft restored banner */}
+        <Animated.View style={[styles.draftBanner, { opacity: draftBannerOpacity }]} pointerEvents="none">
+          <Ionicons name="cloud-done-outline" size={16} color={Colors.primary} />
+          <Text style={styles.draftBannerText}>Draft restored</Text>
+        </Animated.View>
+
         <Text style={styles.pageTitle}>{subtitle}</Text>
 
         <View style={styles.noticeCard}>
@@ -658,6 +688,23 @@ const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
     backgroundColor: Colors.background,
+  },
+  draftBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: '#E8F5E9',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#C8E6C9',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    marginBottom: 10,
+  },
+  draftBannerText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: Colors.primary,
   },
   header: {
     flexDirection: 'row',
