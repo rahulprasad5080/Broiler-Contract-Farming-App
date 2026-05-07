@@ -1,7 +1,7 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
-import { AppState, AppStateStatus } from 'react-native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import type { FieldValues, UseFormWatch, UseFormReset } from 'react-hook-form';
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { useCallback, useEffect, useRef, useState } from "react";
+import type { FieldValues, UseFormReset, UseFormWatch } from "react-hook-form";
+import { AppState, AppStateStatus } from "react-native";
 
 /**
  * Persists React Hook Form data to AsyncStorage so that form values survive
@@ -65,6 +65,8 @@ export function useFormPersistence<T extends FieldValues>(
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [storageKey]);
 
+  //rahul
+
   // ── 2. Debounced save on every field change ───────────────────────────────
   useEffect(() => {
     const subscription = watch((values) => {
@@ -72,8 +74,8 @@ export function useFormPersistence<T extends FieldValues>(
         clearTimeout(debounceRef.current);
       }
       debounceRef.current = setTimeout(() => {
-        AsyncStorage.setItem(storageKey, JSON.stringify(values)).catch(
-          (err) => console.warn('[useFormPersistence] Failed to save draft:', err),
+        AsyncStorage.setItem(storageKey, JSON.stringify(values)).catch((err) =>
+          console.warn("[useFormPersistence] Failed to save draft:", err),
         );
       }, 300);
     });
@@ -89,27 +91,30 @@ export function useFormPersistence<T extends FieldValues>(
   // ── 3. Immediate save when app moves to background ───────────────────────
   useEffect(() => {
     const handleAppState = (nextState: AppStateStatus) => {
-      if (nextState === 'background' || nextState === 'inactive') {
+      if (nextState === "background" || nextState === "inactive") {
         // Cancel any pending debounce and write immediately
         if (debounceRef.current) {
           clearTimeout(debounceRef.current);
           debounceRef.current = null;
         }
         const values = watchRef.current();
-        AsyncStorage.setItem(storageKey, JSON.stringify(values)).catch(
-          (err) => console.warn('[useFormPersistence] Failed to save on background:', err),
+        AsyncStorage.setItem(storageKey, JSON.stringify(values)).catch((err) =>
+          console.warn(
+            "[useFormPersistence] Failed to save on background:",
+            err,
+          ),
         );
       }
     };
 
-    const subscription = AppState.addEventListener('change', handleAppState);
+    const subscription = AppState.addEventListener("change", handleAppState);
     return () => subscription.remove();
   }, [storageKey]);
 
   // ── 4. Cleanup helper — call after successful submission ──────────────────
   const clearPersistedData = useCallback(() => {
-    AsyncStorage.removeItem(storageKey).catch(
-      (err) => console.warn('[useFormPersistence] Failed to clear draft:', err),
+    AsyncStorage.removeItem(storageKey).catch((err) =>
+      console.warn("[useFormPersistence] Failed to clear draft:", err),
     );
   }, [storageKey]);
 
