@@ -2,6 +2,7 @@ import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { BottomTabBarProps } from '@react-navigation/bottom-tabs';
+import { CommonActions } from '@react-navigation/native';
 import { Colors } from '../../constants/Colors';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -41,8 +42,17 @@ export function BottomTabs({ state, descriptors, navigation }: BottomTabBarProps
             canPreventDefault: true,
           });
 
-          if (!isFocused && !event.defaultPrevented) {
-            navigation.navigate(route.name);
+          if (!event.defaultPrevented) {
+            // Always navigate to the root (index) of the tab's nested stack.
+            // This prevents stale nested screens (e.g. daily-entry) from showing
+            // when the user switches away and then back to this tab.
+            // When already focused, this also acts as a "pop to top" gesture.
+            navigation.dispatch(
+              CommonActions.navigate({
+                name: route.name,
+                params: { screen: 'index' },
+              })
+            );
           }
         };
 
