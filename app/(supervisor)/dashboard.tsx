@@ -4,10 +4,8 @@ import { ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Colors } from '../../constants/Colors';
 import { Layout } from '../../constants/Layout';
-import { useAuth } from '../../context/AuthContext';
 
 export default function SupervisorDashboard() {
-  const { signOut } = useAuth();
   const insets = useSafeAreaInsets();
 
   return (

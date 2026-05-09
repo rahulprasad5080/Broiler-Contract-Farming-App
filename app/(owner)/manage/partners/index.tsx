@@ -1,4 +1,8 @@
+import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { useRouter } from 'expo-router';
 import React, { useMemo, useState } from 'react';
+import { Controller, useForm } from 'react-hook-form';
 import {
   Modal,
   ScrollView,
@@ -9,8 +13,7 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
+import { z } from 'zod';
 import { Colors } from '@/constants/Colors';
 import { Layout } from '@/constants/Layout';
 import { useAuth } from '@/context/AuthContext';
@@ -71,10 +74,6 @@ function statusColor(status: PartnerStatus) {
   if (status === 'Review') return Colors.warning;
   return Colors.textSecondary;
 }
-
-import { useForm, Controller } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import { z } from 'zod';
 
 const partnerSchema = z.object({
   name: z.string().min(1, 'Partner name is required'),

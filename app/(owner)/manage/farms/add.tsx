@@ -150,8 +150,6 @@ export default function AddFarmScreen() {
     ]).start();
   }, [isRestored, draftBannerOpacity]);
 
-  const farmName = watch('name');
-  const farmCode = watch('code');
   const primaryFarmerId = watch('primaryFarmerId');
   const supervisorId = watch('supervisorId');
   const assignmentUserIds = watch('assignmentUserIds') || [];
@@ -270,7 +268,7 @@ export default function AddFarmScreen() {
         assignmentUserIds: data.assignmentUserIds?.length ? data.assignmentUserIds : undefined,
       });
 
-      clearPersistedData();
+      await clearPersistedData();
       reset();
       Toast.show({type: 'success', text1: 'Success', text2: 'Farm created successfully.',
   position: 'bottom'});

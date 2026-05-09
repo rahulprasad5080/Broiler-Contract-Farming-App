@@ -111,7 +111,7 @@ export default function SupervisorCatalogScreen() {
         manufacturer: data.manufacturer?.trim() || undefined,
       });
       setItems((prev) => [created, ...prev]);
-      clearPersistedData();
+      await clearPersistedData();
       reset();
       showSuccessToast('Catalog item added.');
     } catch (error) {

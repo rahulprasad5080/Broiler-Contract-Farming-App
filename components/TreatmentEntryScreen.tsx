@@ -32,6 +32,7 @@ import {
   showRequestErrorToast,
   showSuccessToast,
 } from '@/services/apiFeedback';
+import { getLocalDateValue } from '@/services/dateUtils';
 import { useFormPersistence } from '@/hooks/useFormPersistence';
 
 type TreatmentEntryScreenProps = {
@@ -40,7 +41,7 @@ type TreatmentEntryScreenProps = {
 };
 
 function todayValue() {
-  return new Date().toISOString().slice(0, 10);
+  return getLocalDateValue();
 }
 
 function batchLabel(batch: ApiBatch) {
@@ -196,7 +197,7 @@ export function TreatmentEntryScreen({
         catalogItemId: '',
       };
       reset(nextValues);
-      clearPersistedData();
+      await clearPersistedData();
       showSuccessToast('Treatment logged successfully.');
     } catch (error) {
       console.warn('Failed to log treatment:', error);

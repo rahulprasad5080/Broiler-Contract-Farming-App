@@ -3,6 +3,8 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import type { FieldValues, UseFormReset, UseFormWatch } from "react-hook-form";
 import { AppState, AppStateStatus } from "react-native";
 
+import { createDraftPersistenceController } from "./formPersistenceController";
+
 /**
  * Persists React Hook Form data to AsyncStorage so that form values survive
  * app minimization, OS background kills, and navigation back/forth.
@@ -34,9 +36,9 @@ export function useFormPersistence<T extends FieldValues>(
    * sensible default even when the persisted draft pre-dates a schema change.
    */
   defaultValues: T,
-): { clearPersistedData: () => void; isRestored: boolean } {
+): { clearPersistedData: () => Promise<void>; isRestored: boolean } {
   const [isRestored, setIsRestored] = useState(false);
-  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const draftControllerRef = useRef(createDraftPersistenceController());
   // Keep a stable ref to `watch` so AppState handler always reads current values
   const watchRef = useRef(watch);
   watchRef.current = watch;
@@ -70,21 +72,19 @@ export function useFormPersistence<T extends FieldValues>(
   // ── 2. Debounced save on every field change ───────────────────────────────
   useEffect(() => {
     const subscription = watch((values) => {
-      if (debounceRef.current) {
-        clearTimeout(debounceRef.current);
-      }
-      debounceRef.current = setTimeout(() => {
-        AsyncStorage.setItem(storageKey, JSON.stringify(values)).catch((err) =>
-          console.warn("[useFormPersistence] Failed to save draft:", err),
-        );
-      }, 300);
+      draftControllerRef.current.scheduleSave(
+        () => {
+          AsyncStorage.setItem(storageKey, JSON.stringify(values)).catch((err) =>
+            console.warn("[useFormPersistence] Failed to save draft:", err),
+          );
+        },
+        300,
+      );
     });
 
     return () => {
       subscription.unsubscribe();
-      if (debounceRef.current) {
-        clearTimeout(debounceRef.current);
-      }
+      draftControllerRef.current.cancelPendingSave();
     };
   }, [watch, storageKey]);
 
@@ -92,16 +92,13 @@ export function useFormPersistence<T extends FieldValues>(
   useEffect(() => {
     const handleAppState = (nextState: AppStateStatus) => {
       if (nextState === "background" || nextState === "inactive") {
-        // Cancel any pending debounce and write immediately
-        if (debounceRef.current) {
-          clearTimeout(debounceRef.current);
-          debounceRef.current = null;
-        }
         const values = watchRef.current();
-        AsyncStorage.setItem(storageKey, JSON.stringify(values)).catch((err) =>
-          console.warn(
-            "[useFormPersistence] Failed to save on background:",
-            err,
+        draftControllerRef.current.saveImmediately(() =>
+          AsyncStorage.setItem(storageKey, JSON.stringify(values)).catch((err) =>
+            console.warn(
+              "[useFormPersistence] Failed to save on background:",
+              err,
+            ),
           ),
         );
       }
@@ -112,10 +109,12 @@ export function useFormPersistence<T extends FieldValues>(
   }, [storageKey]);
 
   // ── 4. Cleanup helper — call after successful submission ──────────────────
-  const clearPersistedData = useCallback(() => {
-    AsyncStorage.removeItem(storageKey).catch((err) =>
-      console.warn("[useFormPersistence] Failed to clear draft:", err),
-    );
+  const clearPersistedData = useCallback(async () => {
+    try {
+      await draftControllerRef.current.clear(() => AsyncStorage.removeItem(storageKey));
+    } catch (err) {
+      console.warn("[useFormPersistence] Failed to clear draft:", err);
+    }
   }, [storageKey]);
 
   return { clearPersistedData, isRestored };

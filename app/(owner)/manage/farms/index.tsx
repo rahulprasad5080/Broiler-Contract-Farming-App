@@ -24,7 +24,6 @@ import {
   updateFarm,
   type ApiFarm,
   type ApiUser,
-  type UpdateFarmRequest,
 } from '@/services/managementApi';
 
 import { useForm, Controller } from 'react-hook-form';

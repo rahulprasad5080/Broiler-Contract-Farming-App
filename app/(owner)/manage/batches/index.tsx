@@ -15,6 +15,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Colors } from '@/constants/Colors';
 import { Layout } from '@/constants/Layout';
 import { useAuth } from '@/context/AuthContext';
+import { getLocalDateValue } from '@/services/dateUtils';
 import {
   ApiBatch,
   listAllBatches,
@@ -80,7 +81,7 @@ export default function BatchManagementScreen() {
           try {
             await updateBatchStatus(accessToken, batch.id, {
               status: 'CLOSED',
-              actualCloseDate: new Date().toISOString().slice(0, 10),
+              actualCloseDate: getLocalDateValue(),
             });
             await loadBatches();
             setMessage(`${batch.code} closed successfully.`);

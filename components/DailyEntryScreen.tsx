@@ -34,6 +34,7 @@ import {
   showRequestErrorToast,
   showSuccessToast,
 } from "@/services/apiFeedback";
+import { getLocalDateValue } from "@/services/dateUtils";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Controller, useForm } from "react-hook-form";
 import { z } from "zod";
@@ -46,7 +47,7 @@ type DailyEntryScreenProps = {
 const WEEK_DAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
 function todayValue() {
-  return new Date().toISOString().slice(0, 10);
+  return getLocalDateValue();
 }
 
 function formatDateValue(date: Date) {
@@ -360,7 +361,7 @@ export function DailyEntryScreen({
         notes: "",
       };
       reset(nextValues);
-      clearPersistedData();
+      await clearPersistedData();
       showSuccessToast("Daily log saved successfully.");
     } catch (error) {
       console.warn("Failed to create daily log:", error);

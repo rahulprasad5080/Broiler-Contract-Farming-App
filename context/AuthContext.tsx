@@ -23,6 +23,10 @@ import {
   hasAnyQuickAuth,
 } from "../services/authSecurity";
 import { normalizeMobileNumber } from "../services/authValidation";
+import {
+  getDashboardRoute,
+  isRouteAllowedForRole,
+} from "../services/routeGuards";
 
 export type UserRole = ApiRole | null;
 export type Permission =
@@ -87,12 +91,6 @@ const UNLOCK_SCREENS = [
   "quick-login-password",
 ];
 const BACKGROUND_LOCK_TIMEOUT_MS = 5 * 60 * 1000;
-
-function getDashboardRoute(role: UserRole) {
-  if (role === "OWNER") return "/(owner)/dashboard";
-  if (role === "SUPERVISOR") return "/(supervisor)/dashboard";
-  return "/(farmer)/dashboard";
-}
 
 function getPermissionsForRole(role: UserRole): Permission[] {
   if (role === "OWNER") {
@@ -309,6 +307,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
 
       if (isAppUnlocked) {
+        if (!isRouteAllowedForRole(user.role, segmentList)) {
+          if (!cancelled) {
+            router.replace(getDashboardRoute(user.role) as never);
+          }
+          if (!isReady) setIsReady(true);
+          return;
+        }
+
         if (!inAuthGroup) {
           if (!isReady) setIsReady(true);
           return;

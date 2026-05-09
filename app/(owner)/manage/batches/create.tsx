@@ -18,6 +18,7 @@ import { Layout } from '@/constants/Layout';
 import { useAuth } from '@/context/AuthContext';
 import Toast from 'react-native-toast-message';
 import { ApiFarm, createBatch, listAllFarms } from '@/services/managementApi';
+import { getLocalDateValue } from '@/services/dateUtils';
 import { useFormPersistence } from '@/hooks/useFormPersistence';
 
 import { useForm, Controller } from 'react-hook-form';
@@ -25,7 +26,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 
 function todayValue() {
-  return new Date().toISOString().slice(0, 10);
+  return getLocalDateValue();
 }
 
 function toOptionalNumber(value: string | undefined) {
@@ -167,7 +168,7 @@ export default function CreateBatchScreen() {
         notes: data.notes?.trim() || undefined,
       });
 
-      clearPersistedData();
+      await clearPersistedData();
       reset();
       Toast.show({type: 'success', text1: 'Success', text2: `Batch ${created.code} created successfully.`,
   position: 'bottom'});

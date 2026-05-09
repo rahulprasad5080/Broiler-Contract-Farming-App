@@ -13,6 +13,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Colors } from '@/constants/Colors';
 import { Layout } from '@/constants/Layout';
 import { useAuth } from '@/context/AuthContext';
+import { getLocalDateValue } from '@/services/dateUtils';
 import {
   createBatchCost,
   createCatalogItem,
@@ -116,7 +117,7 @@ export default function InventoryScreen() {
       batchId: '',
       category: 'FEED',
       catalogItemId: '',
-      costDate: new Date().toISOString().slice(0, 10),
+      costDate: getLocalDateValue(),
       amount: '',
       quantity: '',
       unitRate: '',

@@ -1,5 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
+import { zodResolver } from '@hookform/resolvers/zod';
 import React from "react";
+import { Controller, useForm } from 'react-hook-form';
 import {
   ActivityIndicator,
   Image,
@@ -12,10 +14,11 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import Toast from 'react-native-toast-message';
+import { z } from 'zod';
 
 import { Colors } from "../../constants/Colors";
 import { useAuth } from "../../context/AuthContext";
-import Toast from 'react-native-toast-message';
 import {
   authenticateWithBiometrics,
   hasQuickPin,
@@ -45,10 +48,6 @@ function PinDots({ value, hasError }: { value: string; hasError: boolean }) {
     </View>
   );
 }
-
-import { useForm, Controller } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import { z } from 'zod';
 
 const unlockPasswordSchema = z.object({
   password: z.string().min(1, 'Password is required'),

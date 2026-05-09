@@ -31,6 +31,7 @@ import {
   showRequestErrorToast,
   showSuccessToast,
 } from '@/services/apiFeedback';
+import { getLocalDateValue } from '@/services/dateUtils';
 import { useFormPersistence } from '@/hooks/useFormPersistence';
 
 type SalesEntryScreenProps = {
@@ -39,7 +40,7 @@ type SalesEntryScreenProps = {
 };
 
 function todayValue() {
-  return new Date().toISOString().slice(0, 10);
+  return getLocalDateValue();
 }
 
 function toOptionalNumber(value: string | undefined) {
@@ -262,7 +263,7 @@ export function SalesEntryScreen({
         notes: '',
       };
       reset(nextValues);
-      clearPersistedData();
+      await clearPersistedData();
       showSuccessToast('Sale saved successfully.');
     } catch (error) {
       console.warn('Failed to save sale:', error);
