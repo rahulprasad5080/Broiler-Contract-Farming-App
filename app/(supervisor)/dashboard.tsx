@@ -1,22 +1,15 @@
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import React from 'react';
 import { ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
-import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Colors } from '../../constants/Colors';
 import { Layout } from '../../constants/Layout';
 
 export default function SupervisorDashboard() {
-  const insets = useSafeAreaInsets();
-
   return (
     <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
       <View style={styles.topBar}>
         <Text style={styles.topBarTitle}>Broiler Manager</Text>
-        <View style={styles.topBarRight}>
-          <TouchableOpacity style={styles.iconBtn}>
-            <Ionicons name="search-outline" size={24} color={Colors.textSecondary} />
-          </TouchableOpacity>
-        </View>
       </View>
 
       <ScrollView contentContainerStyle={styles.scrollContent}>
@@ -91,10 +84,6 @@ export default function SupervisorDashboard() {
         </View>
       </ScrollView>
 
-      <TouchableOpacity style={[styles.fab, { bottom: 80 + (insets.bottom > 0 ? insets.bottom : 0) }]}>
-        <Ionicons name="add" size={32} color="#FFF" />
-      </TouchableOpacity>
-
     </SafeAreaView>
   );
 }
@@ -120,12 +109,6 @@ const styles = StyleSheet.create({
     color: Colors.primary,
     marginLeft: 15,
     flex: 1,
-  },
-  topBarRight: {
-    flexDirection: 'row',
-  },
-  iconBtn: {
-    marginLeft: 15,
   },
   scrollContent: {
     padding: Layout.spacing.lg,
@@ -250,22 +233,6 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: 'bold',
     color: Colors.text,
-  },
-  fab: {
-    position: 'absolute',
-    right: 20,
-    bottom: 80,
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    backgroundColor: Colors.primary,
-    justifyContent: 'center',
-    alignItems: 'center',
-    elevation: 5,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 3.84,
   },
   tabBar: {
     position: 'absolute',

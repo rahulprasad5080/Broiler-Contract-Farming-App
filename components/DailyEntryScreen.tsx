@@ -19,6 +19,7 @@ import React, {
 import {
   ActivityIndicator,
   Animated,
+  FlatList,
   Modal,
   ScrollView,
   StyleSheet,
@@ -121,9 +122,17 @@ function isFutureDate(value: string) {
   return value > todayValue();
 }
 
-function batchLabel(batch: ApiBatch) {
-  const farm = batch.farmName ? ` • ${batch.farmName}` : "";
-  return `${batch.code}${farm}`;
+function formatReadableDate(value?: string | null) {
+  if (!value) return "Select date";
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+
+  return date.toLocaleDateString("en-US", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+  });
 }
 
 const optionalNumericField = (
@@ -210,7 +219,9 @@ export function DailyEntryScreen({
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
+  const [batchDropdownOpen, setBatchDropdownOpen] = useState(false);
   const [showDatePicker, setShowDatePicker] = useState(false);
+  const [showDraftBanner, setShowDraftBanner] = useState(false);
   const [calendarMonth, setCalendarMonth] = useState(() =>
     monthFromValue(todayValue()),
   );
@@ -239,6 +250,7 @@ export function DailyEntryScreen({
 
   useEffect(() => {
     if (!isRestored) return;
+    setShowDraftBanner(true);
     Animated.sequence([
       Animated.timing(draftBannerOpacity, {
         toValue: 1,
@@ -251,7 +263,7 @@ export function DailyEntryScreen({
         duration: 400,
         useNativeDriver: true,
       }),
-    ]).start();
+    ]).start(() => setShowDraftBanner(false));
   }, [isRestored, draftBannerOpacity]);
 
   const selectedBatchId = watch("batchId");
@@ -328,6 +340,14 @@ export function DailyEntryScreen({
 
   const selectedBatch =
     batches.find((batch) => batch.id === selectedBatchId) ?? null;
+  const completedMetricCount = [
+    watch("openingBirdCount"),
+    watch("mortalityCount"),
+    watch("cullCount"),
+    watch("feedConsumedKg"),
+    watch("waterConsumedLtr"),
+    watch("avgWeightGrams"),
+  ].filter((value) => !isBlank(value)).length;
 
   const onSubmit = async (data: DailyEntryFormData) => {
     if (!accessToken || !data.batchId) {
@@ -393,27 +413,40 @@ export function DailyEntryScreen({
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
       >
-        {/* Draft restored banner */}
-        <Animated.View
-          style={[styles.draftBanner, { opacity: draftBannerOpacity }]}
-          pointerEvents="none"
-        >
-          <Ionicons
-            name="cloud-done-outline"
-            size={16}
-            color={Colors.primary}
-          />
-          <Text style={styles.draftBannerText}>Draft restored</Text>
-        </Animated.View>
+        {showDraftBanner ? (
+          <Animated.View
+            style={[styles.draftBanner, { opacity: draftBannerOpacity }]}
+            pointerEvents="none"
+          >
+            <Ionicons
+              name="cloud-done-outline"
+              size={16}
+              color={Colors.primary}
+            />
+            <Text style={styles.draftBannerText}>Draft restored</Text>
+          </Animated.View>
+        ) : null}
 
-        <Text style={styles.pageTitle}>{subtitle}</Text>
-
-        <View style={styles.noticeCard}>
-          <Ionicons name="clipboard-outline" size={20} color={Colors.primary} />
-          <Text style={styles.noticeText}>
-            Daily logs are saved live to the backend and can be corrected later
-            with the same batch.
-          </Text>
+        <View style={styles.dailyHero}>
+          <View style={styles.dailyHeroIcon}>
+            <MaterialCommunityIcons
+              name="clipboard-text-outline"
+              size={22}
+              color={Colors.primary}
+            />
+          </View>
+          <View style={styles.dailyHeroCopy}>
+            <Text style={styles.dailyHeroTitle}>Flock Daily Record</Text>
+            <Text style={styles.dailyHeroMeta} numberOfLines={1}>
+              {selectedBatch?.code ?? "Select batch"} | {formatReadableDate(logDateValue)}
+            </Text>
+            <Text style={styles.dailyHeroHint} numberOfLines={2}>
+              {subtitle}
+            </Text>
+          </View>
+          <View style={styles.dailyModePill}>
+            <Text style={styles.dailyModeText}>{completedMetricCount}/6 filled</Text>
+          </View>
         </View>
 
         <View style={styles.card}>
@@ -437,37 +470,114 @@ export function DailyEntryScreen({
                     </Text>
                   </View>
                 ) : (
-                  <ScrollView
-                    horizontal
-                    showsHorizontalScrollIndicator={false}
-                    contentContainerStyle={styles.chipRow}
-                  >
-                    {activeBatches.map((batch) => {
-                      const active = batch.id === value;
-                      return (
-                        <TouchableOpacity
-                          key={batch.id}
+                  <>
+                    <TouchableOpacity
+                      style={[
+                        styles.batchDropdownTrigger,
+                        batchDropdownOpen && styles.batchDropdownTriggerActive,
+                        formErrors.batchId && { borderColor: Colors.tertiary },
+                      ]}
+                      onPress={() => setBatchDropdownOpen((current) => !current)}
+                      activeOpacity={0.82}
+                    >
+                      <View style={styles.batchTriggerIcon}>
+                        <MaterialCommunityIcons
+                          name="layers-outline"
+                          size={18}
+                          color={Colors.primary}
+                        />
+                      </View>
+                      <View style={styles.batchTriggerCopy}>
+                        <Text
                           style={[
-                            styles.batchChip,
-                            active && styles.batchChipActive,
-                            formErrors.batchId && {
-                              borderColor: Colors.tertiary,
-                            },
+                            styles.batchTriggerValue,
+                            !selectedBatch && styles.batchTriggerPlaceholder,
                           ]}
-                          onPress={() => onChange(batch.id)}
                         >
-                          <Text
-                            style={[
-                              styles.batchChipText,
-                              active && styles.batchChipTextActive,
-                            ]}
-                          >
-                            {batchLabel(batch)}
-                          </Text>
-                        </TouchableOpacity>
-                      );
-                    })}
-                  </ScrollView>
+                          {selectedBatch?.code ?? "Select active batch"}
+                        </Text>
+                        <Text style={styles.batchTriggerMeta} numberOfLines={1}>
+                          {selectedBatch
+                            ? `${selectedBatch.farmName ?? "Farm"} | ${selectedBatch.placementCount.toLocaleString()} birds`
+                            : `${activeBatches.length} available`}
+                        </Text>
+                      </View>
+                      <Ionicons
+                        name={batchDropdownOpen ? "chevron-up" : "chevron-down"}
+                        size={20}
+                        color={Colors.textSecondary}
+                      />
+                    </TouchableOpacity>
+
+                    {batchDropdownOpen ? (
+                      <View style={styles.batchDropdown}>
+                        <FlatList
+                          data={activeBatches}
+                          keyExtractor={(batch) => batch.id}
+                          style={styles.batchOptions}
+                          nestedScrollEnabled
+                          keyboardShouldPersistTaps="handled"
+                          renderItem={({ item: batch }) => {
+                            const active = batch.id === value;
+                            return (
+                              <TouchableOpacity
+                                style={[
+                                  styles.batchOption,
+                                  active && styles.batchOptionActive,
+                                ]}
+                                onPress={() => {
+                                  onChange(batch.id);
+                                  setBatchDropdownOpen(false);
+                                }}
+                                activeOpacity={0.78}
+                              >
+                                <View
+                                  style={[
+                                    styles.batchOptionIcon,
+                                    active && styles.batchOptionIconActive,
+                                  ]}
+                                >
+                                  <MaterialCommunityIcons
+                                    name="barn"
+                                    size={18}
+                                    color={
+                                      active
+                                        ? Colors.primary
+                                        : Colors.textSecondary
+                                    }
+                                  />
+                                </View>
+                                <View style={styles.batchOptionCopy}>
+                                  <Text
+                                    style={[
+                                      styles.batchOptionCode,
+                                      active && styles.batchOptionCodeActive,
+                                    ]}
+                                  >
+                                    {batch.code}
+                                  </Text>
+                                  <Text
+                                    style={styles.batchOptionMeta}
+                                    numberOfLines={1}
+                                  >
+                                    {batch.farmName ?? "Farm"} |{" "}
+                                    {batch.placementCount.toLocaleString()} birds
+                                  </Text>
+                                </View>
+                                {active ? (
+                                  <Ionicons
+                                    name="checkmark-circle"
+                                    size={20}
+                                    color={Colors.primary}
+                                  />
+                                ) : null}
+                              </TouchableOpacity>
+                            );
+                          }}
+                        />
+                      </View>
+                    ) : null}
+                  </>
                 )}
                 {formErrors.batchId && (
                   <Text style={styles.fieldErrorText}>
@@ -490,7 +600,7 @@ export function DailyEntryScreen({
                   {selectedBatch.code}
                 </Text>
                 <Text style={styles.batchSummarySub}>
-                  {selectedBatch.farmName ?? "Farm"} •{" "}
+                  {selectedBatch.farmName ?? "Farm"} |{" "}
                   {selectedBatch.placementCount.toLocaleString()} birds
                 </Text>
               </View>
@@ -552,11 +662,7 @@ export function DailyEntryScreen({
                       style={styles.textInput}
                       value={value}
                       onChangeText={onChange}
-                      placeholder={
-                        selectedBatch
-                          ? selectedBatch.placementCount.toString()
-                          : "0"
-                      }
+                      placeholder="0"
                       placeholderTextColor={Colors.textSecondary}
                       keyboardType="numeric"
                     />
@@ -963,8 +1069,68 @@ const styles = StyleSheet.create({
     color: Colors.textSecondary,
   },
   container: {
-    padding: Layout.screenPadding,
+    paddingHorizontal: Layout.screenPadding,
+    paddingTop: 8,
     paddingBottom: 100,
+  },
+  dailyHero: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    backgroundColor: "#FFFFFF",
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "#DDEBE3",
+    padding: 12,
+    marginBottom: 10,
+    shadowColor: "#101828",
+    shadowOffset: { width: 0, height: 5 },
+    shadowOpacity: 0.06,
+    shadowRadius: 12,
+    elevation: 2,
+  },
+  dailyHeroIcon: {
+    width: 38,
+    height: 38,
+    borderRadius: 10,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#E8F5E9",
+  },
+  dailyHeroCopy: {
+    flex: 1,
+  },
+  dailyHeroTitle: {
+    color: Colors.text,
+    fontSize: 15,
+    fontWeight: "900",
+  },
+  dailyHeroMeta: {
+    color: Colors.textSecondary,
+    fontSize: 12,
+    fontWeight: "600",
+    marginTop: 2,
+  },
+  dailyHeroHint: {
+    color: Colors.textSecondary,
+    fontSize: 11,
+    lineHeight: 15,
+    marginTop: 4,
+  },
+  dailyModePill: {
+    minHeight: 30,
+    borderRadius: 999,
+    paddingHorizontal: 12,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#F0F8F3",
+    borderWidth: 1,
+    borderColor: "#CBE6D5",
+  },
+  dailyModeText: {
+    color: Colors.primary,
+    fontSize: 11,
+    fontWeight: "900",
   },
   pageTitle: {
     fontSize: 26,
@@ -992,17 +1158,21 @@ const styles = StyleSheet.create({
   card: {
     backgroundColor: Colors.surface,
     borderRadius: 12,
-    padding: 16,
-    marginBottom: 14,
+    padding: 14,
+    marginBottom: 10,
     borderWidth: 1,
-    borderColor: Colors.border,
-    ...Layout.cardShadow,
+    borderColor: "#E2E8E5",
+    shadowColor: "#101828",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.05,
+    shadowRadius: 10,
+    elevation: 2,
   },
   sectionTitle: {
-    fontSize: 16,
-    fontWeight: "800",
+    fontSize: 15,
+    fontWeight: "900",
     color: Colors.text,
-    marginBottom: 12,
+    marginBottom: 10,
   },
   loadingBox: {
     minHeight: 72,
@@ -1024,6 +1194,113 @@ const styles = StyleSheet.create({
   chipRow: {
     gap: 8,
     paddingBottom: 12,
+  },
+  batchDropdownTrigger: {
+    minHeight: 54,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    backgroundColor: "#FFFFFF",
+    shadowColor: "#101828",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.04,
+    shadowRadius: 8,
+    elevation: 1,
+  },
+  batchDropdownTriggerActive: {
+    borderColor: Colors.primary,
+    backgroundColor: "#F6FBF7",
+  },
+  batchTriggerIcon: {
+    width: 34,
+    height: 34,
+    borderRadius: 10,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#E8F5E9",
+  },
+  batchTriggerCopy: {
+    flex: 1,
+  },
+  batchTriggerValue: {
+    color: Colors.text,
+    fontSize: 15,
+    fontWeight: "900",
+  },
+  batchTriggerPlaceholder: {
+    color: Colors.textSecondary,
+    fontWeight: "700",
+  },
+  batchTriggerMeta: {
+    color: Colors.textSecondary,
+    fontSize: 11,
+    fontWeight: "600",
+    marginTop: 2,
+  },
+  batchDropdown: {
+    borderWidth: 1,
+    borderColor: "#D7E8DD",
+    borderRadius: 12,
+    backgroundColor: "#FFFFFF",
+    padding: 8,
+    marginTop: 8,
+    marginBottom: 8,
+    shadowColor: "#101828",
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.08,
+    shadowRadius: 14,
+    elevation: 4,
+  },
+  batchOptions: {
+    maxHeight: 230,
+  },
+  batchOption: {
+    minHeight: 58,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 11,
+    borderRadius: 9,
+    paddingHorizontal: 10,
+    marginBottom: 5,
+    backgroundColor: "#FFFFFF",
+  },
+  batchOptionActive: {
+    backgroundColor: "#E8F5E9",
+  },
+  batchOptionIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#F1F5F3",
+    borderWidth: 1,
+    borderColor: Colors.border,
+  },
+  batchOptionIconActive: {
+    backgroundColor: "#FFFFFF",
+    borderColor: Colors.primary,
+  },
+  batchOptionCopy: {
+    flex: 1,
+  },
+  batchOptionCode: {
+    color: Colors.text,
+    fontSize: 14,
+    fontWeight: "900",
+  },
+  batchOptionCodeActive: {
+    color: Colors.primary,
+  },
+  batchOptionMeta: {
+    color: Colors.textSecondary,
+    fontSize: 11,
+    fontWeight: "600",
+    marginTop: 2,
   },
   batchChip: {
     paddingHorizontal: 14,
@@ -1048,12 +1325,12 @@ const styles = StyleSheet.create({
   batchSummary: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 10,
+    gap: 9,
     backgroundColor: "#F9FAFB",
     borderRadius: 10,
     borderWidth: 1,
     borderColor: Colors.border,
-    padding: 12,
+    padding: 10,
   },
   batchSummaryCopy: {
     flex: 1,
@@ -1069,11 +1346,11 @@ const styles = StyleSheet.create({
     color: Colors.textSecondary,
   },
   inputGroup: {
-    marginBottom: 14,
+    marginBottom: 10,
   },
   row: {
     flexDirection: Layout.isSmallDevice ? "column" : "row",
-    gap: 12,
+    gap: 10,
   },
   half: {
     flex: 1,
@@ -1085,18 +1362,18 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   inputMock: {
-    minHeight: 48,
+    minHeight: 46,
     flexDirection: "row",
     alignItems: "center",
     gap: 8,
     borderWidth: 1,
     borderColor: Colors.border,
-    borderRadius: 10,
+    borderRadius: 9,
     paddingHorizontal: 12,
     backgroundColor: "#F9FAFB",
   },
   textArea: {
-    minHeight: 84,
+    minHeight: 76,
     alignItems: "flex-start",
     paddingTop: 12,
   },
@@ -1138,13 +1415,14 @@ const styles = StyleSheet.create({
     fontWeight: "700",
   },
   submitBtn: {
-    minHeight: 52,
+    minHeight: 50,
     borderRadius: 10,
     backgroundColor: Colors.primary,
     flexDirection: "row",
     justifyContent: "center",
     alignItems: "center",
     gap: 8,
+    marginTop: 2,
   },
   submitBtnDisabled: {
     backgroundColor: "#9DB8A8",
