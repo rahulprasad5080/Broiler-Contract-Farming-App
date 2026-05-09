@@ -67,18 +67,6 @@ const salesEntrySchema = z.object({
   ratePerKg: z.string().min(1, 'Rate is required').refine((val) => !isNaN(Number(val)), {
     message: 'Must be a number',
   }),
-  paymentReceivedAmount: z.string().optional().refine((val) => !val || !isNaN(Number(val)), {
-    message: 'Must be a number',
-  }),
-  transportCharge: z.string().optional().refine((val) => !val || !isNaN(Number(val)), {
-    message: 'Must be a number',
-  }),
-  commissionCharge: z.string().optional().refine((val) => !val || !isNaN(Number(val)), {
-    message: 'Must be a number',
-  }),
-  otherDeduction: z.string().optional().refine((val) => !val || !isNaN(Number(val)), {
-    message: 'Must be a number',
-  }),
   notes: z.string().optional(),
 });
 
@@ -91,10 +79,6 @@ const SALES_ENTRY_DEFAULTS = {
   birdCount: '',
   totalWeightKg: '',
   ratePerKg: '',
-  paymentReceivedAmount: '',
-  transportCharge: '',
-  commissionCharge: '',
-  otherDeduction: '',
   notes: '',
 } satisfies SalesEntryFormData;
 
@@ -143,9 +127,6 @@ export function SalesEntryScreen({
   const traderId = watch('traderId');
   const totalWeightKg = watch('totalWeightKg');
   const ratePerKg = watch('ratePerKg');
-  const transportCharge = watch('transportCharge');
-  const commissionCharge = watch('commissionCharge');
-  const otherDeduction = watch('otherDeduction');
 
   const activeBatches = useMemo(
     () =>
@@ -212,11 +193,6 @@ export function SalesEntryScreen({
   );
 
   const grossAmount = (toOptionalNumber(totalWeightKg) ?? 0) * (toOptionalNumber(ratePerKg) ?? 0);
-  const netAmount =
-    grossAmount -
-    (toOptionalNumber(transportCharge) ?? 0) -
-    (toOptionalNumber(commissionCharge) ?? 0) -
-    (toOptionalNumber(otherDeduction) ?? 0);
 
   const onSubmitSale = async (data: SalesEntryFormData, status: 'DRAFT' | 'CONFIRMED') => {
     if (!accessToken || !data.batchId || !data.traderId) {
@@ -239,10 +215,6 @@ export function SalesEntryScreen({
         birdCount: toOptionalNumber(data.birdCount),
         totalWeightKg: toOptionalNumber(data.totalWeightKg),
         ratePerKg: toOptionalNumber(data.ratePerKg),
-        transportCharge: toOptionalNumber(data.transportCharge ?? ''),
-        commissionCharge: toOptionalNumber(data.commissionCharge ?? ''),
-        otherDeduction: toOptionalNumber(data.otherDeduction ?? ''),
-        paymentReceivedAmount: toOptionalNumber(data.paymentReceivedAmount ?? ''),
         status,
         notes: data.notes?.trim() || undefined,
         clientReferenceId: `sale-${Date.now()}`,
@@ -258,10 +230,6 @@ export function SalesEntryScreen({
         birdCount: '',
         totalWeightKg: '',
         ratePerKg: '',
-        transportCharge: '',
-        commissionCharge: '',
-        otherDeduction: '',
-        paymentReceivedAmount: '',
         notes: '',
       };
       reset(nextValues);
@@ -604,126 +572,32 @@ export function SalesEntryScreen({
             />
           </View>
 
-          <View style={styles.row}>
-            <Controller
-              control={control}
-              name="ratePerKg"
-              render={({ field: { onChange, value } }) => (
-                <View style={[styles.inputGroup, styles.half]}>
-                  <Text style={styles.label}>Rate / Kg *</Text>
-                  <View style={[styles.inputBox, formErrors.ratePerKg && { borderColor: Colors.tertiary }]}>
-                    <TextInput
-                      style={styles.input}
-                      value={value}
-                      onChangeText={onChange}
-                      placeholder="0"
-                      placeholderTextColor={Colors.textSecondary}
-                      keyboardType="decimal-pad"
-                    />
-                    <MaterialCommunityIcons name="currency-inr" size={18} color={Colors.primary} />
-                  </View>
-                  {formErrors.ratePerKg && <Text style={styles.fieldErrorText}>{formErrors.ratePerKg.message}</Text>}
-                </View>
-              )}
-            />
-            <Controller
-              control={control}
-              name="paymentReceivedAmount"
-              render={({ field: { onChange, value } }) => (
-                <View style={[styles.inputGroup, styles.half]}>
-                  <Text style={styles.label}>Payment Received</Text>
-                  <View style={[styles.inputBox, formErrors.paymentReceivedAmount && { borderColor: Colors.tertiary }]}>
-                    <TextInput
-                      style={styles.input}
-                      value={value}
-                      onChangeText={onChange}
-                      placeholder="0"
-                      placeholderTextColor={Colors.textSecondary}
-                      keyboardType="numeric"
-                    />
-                    <MaterialCommunityIcons name="cash-check" size={18} color={Colors.textSecondary} />
-                  </View>
-                  {formErrors.paymentReceivedAmount && <Text style={styles.fieldErrorText}>{formErrors.paymentReceivedAmount.message}</Text>}
-                </View>
-              )}
-            />
-          </View>
-
-          <View style={styles.row}>
-            <Controller
-              control={control}
-              name="transportCharge"
-              render={({ field: { onChange, value } }) => (
-                <View style={[styles.inputGroup, styles.half]}>
-                  <Text style={styles.label}>Transport Charge</Text>
-                  <View style={[styles.inputBox, formErrors.transportCharge && { borderColor: Colors.tertiary }]}>
-                    <TextInput
-                      style={styles.input}
-                      value={value}
-                      onChangeText={onChange}
-                      placeholder="0"
-                      placeholderTextColor={Colors.textSecondary}
-                      keyboardType="numeric"
-                    />
-                    <MaterialCommunityIcons name="truck-outline" size={18} color={Colors.textSecondary} />
-                  </View>
-                  {formErrors.transportCharge && <Text style={styles.fieldErrorText}>{formErrors.transportCharge.message}</Text>}
-                </View>
-              )}
-            />
-            <Controller
-              control={control}
-              name="commissionCharge"
-              render={({ field: { onChange, value } }) => (
-                <View style={[styles.inputGroup, styles.half]}>
-                  <Text style={styles.label}>Commission Charge</Text>
-                  <View style={[styles.inputBox, formErrors.commissionCharge && { borderColor: Colors.tertiary }]}>
-                    <TextInput
-                      style={styles.input}
-                      value={value}
-                      onChangeText={onChange}
-                      placeholder="0"
-                      placeholderTextColor={Colors.textSecondary}
-                      keyboardType="numeric"
-                    />
-                    <MaterialCommunityIcons name="percent-outline" size={18} color={Colors.textSecondary} />
-                  </View>
-                  {formErrors.commissionCharge && <Text style={styles.fieldErrorText}>{formErrors.commissionCharge.message}</Text>}
-                </View>
-              )}
-            />
-          </View>
-
           <Controller
             control={control}
-            name="otherDeduction"
+            name="ratePerKg"
             render={({ field: { onChange, value } }) => (
               <View style={styles.inputGroup}>
-                <Text style={styles.label}>Other Deduction</Text>
-                <View style={[styles.inputBox, formErrors.otherDeduction && { borderColor: Colors.tertiary }]}>
+                <Text style={styles.label}>Rate / Kg *</Text>
+                <View style={[styles.inputBox, formErrors.ratePerKg && { borderColor: Colors.tertiary }]}>
                   <TextInput
                     style={styles.input}
                     value={value}
                     onChangeText={onChange}
                     placeholder="0"
                     placeholderTextColor={Colors.textSecondary}
-                    keyboardType="numeric"
+                    keyboardType="decimal-pad"
                   />
-                  <MaterialCommunityIcons name="minus-circle-outline" size={18} color={Colors.textSecondary} />
+                  <MaterialCommunityIcons name="currency-inr" size={18} color={Colors.primary} />
                 </View>
-                {formErrors.otherDeduction && <Text style={styles.fieldErrorText}>{formErrors.otherDeduction.message}</Text>}
+                {formErrors.ratePerKg && <Text style={styles.fieldErrorText}>{formErrors.ratePerKg.message}</Text>}
               </View>
             )}
           />
 
           <View style={styles.summaryGrid}>
             <View style={styles.summaryBox}>
-              <Text style={styles.summaryLabel}>Gross</Text>
+              <Text style={styles.summaryLabel}>Total Amount</Text>
               <Text style={styles.summaryValue}>Rs {grossAmount.toLocaleString('en-IN')}</Text>
-            </View>
-            <View style={styles.summaryBox}>
-              <Text style={styles.summaryLabel}>Net</Text>
-              <Text style={styles.summaryValue}>Rs {netAmount.toLocaleString('en-IN')}</Text>
             </View>
           </View>
 
