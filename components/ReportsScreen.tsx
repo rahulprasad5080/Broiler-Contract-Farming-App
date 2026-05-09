@@ -2,15 +2,21 @@ import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
+  Animated,
   FlatList,
   Modal,
   Platform,
+  Pressable,
   ScrollView,
   StyleSheet,
   Text,
   TextInput,
   TouchableOpacity,
   View,
+  type DimensionValue,
+  type GestureResponderEvent,
+  type StyleProp,
+  type ViewStyle,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
@@ -48,6 +54,8 @@ const formatNumber = (value?: number | null) => {
   return Number(value).toLocaleString("en-IN");
 };
 
+const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
+
 const formatDecimal = (value?: number | null, digits = 2) => {
   if (value === null || value === undefined) return Number(0).toFixed(digits);
   return Number(value).toFixed(digits);
@@ -58,10 +66,16 @@ const formatPercent = (value?: number | null) => `${formatDecimal(value)}%`;
 const formatKg = (value?: number | null) => `${formatNumber(value)} kg`;
 
 const metricCards = (overview: ApiOverviewReport | null) => [
-  { label: "Total Farms", value: formatNumber(overview?.totalFarms), icon: "home-outline" },
-  { label: "Active Batches", value: formatNumber(overview?.activeBatches), icon: "water-outline" },
-  { label: "Users", value: formatNumber(overview?.totalUsers), icon: "people-outline" },
-  { label: "Profit / Loss", value: formatINR(overview?.profitOrLoss), icon: "cash-outline" },
+  { label: "Total Farms", value: formatNumber(overview?.totalFarms), icon: "home-outline", accent: Colors.primary, soft: "#EEF8F2" },
+  { label: "Active Batches", value: formatNumber(overview?.activeBatches), icon: "water-outline", accent: "#2563EB", soft: "#EFF6FF" },
+  { label: "Users", value: formatNumber(overview?.totalUsers), icon: "people-outline", accent: "#7C3AED", soft: "#F5F3FF" },
+  {
+    label: "Profit / Loss",
+    value: formatINR(overview?.profitOrLoss),
+    icon: "cash-outline",
+    accent: Number(overview?.profitOrLoss ?? 0) >= 0 ? Colors.primary : Colors.tertiary,
+    soft: Number(overview?.profitOrLoss ?? 0) >= 0 ? "#EEF8F2" : "#FFF4F4",
+  },
 ];
 
 function normalizedText(value: string) {
@@ -133,6 +147,74 @@ type PickerItem = {
   subtitle: string;
   meta?: string;
 };
+
+type PressableScaleProps = {
+  children: React.ReactNode;
+  style?: StyleProp<ViewStyle>;
+  disabled?: boolean;
+  onPress?: (event: GestureResponderEvent) => void;
+  accessibilityLabel?: string;
+  androidRippleColor?: string;
+};
+
+function PressableScale({
+  children,
+  style,
+  disabled,
+  onPress,
+  accessibilityLabel,
+  androidRippleColor = "rgba(0, 135, 90, 0.12)",
+}: PressableScaleProps) {
+  const scale = React.useRef(new Animated.Value(1)).current;
+
+  const animate = useCallback(
+    (toValue: number) => {
+      if (disabled) return;
+      Animated.spring(scale, {
+        toValue,
+        friction: 7,
+        tension: 120,
+        useNativeDriver: true,
+      }).start();
+    },
+    [disabled, scale],
+  );
+
+  return (
+    <AnimatedPressable
+      accessibilityRole={onPress ? "button" : undefined}
+      accessibilityLabel={accessibilityLabel}
+      android_ripple={{ color: androidRippleColor, borderless: false }}
+      disabled={disabled}
+      onPress={onPress}
+      onPressIn={() => animate(0.985)}
+      onPressOut={() => animate(1)}
+      style={[style, disabled && styles.touchDisabled, { transform: [{ scale }] }]}
+    >
+      {children}
+    </AnimatedPressable>
+  );
+}
+
+function SkeletonLine({
+  width = 80,
+  height = 14,
+  variant = "light",
+}: {
+  width?: DimensionValue;
+  height?: number;
+  variant?: "light" | "dark";
+}) {
+  return (
+    <View
+      style={[
+        styles.skeletonLine,
+        variant === "dark" && styles.skeletonLineDark,
+        { width, height },
+      ]}
+    />
+  );
+}
 
 export default function ReportsScreen() {
   const { accessToken, user } = useAuth();
@@ -376,8 +458,6 @@ export default function ReportsScreen() {
           loading={loadingOptions}
           batchCount={batches.length}
           farmCount={farms.length}
-          selectedBatch={selectedBatch}
-          selectedFarm={selectedFarm}
           onRefresh={() => void loadOptions()}
         />
 
@@ -387,13 +467,17 @@ export default function ReportsScreen() {
           <>
             <View style={styles.summaryGrid}>
               {metricCards(overview).map((item) => (
-                <View key={item.label} style={styles.summaryCard}>
-                  <View style={styles.summaryIcon}>
-                    <Ionicons name={item.icon as never} size={18} color={Colors.primary} />
+                <PressableScale key={item.label} style={styles.summaryCard}>
+                  <View style={[styles.summaryIcon, { backgroundColor: item.soft }]}>
+                    <Ionicons name={item.icon as never} size={18} color={item.accent} />
                   </View>
                   <Text style={styles.summaryLabel}>{item.label}</Text>
-                  <Text style={styles.summaryValue}>{loadingOverview ? "..." : item.value}</Text>
-                </View>
+                  {loadingOverview ? (
+                    <SkeletonLine width={92} height={21} />
+                  ) : (
+                    <Text style={[styles.summaryValue, { color: item.accent }]}>{item.value}</Text>
+                  )}
+                </PressableScale>
               ))}
             </View>
 
@@ -447,11 +531,11 @@ export default function ReportsScreen() {
             onPress={() => setBatchPickerOpen(true)}
             loading={loadingOptions}
           />
-          <TouchableOpacity
+          <PressableScale
             style={[styles.primaryBtn, (!batchId || loadingBatch) && styles.btnDisabled]}
             onPress={loadBatchSummary}
             disabled={!batchId || loadingBatch}
-            activeOpacity={0.84}
+            accessibilityLabel="Load batch summary"
           >
             {loadingBatch ? (
               <ActivityIndicator color="#FFF" />
@@ -461,34 +545,34 @@ export default function ReportsScreen() {
                 <Text style={styles.primaryBtnText}>Load Batch Summary</Text>
               </>
             )}
-          </TouchableOpacity>
+          </PressableScale>
 
           {batchSummary ? <BatchSummaryCard summary={batchSummary} selectedBatch={selectedBatch} /> : null}
 
           {canExport ? (
             <View style={styles.exportRow}>
-              <TouchableOpacity
+              <PressableScale
                 style={[styles.secondaryBtn, exporting === "pdf" && styles.btnDisabled]}
                 onPress={() => void exportBatchReport("pdf")}
                 disabled={exporting !== null || !batchId}
-                activeOpacity={0.82}
+                accessibilityLabel="Export PDF report"
               >
                 <Ionicons name="document-text-outline" size={17} color={Colors.primary} />
                 <Text style={styles.secondaryBtnText}>
                   {exporting === "pdf" ? "Exporting..." : "PDF"}
                 </Text>
-              </TouchableOpacity>
-              <TouchableOpacity
+              </PressableScale>
+              <PressableScale
                 style={[styles.secondaryBtn, exporting === "excel" && styles.btnDisabled]}
                 onPress={() => void exportBatchReport("excel")}
                 disabled={exporting !== null || !batchId}
-                activeOpacity={0.82}
+                accessibilityLabel="Export Excel report"
               >
                 <Ionicons name="grid-outline" size={17} color={Colors.primary} />
                 <Text style={styles.secondaryBtnText}>
                   {exporting === "excel" ? "Exporting..." : "Excel"}
                 </Text>
-              </TouchableOpacity>
+              </PressableScale>
             </View>
           ) : null}
         </View>
@@ -508,11 +592,11 @@ export default function ReportsScreen() {
             onPress={() => setFarmPickerOpen(true)}
             loading={loadingOptions}
           />
-          <TouchableOpacity
+          <PressableScale
             style={[styles.primaryBtn, (!farmId || loadingFarm) && styles.btnDisabled]}
             onPress={loadFarmSummary}
             disabled={!farmId || loadingFarm}
-            activeOpacity={0.84}
+            accessibilityLabel="Load farm summary"
           >
             {loadingFarm ? (
               <ActivityIndicator color="#FFF" />
@@ -522,7 +606,7 @@ export default function ReportsScreen() {
                 <Text style={styles.primaryBtnText}>Load Farm Summary</Text>
               </>
             )}
-          </TouchableOpacity>
+          </PressableScale>
 
           {farmSummary ? <FarmSummaryCard summary={farmSummary} selectedFarm={selectedFarm} /> : null}
         </View>
@@ -567,62 +651,68 @@ function ReportHero({
   loading,
   batchCount,
   farmCount,
-  selectedBatch,
-  selectedFarm,
   onRefresh,
 }: {
   loading: boolean;
   batchCount: number;
   farmCount: number;
-  selectedBatch: ApiBatch | null;
-  selectedFarm: ApiFarm | null;
   onRefresh: () => void;
 }) {
   return (
     <View style={styles.hero}>
-      <View style={styles.heroTopRow}>
-        <View style={styles.heroIcon}>
-          <MaterialCommunityIcons name="chart-timeline-variant" size={24} color="#FFFFFF" />
-        </View>
-        <TouchableOpacity style={styles.heroRefreshBtn} onPress={onRefresh} disabled={loading}>
-          {loading ? (
-            <ActivityIndicator color="#FFFFFF" />
-          ) : (
-            <Ionicons name="refresh" size={17} color="#FFFFFF" />
-          )}
-        </TouchableOpacity>
-      </View>
+      <View pointerEvents="none" style={styles.heroGradientBase} />
+      <View pointerEvents="none" style={styles.heroGradientBand} />
+      <View pointerEvents="none" style={styles.heroGradientWash} />
 
-      <Text style={styles.heroEyebrow}>Supervisor reporting</Text>
-      <Text style={styles.heroTitle}>Performance Summary</Text>
-      <Text style={styles.heroSub}>
-        Fast batch and farm reports with live KPIs, cost, sales, FCR, and profit tracking.
-      </Text>
+      <View style={styles.heroContent}>
+        <View style={styles.heroTopRow}>
+          <View style={styles.heroIcon}>
+            <MaterialCommunityIcons name="chart-timeline-variant" size={24} color={Colors.primary} />
+          </View>
+          <PressableScale
+            style={styles.heroRefreshBtn}
+            onPress={onRefresh}
+            disabled={loading}
+            androidRippleColor="rgba(0,135,90,0.14)"
+            accessibilityLabel="Refresh report options"
+          >
+            {loading ? (
+              <ActivityIndicator color={Colors.primary} />
+            ) : (
+              <Ionicons name="refresh" size={17} color={Colors.primary} />
+            )}
+          </PressableScale>
+        </View>
 
-      <View style={styles.heroStatsRow}>
-        <View style={styles.heroStat}>
-          <Text style={styles.heroStatValue}>{formatNumber(batchCount)}</Text>
-          <Text style={styles.heroStatLabel}>Batches</Text>
-        </View>
-        <View style={styles.heroStatDivider} />
-        <View style={styles.heroStat}>
-          <Text style={styles.heroStatValue}>{formatNumber(farmCount)}</Text>
-          <Text style={styles.heroStatLabel}>Farms</Text>
-        </View>
-      </View>
+        <Text style={styles.heroEyebrow}>Supervisor reporting</Text>
+        <Text style={styles.heroTitle}>Performance Summary</Text>
+        <Text style={styles.heroSub}>
+          Live report overview for batches and farms.
+        </Text>
 
-      <View style={styles.heroSelectionRow}>
-        <View style={styles.heroPill}>
-          <Ionicons name="cube-outline" size={14} color="#CDEFE0" />
-          <Text style={styles.heroPillText} numberOfLines={1}>
-            {selectedBatch?.code ?? "Select batch"}
-          </Text>
-        </View>
-        <View style={styles.heroPill}>
-          <Ionicons name="home-outline" size={14} color="#CDEFE0" />
-          <Text style={styles.heroPillText} numberOfLines={1}>
-            {selectedFarm?.name ?? "Select farm"}
-          </Text>
+        <View style={styles.heroStatsRow}>
+          <View style={styles.heroStat}>
+            <View style={styles.heroStatIcon}>
+              <Ionicons name="cube-outline" size={18} color={Colors.primary} />
+            </View>
+            {loading ? (
+              <SkeletonLine width={46} height={22} />
+            ) : (
+              <Text style={styles.heroStatValue}>{formatNumber(batchCount)}</Text>
+            )}
+            <Text style={styles.heroStatLabel}>Batches</Text>
+          </View>
+          <View style={styles.heroStat}>
+            <View style={styles.heroStatIcon}>
+              <Ionicons name="home-outline" size={18} color={Colors.primary} />
+            </View>
+            {loading ? (
+              <SkeletonLine width={46} height={22} />
+            ) : (
+              <Text style={styles.heroStatValue}>{formatNumber(farmCount)}</Text>
+            )}
+            <Text style={styles.heroStatLabel}>Farms</Text>
+          </View>
         </View>
       </View>
     </View>
@@ -669,7 +759,11 @@ function SelectionCard({
   onPress: () => void;
 }) {
   return (
-    <TouchableOpacity style={styles.selectionCard} onPress={onPress} activeOpacity={0.82}>
+    <PressableScale
+      style={styles.selectionCard}
+      onPress={onPress}
+      accessibilityLabel={`Change ${label.toLowerCase()}`}
+    >
       <View style={styles.selectionIcon}>
         {loading ? (
           <ActivityIndicator color={Colors.primary} />
@@ -685,9 +779,11 @@ function SelectionCard({
       </View>
       <View style={styles.changeBtn}>
         <Text style={styles.changeBtnText}>Change</Text>
-        <Ionicons name="chevron-forward" size={15} color={Colors.primary} />
+        <View style={styles.selectionArrowCircle}>
+          <Ionicons name="chevron-forward" size={14} color={Colors.primary} />
+        </View>
       </View>
-    </TouchableOpacity>
+    </PressableScale>
   );
 }
 
@@ -784,7 +880,20 @@ function MetricBox({
   tone?: "good" | "bad";
 }) {
   return (
-    <View style={styles.metricBox}>
+    <View
+      style={[
+        styles.metricBox,
+        tone === "good" && styles.metricBoxGood,
+        tone === "bad" && styles.metricBoxBad,
+      ]}
+    >
+      <View
+        style={[
+          styles.metricAccent,
+          tone === "good" && styles.metricAccentGood,
+          tone === "bad" && styles.metricAccentBad,
+        ]}
+      />
       <Text style={styles.metricLabel}>{label}</Text>
       <Text
         style={[
@@ -844,11 +953,13 @@ function SelectionModal({
       const selected = item.id === selectedId;
 
       return (
-        <TouchableOpacity
+        <PressableScale
           style={[styles.pickerOption, selected && styles.pickerOptionSelected]}
           onPress={() => onSelect(item.id)}
-          activeOpacity={0.82}
+          androidRippleColor="rgba(0, 135, 90, 0.08)"
+          accessibilityLabel={`Select ${item.title}`}
         >
+          {selected ? <View style={styles.pickerSelectedBar} /> : null}
           <View style={styles.pickerOptionCopy}>
             <Text style={styles.pickerTitle}>{item.title}</Text>
             <Text style={styles.pickerSubtitle}>{item.subtitle}</Text>
@@ -857,7 +968,7 @@ function SelectionModal({
           <View style={[styles.radio, selected && styles.radioSelected]}>
             {selected ? <Ionicons name="checkmark" size={14} color="#FFF" /> : null}
           </View>
-        </TouchableOpacity>
+        </PressableScale>
       );
     },
     [onSelect, selectedId],
@@ -867,11 +978,12 @@ function SelectionModal({
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
       <TouchableOpacity style={styles.modalOverlay} activeOpacity={1} onPress={onClose}>
         <View style={styles.modalSheet} onStartShouldSetResponder={() => true}>
+          <View style={styles.sheetHandle} />
           <View style={styles.modalHeader}>
             <Text style={styles.modalTitle}>{title}</Text>
-            <TouchableOpacity style={styles.modalCloseBtn} onPress={onClose}>
+            <PressableScale style={styles.modalCloseBtn} onPress={onClose} accessibilityLabel="Close picker">
               <Ionicons name="close" size={20} color={Colors.text} />
-            </TouchableOpacity>
+            </PressableScale>
           </View>
 
           <View style={styles.searchBox}>
@@ -884,9 +996,9 @@ function SelectionModal({
               placeholderTextColor={Colors.textSecondary}
             />
             {query ? (
-              <TouchableOpacity onPress={() => setQuery("")} style={styles.searchClearBtn}>
+              <PressableScale onPress={() => setQuery("")} style={styles.searchClearBtn} accessibilityLabel="Clear search">
                 <Ionicons name="close-circle" size={18} color={Colors.textSecondary} />
-              </TouchableOpacity>
+              </PressableScale>
             ) : null}
           </View>
 
@@ -910,6 +1022,7 @@ function SelectionModal({
               data={filteredItems}
               keyExtractor={(item) => item.id}
               renderItem={renderPickerItem}
+              style={styles.pickerFlatList}
               contentContainerStyle={styles.pickerList}
               ItemSeparatorComponent={PickerSeparator}
               showsVerticalScrollIndicator={false}
@@ -972,18 +1085,56 @@ const styles = StyleSheet.create({
     width: "100%",
     maxWidth: Layout.contentMaxWidth,
   },
+  touchDisabled: {
+    opacity: 0.56,
+  },
+  skeletonLine: {
+    borderRadius: 999,
+    backgroundColor: "#E7ECE9",
+  },
+  skeletonLineDark: {
+    backgroundColor: "rgba(255,255,255,0.24)",
+  },
   hero: {
-    backgroundColor: "#063D2B",
+    position: "relative",
+    overflow: "hidden",
+    backgroundColor: Colors.surface,
     borderRadius: 8,
-    padding: 18,
     marginBottom: 18,
     borderWidth: 1,
-    borderColor: "#0E573E",
-    shadowColor: "#002B1D",
+    borderColor: "#DDEFE6",
+    shadowColor: "#0F172A",
     shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.16,
-    shadowRadius: 14,
+    shadowOpacity: 0.08,
+    shadowRadius: 16,
     elevation: 5,
+  },
+  heroGradientBase: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: Colors.surface,
+  },
+  heroGradientBand: {
+    position: "absolute",
+    top: -96,
+    right: -86,
+    width: 260,
+    height: 260,
+    borderRadius: 130,
+    backgroundColor: "#E3F7ED",
+    opacity: 1,
+  },
+  heroGradientWash: {
+    position: "absolute",
+    left: -64,
+    bottom: -92,
+    width: 240,
+    height: 170,
+    borderRadius: 120,
+    backgroundColor: "#F1FAF5",
+    opacity: 1,
+  },
+  heroContent: {
+    padding: 18,
   },
   heroTopRow: {
     flexDirection: "row",
@@ -997,9 +1148,9 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "rgba(255,255,255,0.14)",
+    backgroundColor: "#EEF8F2",
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.22)",
+    borderColor: "#CFEBDD",
   },
   heroRefreshBtn: {
     width: 38,
@@ -1007,25 +1158,25 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "rgba(255,255,255,0.12)",
+    backgroundColor: "#FFFFFF",
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.2)",
+    borderColor: "#CFEBDD",
   },
   heroEyebrow: {
-    color: "#9AD7BA",
+    color: Colors.primary,
     fontSize: 11,
     fontWeight: "900",
     textTransform: "uppercase",
     letterSpacing: 0.8,
   },
   heroTitle: {
-    color: "#FFFFFF",
-    fontSize: 27,
+    color: Colors.text,
+    fontSize: Layout.isSmallDevice ? 24 : 29,
     fontWeight: "900",
     marginTop: 6,
   },
   heroSub: {
-    color: "#CDEFE0",
+    color: Colors.textSecondary,
     fontSize: 13,
     lineHeight: 19,
     marginTop: 8,
@@ -1034,57 +1185,40 @@ const styles = StyleSheet.create({
   heroStatsRow: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "rgba(255,255,255,0.1)",
+    gap: 10,
     borderRadius: 8,
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.16)",
     marginTop: 16,
-    paddingVertical: 12,
   },
   heroStat: {
     flex: 1,
+    minHeight: 104,
+    justifyContent: "space-between",
+    backgroundColor: "#FFFFFF",
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    padding: 13,
+  },
+  heroStatIcon: {
+    width: 34,
+    height: 34,
+    borderRadius: 8,
     alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#EEF8F2",
   },
   heroStatValue: {
-    color: "#FFFFFF",
-    fontSize: 20,
+    color: Colors.text,
+    fontSize: 28,
     fontWeight: "900",
+    marginTop: 10,
   },
   heroStatLabel: {
-    color: "#CDEFE0",
-    fontSize: 11,
-    fontWeight: "800",
-    marginTop: 2,
-    textTransform: "uppercase",
-  },
-  heroStatDivider: {
-    width: 1,
-    height: 34,
-    backgroundColor: "rgba(255,255,255,0.18)",
-  },
-  heroSelectionRow: {
-    flexDirection: "row",
-    gap: 8,
-    marginTop: 12,
-  },
-  heroPill: {
-    flex: 1,
-    minWidth: 0,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-    borderRadius: 8,
-    backgroundColor: "rgba(255,255,255,0.08)",
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.14)",
-    paddingHorizontal: 10,
-    paddingVertical: 8,
-  },
-  heroPillText: {
-    flex: 1,
-    color: "#FFFFFF",
+    color: Colors.textSecondary,
     fontSize: 12,
     fontWeight: "800",
+    marginTop: 4,
+    textTransform: "uppercase",
   },
   errorText: {
     marginBottom: 14,
@@ -1106,6 +1240,7 @@ const styles = StyleSheet.create({
   },
   summaryCard: {
     width: "48%",
+    minHeight: 126,
     backgroundColor: "#FFF",
     borderRadius: 8,
     borderWidth: 1,
@@ -1131,6 +1266,7 @@ const styles = StyleSheet.create({
     fontSize: 20,
     fontWeight: "800",
     color: Colors.text,
+    marginTop: "auto",
   },
   panel: {
     backgroundColor: "#FFF",
@@ -1139,7 +1275,11 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: Colors.border,
     marginBottom: 16,
-    ...Layout.cardShadow,
+    shadowColor: "#0F172A",
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.07,
+    shadowRadius: 14,
+    elevation: 4,
   },
   panelHeader: {
     flexDirection: "row",
@@ -1205,6 +1345,11 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     padding: 12,
     marginBottom: 12,
+    shadowColor: "#0F172A",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 8,
+    elevation: 1,
   },
   selectionIcon: {
     width: 42,
@@ -1247,16 +1392,25 @@ const styles = StyleSheet.create({
   changeBtn: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 2,
+    gap: 6,
     backgroundColor: "#EEF8F2",
     borderRadius: 8,
-    paddingHorizontal: 8,
+    paddingLeft: 9,
+    paddingRight: 6,
     paddingVertical: 6,
   },
   changeBtnText: {
     fontSize: 12,
     fontWeight: "800",
     color: Colors.primary,
+  },
+  selectionArrowCircle: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#FFFFFF",
   },
   primaryBtn: {
     backgroundColor: Colors.primary,
@@ -1267,6 +1421,11 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     gap: 8,
     marginBottom: 10,
+    shadowColor: Colors.primary,
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.18,
+    shadowRadius: 12,
+    elevation: 4,
   },
   primaryBtnText: {
     color: "#FFF",
@@ -1280,6 +1439,11 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     padding: 12,
     backgroundColor: "#FBFCFB",
+    shadowColor: "#0F172A",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 10,
+    elevation: 1,
   },
   resultTop: {
     flexDirection: "row",
@@ -1296,7 +1460,7 @@ const styles = StyleSheet.create({
   },
   resultTitle: {
     marginTop: 3,
-    fontSize: 18,
+    fontSize: 19,
     fontWeight: "900",
     color: Colors.text,
   },
@@ -1324,11 +1488,36 @@ const styles = StyleSheet.create({
   },
   metricBox: {
     width: "48%",
+    position: "relative",
+    overflow: "hidden",
+    minHeight: 86,
     borderWidth: 1,
     borderColor: Colors.border,
     borderRadius: 8,
     backgroundColor: "#FFFFFF",
     padding: 12,
+  },
+  metricBoxGood: {
+    borderColor: "#C8E6C9",
+    backgroundColor: "#FBFFFD",
+  },
+  metricBoxBad: {
+    borderColor: "#FECACA",
+    backgroundColor: "#FFFBFB",
+  },
+  metricAccent: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 3,
+    backgroundColor: Colors.border,
+  },
+  metricAccentGood: {
+    backgroundColor: Colors.primary,
+  },
+  metricAccentBad: {
+    backgroundColor: Colors.tertiary,
   },
   metricLabel: {
     fontSize: 11,
@@ -1390,6 +1579,11 @@ const styles = StyleSheet.create({
     backgroundColor: "#FFF",
     flexDirection: "row",
     gap: 7,
+    shadowColor: "#0F172A",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 8,
+    elevation: 1,
   },
   secondaryBtnText: {
     color: Colors.primary,
@@ -1397,7 +1591,7 @@ const styles = StyleSheet.create({
     fontWeight: "800",
   },
   btnDisabled: {
-    opacity: 0.75,
+    opacity: 0.58,
   },
   modalOverlay: {
     flex: 1,
@@ -1405,11 +1599,24 @@ const styles = StyleSheet.create({
     justifyContent: "flex-end",
   },
   modalSheet: {
-    maxHeight: "78%",
+    height: "78%",
     backgroundColor: Colors.surface,
     borderTopLeftRadius: 16,
     borderTopRightRadius: 16,
     padding: 16,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: -6 },
+    shadowOpacity: 0.16,
+    shadowRadius: 18,
+    elevation: 12,
+  },
+  sheetHandle: {
+    width: 46,
+    height: 5,
+    borderRadius: 999,
+    backgroundColor: "#D5DBD8",
+    alignSelf: "center",
+    marginBottom: 14,
   },
   modalHeader: {
     flexDirection: "row",
@@ -1431,22 +1638,30 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   pickerList: {
-    paddingBottom: 16,
+    paddingBottom: 18,
+  },
+  pickerFlatList: {
+    flex: 1,
   },
   pickerSeparator: {
     height: 10,
   },
   searchBox: {
-    minHeight: 46,
+    minHeight: 48,
     borderRadius: 8,
     borderWidth: 1,
     borderColor: Colors.border,
-    backgroundColor: "#F9FAFB",
+    backgroundColor: "#FFFFFF",
     paddingHorizontal: 12,
     flexDirection: "row",
     alignItems: "center",
     gap: 8,
     marginBottom: 12,
+    shadowColor: "#0F172A",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.04,
+    shadowRadius: 5,
+    elevation: 1,
   },
   searchInput: {
     flex: 1,
@@ -1461,6 +1676,8 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   pickerOption: {
+    position: "relative",
+    overflow: "hidden",
     flexDirection: "row",
     alignItems: "center",
     gap: 12,
@@ -1472,7 +1689,15 @@ const styles = StyleSheet.create({
   },
   pickerOptionSelected: {
     borderColor: Colors.primary,
-    backgroundColor: "#F1FAF5",
+    backgroundColor: "#F3FBF6",
+  },
+  pickerSelectedBar: {
+    position: "absolute",
+    left: 0,
+    top: 0,
+    bottom: 0,
+    width: 4,
+    backgroundColor: Colors.primary,
   },
   pickerOptionCopy: {
     flex: 1,
