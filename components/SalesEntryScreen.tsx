@@ -5,6 +5,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   ActivityIndicator,
   Animated,
+  FlatList,
   ScrollView,
   StyleSheet,
   Text,
@@ -365,12 +366,13 @@ export function SalesEntryScreen({
 
                     {batchDropdownOpen ? (
                       <View style={styles.batchDropdown}>
-                        <ScrollView
+                        <FlatList
+                          data={activeBatches}
+                          keyExtractor={(batch) => batch.id}
                           style={styles.batchOptions}
                           nestedScrollEnabled
                           keyboardShouldPersistTaps="handled"
-                        >
-                          {activeBatches.map((batch) => {
+                          renderItem={({ item: batch }) => {
                             const active = batch.id === value;
                             return (
                               <TouchableOpacity
@@ -402,8 +404,8 @@ export function SalesEntryScreen({
                                 ) : null}
                               </TouchableOpacity>
                             );
-                          })}
-                        </ScrollView>
+                          }}
+                        />
                       </View>
                     ) : null}
                   </>
@@ -483,46 +485,45 @@ export function SalesEntryScreen({
                       />
                     </View>
 
-                    <ScrollView
+                    <FlatList
+                      data={visibleTraders}
+                      keyExtractor={(trader) => trader.id}
                       style={styles.traderOptions}
                       nestedScrollEnabled
                       keyboardShouldPersistTaps="handled"
-                    >
-                      {visibleTraders.length === 0 ? (
+                      ListEmptyComponent={
                         <View style={styles.traderEmptyState}>
                           <Ionicons name="search-outline" size={20} color={Colors.textSecondary} />
                           <Text style={styles.emptyText}>No trader found.</Text>
                         </View>
-                      ) : (
-                        visibleTraders.map((trader) => {
-                          const active = trader.id === value;
-                          return (
-                            <TouchableOpacity
-                              key={trader.id}
-                              style={[styles.traderOption, active && styles.traderOptionActive]}
-                              onPress={() => {
-                                onChange(trader.id);
-                                setTraderSearch(trader.name);
-                                setTraderDropdownOpen(false);
-                              }}
-                              activeOpacity={0.78}
-                            >
-                              <View style={[styles.traderOptionAvatar, active && styles.traderOptionAvatarActive]}>
-                                <Text style={[styles.traderOptionInitial, active && styles.traderOptionInitialActive]}>
-                                  {trader.name.trim().charAt(0).toUpperCase() || 'T'}
-                                </Text>
-                              </View>
-                              <Text style={[styles.traderOptionName, active && styles.traderOptionNameActive]}>
-                                {traderLabel(trader)}
+                      }
+                      renderItem={({ item: trader }) => {
+                        const active = trader.id === value;
+                        return (
+                          <TouchableOpacity
+                            style={[styles.traderOption, active && styles.traderOptionActive]}
+                            onPress={() => {
+                              onChange(trader.id);
+                              setTraderSearch(trader.name);
+                              setTraderDropdownOpen(false);
+                            }}
+                            activeOpacity={0.78}
+                          >
+                            <View style={[styles.traderOptionAvatar, active && styles.traderOptionAvatarActive]}>
+                              <Text style={[styles.traderOptionInitial, active && styles.traderOptionInitialActive]}>
+                                {trader.name.trim().charAt(0).toUpperCase() || 'T'}
                               </Text>
-                              {active ? (
-                                <Ionicons name="checkmark-circle" size={20} color={Colors.primary} />
-                              ) : null}
-                            </TouchableOpacity>
-                          );
-                        })
-                      )}
-                    </ScrollView>
+                            </View>
+                            <Text style={[styles.traderOptionName, active && styles.traderOptionNameActive]}>
+                              {traderLabel(trader)}
+                            </Text>
+                            {active ? (
+                              <Ionicons name="checkmark-circle" size={20} color={Colors.primary} />
+                            ) : null}
+                          </TouchableOpacity>
+                        );
+                      }}
+                    />
                   </View>
                 ) : null}
 
