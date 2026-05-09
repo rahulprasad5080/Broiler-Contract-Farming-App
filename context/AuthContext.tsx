@@ -75,6 +75,7 @@ interface AuthContextType {
   signOut: () => Promise<void>;
   unlockApp: () => void;
   unlockWithPassword: (password: string) => Promise<string | null>;
+  updateProfileName: (name: string) => Promise<void>;
   hasPermission: (permission: Permission) => boolean;
 }
 
@@ -447,6 +448,29 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     router.replace(getDashboardRoute(user?.role ?? "FARMER") as never);
   }, [router, user?.role]);
 
+  const updateProfileName = React.useCallback(
+    async (name: string) => {
+      const trimmedName = name.trim();
+
+      if (!user || !tokens || !user.role || !trimmedName) {
+        throw new Error("Unable to update profile name.");
+      }
+
+      const { permissions: _permissions, ...apiUser } = user;
+      const nextSession: AuthSession = {
+        user: {
+          ...apiUser,
+          role: user.role,
+          name: trimmedName,
+        },
+        tokens,
+      };
+
+      await persistSession(nextSession);
+    },
+    [persistSession, tokens, user],
+  );
+
   const hasPermission = React.useCallback(
     (permission: Permission) => Boolean(user?.permissions.includes(permission)),
     [user],
@@ -464,6 +488,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         signOut,
         unlockApp,
         unlockWithPassword,
+        updateProfileName,
         hasPermission,
       }}
     >

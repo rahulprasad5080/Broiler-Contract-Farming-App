@@ -153,6 +153,12 @@ type MenuItem = {
   toggle?: boolean;
 };
 
+const profileSchema = z.object({
+  name: z.string().trim().min(2, 'Name must be at least 2 characters'),
+});
+
+type ProfileFormData = z.infer<typeof profileSchema>;
+
 const passwordFieldSchema = z.string().superRefine((value, ctx) => {
   const validationError = getPasswordValidationError(value);
 
@@ -179,12 +185,31 @@ const passwordSchema = z.object({
 type PasswordFormData = z.infer<typeof passwordSchema>;
 
 export default function ProfileScreen() {
-  const { signOut, user, accessToken } = useAuth();
+  const { signOut, user, accessToken, updateProfileName } = useAuth();
+  const [showEditProfile, setShowEditProfile] = React.useState(false);
+  const [isSavingProfile, setIsSavingProfile] = React.useState(false);
   const [showChangePassword, setShowChangePassword] = React.useState(false);
   const [isSavingPassword, setIsSavingPassword] = React.useState(false);
   const [passwordSuccess, setPasswordSuccess] = React.useState<string | null>(null);
 
-  const { control, handleSubmit, reset, formState: { errors: formErrors } } = useForm<PasswordFormData>({
+  const {
+    control: profileControl,
+    handleSubmit: handleProfileSubmit,
+    reset: resetProfile,
+    formState: { errors: profileErrors },
+  } = useForm<ProfileFormData>({
+    resolver: zodResolver(profileSchema),
+    defaultValues: {
+      name: user?.name ?? '',
+    },
+  });
+
+  const {
+    control: passwordControl,
+    handleSubmit: handlePasswordSubmit,
+    reset: resetPassword,
+    formState: { errors: passwordErrors },
+  } = useForm<PasswordFormData>({
     resolver: zodResolver(passwordSchema),
     defaultValues: {
       currentPassword: '',
@@ -192,6 +217,10 @@ export default function ProfileScreen() {
       confirmPassword: '',
     },
   });
+
+  React.useEffect(() => {
+    resetProfile({ name: user?.name ?? '' });
+  }, [resetProfile, user?.name]);
 
   const initials = getInitials(user?.name || 'U');
   const roleLabel = getRoleLabel(user?.role);
@@ -207,9 +236,31 @@ export default function ProfileScreen() {
   };
 
   const openChangePassword = () => {
-    reset();
+    resetPassword();
     setPasswordSuccess(null);
     setShowChangePassword(true);
+  };
+
+  const openEditProfile = () => {
+    resetProfile({ name: user?.name ?? '' });
+    setShowEditProfile(true);
+  };
+
+  const submitProfileUpdate = async (data: ProfileFormData) => {
+    setIsSavingProfile(true);
+
+    try {
+      await updateProfileName(data.name);
+      setShowEditProfile(false);
+      showSuccessToast('Profile name updated.');
+    } catch (error) {
+      showRequestErrorToast(error, {
+        title: 'Profile update failed',
+        fallbackMessage: 'Failed to update profile name.',
+      });
+    } finally {
+      setIsSavingProfile(false);
+    }
   };
 
   const submitPasswordChange = async (data: PasswordFormData) => {
@@ -228,7 +279,7 @@ export default function ProfileScreen() {
       });
 
       setPasswordSuccess(response.message || 'Password updated. Please sign in again.');
-      reset();
+      resetPassword();
 
       setTimeout(() => {
         setShowChangePassword(false);
@@ -334,7 +385,8 @@ export default function ProfileScreen() {
         <Text style={styles.sectionTitle}>Account</Text>
         <View style={styles.menuCard}>
           <MenuRow
-            item={{ icon: 'person-outline', iconLib: 'Ionicons', label: 'Edit Profile', sub: 'Update name, phone & photo', chevron: true }}
+            item={{ icon: 'person-outline', iconLib: 'Ionicons', label: 'Edit Profile', sub: 'Update display name', chevron: true }}
+            onPress={openEditProfile}
           />
           <View style={styles.menuDivider} />
           <MenuRow
@@ -372,6 +424,50 @@ export default function ProfileScreen() {
         <View style={{ height: 40 }} />
       </ScrollView>
 
+      <Modal visible={showEditProfile} transparent animationType="fade" onRequestClose={() => setShowEditProfile(false)}>
+        <View style={styles.modalOverlay}>
+          <View style={styles.passwordSheet}>
+            <View style={styles.sheetHeader}>
+              <View>
+                <Text style={styles.sheetTitle}>Edit Profile</Text>
+                <Text style={styles.sheetSubtitle}>Update the name shown across your account.</Text>
+              </View>
+              <TouchableOpacity onPress={() => setShowEditProfile(false)} style={styles.closeBtn}>
+                <Ionicons name="close" size={20} color={Colors.text} />
+              </TouchableOpacity>
+            </View>
+
+            <Controller
+              control={profileControl}
+              name="name"
+              render={({ field: { onChange, value } }) => (
+                <View>
+                  <Text style={styles.inputLabel}>Name</Text>
+                  <TextInput
+                    style={[styles.passwordInput, profileErrors.name && { borderColor: Colors.tertiary }]}
+                    value={value}
+                    onChangeText={onChange}
+                    placeholder="Enter your name"
+                    placeholderTextColor={Colors.textSecondary}
+                    autoCapitalize="words"
+                  />
+                  {profileErrors.name && <Text style={styles.fieldErrorText}>{profileErrors.name.message}</Text>}
+                </View>
+              )}
+            />
+
+            <TouchableOpacity
+              style={[styles.saveBtn, isSavingProfile && styles.saveBtnDisabled]}
+              onPress={handleProfileSubmit(submitProfileUpdate)}
+              disabled={isSavingProfile}
+            >
+              <Text style={styles.saveBtnText}>{isSavingProfile ? 'Saving...' : 'Save Profile'}</Text>
+            </TouchableOpacity>
+          </View>
+          <Toast position="bottom" bottomOffset={100} />
+        </View>
+      </Modal>
+
       <Modal visible={showChangePassword} transparent animationType="fade" onRequestClose={() => setShowChangePassword(false)}>
         <View style={styles.modalOverlay}>
           <View style={styles.passwordSheet}>
@@ -386,58 +482,58 @@ export default function ProfileScreen() {
             </View>
 
             <Controller
-              control={control}
+              control={passwordControl}
               name="currentPassword"
               render={({ field: { onChange, value } }) => (
                 <View>
                   <Text style={styles.inputLabel}>Current Password</Text>
                   <TextInput
-                    style={[styles.passwordInput, formErrors.currentPassword && { borderColor: Colors.tertiary }]}
+                    style={[styles.passwordInput, passwordErrors.currentPassword && { borderColor: Colors.tertiary }]}
                     value={value}
                     onChangeText={onChange}
                     secureTextEntry
                     placeholder="Enter current password"
                     placeholderTextColor={Colors.textSecondary}
                   />
-                  {formErrors.currentPassword && <Text style={styles.fieldErrorText}>{formErrors.currentPassword.message}</Text>}
+                  {passwordErrors.currentPassword && <Text style={styles.fieldErrorText}>{passwordErrors.currentPassword.message}</Text>}
                 </View>
               )}
             />
 
             <Controller
-              control={control}
+              control={passwordControl}
               name="newPassword"
               render={({ field: { onChange, value } }) => (
                 <View>
                   <Text style={styles.inputLabel}>New Password</Text>
                   <TextInput
-                    style={[styles.passwordInput, formErrors.newPassword && { borderColor: Colors.tertiary }]}
+                    style={[styles.passwordInput, passwordErrors.newPassword && { borderColor: Colors.tertiary }]}
                     value={value}
                     onChangeText={onChange}
                     secureTextEntry
                     placeholder="Enter new password"
                     placeholderTextColor={Colors.textSecondary}
                   />
-                  {formErrors.newPassword && <Text style={styles.fieldErrorText}>{formErrors.newPassword.message}</Text>}
+                  {passwordErrors.newPassword && <Text style={styles.fieldErrorText}>{passwordErrors.newPassword.message}</Text>}
                 </View>
               )}
             />
 
             <Controller
-              control={control}
+              control={passwordControl}
               name="confirmPassword"
               render={({ field: { onChange, value } }) => (
                 <View>
                   <Text style={styles.inputLabel}>Confirm New Password</Text>
                   <TextInput
-                    style={[styles.passwordInput, formErrors.confirmPassword && { borderColor: Colors.tertiary }]}
+                    style={[styles.passwordInput, passwordErrors.confirmPassword && { borderColor: Colors.tertiary }]}
                     value={value}
                     onChangeText={onChange}
                     secureTextEntry
                     placeholder="Re-enter new password"
                     placeholderTextColor={Colors.textSecondary}
                   />
-                  {formErrors.confirmPassword && <Text style={styles.fieldErrorText}>{formErrors.confirmPassword.message}</Text>}
+                  {passwordErrors.confirmPassword && <Text style={styles.fieldErrorText}>{passwordErrors.confirmPassword.message}</Text>}
                 </View>
               )}
             />
@@ -447,7 +543,7 @@ export default function ProfileScreen() {
 
             <TouchableOpacity
               style={[styles.saveBtn, isSavingPassword && styles.saveBtnDisabled]}
-              onPress={handleSubmit(submitPasswordChange)}
+              onPress={handlePasswordSubmit(submitPasswordChange)}
               disabled={isSavingPassword}
             >
               <Text style={styles.saveBtnText}>{isSavingPassword ? 'Saving...' : 'Update Password'}</Text>
