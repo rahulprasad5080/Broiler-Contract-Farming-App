@@ -646,29 +646,17 @@ export function SalesEntryScreen({
           )}
         </TouchableOpacity>
 
-        <TouchableOpacity
-          style={[
-            styles.finalizeBtn,
-            (submitting || user?.role !== 'OWNER') && styles.finalizeDisabled,
-          ]}
-          disabled={submitting || user?.role !== 'OWNER'}
-          onPress={handleSubmit((data) => onSubmitSale(data, 'CONFIRMED'))}
-          activeOpacity={0.85}
-        >
-          <Ionicons
-            name="checkmark-circle-outline"
-            size={18}
-            color={user?.role === 'OWNER' ? Colors.primary : Colors.textSecondary}
-          />
-          <Text
-            style={[
-              styles.finalizeBtnText,
-              user?.role !== 'OWNER' && styles.disabledText,
-            ]}
+        {user?.role === 'OWNER' ? (
+          <TouchableOpacity
+            style={[styles.finalizeBtn, submitting && styles.finalizeDisabled]}
+            disabled={submitting}
+            onPress={handleSubmit((data) => onSubmitSale(data, 'CONFIRMED'))}
+            activeOpacity={0.85}
           >
-            Finalize Sale
-          </Text>
-        </TouchableOpacity>
+            <Ionicons name="checkmark-circle-outline" size={18} color={Colors.primary} />
+            <Text style={styles.finalizeBtnText}>Finalize Sale</Text>
+          </TouchableOpacity>
+        ) : null}
       </ScrollView>
     </SafeAreaView>
   );
