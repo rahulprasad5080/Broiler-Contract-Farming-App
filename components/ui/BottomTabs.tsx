@@ -6,7 +6,11 @@ import { CommonActions } from '@react-navigation/native';
 import { Colors } from '../../constants/Colors';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-export function BottomTabs({ state, descriptors, navigation }: BottomTabBarProps) {
+type BottomTabsProps = BottomTabBarProps & {
+  hiddenTabs?: string[];
+};
+
+export function BottomTabs({ state, descriptors, navigation, hiddenTabs = [] }: BottomTabsProps) {
   const insets = useSafeAreaInsets();
   
   // Navigation states se data nikalna
@@ -29,6 +33,8 @@ export function BottomTabs({ state, descriptors, navigation }: BottomTabBarProps
   return (
     <View style={[styles.tabBar, { paddingBottom: bottomPadding, height: tabHeight }]}>
       {tabs.map((tab) => {
+        if (hiddenTabs.includes(tab.name)) return null;
+
         // Check if this tab exists in the current navigator state
         const route = state.routes.find(r => r.name === tab.name);
         if (!route) return null;

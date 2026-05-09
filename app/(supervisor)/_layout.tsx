@@ -4,7 +4,7 @@ import { BottomTabs } from '../../components/ui/BottomTabs';
 export default function SupervisorLayout() {
   return (
     <Tabs
-      tabBar={(props) => <BottomTabs {...props} />}
+      tabBar={(props) => <BottomTabs {...props} hiddenTabs={['manage']} />}
       screenOptions={{ headerShown: false }}
     >
       <Tabs.Screen name="dashboard" />
