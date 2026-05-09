@@ -49,13 +49,8 @@ function toOptionalNumber(value: string | undefined) {
   return Number.isNaN(next) ? undefined : next;
 }
 
-function batchLabel(batch: ApiBatch) {
-  const farm = batch.farmName ? ` • ${batch.farmName}` : '';
-  return `${batch.code}${farm}`;
-}
-
 function traderLabel(trader: ApiTrader) {
-  return trader.phone ? `${trader.name} • ${trader.phone}` : trader.name;
+  return trader.name;
 }
 
 const salesEntrySchema = z.object({
@@ -104,7 +99,6 @@ const SALES_ENTRY_DEFAULTS = {
 
 export function SalesEntryScreen({
   title = 'Sales Entry',
-  subtitle = 'Record birds sold, weight, rate, and final sale status for a live batch.',
 }: SalesEntryScreenProps) {
   const router = useRouter();
   const { user, accessToken } = useAuth();
@@ -112,10 +106,13 @@ export function SalesEntryScreen({
   const [traders, setTraders] = useState<ApiTrader[]>([]);
   
   const [traderSearch, setTraderSearch] = useState('');
+  const [traderDropdownOpen, setTraderDropdownOpen] = useState(false);
+  const [batchDropdownOpen, setBatchDropdownOpen] = useState(false);
   
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
+  const [showDraftBanner, setShowDraftBanner] = useState(false);
 
   const draftBannerOpacity = useRef(new Animated.Value(0)).current;
 
@@ -133,11 +130,12 @@ export function SalesEntryScreen({
 
   useEffect(() => {
     if (!isRestored) return;
+    setShowDraftBanner(true);
     Animated.sequence([
       Animated.timing(draftBannerOpacity, { toValue: 1, duration: 300, useNativeDriver: true }),
       Animated.delay(2500),
       Animated.timing(draftBannerOpacity, { toValue: 0, duration: 400, useNativeDriver: true }),
-    ]).start();
+    ]).start(() => setShowDraftBanner(false));
   }, [isRestored, draftBannerOpacity]);
 
   const selectedBatchId = watch('batchId');
@@ -160,12 +158,18 @@ export function SalesEntryScreen({
     const query = traderSearch.trim().toLowerCase();
     if (!query) return traders;
     return traders.filter((trader) =>
-      `${trader.name} ${trader.phone ?? ''} ${trader.email ?? ''}`.toLowerCase().includes(query),
+      trader.name.toLowerCase().includes(query),
     );
   }, [traderSearch, traders]);
 
   const selectedBatch = batches.find((batch) => batch.id === selectedBatchId) ?? null;
   const selectedTrader = traders.find((trader) => trader.id === traderId) ?? null;
+
+  useEffect(() => {
+    if (selectedTrader && !traderSearch.trim()) {
+      setTraderSearch(selectedTrader.name);
+    }
+  }, [selectedTrader, traderSearch]);
 
   const loadLookups = useCallback(async () => {
     if (!accessToken) {
@@ -187,9 +191,6 @@ export function SalesEntryScreen({
         setValue('batchId', firstActiveId);
       }
       
-      if (traderResponse.data[0] && !traderId) {
-        setValue('traderId', traderResponse.data[0].id);
-      }
     } catch (error) {
       console.warn('Failed to load sales lookups:', error);
       setMessage(
@@ -201,7 +202,7 @@ export function SalesEntryScreen({
     } finally {
       setLoading(false);
     }
-  }, [accessToken, selectedBatchId, traderId, setValue]);
+  }, [accessToken, selectedBatchId, setValue]);
 
   useFocusEffect(
     useCallback(() => {
@@ -295,19 +296,26 @@ export function SalesEntryScreen({
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
-        {/* Draft restored banner */}
-        <Animated.View style={[styles.draftBanner, { opacity: draftBannerOpacity }]} pointerEvents="none">
-          <Ionicons name="cloud-done-outline" size={16} color={Colors.primary} />
-          <Text style={styles.draftBannerText}>Draft restored</Text>
-        </Animated.View>
+        {showDraftBanner ? (
+          <Animated.View style={[styles.draftBanner, { opacity: draftBannerOpacity }]} pointerEvents="none">
+            <Ionicons name="cloud-done-outline" size={16} color={Colors.primary} />
+            <Text style={styles.draftBannerText}>Draft restored</Text>
+          </Animated.View>
+        ) : null}
 
-        <Text style={styles.pageTitle}>{subtitle}</Text>
-
-        <View style={styles.noticeCard}>
-          <MaterialCommunityIcons name="cash-check" size={20} color={Colors.primary} />
-          <Text style={styles.noticeText}>
-            Sale records are posted live. Owner can confirm the sale, while supervisors can save a draft.
-          </Text>
+        <View style={styles.saleHero}>
+          <View style={styles.saleHeroIcon}>
+            <MaterialCommunityIcons name="cash-fast" size={22} color={Colors.primary} />
+          </View>
+          <View style={styles.saleHeroCopy}>
+            <Text style={styles.saleHeroTitle}>Sale Record</Text>
+            <Text style={styles.saleHeroMeta} numberOfLines={1}>
+              {selectedBatch?.code ?? 'Select batch'} • {selectedTrader?.name ?? 'Select trader'}
+            </Text>
+          </View>
+          <View style={styles.saleModePill}>
+            <Text style={styles.saleModeText}>{user?.role === 'OWNER' ? 'Confirm' : 'Draft'}</Text>
+          </View>
         </View>
 
         <View style={styles.card}>
@@ -325,22 +333,80 @@ export function SalesEntryScreen({
                 ) : activeBatches.length === 0 ? (
                   <Text style={styles.emptyText}>No active or ready-for-sale batches found.</Text>
                 ) : (
-                  <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipRow}>
-                    {activeBatches.map((batch) => {
-                      const active = batch.id === value;
-                      return (
-                        <TouchableOpacity
-                          key={batch.id}
-                          style={[styles.batchChip, active && styles.batchChipActive, formErrors.batchId && { borderColor: Colors.tertiary }]}
-                          onPress={() => onChange(batch.id)}
+                  <>
+                    <TouchableOpacity
+                      style={[
+                        styles.batchDropdownTrigger,
+                        batchDropdownOpen && styles.batchDropdownTriggerActive,
+                        formErrors.batchId && { borderColor: Colors.tertiary },
+                      ]}
+                      onPress={() => setBatchDropdownOpen((current) => !current)}
+                      activeOpacity={0.82}
+                    >
+                      <View style={styles.batchTriggerIcon}>
+                        <MaterialCommunityIcons name="layers-outline" size={18} color={Colors.primary} />
+                      </View>
+                      <View style={styles.batchTriggerCopy}>
+                        <Text style={[styles.batchTriggerValue, !selectedBatch && styles.batchTriggerPlaceholder]}>
+                          {selectedBatch?.code ?? 'Select active batch'}
+                        </Text>
+                        <Text style={styles.batchTriggerMeta} numberOfLines={1}>
+                          {selectedBatch
+                            ? `${selectedBatch.farmName ?? 'Farm'} • ${selectedBatch.placementCount.toLocaleString()} birds`
+                            : `${activeBatches.length} available`}
+                        </Text>
+                      </View>
+                      <Ionicons
+                        name={batchDropdownOpen ? 'chevron-up' : 'chevron-down'}
+                        size={20}
+                        color={Colors.textSecondary}
+                      />
+                    </TouchableOpacity>
+
+                    {batchDropdownOpen ? (
+                      <View style={styles.batchDropdown}>
+                        <ScrollView
+                          style={styles.batchOptions}
+                          nestedScrollEnabled
+                          keyboardShouldPersistTaps="handled"
                         >
-                          <Text style={[styles.batchChipText, active && styles.batchChipTextActive]}>
-                            {batchLabel(batch)}
-                          </Text>
-                        </TouchableOpacity>
-                      );
-                    })}
-                  </ScrollView>
+                          {activeBatches.map((batch) => {
+                            const active = batch.id === value;
+                            return (
+                              <TouchableOpacity
+                                key={batch.id}
+                                style={[styles.batchOption, active && styles.batchOptionActive]}
+                                onPress={() => {
+                                  onChange(batch.id);
+                                  setBatchDropdownOpen(false);
+                                }}
+                                activeOpacity={0.78}
+                              >
+                                <View style={[styles.batchOptionIcon, active && styles.batchOptionIconActive]}>
+                                  <MaterialCommunityIcons
+                                    name="barn"
+                                    size={18}
+                                    color={active ? Colors.primary : Colors.textSecondary}
+                                  />
+                                </View>
+                                <View style={styles.batchOptionCopy}>
+                                  <Text style={[styles.batchOptionCode, active && styles.batchOptionCodeActive]}>
+                                    {batch.code}
+                                  </Text>
+                                  <Text style={styles.batchOptionMeta} numberOfLines={1}>
+                                    {batch.farmName ?? 'Farm'} • {batch.placementCount.toLocaleString()} birds
+                                  </Text>
+                                </View>
+                                {active ? (
+                                  <Ionicons name="checkmark-circle" size={20} color={Colors.primary} />
+                                ) : null}
+                              </TouchableOpacity>
+                            );
+                          })}
+                        </ScrollView>
+                      </View>
+                    ) : null}
+                  </>
                 )}
                 {formErrors.batchId && <Text style={styles.fieldErrorText}>{formErrors.batchId.message}</Text>}
               </>
@@ -349,7 +415,7 @@ export function SalesEntryScreen({
 
           {selectedBatch && (
             <View style={styles.summaryStrip}>
-              <Ionicons name="layers-outline" size={18} color={Colors.primary} />
+              <MaterialCommunityIcons name="chart-timeline-variant" size={18} color={Colors.primary} />
               <View style={styles.summaryCopy}>
                 <Text style={styles.summaryTitle}>{selectedBatch.code}</Text>
                 <Text style={styles.summarySub}>
@@ -363,58 +429,106 @@ export function SalesEntryScreen({
         <View style={styles.card}>
           <Text style={styles.sectionTitle}>Trader</Text>
 
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Search Trader</Text>
-            <View style={styles.inputBox}>
-              <TextInput
-                style={styles.input}
-                value={traderSearch}
-                onChangeText={setTraderSearch}
-                placeholder="Search by name or phone"
-                placeholderTextColor={Colors.textSecondary}
-              />
-              <Ionicons name="search-outline" size={18} color={Colors.textSecondary} />
-            </View>
-          </View>
-
           <Controller
             control={control}
             name="traderId"
             render={({ field: { onChange, value } }) => (
               <>
-                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipRow}>
-                  {visibleTraders.map((trader) => {
-                    const active = trader.id === value;
-                    return (
-                      <TouchableOpacity
-                        key={trader.id}
-                        style={[styles.traderChip, active && styles.traderChipActive, formErrors.traderId && { borderColor: Colors.tertiary }]}
-                        onPress={() => onChange(trader.id)}
-                      >
-                        <Text style={[styles.traderChipText, active && styles.traderChipTextActive]}>
-                          {traderLabel(trader)}
-                        </Text>
-                      </TouchableOpacity>
-                    );
-                  })}
-                </ScrollView>
-
                 <View style={styles.inputGroup}>
-                  <Text style={styles.label}>Trader ID *</Text>
-                  <View style={[styles.inputBox, formErrors.traderId && { borderColor: Colors.tertiary }]}>
-                    <TextInput
-                      style={styles.input}
-                      value={value}
-                      onChangeText={onChange}
-                      placeholder="Select or paste trader ID"
-                      placeholderTextColor={Colors.textSecondary}
+                  <Text style={styles.label}>Trader Name *</Text>
+                  <TouchableOpacity
+                    style={[
+                      styles.traderDropdownTrigger,
+                      traderDropdownOpen && styles.traderDropdownTriggerActive,
+                      formErrors.traderId && { borderColor: Colors.tertiary },
+                    ]}
+                    onPress={() => {
+                      setTraderSearch(selectedTrader?.name ?? '');
+                      setTraderDropdownOpen((current) => !current);
+                    }}
+                    activeOpacity={0.82}
+                  >
+                    <View style={styles.traderTriggerIcon}>
+                      <Ionicons name="person-outline" size={18} color={Colors.primary} />
+                    </View>
+                    <View style={styles.traderTriggerCopy}>
+                      <Text style={[styles.traderTriggerValue, !selectedTrader && styles.traderTriggerPlaceholder]}>
+                        {selectedTrader?.name ?? 'Select trader'}
+                      </Text>
+                    </View>
+                    <Ionicons
+                      name={traderDropdownOpen ? 'chevron-up' : 'chevron-down'}
+                      size={20}
+                      color={Colors.textSecondary}
                     />
-                  </View>
+                  </TouchableOpacity>
                   {formErrors.traderId && <Text style={styles.fieldErrorText}>{formErrors.traderId.message}</Text>}
-                  {selectedTrader ? (
-                    <Text style={styles.helperText}>Selected: {traderLabel(selectedTrader)}</Text>
-                  ) : null}
                 </View>
+
+                {traderDropdownOpen ? (
+                  <View style={styles.traderDropdown}>
+                    <View style={styles.traderSearchBox}>
+                      <Ionicons name="search-outline" size={18} color={Colors.textSecondary} />
+                      <TextInput
+                        style={styles.traderSearchInput}
+                        value={traderSearch}
+                        onChangeText={(nextValue) => {
+                          setTraderSearch(nextValue);
+                          if (value && selectedTrader?.name !== nextValue) {
+                            onChange('');
+                          }
+                        }}
+                        placeholder="Search trader name"
+                        placeholderTextColor={Colors.textSecondary}
+                      />
+                    </View>
+
+                    <ScrollView
+                      style={styles.traderOptions}
+                      nestedScrollEnabled
+                      keyboardShouldPersistTaps="handled"
+                    >
+                      {visibleTraders.length === 0 ? (
+                        <View style={styles.traderEmptyState}>
+                          <Ionicons name="search-outline" size={20} color={Colors.textSecondary} />
+                          <Text style={styles.emptyText}>No trader found.</Text>
+                        </View>
+                      ) : (
+                        visibleTraders.map((trader) => {
+                          const active = trader.id === value;
+                          return (
+                            <TouchableOpacity
+                              key={trader.id}
+                              style={[styles.traderOption, active && styles.traderOptionActive]}
+                              onPress={() => {
+                                onChange(trader.id);
+                                setTraderSearch(trader.name);
+                                setTraderDropdownOpen(false);
+                              }}
+                              activeOpacity={0.78}
+                            >
+                              <View style={[styles.traderOptionAvatar, active && styles.traderOptionAvatarActive]}>
+                                <Text style={[styles.traderOptionInitial, active && styles.traderOptionInitialActive]}>
+                                  {trader.name.trim().charAt(0).toUpperCase() || 'T'}
+                                </Text>
+                              </View>
+                              <Text style={[styles.traderOptionName, active && styles.traderOptionNameActive]}>
+                                {traderLabel(trader)}
+                              </Text>
+                              {active ? (
+                                <Ionicons name="checkmark-circle" size={20} color={Colors.primary} />
+                              ) : null}
+                            </TouchableOpacity>
+                          );
+                        })
+                      )}
+                    </ScrollView>
+                  </View>
+                ) : null}
+
+                {selectedTrader ? (
+                  <Text style={styles.helperText}>Selected trader: {selectedTrader.name}</Text>
+                ) : null}
               </>
             )}
           />
@@ -733,46 +847,81 @@ const styles = StyleSheet.create({
     color: Colors.textSecondary,
   },
   container: {
-    padding: Layout.screenPadding,
+    paddingHorizontal: Layout.screenPadding,
+    paddingTop: 8,
     paddingBottom: 100,
   },
-  pageTitle: {
-    fontSize: 26,
-    fontWeight: '800',
-    color: Colors.text,
-    marginBottom: 14,
-  },
-  noticeCard: {
+  saleHero: {
     flexDirection: 'row',
-    gap: 8,
     alignItems: 'center',
-    backgroundColor: '#E8F5E9',
-    borderRadius: 10,
+    gap: 10,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#C8E6C9',
-    padding: 14,
-    marginBottom: 14,
+    borderColor: '#DDEBE3',
+    padding: 12,
+    marginBottom: 10,
+    shadowColor: '#101828',
+    shadowOffset: { width: 0, height: 5 },
+    shadowOpacity: 0.06,
+    shadowRadius: 12,
+    elevation: 2,
   },
-  noticeText: {
+  saleHeroIcon: {
+    width: 38,
+    height: 38,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#E8F5E9',
+  },
+  saleHeroCopy: {
     flex: 1,
-    fontSize: 12,
+  },
+  saleHeroTitle: {
     color: Colors.text,
-    lineHeight: 18,
+    fontSize: 15,
+    fontWeight: '900',
+  },
+  saleHeroMeta: {
+    color: Colors.textSecondary,
+    fontSize: 12,
+    fontWeight: '600',
+    marginTop: 2,
+  },
+  saleModePill: {
+    minHeight: 30,
+    borderRadius: 999,
+    paddingHorizontal: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#F0F8F3',
+    borderWidth: 1,
+    borderColor: '#CBE6D5',
+  },
+  saleModeText: {
+    color: Colors.primary,
+    fontSize: 11,
+    fontWeight: '900',
   },
   card: {
     backgroundColor: Colors.surface,
     borderRadius: 12,
-    padding: 16,
-    marginBottom: 14,
+    padding: 14,
+    marginBottom: 10,
     borderWidth: 1,
-    borderColor: Colors.border,
-    ...Layout.cardShadow,
+    borderColor: '#E2E8E5',
+    shadowColor: '#101828',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.05,
+    shadowRadius: 10,
+    elevation: 2,
   },
   sectionTitle: {
-    fontSize: 16,
-    fontWeight: '800',
+    fontSize: 15,
+    fontWeight: '900',
     color: Colors.text,
-    marginBottom: 12,
+    marginBottom: 10,
   },
   loadingBox: {
     minHeight: 72,
@@ -789,12 +938,12 @@ const styles = StyleSheet.create({
     color: Colors.textSecondary,
   },
   chipRow: {
-    gap: 8,
-    paddingBottom: 12,
+    gap: 7,
+    paddingBottom: 8,
   },
   batchChip: {
-    paddingHorizontal: 14,
-    paddingVertical: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 9,
     borderRadius: 999,
     borderWidth: 1,
     borderColor: Colors.border,
@@ -811,6 +960,113 @@ const styles = StyleSheet.create({
   },
   batchChipTextActive: {
     color: '#FFF',
+  },
+  batchDropdownTrigger: {
+    minHeight: 54,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    backgroundColor: '#FFFFFF',
+    shadowColor: '#101828',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.04,
+    shadowRadius: 8,
+    elevation: 1,
+  },
+  batchDropdownTriggerActive: {
+    borderColor: Colors.primary,
+    backgroundColor: '#F6FBF7',
+  },
+  batchTriggerIcon: {
+    width: 34,
+    height: 34,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#E8F5E9',
+  },
+  batchTriggerCopy: {
+    flex: 1,
+  },
+  batchTriggerValue: {
+    color: Colors.text,
+    fontSize: 15,
+    fontWeight: '900',
+  },
+  batchTriggerPlaceholder: {
+    color: Colors.textSecondary,
+    fontWeight: '700',
+  },
+  batchTriggerMeta: {
+    color: Colors.textSecondary,
+    fontSize: 11,
+    fontWeight: '600',
+    marginTop: 2,
+  },
+  batchDropdown: {
+    borderWidth: 1,
+    borderColor: '#D7E8DD',
+    borderRadius: 12,
+    backgroundColor: '#FFFFFF',
+    padding: 8,
+    marginTop: 8,
+    marginBottom: 8,
+    shadowColor: '#101828',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.08,
+    shadowRadius: 14,
+    elevation: 4,
+  },
+  batchOptions: {
+    maxHeight: 230,
+  },
+  batchOption: {
+    minHeight: 58,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 11,
+    borderRadius: 9,
+    paddingHorizontal: 10,
+    marginBottom: 5,
+    backgroundColor: '#FFFFFF',
+  },
+  batchOptionActive: {
+    backgroundColor: '#E8F5E9',
+  },
+  batchOptionIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#F1F5F3',
+    borderWidth: 1,
+    borderColor: Colors.border,
+  },
+  batchOptionIconActive: {
+    backgroundColor: '#FFFFFF',
+    borderColor: Colors.primary,
+  },
+  batchOptionCopy: {
+    flex: 1,
+  },
+  batchOptionCode: {
+    color: Colors.text,
+    fontSize: 14,
+    fontWeight: '900',
+  },
+  batchOptionCodeActive: {
+    color: Colors.primary,
+  },
+  batchOptionMeta: {
+    color: Colors.textSecondary,
+    fontSize: 11,
+    fontWeight: '600',
+    marginTop: 2,
   },
   traderChip: {
     paddingHorizontal: 14,
@@ -832,15 +1088,141 @@ const styles = StyleSheet.create({
   traderChipTextActive: {
     color: Colors.primary,
   },
+  traderDropdownTrigger: {
+    minHeight: 50,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    backgroundColor: '#FFFFFF',
+    shadowColor: '#101828',
+    shadowOffset: { width: 0, height: 5 },
+    shadowOpacity: 0.04,
+    shadowRadius: 8,
+    elevation: 1,
+  },
+  traderDropdownTriggerActive: {
+    borderColor: Colors.primary,
+    backgroundColor: '#F6FBF7',
+  },
+  traderTriggerIcon: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#E8F5E9',
+  },
+  traderTriggerCopy: {
+    flex: 1,
+  },
+  traderTriggerValue: {
+    color: Colors.text,
+    fontSize: 15,
+    fontWeight: '800',
+  },
+  traderTriggerPlaceholder: {
+    color: Colors.textSecondary,
+    fontWeight: '600',
+  },
+  traderDropdown: {
+    borderWidth: 1,
+    borderColor: '#D7E8DD',
+    borderRadius: 12,
+    backgroundColor: '#FFFFFF',
+    padding: 8,
+    marginTop: -2,
+    marginBottom: 10,
+    shadowColor: '#101828',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.08,
+    shadowRadius: 14,
+    elevation: 4,
+  },
+  traderSearchBox: {
+    minHeight: 42,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 9,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    borderRadius: 9,
+    paddingHorizontal: 12,
+    backgroundColor: '#F9FAFB',
+    marginBottom: 8,
+  },
+  traderSearchInput: {
+    flex: 1,
+    color: Colors.text,
+    fontSize: 14,
+    fontWeight: '600',
+    padding: 0,
+  },
+  traderOptions: {
+    maxHeight: 210,
+  },
+  traderOption: {
+    minHeight: 48,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 11,
+    borderRadius: 9,
+    paddingHorizontal: 10,
+    marginBottom: 4,
+    backgroundColor: '#FFFFFF',
+  },
+  traderOptionActive: {
+    backgroundColor: '#E8F5E9',
+  },
+  traderOptionAvatar: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#F1F5F3',
+    borderWidth: 1,
+    borderColor: Colors.border,
+  },
+  traderOptionAvatarActive: {
+    backgroundColor: '#FFFFFF',
+    borderColor: Colors.primary,
+  },
+  traderOptionInitial: {
+    color: Colors.textSecondary,
+    fontSize: 13,
+    fontWeight: '900',
+  },
+  traderOptionInitialActive: {
+    color: Colors.primary,
+  },
+  traderOptionName: {
+    flex: 1,
+    color: Colors.text,
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  traderOptionNameActive: {
+    color: Colors.primary,
+  },
+  traderEmptyState: {
+    minHeight: 74,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 7,
+  },
   summaryStrip: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
+    gap: 9,
     backgroundColor: '#F9FAFB',
     borderRadius: 10,
     borderWidth: 1,
     borderColor: Colors.border,
-    padding: 12,
+    padding: 10,
   },
   summaryCopy: {
     flex: 1,
@@ -856,7 +1238,7 @@ const styles = StyleSheet.create({
     color: Colors.textSecondary,
   },
   inputGroup: {
-    marginBottom: 14,
+    marginBottom: 10,
   },
   label: {
     fontSize: 13,
@@ -865,18 +1247,18 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   inputBox: {
-    minHeight: 48,
+    minHeight: 46,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
     borderWidth: 1,
     borderColor: Colors.border,
-    borderRadius: 10,
+    borderRadius: 9,
     paddingHorizontal: 12,
     backgroundColor: '#F9FAFB',
   },
   textArea: {
-    minHeight: 84,
+    minHeight: 76,
     alignItems: 'flex-start',
     paddingTop: 12,
   },
@@ -897,23 +1279,23 @@ const styles = StyleSheet.create({
   },
   row: {
     flexDirection: Layout.isSmallDevice ? 'column' : 'row',
-    gap: 12,
+    gap: 10,
   },
   half: {
     flex: 1,
   },
   summaryGrid: {
     flexDirection: 'row',
-    gap: 12,
-    marginBottom: 14,
+    gap: 10,
+    marginBottom: 10,
   },
   summaryBox: {
     flex: 1,
-    backgroundColor: '#F9FAFB',
+    backgroundColor: '#F7FBF8',
     borderRadius: 10,
-    padding: 14,
+    padding: 12,
     borderWidth: 1,
-    borderColor: Colors.border,
+    borderColor: '#DDEBE3',
   },
   summaryLabel: {
     fontSize: 12,
@@ -943,17 +1325,17 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   primaryBtn: {
-    minHeight: 52,
+    minHeight: 50,
     borderRadius: 10,
     backgroundColor: Colors.primary,
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
     gap: 8,
-    marginBottom: 10,
+    marginBottom: 8,
   },
   finalizeBtn: {
-    minHeight: 52,
+    minHeight: 50,
     borderRadius: 10,
     backgroundColor: Colors.surface,
     flexDirection: 'row',
