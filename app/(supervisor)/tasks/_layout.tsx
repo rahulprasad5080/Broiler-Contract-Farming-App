@@ -5,6 +5,8 @@ export default function SupervisorTasksLayout() {
     <Stack screenOptions={{ headerShown: false }}>
       <Stack.Screen name="index" />
       <Stack.Screen name="daily" />
+      <Stack.Screen name="treatments" />
+      <Stack.Screen name="comments" />
       <Stack.Screen name="sales" />
     </Stack>
   );
