@@ -31,6 +31,7 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { useFormPersistence } from "@/hooks/useFormPersistence";
+import { HeaderNotificationButton } from "@/components/ui/HeaderNotificationButton";
 import {
   showRequestErrorToast,
   showSuccessToast,
@@ -406,6 +407,7 @@ export function DailyEntryScreen({
           <Text style={styles.headerTitle}>{title}</Text>
           <Text style={styles.headerSub}>{user?.role ?? "User"}</Text>
         </View>
+        <HeaderNotificationButton />
       </View>
 
       <ScrollView

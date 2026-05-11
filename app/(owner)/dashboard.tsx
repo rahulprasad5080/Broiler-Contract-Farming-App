@@ -32,6 +32,7 @@ import {
 import { Colors } from "../../constants/Colors";
 import { Layout } from "../../constants/Layout";
 import { useAuth } from "../../context/AuthContext";
+import { HeaderNotificationButton } from "../../components/ui/HeaderNotificationButton";
 
 type PortalItem = {
   label: string;
@@ -229,6 +230,7 @@ export default function OwnerDashboard() {
       <View style={styles.topBar}>
         <Text style={styles.topBarTitle}>Broiler Manager</Text>
         <View style={styles.topBarRight}>
+          <HeaderNotificationButton />
           <TouchableOpacity
             style={styles.iconBtn}
             onPress={() => setShowSettingsPanel(true)}

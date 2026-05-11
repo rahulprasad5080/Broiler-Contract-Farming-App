@@ -6,6 +6,7 @@ import { Colors } from '../../constants/Colors';
 import { Layout } from '../../constants/Layout';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
+import { HeaderNotificationButton } from '../../components/ui/HeaderNotificationButton';
 
 export default function FarmerDashboard() {
   const { signOut } = useAuth();
@@ -18,6 +19,7 @@ export default function FarmerDashboard() {
           <Ionicons name="arrow-back" size={24} color={Colors.primary} />
         </TouchableOpacity>
         <Text style={styles.topBarTitle}>Broiler Manager</Text>
+        <HeaderNotificationButton />
       </View>
 
       <ScrollView contentContainerStyle={styles.scrollContent}>
@@ -136,6 +138,7 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: Colors.text,
     marginLeft: 15,
+    flex: 1,
   },
   scrollContent: {
     padding: Layout.spacing.lg,

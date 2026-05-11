@@ -4,12 +4,14 @@ import { ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Colors } from '../../constants/Colors';
 import { Layout } from '../../constants/Layout';
+import { HeaderNotificationButton } from '../../components/ui/HeaderNotificationButton';
 
 export default function SupervisorDashboard() {
   return (
     <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
       <View style={styles.topBar}>
         <Text style={styles.topBarTitle}>Broiler Manager</Text>
+        <HeaderNotificationButton />
       </View>
 
       <ScrollView contentContainerStyle={styles.scrollContent}>

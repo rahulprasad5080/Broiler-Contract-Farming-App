@@ -34,6 +34,7 @@ import {
 } from '@/services/apiFeedback';
 import { getLocalDateValue } from '@/services/dateUtils';
 import { useFormPersistence } from '@/hooks/useFormPersistence';
+import { HeaderNotificationButton } from '@/components/ui/HeaderNotificationButton';
 
 type SalesEntryScreenProps = {
   title?: string;
@@ -258,6 +259,7 @@ export function SalesEntryScreen({
           <Text style={styles.headerTitle}>{title}</Text>
           <Text style={styles.headerSub}>{user?.role ?? 'User'}</Text>
         </View>
+        <HeaderNotificationButton />
       </View>
 
       <ScrollView
