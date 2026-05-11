@@ -12,6 +12,7 @@ export default function FarmerLayout() {
       <Tabs.Screen name="tasks" />
       <Tabs.Screen name="reports" />
       <Tabs.Screen name="profile" />
+      <Tabs.Screen name="notifications" options={{ href: null }} />
     </Tabs>
   );
 }

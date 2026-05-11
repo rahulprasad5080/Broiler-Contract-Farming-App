@@ -1,26 +1,45 @@
 import { Ionicons } from "@expo/vector-icons";
+import { useRouter } from "expo-router";
 import React from "react";
-import { Alert, StyleSheet, TouchableOpacity, View } from "react-native";
+import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
 
 import { Colors } from "@/constants/Colors";
+import { useAuth } from "@/context/AuthContext";
 
 type HeaderNotificationButtonProps = {
   unread?: boolean;
+  unreadCount?: number;
 };
 
 export function HeaderNotificationButton({
   unread = true,
+  unreadCount = 4,
 }: HeaderNotificationButtonProps) {
+  const router = useRouter();
+  const { user } = useAuth();
+  const route =
+    user?.role === "OWNER"
+      ? "/(owner)/notifications"
+      : user?.role === "SUPERVISOR"
+        ? "/(supervisor)/notifications"
+        : "/(farmer)/notifications";
+
   return (
     <TouchableOpacity
       style={styles.button}
-      onPress={() => Alert.alert("Notifications", "No new notifications.")}
+      onPress={() => router.push(route as never)}
       activeOpacity={0.82}
       accessibilityRole="button"
       accessibilityLabel="Notifications"
     >
       <Ionicons name="notifications-outline" size={22} color={Colors.text} />
-      {unread ? <View style={styles.badge} /> : null}
+      {unread ? (
+        <View style={styles.badge}>
+          <Text style={styles.badgeText}>
+            {unreadCount > 9 ? "9+" : unreadCount}
+          </Text>
+        </View>
+      ) : null}
     </TouchableOpacity>
   );
 }
@@ -38,13 +57,21 @@ const styles = StyleSheet.create({
   },
   badge: {
     position: "absolute",
-    top: 9,
-    right: 10,
-    width: 8,
-    height: 8,
-    borderRadius: 4,
+    top: 6,
+    right: 5,
+    minWidth: 16,
+    height: 16,
+    borderRadius: 8,
+    alignItems: "center",
+    justifyContent: "center",
     backgroundColor: Colors.tertiary,
     borderWidth: 1,
     borderColor: Colors.surface,
+  },
+  badgeText: {
+    color: "#FFFFFF",
+    fontSize: 9,
+    fontWeight: "900",
+    lineHeight: 11,
   },
 });

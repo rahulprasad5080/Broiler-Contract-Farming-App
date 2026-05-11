@@ -13,6 +13,7 @@ export default function SupervisorLayout() {
       {/* <Tabs.Screen name="manage" /> */}
       <Tabs.Screen name="reports" />
       <Tabs.Screen name="profile" />
+      <Tabs.Screen name="notifications" options={{ href: null }} />
     </Tabs>
   );
 }
