@@ -60,12 +60,6 @@ export default function OwnerDashboard() {
   const [loadingUsers, setLoadingUsers] = useState(false);
   const [savingUserId, setSavingUserId] = useState<string | null>(null);
   const [settingsError, setSettingsError] = useState<string | null>(null);
-  const initials = (user?.name ?? "Owner")
-    .split(" ")
-    .map((word) => word[0])
-    .join("")
-    .slice(0, 2)
-    .toUpperCase();
 
   const portalItems: PortalItem[] = [
     {
@@ -231,18 +225,6 @@ export default function OwnerDashboard() {
         <Text style={styles.topBarTitle}>Broiler Manager</Text>
         <View style={styles.topBarRight}>
           <HeaderNotificationButton />
-          <TouchableOpacity
-            style={styles.iconBtn}
-            onPress={() => setShowSettingsPanel(true)}
-          >
-            <Ionicons name="people-outline" size={24} color={Colors.text} />
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={styles.profileCircle}
-            onPress={() => router.push("/(owner)/profile" as any)}
-          >
-            <Text style={styles.profileInitials}>{initials}</Text>
-          </TouchableOpacity>
         </View>
       </View>
 
@@ -537,20 +519,6 @@ const styles = StyleSheet.create({
   topBarRight: {
     flexDirection: "row",
     alignItems: "center",
-  },
-  iconBtn: { marginRight: 15 },
-  profileCircle: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: Colors.primary,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  profileInitials: {
-    color: "#FFF",
-    fontSize: 12,
-    fontWeight: "bold",
   },
   scrollContent: {
     padding: Layout.screenPadding,

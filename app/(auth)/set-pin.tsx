@@ -2,10 +2,10 @@ import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import React from "react";
 import {
-  Keyboard,
+  ActivityIndicator,
+  ScrollView,
   StyleSheet,
   Text,
-  TextInput,
   TouchableOpacity,
   View,
 } from "react-native";
@@ -15,13 +15,32 @@ import { Colors } from "../../constants/Colors";
 import Toast from 'react-native-toast-message';
 import { saveQuickPin } from "../../services/authSecurity";
 
-function PinDots({ value }: { value: string }) {
+const KEYPAD = [
+  { key: "1", letters: "" },
+  { key: "2", letters: "ABC" },
+  { key: "3", letters: "DEF" },
+  { key: "4", letters: "GHI" },
+  { key: "5", letters: "JKL" },
+  { key: "6", letters: "MNO" },
+  { key: "7", letters: "PQRS" },
+  { key: "8", letters: "TUV" },
+  { key: "9", letters: "WXYZ" },
+  { key: "blank", letters: "" },
+  { key: "0", letters: "" },
+  { key: "back", letters: "" },
+];
+
+function PinDots({ value, active }: { value: string; active: boolean }) {
   return (
     <View style={styles.dotsRow}>
       {[0, 1, 2, 3].map((index) => (
         <View
           key={index}
-          style={[styles.pinDot, value.length > index && styles.pinDotFilled]}
+          style={[
+            styles.pinDot,
+            active && styles.pinDotActive,
+            value.length > index && styles.pinDotFilled,
+          ]}
         />
       ))}
     </View>
@@ -34,30 +53,46 @@ export default function SetPinScreen() {
   const [confirmPin, setConfirmPin] = React.useState("");
   const [activeField, setActiveField] = React.useState<"pin" | "confirm">("pin");
   const [isSaving, setIsSaving] = React.useState(false);
-  const inputRef = React.useRef<TextInput>(null);
 
   const activeValue = activeField === "pin" ? pin : confirmPin;
   const pinIsComplete = pin.length === 4 && confirmPin.length === 4;
   const pinsMatch = pin === confirmPin;
   const canSave = pinIsComplete && pinsMatch && !isSaving;
-
-  React.useEffect(() => {
-    const timer = setTimeout(() => inputRef.current?.focus(), 250);
-    return () => clearTimeout(timer);
-  }, []);
+  const screenTitle = activeField === "pin" ? "Enter PIN" : "Confirm PIN";
 
   const updateActiveValue = (nextValue: string) => {
-    const digitsOnly = nextValue.replace(/\D/g, "").slice(0, 4);
-
     if (activeField === "pin") {
-      setPin(digitsOnly);
-      if (digitsOnly.length === 4) {
+      setPin(nextValue);
+      if (nextValue.length === 4) {
         setActiveField("confirm");
       }
       return;
     }
 
-    setConfirmPin(digitsOnly);
+    setConfirmPin(nextValue);
+  };
+
+  const handleDigitPress = (digit: string) => {
+    if (isSaving || activeValue.length >= 4) {
+      return;
+    }
+
+    updateActiveValue(`${activeValue}${digit}`);
+  };
+
+  const handleBackspace = () => {
+    if (isSaving) {
+      return;
+    }
+
+    if (activeValue.length > 0) {
+      updateActiveValue(activeValue.slice(0, -1));
+      return;
+    }
+
+    if (activeField === "confirm") {
+      setActiveField("pin");
+    }
   };
 
   const handleSave = async () => {
@@ -65,7 +100,6 @@ export default function SetPinScreen() {
       return;
     }
 
-    Keyboard.dismiss();
     setIsSaving(true);
 
     try {
@@ -86,89 +120,98 @@ export default function SetPinScreen() {
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <View style={styles.container}>
+      <ScrollView
+        contentContainerStyle={styles.container}
+        showsVerticalScrollIndicator={false}
+      >
         <TouchableOpacity
           style={styles.backButton}
           onPress={() => router.back()}
           activeOpacity={0.7}
         >
-          <Ionicons name="arrow-back" size={24} color="#111827" />
+          <Ionicons name="arrow-back" size={24} color={Colors.primary} />
         </TouchableOpacity>
 
-        <View style={styles.content}>
-          <Text style={styles.title}>Create 4-digit PIN</Text>
-          <Text style={styles.subtitle}>This PIN will be used for quick login on this device</Text>
+        <View style={styles.pinShell}>
+          <View style={styles.deviceHeader}>
+            <View style={styles.lockCircle}>
+              <Ionicons name="lock-closed-outline" size={28} color={Colors.primary} />
+            </View>
+            <Text style={styles.title}>{screenTitle}</Text>
+            <Text style={styles.subtitle}>
+              {activeField === "pin"
+                ? "Create a 4-digit quick login PIN"
+                : "Re-enter the same PIN"}
+            </Text>
+          </View>
 
-          <TouchableOpacity
-            activeOpacity={1}
-            onPress={() => {
-              setActiveField("pin");
-              inputRef.current?.focus();
-            }}
-          >
-            <PinDots value={pin} />
-          </TouchableOpacity>
+          <PinDots value={activeValue} active />
 
-          <Text style={styles.confirmTitle}>Confirm PIN</Text>
-          <TouchableOpacity
-            activeOpacity={1}
-            onPress={() => {
-              setActiveField("confirm");
-              inputRef.current?.focus();
-            }}
-          >
-            <PinDots value={confirmPin} />
-          </TouchableOpacity>
+          <View style={styles.keypad}>
+            {KEYPAD.map((item, index) => {
+              if (item.key === "blank") {
+                return <View key={`${item.key}-${index}`} style={styles.keypadKey} />;
+              }
+
+              const isBackspace = item.key === "back";
+
+              return (
+                <TouchableOpacity
+                  key={item.key}
+                  style={styles.keypadKey}
+                  activeOpacity={0.58}
+                  onPress={() =>
+                    isBackspace ? handleBackspace() : handleDigitPress(item.key)
+                  }
+                >
+                  {isBackspace ? (
+                    <Ionicons
+                      name="backspace-outline"
+                      size={25}
+                      color={Colors.text}
+                    />
+                  ) : (
+                    <>
+                      <Text style={styles.keypadText}>{item.key}</Text>
+                      {item.letters ? (
+                        <Text style={styles.keypadLetters}>{item.letters}</Text>
+                      ) : null}
+                    </>
+                  )}
+                </TouchableOpacity>
+              );
+            })}
+          </View>
 
           {pinIsComplete && !pinsMatch ? (
             <Text style={styles.errorText}>PIN does not match</Text>
           ) : (
             <Text style={styles.helperText}>
-              Choose a PIN that is easy for you to remember but hard for others to guess.
+              Your PIN is encrypted and stored on this device.
             </Text>
           )}
-        </View>
 
-        <TextInput
-          ref={inputRef}
-          value={activeValue}
-          onChangeText={updateActiveValue}
-          keyboardType="number-pad"
-          maxLength={4}
-          secureTextEntry
-          caretHidden
-          style={styles.hiddenInput}
-        />
-
-        <View style={styles.footer}>
           <TouchableOpacity
             style={[styles.saveButton, !canSave && styles.saveButtonDisabled]}
             onPress={handleSave}
             disabled={!canSave}
             activeOpacity={0.85}
           >
-            <Text
-              style={[
-                styles.saveButtonText,
-                !canSave && styles.saveButtonTextDisabled,
-              ]}
-            >
-              {isSaving ? "SAVING..." : "SAVE PIN"}
-            </Text>
+            {isSaving ? (
+              <ActivityIndicator color="#FFFFFF" />
+            ) : (
+              <Text
+                style={[
+                  styles.saveButtonText,
+                  !canSave && styles.saveButtonTextDisabled,
+                ]}
+              >
+                SAVE PIN
+              </Text>
+            )}
           </TouchableOpacity>
-
-          <View style={styles.secureRow}>
-            <Ionicons
-              name="lock-closed-outline"
-              size={19}
-              color={Colors.textSecondary}
-            />
-            <Text style={styles.secureText}>
-              Your PIN is encrypted and stored securely on this device.
-            </Text>
-          </View>
         </View>
-      </View>
+      </ScrollView>
     </SafeAreaView>
   );
 }
@@ -176,15 +219,14 @@ export default function SetPinScreen() {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: "#FFFFFF",
+    backgroundColor: Colors.background,
   },
   container: {
-    flex: 1,
-    justifyContent: "center",
+    flexGrow: 1,
     alignItems: "center",
-    backgroundColor: "#FFFFFF",
     paddingHorizontal: 24,
-    paddingVertical: 32,
+    paddingTop: 54,
+    paddingBottom: 34,
   },
   backButton: {
     position: "absolute",
@@ -196,85 +238,192 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  content: {
+  pinShell: {
+    width: "100%",
+    maxWidth: 360,
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  deviceHeader: {
+    alignItems: "center",
+    marginTop: 22,
+    marginBottom: 22,
+  },
+  lockCircle: {
+    width: 62,
+    height: 62,
+    borderRadius: 31,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#E8F5E9",
+    borderWidth: 1,
+    borderColor: "#CBE6D5",
+    marginBottom: 22,
+  },
+  headerCard: {
     width: "100%",
     maxWidth: 420,
     alignItems: "center",
+    backgroundColor: "#FFFFFF",
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: "#DDEBE3",
+    paddingHorizontal: 20,
+    paddingTop: 26,
+    paddingBottom: 22,
+    marginTop: 24,
+    shadowColor: "#101828",
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.08,
+    shadowRadius: 16,
+    elevation: 3,
+  },
+  iconCircle: {
+    width: 66,
+    height: 66,
+    borderRadius: 19,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#E8F5E9",
+    borderWidth: 1,
+    borderColor: "#CBE6D5",
+    marginBottom: 14,
   },
   title: {
-    color: "#111827",
+    color: Colors.text,
     fontSize: 20,
-    fontWeight: "800",
+    fontWeight: "900",
+    textAlign: "center",
   },
   subtitle: {
     color: Colors.textSecondary,
     fontSize: 13,
-    fontWeight: "500",
-    marginTop: 7,
-    marginBottom: 48,
+    lineHeight: 18,
+    fontWeight: "600",
+    marginTop: 8,
     textAlign: "center",
+  },
+  pinPanel: {
+    width: "100%",
+    maxWidth: 420,
+    marginTop: 16,
+  },
+  pinStep: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: 13,
+    borderWidth: 1,
+    borderColor: "#E2E8E5",
+    padding: 14,
+    marginBottom: 10,
+  },
+  pinStepActive: {
+    borderColor: Colors.primary,
+    backgroundColor: "#FBFEFC",
+  },
+  stepHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 13,
+  },
+  stepTitle: {
+    color: Colors.text,
+    fontSize: 14,
+    fontWeight: "900",
+  },
+  stepMeta: {
+    color: Colors.textSecondary,
+    fontSize: 12,
+    fontWeight: "800",
   },
   dotsRow: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    gap: 34,
-    minHeight: 28,
+    gap: 16,
+    minHeight: 16,
+    marginBottom: 22,
   },
   pinDot: {
-    width: 20,
-    height: 20,
-    borderRadius: 10,
-    borderWidth: 2,
-    borderColor: Colors.primary,
-    backgroundColor: "#FFFFFF",
+    width: 11,
+    height: 11,
+    borderRadius: 6,
+    borderWidth: 0,
+    backgroundColor: "#C8D6D0",
+  },
+  pinDotActive: {
+    backgroundColor: "#C8D6D0",
   },
   pinDotFilled: {
     backgroundColor: Colors.primary,
   },
-  confirmTitle: {
-    color: "#111827",
-    fontSize: 18,
-    fontWeight: "800",
-    marginTop: 54,
-    marginBottom: 34,
-  },
   errorText: {
     color: Colors.error,
-    fontSize: 13,
-    fontWeight: "700",
-    marginTop: 28,
+    fontSize: 12,
+    fontWeight: "800",
+    marginTop: 10,
     minHeight: 18,
+    textAlign: "center",
   },
   helperText: {
     color: Colors.textSecondary,
-    fontSize: 12,
-    lineHeight: 18,
-    fontWeight: "500",
-    marginTop: 28,
-    minHeight: 36,
+    fontSize: 11,
+    lineHeight: 16,
+    fontWeight: "700",
+    marginTop: 10,
+    minHeight: 18,
     textAlign: "center",
   },
-  hiddenInput: {
-    position: "absolute",
-    width: 1,
-    height: 1,
-    opacity: 0,
+  keypad: {
+    width: "100%",
+    flexDirection: "row",
+    flexWrap: "wrap",
+    justifyContent: "space-between",
+    rowGap: 10,
+  },
+  keypadKey: {
+    width: 92,
+    height: 68,
+    borderRadius: 34,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  keypadText: {
+    color: Colors.text,
+    fontSize: 27,
+    fontWeight: "800",
+  },
+  keypadLetters: {
+    color: Colors.textSecondary,
+    fontSize: 9,
+    fontWeight: "900",
+    letterSpacing: 1,
+    marginTop: 1,
   },
   footer: {
     width: "100%",
     maxWidth: 420,
-    marginTop: 72,
+    marginTop: 18,
   },
   saveButton: {
-    height: 48,
-    borderRadius: 7,
+    width: "100%",
+    height: 50,
+    borderRadius: 24,
     alignItems: "center",
     justifyContent: "center",
     backgroundColor: Colors.primary,
+    marginTop: 18,
+    shadowColor: Colors.primary,
+    shadowOffset: { width: 0, height: 7 },
+    shadowOpacity: 0.22,
+    shadowRadius: 10,
+    elevation: 5,
   },
   saveButtonDisabled: {
-    backgroundColor: "#EEF7EE",
+    backgroundColor: "#D9E8DF",
+    shadowOpacity: 0,
+    elevation: 0,
   },
   saveButtonText: {
     color: "#FFFFFF",
@@ -282,20 +431,25 @@ const styles = StyleSheet.create({
     fontWeight: "800",
   },
   saveButtonTextDisabled: {
-    color: Colors.primary,
+    color: "#6B8375",
   },
   secureRow: {
     flexDirection: "row",
     alignItems: "flex-start",
     gap: 11,
-    marginTop: 23,
-    paddingHorizontal: 7,
+    marginTop: 16,
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+    borderRadius: 12,
+    backgroundColor: "#FFFFFF",
+    borderWidth: 1,
+    borderColor: "#E2E8E5",
   },
   secureText: {
     flex: 1,
-    color: "#4B5563",
-    fontSize: 13,
-    lineHeight: 19,
-    fontWeight: "500",
+    color: Colors.textSecondary,
+    fontSize: 12,
+    lineHeight: 18,
+    fontWeight: "700",
   },
 });

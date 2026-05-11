@@ -1,6 +1,7 @@
 import { FontAwesome5, Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useRouter } from 'expo-router';
+import { useFocusEffect } from '@react-navigation/native';
 import React from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import {
@@ -28,6 +29,10 @@ import {
   getPasswordValidationError,
   PASSWORD_REQUIREMENT_TEXT,
 } from '@/services/authValidation';
+import {
+  isBiometricEnabled,
+  setBiometricEnabled,
+} from '@/services/authSecurity';
 
 const getInitials = (name: string) =>
   name
@@ -225,6 +230,22 @@ export default function ProfileScreen() {
     resetProfile({ name: user?.name ?? '' });
   }, [resetProfile, user?.name]);
 
+  useFocusEffect(
+    React.useCallback(() => {
+      let isActive = true;
+
+      void isBiometricEnabled().then((enabled) => {
+        if (isActive) {
+          setBiometricsEnabled(enabled);
+        }
+      });
+
+      return () => {
+        isActive = false;
+      };
+    }, []),
+  );
+
   const initials = getInitials(user?.name || 'U');
   const roleLabel = getRoleLabel(user?.role);
   const roleColor = getRoleColor(user?.role);
@@ -366,22 +387,47 @@ export default function ProfileScreen() {
   return (
     <SafeAreaView style={styles.safeArea}>
       <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
-        <View style={styles.heroBanner}>
-          <View style={styles.avatarRing}>
-            <View style={styles.avatarCircle}>
-              <Text style={styles.avatarInitials}>{initials}</Text>
-            </View>
+        <View style={styles.topHeader}>
+          <View>
+            <Text style={styles.topEyebrow}>Account</Text>
+            <Text style={styles.topTitle}>Profile Settings</Text>
           </View>
+          <View style={styles.statusPill}>
+            <View style={styles.statusDot} />
+            <Text style={styles.statusText}>Active</Text>
+          </View>
+        </View>
 
-          <Text style={styles.heroName}>{user?.name || 'User'}</Text>
-          <Text style={styles.heroEmail}>
-            {user?.phone
-              ? formatDisplayMobileNumber(user.phone)
-              : user?.email || `${user?.role?.toLowerCase() ?? 'user'}@broilermanager.app`}
-          </Text>
+        <View style={styles.heroBanner}>
+          <View style={styles.profileMainRow}>
+            <View style={styles.avatarRing}>
+              <View style={styles.avatarCircle}>
+                <Text style={styles.avatarInitials}>{initials}</Text>
+              </View>
+            </View>
 
-          <View style={[styles.roleBadge, { backgroundColor: roleColor.bg }]}>
-            <Text style={[styles.roleBadgeText, { color: roleColor.text }]}>{roleLabel}</Text>
+            <View style={styles.profileCopy}>
+              <Text style={styles.heroName}>{user?.name || 'User'}</Text>
+              <Text style={styles.heroEmail} numberOfLines={1}>
+                {user?.phone
+                  ? formatDisplayMobileNumber(user.phone)
+                  : user?.email || `${user?.role?.toLowerCase() ?? 'user'}@broilermanager.app`}
+              </Text>
+
+              <View style={styles.profileBadgeRow}>
+                <View style={[styles.roleBadge, { backgroundColor: roleColor.bg }]}>
+                  <Text style={[styles.roleBadgeText, { color: roleColor.text }]}>{roleLabel}</Text>
+                </View>
+                <View style={styles.securePill}>
+                  <Ionicons name="shield-checkmark-outline" size={13} color={Colors.primary} />
+                  <Text style={styles.securePillText}>Secured</Text>
+                </View>
+              </View>
+            </View>
+
+            <TouchableOpacity style={styles.editAvatarBtn} onPress={openEditProfile} activeOpacity={0.82}>
+              <Ionicons name="pencil" size={16} color={Colors.primary} />
+            </TouchableOpacity>
           </View>
         </View>
 
@@ -395,22 +441,6 @@ export default function ProfileScreen() {
               </View>
             </React.Fragment>
           ))}
-        </View>
-
-        <Text style={styles.sectionTitle}>Profile Details</Text>
-        <View style={styles.menuCard}>
-          <MenuRow
-            item={{
-              icon: 'person-outline',
-              iconLib: 'Ionicons',
-              label: user?.name || 'Profile Details',
-              sub: user?.phone
-                ? formatDisplayMobileNumber(user.phone)
-                : user?.email || 'Update account details',
-              chevron: true,
-            }}
-            onPress={openEditProfile}
-          />
         </View>
 
         <Text style={styles.sectionTitle}>Change Password</Text>
@@ -453,10 +483,13 @@ export default function ProfileScreen() {
             }}
             toggleValue={biometricsEnabled}
             onToggle={(enabled) => {
-              setBiometricsEnabled(enabled);
               if (enabled) {
                 openBiometrics();
+                return;
               }
+
+              setBiometricsEnabled(false);
+              void setBiometricEnabled(false);
             }}
           />
         </View>
@@ -510,17 +543,6 @@ export default function ProfileScreen() {
             </View>
           </>
         ) : null}
-
-        <Text style={styles.sectionTitle}>Support</Text>
-        <View style={styles.menuCard}>
-          <MenuRow item={{ icon: 'help-circle-outline', iconLib: 'Ionicons', label: 'Help & FAQ', chevron: true }} />
-          <View style={styles.menuDivider} />
-          <MenuRow
-            item={{ icon: 'chatbubble-outline', iconLib: 'Ionicons', label: 'Contact Support', sub: 'support@broilermanager.app', chevron: true }}
-          />
-          <View style={styles.menuDivider} />
-          <MenuRow item={{ icon: 'document-text-outline', iconLib: 'Ionicons', label: 'Privacy Policy', chevron: true }} />
-        </View>
 
         <View style={[styles.menuCard, { marginTop: 4 }]}>
           <MenuRow
@@ -673,134 +695,235 @@ export default function ProfileScreen() {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#F4F5F7',
+    backgroundColor: Colors.background,
   },
-  container: { paddingBottom: 20 },
-  heroBanner: {
-    backgroundColor: Colors.primary,
-    paddingTop: 40,
-    paddingBottom: 30,
+  container: {
+    paddingBottom: 20,
+  },
+  topHeader: {
+    flexDirection: 'row',
     alignItems: 'center',
-    borderBottomLeftRadius: 28,
-    borderBottomRightRadius: 28,
-    marginBottom: 20,
+    justifyContent: 'space-between',
+    paddingHorizontal: Layout.screenPadding,
+    paddingTop: 14,
+    paddingBottom: 12,
+    backgroundColor: Colors.surface,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.border,
+  },
+  topEyebrow: {
+    color: Colors.primary,
+    fontSize: 12,
+    fontWeight: '900',
+    textTransform: 'uppercase',
+  },
+  topTitle: {
+    color: Colors.text,
+    fontSize: 20,
+    fontWeight: '900',
+    marginTop: 2,
+  },
+  statusPill: {
+    minHeight: 32,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 7,
+    paddingHorizontal: 12,
+    borderRadius: 999,
+    backgroundColor: '#E8F5E9',
+    borderWidth: 1,
+    borderColor: '#CBE6D5',
+  },
+  statusDot: {
+    width: 7,
+    height: 7,
+    borderRadius: 4,
+    backgroundColor: Colors.primary,
+  },
+  statusText: {
+    color: Colors.primary,
+    fontSize: 12,
+    fontWeight: '900',
+  },
+  heroBanner: {
+    backgroundColor: Colors.surface,
+    padding: 16,
+    borderRadius: 16,
+    marginHorizontal: Layout.screenPadding,
+    marginTop: 14,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: '#DDEBE3',
+    shadowColor: '#101828',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.08,
+    shadowRadius: 16,
+    elevation: 3,
+  },
+  profileMainRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   avatarRing: {
-    width: 92,
-    height: 92,
-    borderRadius: 46,
-    borderWidth: 3,
-    borderColor: 'rgba(255,255,255,0.4)',
+    width: 76,
+    height: 76,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: '#CBE6D5',
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 14,
+    marginRight: 13,
+    backgroundColor: '#F0F8F3',
   },
   avatarCircle: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: 'rgba(255,255,255,0.25)',
+    width: 62,
+    height: 62,
+    borderRadius: 17,
+    backgroundColor: Colors.primary,
     justifyContent: 'center',
     alignItems: 'center',
   },
   avatarInitials: {
-    fontSize: 28,
-    fontWeight: 'bold',
+    fontSize: 22,
+    fontWeight: '900',
     color: '#FFF',
   },
+  profileCopy: {
+    flex: 1,
+  },
   heroName: {
-    fontSize: 22,
-    fontWeight: 'bold',
-    color: '#FFF',
+    fontSize: 19,
+    fontWeight: '900',
+    color: Colors.text,
     marginBottom: 4,
   },
   heroEmail: {
     fontSize: 13,
-    color: 'rgba(255,255,255,0.75)',
-    marginBottom: 12,
+    color: Colors.textSecondary,
+    fontWeight: '600',
+    marginBottom: 10,
+  },
+  profileBadgeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    flexWrap: 'wrap',
   },
   roleBadge: {
-    paddingHorizontal: 14,
-    paddingVertical: 5,
+    paddingHorizontal: 11,
+    paddingVertical: 6,
     borderRadius: 20,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.3)',
+    borderColor: '#DDEBE3',
   },
   roleBadgeText: {
-    fontSize: 12,
-    fontWeight: '700',
-    letterSpacing: 0.4,
+    fontSize: 11,
+    fontWeight: '900',
+  },
+  securePill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 999,
+    backgroundColor: '#F6FBF7',
+    borderWidth: 1,
+    borderColor: '#DDEBE3',
+  },
+  securePillText: {
+    color: Colors.primary,
+    fontSize: 11,
+    fontWeight: '900',
+  },
+  editAvatarBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#F6FBF7',
+    borderWidth: 1,
+    borderColor: '#CBE6D5',
+    marginLeft: 8,
   },
   statsRow: {
     flexDirection: 'row',
     backgroundColor: '#FFF',
-    borderRadius: 14,
-    marginHorizontal: Layout.spacing.lg,
-    marginBottom: 24,
-    paddingVertical: 16,
+    borderRadius: 12,
+    marginHorizontal: Layout.screenPadding,
+    marginBottom: 22,
+    paddingVertical: 14,
     borderWidth: 1,
-    borderColor: Colors.border,
-    ...Layout.cardShadow,
+    borderColor: '#E2E8E5',
   },
   statItem: { flex: 1, alignItems: 'center' },
-  statValue: { fontSize: 22, fontWeight: 'bold', color: Colors.text, marginBottom: 3 },
-  statLabel: { fontSize: 12, color: Colors.textSecondary },
+  statValue: { fontSize: 21, fontWeight: '900', color: Colors.text, marginBottom: 3 },
+  statLabel: { fontSize: 12, color: Colors.textSecondary, fontWeight: '700' },
   statDivider: { width: 1, backgroundColor: Colors.border },
   sectionTitle: {
     fontSize: 12,
-    fontWeight: '700',
+    fontWeight: '900',
     color: Colors.textSecondary,
-    letterSpacing: 0.8,
-    marginLeft: Layout.spacing.lg,
+    letterSpacing: 0.4,
+    marginLeft: Layout.screenPadding,
     marginBottom: 8,
     textTransform: 'uppercase',
   },
   menuCard: {
     backgroundColor: '#FFF',
-    borderRadius: 14,
-    marginHorizontal: Layout.spacing.lg,
-    marginBottom: 16,
+    borderRadius: 12,
+    marginHorizontal: Layout.screenPadding,
+    marginBottom: 15,
     borderWidth: 1,
-    borderColor: Colors.border,
+    borderColor: '#E2E8E5',
     overflow: 'hidden',
-    ...Layout.cardShadow,
+    shadowColor: '#101828',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.04,
+    shadowRadius: 10,
+    elevation: 1,
   },
   menuDivider: {
     height: 1,
-    backgroundColor: Colors.border,
-    marginLeft: 58,
+    backgroundColor: '#EDF1EF',
+    marginLeft: 64,
   },
   menuRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 14,
+    minHeight: 62,
+    paddingVertical: 12,
     paddingHorizontal: 16,
   },
   menuRowDanger: {},
   menuIconBox: {
-    width: 36,
-    height: 36,
-    borderRadius: 10,
+    width: 38,
+    height: 38,
+    borderRadius: 11,
     backgroundColor: '#E8F5E9',
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 14,
+    marginRight: 12,
+    borderWidth: 1,
+    borderColor: '#D7E8DD',
   },
   menuIconBoxDanger: {
     backgroundColor: '#FFEBEE',
+    borderColor: '#F4C7C3',
   },
   menuText: { flex: 1 },
   menuLabel: {
     fontSize: 14,
-    fontWeight: '600',
+    fontWeight: '800',
     color: Colors.text,
-    marginBottom: 1,
   },
   menuLabelDanger: { color: Colors.tertiary },
   menuSub: {
     fontSize: 12,
     color: Colors.textSecondary,
-    marginTop: 1,
+    marginTop: 3,
+    lineHeight: 16,
   },
   versionText: {
     fontSize: 12,
