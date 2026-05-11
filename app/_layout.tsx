@@ -2,6 +2,7 @@ import { Stack } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import Toast from "react-native-toast-message";
+import { SplashScreen } from "../components/SplashScreen";
 import { Colors } from "../constants/Colors";
 import { AuthProvider, useAuth } from "../context/AuthContext";
 
@@ -9,7 +10,16 @@ function RootContent() {
   const { isReady } = useAuth();
 
   if (!isReady) {
-    return null;
+    return (
+      <>
+        <StatusBar
+          style="dark"
+          backgroundColor={Colors.background}
+          translucent
+        />
+        <SplashScreen />
+      </>
+    );
   }
 
   return (
