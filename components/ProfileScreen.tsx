@@ -1,5 +1,6 @@
 import { FontAwesome5, Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { zodResolver } from '@hookform/resolvers/zod';
+import { useRouter } from 'expo-router';
 import React from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import {
@@ -186,11 +187,13 @@ type PasswordFormData = z.infer<typeof passwordSchema>;
 
 export default function ProfileScreen() {
   const { signOut, user, accessToken, updateProfileName } = useAuth();
+  const router = useRouter();
   const [showEditProfile, setShowEditProfile] = React.useState(false);
   const [isSavingProfile, setIsSavingProfile] = React.useState(false);
   const [showChangePassword, setShowChangePassword] = React.useState(false);
   const [isSavingPassword, setIsSavingPassword] = React.useState(false);
   const [passwordSuccess, setPasswordSuccess] = React.useState<string | null>(null);
+  const [biometricsEnabled, setBiometricsEnabled] = React.useState(false);
 
   const {
     control: profileControl,
@@ -244,6 +247,18 @@ export default function ProfileScreen() {
   const openEditProfile = () => {
     resetProfile({ name: user?.name ?? '' });
     setShowEditProfile(true);
+  };
+
+  const openSetPin = () => {
+    router.push('/(auth)/set-pin' as never);
+  };
+
+  const openBiometrics = () => {
+    router.push('/(auth)/enable-biometric' as never);
+  };
+
+  const openComingSoon = (title: string) => {
+    Alert.alert(title, 'This setting will be connected with backend configuration.');
   };
 
   const submitProfileUpdate = async (data: ProfileFormData) => {
@@ -382,16 +397,67 @@ export default function ProfileScreen() {
           ))}
         </View>
 
-        <Text style={styles.sectionTitle}>Account</Text>
+        <Text style={styles.sectionTitle}>Profile Details</Text>
         <View style={styles.menuCard}>
           <MenuRow
-            item={{ icon: 'person-outline', iconLib: 'Ionicons', label: 'Edit Profile', sub: 'Update display name', chevron: true }}
+            item={{
+              icon: 'person-outline',
+              iconLib: 'Ionicons',
+              label: user?.name || 'Profile Details',
+              sub: user?.phone
+                ? formatDisplayMobileNumber(user.phone)
+                : user?.email || 'Update account details',
+              chevron: true,
+            }}
             onPress={openEditProfile}
           />
-          <View style={styles.menuDivider} />
+        </View>
+
+        <Text style={styles.sectionTitle}>Change Password</Text>
+        <View style={styles.menuCard}>
           <MenuRow
-            item={{ icon: 'lock-closed-outline', iconLib: 'Ionicons', label: 'Change Password', sub: 'Update your login password', chevron: true }}
+            item={{
+              icon: 'lock-closed-outline',
+              iconLib: 'Ionicons',
+              label: 'Change Password',
+              sub: 'Update your login password',
+              chevron: true,
+            }}
             onPress={openChangePassword}
+          />
+        </View>
+
+        <Text style={styles.sectionTitle}>Set PIN</Text>
+        <View style={styles.menuCard}>
+          <MenuRow
+            item={{
+              icon: 'keypad-outline',
+              iconLib: 'Ionicons',
+              label: 'Set or Update PIN',
+              sub: 'Use a quick PIN for app unlock',
+              chevron: true,
+            }}
+            onPress={openSetPin}
+          />
+        </View>
+
+        <Text style={styles.sectionTitle}>Biometrics</Text>
+        <View style={styles.menuCard}>
+          <MenuRow
+            item={{
+              icon: 'fingerprint',
+              iconLib: 'MaterialCommunityIcons',
+              label: 'Biometric Unlock',
+              sub: 'Use fingerprint or Face ID when available',
+              toggle: true,
+            }}
+            toggleValue={biometricsEnabled}
+            onToggle={(enabled) => {
+              setBiometricsEnabled(enabled);
+              if (enabled) {
+                openBiometrics();
+              }
+            }}
           />
         </View>
 
@@ -405,6 +471,46 @@ export default function ProfileScreen() {
           ))}
         </View>
 
+        {user?.role === 'OWNER' ? (
+          <>
+            <Text style={styles.sectionTitle}>Admin Additional Settings</Text>
+            <View style={styles.menuCard}>
+              <MenuRow
+                item={{
+                  icon: 'cash-multiple',
+                  iconLib: 'MaterialCommunityIcons',
+                  label: 'Financial Configurations',
+                  sub: 'Rates, charges, and settlement defaults',
+                  chevron: true,
+                }}
+                onPress={() => openComingSoon('Financial Configurations')}
+              />
+              <View style={styles.menuDivider} />
+              <MenuRow
+                item={{
+                  icon: 'shape-outline',
+                  iconLib: 'MaterialCommunityIcons',
+                  label: 'Expense Categories',
+                  sub: 'Feed, medicine, labor, and farm costs',
+                  chevron: true,
+                }}
+                onPress={() => openComingSoon('Expense Categories')}
+              />
+              <View style={styles.menuDivider} />
+              <MenuRow
+                item={{
+                  icon: 'file-document-edit-outline',
+                  iconLib: 'MaterialCommunityIcons',
+                  label: 'Payout Rules',
+                  sub: 'FCR based payout and settlement logic',
+                  chevron: true,
+                }}
+                onPress={() => router.push('/(owner)/manage/settlement' as never)}
+              />
+            </View>
+          </>
+        ) : null}
+
         <Text style={styles.sectionTitle}>Support</Text>
         <View style={styles.menuCard}>
           <MenuRow item={{ icon: 'help-circle-outline', iconLib: 'Ionicons', label: 'Help & FAQ', chevron: true }} />
@@ -417,7 +523,15 @@ export default function ProfileScreen() {
         </View>
 
         <View style={[styles.menuCard, { marginTop: 4 }]}>
-          <MenuRow item={{ icon: 'log-out-outline', iconLib: 'Ionicons', label: 'Sign Out', danger: true }} />
+          <MenuRow
+            item={{
+              icon: 'log-out-outline',
+              iconLib: 'Ionicons',
+              label: 'Logout',
+              sub: 'Sign out from this device',
+              danger: true,
+            }}
+          />
         </View>
 
         <Text style={styles.versionText}>Broiler Manager v1.0.0 | Build 2024</Text>
