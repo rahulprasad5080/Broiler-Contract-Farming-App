@@ -100,7 +100,7 @@ export function SplashScreen() {
             style={[styles.logoWrap, { transform: [{ scale: logoScale }] }]}
           >
             <Image
-              source={require("../assets/logo.jpeg")}
+              source={require("../../assets/logo.jpeg")}
               style={styles.logo}
               resizeMode="cover"
             />

@@ -28,6 +28,7 @@ import {
   updateUser,
   updateUserStatus,
   type ApiFarm,
+  type ApiRole,
   type ApiUser,
 } from '@/services/managementApi';
 import {
@@ -39,9 +40,25 @@ import {
   showSuccessToast,
 } from '@/services/apiFeedback';
 
-type Role = 'Supervisor' | 'Farmer';
+type Role = ApiRole;
 type Status = 'Active' | 'Invited' | 'Inactive';
-type FilterTab = 'All Users' | 'Supervisors' | 'Farmers' | 'Inactive';
+type FilterTab = 'All Users' | 'Owners' | 'Accounts' | 'Supervisors' | 'Farmers' | 'Inactive';
+
+const ROLE_OPTIONS = ['OWNER', 'ACCOUNTS', 'SUPERVISOR', 'FARMER'] as const;
+
+const ROLE_LABELS: Record<Role, string> = {
+  OWNER: 'Owner',
+  ACCOUNTS: 'Accounts',
+  SUPERVISOR: 'Supervisor',
+  FARMER: 'Farmer',
+};
+
+const ROLE_ACCENTS: Record<Role, string> = {
+  OWNER: '#2563EB',
+  ACCOUNTS: '#7C3AED',
+  SUPERVISOR: Colors.tertiary,
+  FARMER: Colors.primary,
+};
 
 const passwordFieldSchema = z.string().superRefine((value, ctx) => {
   const validationError = getPasswordValidationError(value);
@@ -57,7 +74,7 @@ const passwordFieldSchema = z.string().superRefine((value, ctx) => {
 const userSchema = z.object({
   name: z.string().min(2, 'Name must be at least 2 characters'),
   phone: z.string().regex(/^[0-9]{10}$/, 'Phone must be exactly 10 digits'),
-  role: z.enum(['Supervisor', 'Farmer']),
+  role: z.enum(ROLE_OPTIONS),
   password: passwordFieldSchema,
 });
 
@@ -84,16 +101,19 @@ interface UserCard {
   hasAvatar: boolean;
 }
 
-const TABS: FilterTab[] = ['All Users', 'Supervisors', 'Farmers', 'Inactive'];
+const TABS: FilterTab[] = [
+  'All Users',
+  'Owners',
+  'Accounts',
+  'Supervisors',
+  'Farmers',
+  'Inactive',
+];
 
 function toStatus(status: ApiUser['status']): Status {
   if (status === 'DISABLED') return 'Inactive';
   if (status === 'INVITED') return 'Invited';
   return 'Active';
-}
-
-function toRole(role: ApiUser['role']): Role {
-  return role === 'SUPERVISOR' ? 'Supervisor' : 'Farmer';
 }
 
 function getAssignedFarm(user: ApiUser, farms: ApiFarm[]) {
@@ -109,7 +129,7 @@ function toUserCard(user: ApiUser, farms: ApiFarm[]): UserCard {
   return {
     id: user.id,
     name: user.name,
-    role: toRole(user.role),
+    role: user.role,
     farm: getAssignedFarm(user, farms),
     status: toStatus(user.status),
     hasAvatar: Boolean(user.email),
@@ -120,7 +140,7 @@ const editUserSchema = z.object({
   name: z.string().min(2, 'Name must be at least 2 characters'),
   email: z.string().email('Invalid email address').or(z.literal('')),
   phone: z.string().regex(/^[0-9]{10}$/, 'Phone must be exactly 10 digits').or(z.literal('')),
-  role: z.enum(['Supervisor', 'Farmer']),
+  role: z.enum(ROLE_OPTIONS),
   status: z.enum(['Active', 'Invited', 'Inactive']),
 });
 
@@ -140,7 +160,7 @@ export default function UserManagementScreen() {
     defaultValues: {
       name: '',
       phone: '',
-      role: 'Farmer',
+      role: 'FARMER',
       password: '',
     },
   });
@@ -151,7 +171,7 @@ export default function UserManagementScreen() {
       name: '',
       email: '',
       phone: '',
-      role: 'Farmer',
+      role: 'FARMER',
       status: 'Active',
     },
   });
@@ -227,7 +247,7 @@ export default function UserManagementScreen() {
         name: user.name,
         email: user.email ?? '',
         phone: user.phone ?? '',
-        role: toRole(user.role),
+        role: user.role,
         status: toStatus(user.status),
       });
 
@@ -243,8 +263,10 @@ export default function UserManagementScreen() {
   const activeSites = farms.filter((farm) => farm.status === 'ACTIVE').length;
 
   const filtered = users.filter((user) => {
-    if (activeTab === 'Supervisors') return user.role === 'Supervisor';
-    if (activeTab === 'Farmers') return user.role === 'Farmer';
+    if (activeTab === 'Owners') return user.role === 'OWNER';
+    if (activeTab === 'Accounts') return user.role === 'ACCOUNTS';
+    if (activeTab === 'Supervisors') return user.role === 'SUPERVISOR';
+    if (activeTab === 'Farmers') return user.role === 'FARMER';
     if (activeTab === 'Inactive') return user.status === 'Inactive';
     return true;
   });
@@ -259,7 +281,7 @@ export default function UserManagementScreen() {
       const created = await createUser(accessToken, {
         name: data.name.trim(),
         phone: data.phone.trim(),
-        role: data.role === 'Supervisor' ? 'SUPERVISOR' : 'FARMER',
+        role: data.role,
         password: data.password.trim() || 'Broiler@1234',
       });
 
@@ -267,7 +289,7 @@ export default function UserManagementScreen() {
         {
           id: created.id,
           name: created.name,
-          role: toRole(created.role),
+          role: created.role,
           farm: 'Unassigned',
           status: toStatus(created.status),
           hasAvatar: Boolean(created.email),
@@ -302,7 +324,7 @@ export default function UserManagementScreen() {
         name: data.name.trim(),
         email: data.email.trim() || undefined,
         phone: data.phone.trim() || undefined,
-        role: data.role === 'Supervisor' ? 'SUPERVISOR' : 'FARMER',
+        role: data.role,
       });
 
       const desiredStatus =
@@ -455,16 +477,24 @@ export default function UserManagementScreen() {
                     <View
                       style={[
                         styles.roleBadge,
-                        { backgroundColor: isInactive ? '#F3F4F6' : '#E8F5E9' },
+                        {
+                          backgroundColor: isInactive
+                            ? '#F3F4F6'
+                            : `${ROLE_ACCENTS[user.role]}1A`,
+                        },
                       ]}
                     >
                       <Text
                         style={[
                           styles.roleText,
-                          { color: isInactive ? Colors.textSecondary : Colors.primary },
+                          {
+                            color: isInactive
+                              ? Colors.textSecondary
+                              : ROLE_ACCENTS[user.role],
+                          },
                         ]}
                       >
-                        {user.role.toUpperCase()}
+                        {ROLE_LABELS[user.role].toUpperCase()}
                       </Text>
                     </View>
                   </View>
@@ -567,14 +597,14 @@ export default function UserManagementScreen() {
                 <View>
                   <Text style={styles.formLabel}>Role</Text>
                   <View style={styles.roleToggleRow}>
-                    {(['Farmer', 'Supervisor'] as Role[]).map((role) => (
+                    {ROLE_OPTIONS.map((role) => (
                       <TouchableOpacity
                         key={role}
                         style={[styles.roleToggle, value === role && styles.roleToggleActive]}
                         onPress={() => onChange(role)}
                       >
                         <Text style={[styles.roleToggleText, value === role && styles.roleToggleTextActive]}>
-                          {role}
+                          {ROLE_LABELS[role]}
                         </Text>
                       </TouchableOpacity>
                     ))}
@@ -699,14 +729,14 @@ export default function UserManagementScreen() {
                   <View>
                     <Text style={styles.formLabel}>Role</Text>
                     <View style={styles.roleToggleRow}>
-                      {(['Farmer', 'Supervisor'] as Role[]).map((role) => (
+                      {ROLE_OPTIONS.map((role) => (
                         <TouchableOpacity
                           key={role}
                           style={[styles.roleToggle, value === role && styles.roleToggleActive]}
                           onPress={() => onChange(role)}
                         >
                           <Text style={[styles.roleToggleText, value === role && styles.roleToggleTextActive]}>
-                            {role}
+                            {ROLE_LABELS[role]}
                           </Text>
                         </TouchableOpacity>
                       ))}
@@ -1010,9 +1040,10 @@ const styles = StyleSheet.create({
     backgroundColor: '#F9FAFB',
   },
   textInput: { fontSize: 14, color: Colors.text, padding: 0 },
-  roleToggleRow: { flexDirection: 'row', gap: 10 },
+  roleToggleRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
   roleToggle: {
-    flex: 1,
+    flexGrow: 1,
+    flexBasis: '47%',
     height: 42,
     borderRadius: 9,
     borderWidth: 1,

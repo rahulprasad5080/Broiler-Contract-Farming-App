@@ -43,6 +43,8 @@ const getRoleLabel = (role: string | null | undefined) => {
   switch (role) {
     case 'OWNER':
       return 'Farm Owner';
+    case 'ACCOUNTS':
+      return 'Accounts';
     case 'SUPERVISOR':
       return 'Supervisor';
     case 'FARMER':
@@ -56,6 +58,8 @@ const getRoleColor = (role: string | null | undefined) => {
   switch (role) {
     case 'OWNER':
       return { bg: '#E8F5E9', text: Colors.primary };
+    case 'ACCOUNTS':
+      return { bg: '#F3E8FF', text: '#7C3AED' };
     case 'SUPERVISOR':
       return { bg: '#E3F2FD', text: '#1565C0' };
     case 'FARMER':
