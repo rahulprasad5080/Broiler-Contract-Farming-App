@@ -26,8 +26,8 @@ export function BottomTabs({ state, descriptors, navigation, hiddenTabs = [] }: 
 
   // Determine dynamic bottom padding
   // Fallback to default paddings if insets.bottom is 0
-  const defaultPadding = Platform.OS === 'ios' ? 20 : 10;
-  const bottomPadding = insets.bottom > 0 ? insets.bottom + 5 : defaultPadding;
+  const fallbackBottomPadding = Platform.OS === 'ios' ? 20 : 16;
+  const bottomPadding = Math.max(insets.bottom, fallbackBottomPadding);
   const tabHeight = 55 + bottomPadding;
 
   return (
