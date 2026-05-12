@@ -1,5 +1,5 @@
 import { apiRequest } from "./api";
-import type { ApiExpenseCategoryCode, ApiPayoutUnit } from "./managementApi";
+import type { ApiExpenseCategoryCode, ApiPayoutUnit } from "./management/types";
 
 export type ApiOrganizationSettings = {
   currency: string;

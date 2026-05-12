@@ -1,63 +1,43 @@
-# Welcome to your Expo app 👋
+# Broiler Contract Farming App
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+Expo Router based React Native app for broiler contract farming operations. The app is organized around role-specific route groups for owners, supervisors, and farmers.
 
-## Get started
+## Requirements
 
-1. Install dependencies
+- Node.js 20.19.4 or newer is recommended for the installed Expo/React Native toolchain.
+- Run `npm install` before starting development.
 
-   ```bash
-   npm install
-   ```
-
-2. Start the app
-
-   ```bash
-   npx expo start
-   ```
-
-In the output, you'll find options to open the app in a
-
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
-
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
-
-## Get a fresh project
-
-When you're ready, run:
+## Scripts
 
 ```bash
-npm run reset-project
+npm start          # Start Expo
+npm run android    # Run Android native build
+npm run ios        # Run iOS native build
+npm run web        # Start Expo web
+npm run lint       # Run Expo ESLint
+npm test           # Run TypeScript test build and node tests
+npm run docs:extract
 ```
 
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
+## Project Structure
 
-## Learn more
+- `app/`: Expo Router screens, grouped by role: `(auth)`, `(owner)`, `(supervisor)`, `(farmer)`.
+- `components/`: Shared screen and UI components used across route groups.
+- `context/`: App-wide React providers such as auth and toast state.
+- `hooks/`: Reusable hooks and hook controllers.
+- `services/`: API clients, auth/session utilities, route guards, and pure helpers.
+- `services/management/`: Domain-specific management API modules with shared API contracts in `types.ts`.
+- `constants/`: Shared app constants such as colors and layout values.
+- `docs/`: Backend API documents and extracted API reference output.
+- `scripts/`: Local maintenance scripts.
+- `__tests__/`: Node-based unit tests.
 
-To learn more about developing your project with Expo, look at the following resources:
+## API Docs
 
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
+Backend API reference files are stored in `docs/`. To extract searchable text from the latest DOCX:
 
-## Join the community
+```bash
+npm run docs:extract
+```
 
-Join our community of developers creating universal apps.
-
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
-
-npx expo prebuild
-
-cd android
-
-npx expo prebuild --clean
-
-cd ..
-
-npx expo export:platform android
-
-> ./gradlew assembleRelease
-# Broiler-Contract-Farming-App
+The generated `docs/extracted-api.txt` is ignored by git.

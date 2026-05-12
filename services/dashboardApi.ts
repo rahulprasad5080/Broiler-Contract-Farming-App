@@ -1,5 +1,5 @@
 import { apiRequest } from "./api";
-import type { ApiBatchStatus, ApiPaymentDirection } from "./managementApi";
+import type { ApiBatchStatus, ApiPaymentDirection } from "./management/types";
 import type {
   ApiNotificationSeverity,
   ApiNotificationType,

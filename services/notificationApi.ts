@@ -1,5 +1,5 @@
 import { apiRequest } from "./api";
-import type { ApiCommentTargetType, ListResponse } from "./managementApi";
+import type { ApiCommentTargetType, ListResponse } from "./management/types";
 
 export type ApiNotificationType =
   | "MORTALITY_ALERT"

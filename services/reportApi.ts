@@ -4,7 +4,7 @@ import type {
   ApiExpenseCategoryCode,
   ApiExpenseLedger,
   ApiSettlementStatus,
-} from "./managementApi";
+} from "./management/types";
 
 export type ApiBatchSummary = {
   batchId: string;
