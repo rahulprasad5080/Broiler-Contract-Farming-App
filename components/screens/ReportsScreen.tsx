@@ -65,10 +65,36 @@ const formatPercent = (value?: number | null) => `${formatDecimal(value)}%`;
 
 const formatKg = (value?: number | null) => `${formatNumber(value)} kg`;
 
-const metricCards = (overview: ApiOverviewReport | null) => [
-  { label: "Total Farms", value: formatNumber(overview?.totalFarms), icon: "home-outline", accent: Colors.primary, soft: "#EEF8F2" },
-  { label: "Active Batches", value: formatNumber(overview?.activeBatches), icon: "water-outline", accent: "#2563EB", soft: "#EFF6FF" },
-  { label: "Users", value: formatNumber(overview?.totalUsers), icon: "people-outline", accent: "#7C3AED", soft: "#F5F3FF" },
+type MetricCard = {
+  label: string;
+  value: string;
+  icon: React.ComponentProps<typeof Ionicons>["name"];
+  accent: string;
+  soft: string;
+};
+
+const metricCards = (overview: ApiOverviewReport | null): MetricCard[] => [
+  {
+    label: "Total Farms",
+    value: formatNumber(overview?.totalFarms),
+    icon: "home-outline",
+    accent: Colors.primary,
+    soft: "#EEF8F2",
+  },
+  {
+    label: "Active Batches",
+    value: formatNumber(overview?.activeBatches),
+    icon: "water-outline",
+    accent: "#2563EB",
+    soft: "#EFF6FF",
+  },
+  {
+    label: "Users",
+    value: formatNumber(overview?.totalUsers),
+    icon: "people-outline",
+    accent: "#7C3AED",
+    soft: "#F5F3FF",
+  },
   {
     label: "Profit / Loss",
     value: formatINR(overview?.profitOrLoss),
@@ -469,7 +495,7 @@ export default function ReportsScreen() {
               {metricCards(overview).map((item) => (
                 <PressableScale key={item.label} style={styles.summaryCard}>
                   <View style={[styles.summaryIcon, { backgroundColor: item.soft }]}>
-                    <Ionicons name={item.icon as never} size={18} color={item.accent} />
+                    <Ionicons name={item.icon} size={18} color={item.accent} />
                   </View>
                   <Text style={styles.summaryLabel}>{item.label}</Text>
                   {loadingOverview ? (

@@ -1,4 +1,4 @@
-import { SalesEntryScreen } from '@/components/SalesEntryScreen';
+import { SalesEntryScreen } from '@/components/screens';
 
 export default function SupervisorSalesScreen() {
   return (

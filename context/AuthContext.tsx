@@ -1,4 +1,4 @@
-import { useRouter, useSegments } from "expo-router";
+import { useRouter, useSegments, type Href } from "expo-router";
 import React from "react";
 import { AppState, AppStateStatus } from "react-native";
 
@@ -94,7 +94,7 @@ const AuthContext = React.createContext<AuthContextType | undefined>(undefined);
 
 const AUTH_GROUP = "(auth)";
 const LOGIN_SCREEN = "login1";
-const LOGIN_ROUTE = "/(auth)/login1";
+const LOGIN_ROUTE: Href = "/(auth)/login1";
 const SETUP_SCREENS = ["setup-security", "login-success2", "set-pin", "enable-biometric"];
 const UNLOCK_SCREENS = [
   "quick-unlock",
@@ -368,7 +368,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       if (!user) {
         if (!inAuthGroup || currentAuthScreen !== LOGIN_SCREEN) {
-          router.replace(LOGIN_ROUTE as never);
+          router.replace(LOGIN_ROUTE);
         }
         if (!isReady) setIsReady(true);
         return;
@@ -377,7 +377,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (isAppUnlocked) {
         if (!isRouteAllowedForRole(user.role, segmentList)) {
           if (!cancelled) {
-            router.replace(getDashboardRoute(user.role) as never);
+            router.replace(getDashboardRoute(user.role));
           }
           if (!isReady) setIsReady(true);
           return;
@@ -391,7 +391,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         // Prevent redirecting to dashboard if we are still technically on the login screen
         // because signIn() is handling the redirect to login-success asynchronously.
         if (!inSetupScreen && currentAuthScreen !== LOGIN_SCREEN && !cancelled) {
-          router.replace(getDashboardRoute(user.role) as never);
+          router.replace(getDashboardRoute(user.role));
         }
         if (!isReady) setIsReady(true);
         return;
@@ -400,7 +400,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (!inAuthGroup || !inUnlockScreen) {
         const route = await getPreferredQuickLoginRoute();
         if (!cancelled) {
-          router.replace(route as never);
+          router.replace(route);
           // Small delay to ensure router has started the transition before we show the screen
           setTimeout(() => {
             if (!cancelled && !isReady) setIsReady(true);
@@ -445,7 +445,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         router.replace(
           (quickAuthEnabled
             ? "/(auth)/quick-unlock"
-            : "/(auth)/login-success2") as never,
+            : "/(auth)/login-success2"),
         );
 
         return null;
@@ -477,7 +477,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         await persistSession(nextSession);
         backgroundedAtRef.current = null;
         setIsAppUnlocked(true);
-        router.replace(getDashboardRoute(normalizeUser(hydratedUser).role) as never);
+        router.replace(getDashboardRoute(normalizeUser(hydratedUser).role));
         return null;
       } catch (error) {
         return getAuthErrorMessage(error, "Incorrect password. Try again.");
@@ -506,13 +506,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     applySessionState(null);
     setIsAppUnlocked(false);
-    router.replace(LOGIN_ROUTE as never);
+    router.replace(LOGIN_ROUTE);
   }, [applySessionState, router, tokens]);
 
   const unlockApp = React.useCallback(() => {
     backgroundedAtRef.current = null;
     setIsAppUnlocked(true);
-    router.replace(getDashboardRoute(user?.role ?? "FARMER") as never);
+    router.replace(getDashboardRoute(user?.role ?? "FARMER"));
   }, [router, user?.role]);
 
   const updateProfileName = React.useCallback(

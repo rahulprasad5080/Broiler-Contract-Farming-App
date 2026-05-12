@@ -73,7 +73,9 @@ export default function FarmerCommentsScreen() {
     }
   };
 
-  const getTargetIcon = (targetType: string) => {
+  const getTargetIcon = (
+    targetType: string,
+  ): React.ComponentProps<typeof Ionicons>['name'] => {
     switch (targetType) {
       case 'DAILY_LOG': return 'clipboard-outline';
       case 'TREATMENT': return 'medical-outline';
@@ -145,7 +147,7 @@ export default function FarmerCommentsScreen() {
                   <View key={comment.id} style={styles.commentCard}>
                     <View style={styles.commentHeader}>
                       <View style={styles.targetBadge}>
-                        <Ionicons name={getTargetIcon(comment.targetType) as any} size={12} color={Colors.primary} />
+                        <Ionicons name={getTargetIcon(comment.targetType)} size={12} color={Colors.primary} />
                         <Text style={styles.targetText}>{comment.targetType.replace('_', ' ')}</Text>
                       </View>
                       <Text style={styles.dateText}>

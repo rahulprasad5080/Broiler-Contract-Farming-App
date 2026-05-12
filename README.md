@@ -22,7 +22,9 @@ npm run docs:extract
 ## Project Structure
 
 - `app/`: Expo Router screens, grouped by role: `(auth)`, `(owner)`, `(supervisor)`, `(farmer)`.
-- `components/`: Shared screen and UI components used across route groups.
+- `components/screens/`: Shared full-screen experiences reused by multiple route groups.
+- `components/navigation/`: Shared navigation surfaces such as menu/list screens.
+- `components/ui/`: Small reusable UI primitives.
 - `context/`: App-wide React providers such as auth and toast state.
 - `hooks/`: Reusable hooks and hook controllers.
 - `services/`: API clients, auth/session utilities, route guards, and pure helpers.

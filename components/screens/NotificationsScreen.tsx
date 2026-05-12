@@ -1,5 +1,5 @@
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
-import { useRouter } from "expo-router";
+import { useRouter, type Href } from "expo-router";
 import React, { useMemo, useState } from "react";
 import {
   ActivityIndicator,
@@ -102,7 +102,10 @@ function formatTime(value: string) {
   });
 }
 
-function getRelatedRoute(role: string | null | undefined, type: ApiNotificationType) {
+function getRelatedRoute(
+  role: string | null | undefined,
+  type: ApiNotificationType,
+): Href {
   if (role === "OWNER" || role === "ACCOUNTS") {
     if (type === "FEED_ALERT") return "/(owner)/manage/inventory";
     if (type === "FCR_ALERT") return "/(owner)/reports";
@@ -205,7 +208,7 @@ export function NotificationsScreen() {
       }
     }
 
-    router.push(getRelatedRoute(user?.role, item.type) as never);
+    router.push(getRelatedRoute(user?.role, item.type));
   };
 
   return (

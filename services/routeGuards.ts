@@ -1,3 +1,5 @@
+import type { Href } from "expo-router";
+
 export type AppRole = "OWNER" | "ACCOUNTS" | "SUPERVISOR" | "FARMER" | null;
 
 const ROLE_ROUTE_GROUPS = {
@@ -22,7 +24,7 @@ export function getRoleRouteGroup(role: AppRole) {
   return ROLE_ROUTE_GROUPS.FARMER;
 }
 
-export function getDashboardRoute(role: AppRole) {
+export function getDashboardRoute(role: AppRole): Href {
   if (role === "OWNER") return "/(owner)/dashboard";
   if (role === "ACCOUNTS") return "/(owner)/dashboard";
   if (role === "SUPERVISOR") return "/(supervisor)/dashboard";

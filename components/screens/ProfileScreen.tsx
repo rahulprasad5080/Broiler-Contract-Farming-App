@@ -149,15 +149,27 @@ const getManagementItems = (role: string | null | undefined): MenuItem[] => {
   ];
 };
 
-type MenuItem = {
-  icon: string;
-  iconLib: 'Ionicons' | 'MaterialCommunityIcons' | 'FontAwesome5';
+type BaseMenuItem = {
   label: string;
   sub?: string;
   chevron?: boolean;
   danger?: boolean;
   toggle?: boolean;
 };
+
+type MenuItem =
+  | (BaseMenuItem & {
+      iconLib: 'Ionicons';
+      icon: React.ComponentProps<typeof Ionicons>['name'];
+    })
+  | (BaseMenuItem & {
+      iconLib: 'MaterialCommunityIcons';
+      icon: React.ComponentProps<typeof MaterialCommunityIcons>['name'];
+    })
+  | (BaseMenuItem & {
+      iconLib: 'FontAwesome5';
+      icon: React.ComponentProps<typeof FontAwesome5>['name'];
+    });
 
 const profileSchema = z.object({
   name: z.string().trim().min(2, 'Name must be at least 2 characters'),
@@ -271,11 +283,11 @@ export default function ProfileScreen() {
   };
 
   const openSetPin = () => {
-    router.push('/(auth)/set-pin' as never);
+    router.push('/(auth)/set-pin');
   };
 
   const openBiometrics = () => {
-    router.push('/(auth)/enable-biometric' as never);
+    router.push('/(auth)/enable-biometric');
   };
 
   const openComingSoon = (title: string) => {
@@ -344,13 +356,6 @@ export default function ProfileScreen() {
     onToggle?: (v: boolean) => void;
     onPress?: () => void;
   }) => {
-    const IconComp =
-      item.iconLib === 'MaterialCommunityIcons'
-        ? MaterialCommunityIcons
-        : item.iconLib === 'FontAwesome5'
-          ? FontAwesome5
-          : Ionicons;
-
     return (
       <TouchableOpacity
         style={[styles.menuRow, item.danger && styles.menuRowDanger]}
@@ -358,11 +363,25 @@ export default function ProfileScreen() {
         onPress={item.danger ? handleLogout : onPress}
       >
         <View style={[styles.menuIconBox, item.danger && styles.menuIconBoxDanger]}>
-          <IconComp
-            name={item.icon as any}
-            size={18}
-            color={item.danger ? Colors.tertiary : Colors.primary}
-          />
+          {item.iconLib === 'MaterialCommunityIcons' ? (
+            <MaterialCommunityIcons
+              name={item.icon}
+              size={18}
+              color={item.danger ? Colors.tertiary : Colors.primary}
+            />
+          ) : item.iconLib === 'FontAwesome5' ? (
+            <FontAwesome5
+              name={item.icon}
+              size={18}
+              color={item.danger ? Colors.tertiary : Colors.primary}
+            />
+          ) : (
+            <Ionicons
+              name={item.icon}
+              size={18}
+              color={item.danger ? Colors.tertiary : Colors.primary}
+            />
+          )}
         </View>
         <View style={styles.menuText}>
           <Text style={[styles.menuLabel, item.danger && styles.menuLabelDanger]}>
@@ -538,7 +557,7 @@ export default function ProfileScreen() {
                   sub: 'FCR based payout and settlement logic',
                   chevron: true,
                 }}
-                onPress={() => router.push('/(owner)/manage/settlement' as never)}
+                onPress={() => router.push('/(owner)/manage/settlement')}
               />
             </View>
           </>

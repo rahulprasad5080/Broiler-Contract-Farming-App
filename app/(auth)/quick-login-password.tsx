@@ -45,7 +45,7 @@ export default function QuickLoginPasswordScreen() {
       Toast.show({type: "error",
         text1: "Session expired",
         text2: "Please log in again with your mobile number.", position: 'bottom'});
-      router.replace("/(auth)/login1" as never);
+      router.replace("/(auth)/login1");
       return;
     }
 
@@ -143,7 +143,7 @@ export default function QuickLoginPasswordScreen() {
 
           <TouchableOpacity
             activeOpacity={0.7}
-            onPress={() => router.push("/(auth)/quick-login-pin" as never)}
+            onPress={() => router.push("/(auth)/quick-login-pin")}
           >
             <Text style={styles.secondaryLink}>Use PIN Instead</Text>
           </TouchableOpacity>

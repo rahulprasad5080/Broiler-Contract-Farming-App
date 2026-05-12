@@ -1,4 +1,4 @@
-import { TreatmentEntryScreen } from '@/components/TreatmentEntryScreen';
+import { TreatmentEntryScreen } from '@/components/screens';
 
 export default function SupervisorTreatmentsScreen() {
   return (

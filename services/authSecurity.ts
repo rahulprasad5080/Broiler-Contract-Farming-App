@@ -136,7 +136,7 @@ export async function authenticateWithBiometrics(promptMessage: string) {
   };
 }
 
-export async function getPreferredQuickLoginRoute() {
+export async function getPreferredQuickLoginRoute(): Promise<"/(auth)/quick-unlock"> {
   return "/(auth)/quick-unlock";
 }
 

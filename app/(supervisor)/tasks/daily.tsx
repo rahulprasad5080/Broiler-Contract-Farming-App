@@ -1,4 +1,4 @@
-import { DailyEntryScreen } from '@/components/DailyEntryScreen';
+import { DailyEntryScreen } from '@/components/screens';
 
 export default function SupervisorDailyEntryScreen() {
   return (

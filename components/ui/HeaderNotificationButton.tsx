@@ -1,5 +1,5 @@
 import { Ionicons } from "@expo/vector-icons";
-import { useRouter } from "expo-router";
+import { useRouter, type Href } from "expo-router";
 import React from "react";
 import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
 
@@ -17,7 +17,7 @@ export function HeaderNotificationButton({
 }: HeaderNotificationButtonProps) {
   const router = useRouter();
   const { user } = useAuth();
-  const route =
+  const route: Href =
     user?.role === "OWNER"
       ? "/(owner)/notifications"
       : user?.role === "SUPERVISOR"
@@ -27,7 +27,7 @@ export function HeaderNotificationButton({
   return (
     <TouchableOpacity
       style={styles.button}
-      onPress={() => router.push(route as never)}
+      onPress={() => router.push(route)}
       activeOpacity={0.82}
       accessibilityRole="button"
       accessibilityLabel="Notifications"

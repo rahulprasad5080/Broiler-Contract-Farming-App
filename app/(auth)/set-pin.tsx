@@ -107,7 +107,7 @@ export default function SetPinScreen() {
       Toast.show({type: "success",
         text1: "PIN saved",
         text2: "Your quick login PIN is ready for this device.", position: 'bottom'});
-      router.replace("/(auth)/enable-biometric" as never);
+      router.replace("/(auth)/enable-biometric");
     } catch (error) {
       Toast.show({type: "error",
         text1: "Unable to save PIN",

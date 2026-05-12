@@ -65,7 +65,7 @@ export default function QuickLoginPinScreen() {
       Toast.show({type: "info",
         text1: "PIN not available",
         text2: "Quick PIN is not set on this device. Use your password instead.", position: 'bottom'});
-      router.replace("/(auth)/quick-login-password" as never);
+      router.replace("/(auth)/quick-login-password");
     };
 
     void ensurePinExists();
@@ -97,7 +97,7 @@ export default function QuickLoginPinScreen() {
           Toast.show({type: "error",
             text1: "Too many attempts",
             text2: "Use your account password to continue.", position: 'bottom'});
-          router.replace("/(auth)/quick-login-password" as never);
+          router.replace("/(auth)/quick-login-password");
           return;
         }
 
@@ -132,7 +132,7 @@ export default function QuickLoginPinScreen() {
 
   const openBiometric = async () => {
     if (await isBiometricEnabled()) {
-      router.push("/(auth)/quick-login-biometric" as never);
+      router.push("/(auth)/quick-login-biometric");
       return;
     }
 
@@ -224,7 +224,7 @@ export default function QuickLoginPinScreen() {
           </View>
 
           <TouchableOpacity
-            onPress={() => router.push("/(auth)/quick-login-password" as never)}
+            onPress={() => router.push("/(auth)/quick-login-password")}
             activeOpacity={0.7}
           >
             <Text style={styles.passwordLink}>Use Password Instead</Text>

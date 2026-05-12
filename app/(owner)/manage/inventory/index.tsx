@@ -444,13 +444,13 @@ export default function InventoryScreen() {
         <View style={styles.headerActions}>
           <TouchableOpacity
             style={styles.iconButton}
-            onPress={() => router.push("/(owner)/manage/inventory/purchase" as never)}
+            onPress={() => router.push("/(owner)/manage/inventory/purchase")}
           >
             <MaterialCommunityIcons name="cart-plus" size={19} color={Colors.primary} />
           </TouchableOpacity>
           <TouchableOpacity
             style={styles.iconButton}
-            onPress={() => router.push("/(owner)/manage/inventory/allocate" as never)}
+            onPress={() => router.push("/(owner)/manage/inventory/allocate")}
           >
             <MaterialCommunityIcons name="truck-delivery-outline" size={19} color={Colors.primary} />
           </TouchableOpacity>
@@ -484,14 +484,14 @@ export default function InventoryScreen() {
         <View style={styles.actionRow}>
           <TouchableOpacity
             style={styles.actionButton}
-            onPress={() => router.push("/(owner)/manage/inventory/purchase" as never)}
+            onPress={() => router.push("/(owner)/manage/inventory/purchase")}
           >
             <MaterialCommunityIcons name="plus-box-outline" size={18} color="#FFF" />
             <Text style={styles.actionButtonText}>Purchase</Text>
           </TouchableOpacity>
           <TouchableOpacity
             style={[styles.actionButton, styles.actionButtonAlt]}
-            onPress={() => router.push("/(owner)/manage/inventory/allocate" as never)}
+            onPress={() => router.push("/(owner)/manage/inventory/allocate")}
           >
             <MaterialCommunityIcons name="swap-horizontal" size={18} color={Colors.primary} />
             <Text style={[styles.actionButtonText, styles.actionButtonTextAlt]}>

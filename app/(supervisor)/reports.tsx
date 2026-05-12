@@ -1,1 +1,1 @@
-export { default } from "@/components/ReportsScreen";
+export { ReportsScreen as default } from "@/components/screens";

@@ -12,7 +12,7 @@ import {
   Ionicons,
   MaterialCommunityIcons,
 } from "@expo/vector-icons";
-import { useRouter } from "expo-router";
+import { useRouter, type Href } from "expo-router";
 import React, { useEffect, useState } from "react";
 import {
   ActivityIndicator,
@@ -38,7 +38,14 @@ type PortalItem = {
   label: string;
   icon: React.ComponentProps<typeof FontAwesome5>["name"];
   provider: typeof FontAwesome5;
-  route: string | null;
+  route: Href | "settings";
+};
+
+type ActivityItem = {
+  title: string;
+  sub: string;
+  icon: React.ComponentProps<typeof Ionicons>["name"];
+  color: string;
 };
 
 type QuickUser = {
@@ -49,6 +56,27 @@ type QuickUser = {
   phone?: string | null;
   status: ApiUser["status"];
 };
+
+const recentActivityItems: ActivityItem[] = [
+  {
+    title: "Batch #402 Harvested",
+    sub: "Farm: Green Valley • 2h ago",
+    icon: "checkmark-circle-outline",
+    color: Colors.primary,
+  },
+  {
+    title: "New Batch Started",
+    sub: "Farm: Sunnyside • 5h ago",
+    icon: "add-circle-outline",
+    color: Colors.primary,
+  },
+  {
+    title: "Temp Alert: Farm #02",
+    sub: "High Temp detected • 8h ago",
+    icon: "warning-outline",
+    color: Colors.tertiary,
+  },
+];
 
 export default function OwnerDashboard() {
   const { hasPermission, user, accessToken } = useAuth();
@@ -291,9 +319,7 @@ export default function OwnerDashboard() {
                   setShowSettingsPanel(true);
                   return;
                 }
-                if (item.route) {
-                  router.push(item.route as any);
-                }
+                router.push(item.route);
               }}
             >
               <View style={styles.portalIconBox}>
@@ -328,28 +354,9 @@ export default function OwnerDashboard() {
         </View>
 
         <View style={styles.activityList}>
-          {[
-            {
-              title: "Batch #402 Harvested",
-              sub: "Farm: Green Valley • 2h ago",
-              icon: "check-circle-outline",
-              color: Colors.primary,
-            },
-            {
-              title: "New Batch Started",
-              sub: "Farm: Sunnyside • 5h ago",
-              icon: "add-circle-outline",
-              color: Colors.primary,
-            },
-            {
-              title: "Temp Alert: Farm #02",
-              sub: "High Temp detected • 8h ago",
-              icon: "alert-triangle-outline",
-              color: Colors.tertiary,
-            },
-          ].map((item, idx) => (
+          {recentActivityItems.map((item, idx) => (
             <View key={idx} style={styles.activityItem}>
-              <Ionicons name={item.icon as any} size={24} color={item.color} />
+              <Ionicons name={item.icon} size={24} color={item.color} />
               <View style={styles.activityContent}>
                 <Text style={styles.activityTitle}>{item.title}</Text>
                 <Text style={styles.activitySub}>{item.sub}</Text>
@@ -364,7 +371,7 @@ export default function OwnerDashboard() {
           styles.fab,
           { bottom: 1 + (insets.bottom > 0 ? insets.bottom : 0) },
         ]}
-        onPress={() => router.push("/(owner)/manage/daily-entry" as any)}
+        onPress={() => router.push("/(owner)/manage/daily-entry")}
       >
         <Ionicons name="add" size={32} color="#FFF" />
       </TouchableOpacity>

@@ -29,7 +29,7 @@ export default function QuickLoginBiometricScreen() {
   const routeToFallback = React.useCallback(async () => {
     const pinEnabled = await hasQuickPin();
     router.replace(
-      (pinEnabled ? "/(auth)/quick-login-pin" : "/(auth)/quick-login-password") as never,
+      (pinEnabled ? "/(auth)/quick-login-pin" : "/(auth)/quick-login-password"),
     );
   }, [router]);
 
@@ -122,7 +122,7 @@ export default function QuickLoginBiometricScreen() {
           </View>
 
           <TouchableOpacity
-            onPress={() => router.push("/(auth)/quick-login-pin" as never)}
+            onPress={() => router.push("/(auth)/quick-login-pin")}
             activeOpacity={0.7}
           >
             <Text style={styles.pinLink}>Use PIN Instead</Text>
