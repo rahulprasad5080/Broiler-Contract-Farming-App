@@ -61,6 +61,10 @@ export function getRouteRequiredPermission(segments: string[]) {
 
   const firstPathSegment = segments[ownerGroupIndex + 1];
 
+  if (firstPathSegment === "notifications") {
+    return "view:notifications";
+  }
+
   if (firstPathSegment === "reports") {
     return "view:reports";
   }

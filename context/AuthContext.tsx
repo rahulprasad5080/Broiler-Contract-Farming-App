@@ -56,7 +56,8 @@ export type Permission =
   | "create:purchase"
   | "view:inventory-cost"
   | "view:reports"
-  | "view:financial-dashboard";
+  | "view:financial-dashboard"
+  | "view:notifications";
 
 interface User {
   id: string;
@@ -139,6 +140,7 @@ function getPermissionsForRole(role: UserRole): Permission[] {
       "view:inventory-cost",
       "view:reports",
       "view:financial-dashboard",
+      "view:notifications",
     ];
   }
 
@@ -164,6 +166,7 @@ function getPermissionsForRole(role: UserRole): Permission[] {
       "create:company-expense",
       "create:purchase",
       "view:reports",
+      "view:notifications",
       "manage:farms",
       "manage:batches",
       "manage:partners",
@@ -172,7 +175,7 @@ function getPermissionsForRole(role: UserRole): Permission[] {
   }
 
   if (role === "FARMER") {
-    return ["create:daily-entry", "create:sales", "create:expenses"];
+    return ["create:daily-entry", "create:sales", "create:expenses", "view:notifications"];
   }
 
   return [];

@@ -16,7 +16,12 @@ export function HeaderNotificationButton({
   unreadCount = 4,
 }: HeaderNotificationButtonProps) {
   const router = useRouter();
-  const { user } = useAuth();
+  const { hasPermission, user } = useAuth();
+
+  if (!hasPermission("view:notifications")) {
+    return null;
+  }
+
   const route: Href =
     user?.role === "OWNER"
       ? "/(owner)/notifications"
