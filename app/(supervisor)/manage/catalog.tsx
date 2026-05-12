@@ -30,11 +30,18 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useFormPersistence } from '@/hooks/useFormPersistence';
 
-const CATALOG_TYPES: ApiCatalogItemType[] = ['FEED', 'VACCINE', 'MEDICINE', 'OTHER'];
+const CATALOG_TYPES = [
+  'CHICKS',
+  'FEED',
+  'MEDICINE',
+  'VACCINE',
+  'EQUIPMENT',
+  'OTHER',
+] as const satisfies readonly ApiCatalogItemType[];
 
 const catalogSchema = z.object({
   name: z.string().min(1, 'Name is required'),
-  type: z.enum(['FEED', 'VACCINE', 'MEDICINE', 'OTHER']),
+  type: z.enum(CATALOG_TYPES),
   unit: z.string().min(1, 'Unit is required'),
   manufacturer: z.string().optional(),
 });
@@ -245,8 +252,12 @@ export default function SupervisorCatalogScreen() {
                   <Text style={styles.itemName}>{item.name}</Text>
                   <Text style={styles.itemMeta}>
                     {item.type}
-                    {item.unit ? ` · ${item.unit}` : ''}
-                    {item.manufacturer ? ` · ${item.manufacturer}` : ''}
+                    {item.unit ? ` | ${item.unit}` : ''}
+                    {item.manufacturer ? ` | ${item.manufacturer}` : ''}
+                  </Text>
+                  <Text style={styles.itemMeta}>
+                    Stock {Number(item.currentStock ?? 0).toLocaleString('en-IN')}
+                    {item.reorderLevel ? ` | Reorder ${item.reorderLevel}` : ''}
                   </Text>
                 </View>
                 <View style={[styles.statusBadge, { backgroundColor: item.isActive ? '#E8F5E9' : '#FFEBEE' }]}>

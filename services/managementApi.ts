@@ -1,24 +1,54 @@
 import { apiRequest } from "./api";
 
-export type ApiRole = "OWNER" | "SUPERVISOR" | "FARMER";
+export type ApiRole = "OWNER" | "ACCOUNTS" | "SUPERVISOR" | "FARMER";
 export type ApiUserStatus = "ACTIVE" | "INVITED" | "DISABLED";
 export type ApiFarmStatus = "ACTIVE" | "INACTIVE";
-export type ApiBatchStatus = "ACTIVE" | "CANCELLED" | "PLANNED" | "READY_FOR_SALE" | "CLOSED";
+export type ApiBatchStatus =
+  | "ACTIVE"
+  | "CANCELLED"
+  | "PLANNED"
+  | "SALES_RUNNING"
+  | "SETTLEMENT_PENDING"
+  | "READY_FOR_SALE"
+  | "CLOSED";
 export type ApiSaleStatus = "CANCELLED" | "DRAFT" | "CONFIRMED";
 export type ApiTreatmentKind = "OTHER" | "VACCINATION" | "MEDICATION";
-export type ApiCostCategory =
+export type ApiExpenseCategoryCode =
+  | "CHICKS"
   | "FEED"
-  | "VACCINE"
   | "MEDICINE"
-  | "OTHER"
-  | "CHICK_PURCHASE"
-  | "LABOUR"
-  | "UTILITIES"
+  | "VACCINE"
   | "TRANSPORT"
-  | "MAINTENANCE";
+  | "OFFICE_EXPENSE"
+  | "SUPERVISOR_EXPENSE"
+  | "OTHER_COMPANY"
+  | "ELECTRICITY"
+  | "COCO_PITH"
+  | "LABOUR"
+  | "WATER"
+  | "DIESEL"
+  | "SHED_MAINTENANCE"
+  | "REPAIRS"
+  | "MISCELLANEOUS"
+  | "OTHER_FARMER";
 
-export type ApiCatalogItemType = "FEED" | "VACCINE" | "MEDICINE" | "OTHER";
-export type ApiCommentTargetType = "FARM" | "BATCH" | "DAILY_LOG" | "TREATMENT" | "COST" | "SALE";
+export type ApiCostCategory = ApiExpenseCategoryCode;
+export type ApiExpenseLedger = "COMPANY" | "FARMER";
+export type ApiExpenseApprovalStatus = "PENDING" | "APPROVED" | "REJECTED";
+export type ApiTransactionPaymentStatus = "CANCELLED" | "PENDING" | "PARTIAL" | "PAID";
+export type ApiInventoryMovementType = "PURCHASE" | "ALLOCATION" | "ADJUSTMENT" | "RETURN";
+export type ApiPurchaseType = "CHICKS" | "FEED" | "MEDICINE" | "VACCINE" | "EQUIPMENT" | "OTHER";
+export type ApiCatalogItemType = ApiPurchaseType;
+export type ApiCommentTargetType =
+  | "PURCHASE"
+  | "SETTLEMENT"
+  | "FARM"
+  | "BATCH"
+  | "DAILY_LOG"
+  | "TREATMENT"
+  | "COST"
+  | "SALE"
+  | "PAYMENT";
 
 export type PaginationMeta = {
   page: number;
@@ -40,9 +70,27 @@ export type ApiUser = {
   phone?: string | null;
   role: ApiRole;
   status: ApiUserStatus;
+  mustChangePassword?: boolean;
+  biometricEnabled?: boolean;
+  permissions?: ApiPermissionMatrix;
+  assignedFarmIds?: string[];
   lastLoginAt?: string | null;
   createdAt: string;
   updatedAt: string;
+};
+
+export type ApiPermissionMatrix = {
+  dailyEntry?: boolean;
+  salesEntry?: boolean;
+  expenseEntry?: boolean;
+  inventoryView?: boolean;
+  costVisibility?: boolean;
+  reportAccess?: boolean;
+  companyExpenseEntry?: boolean;
+  farmerExpenseApproval?: boolean;
+  purchaseEntry?: boolean;
+  settlementEntry?: boolean;
+  financialDashboard?: boolean;
 };
 
 export type ApiFarmAssignment = {
@@ -167,20 +215,24 @@ export type ApiCatalogItem = {
   organizationId: string;
   name: string;
   type: ApiCatalogItemType;
+  sku?: string | null;
   unit: string;
   defaultRate?: number | null;
   manufacturer?: string | null;
+  reorderLevel?: number | null;
+  currentStock?: number | null;
   isActive: boolean;
   createdAt: string;
   updatedAt: string;
 };
 
-export type ApiCost = {
+export type ApiBatchExpense = {
   id: string;
   organizationId: string;
   batchId: string;
-  category: ApiCostCategory;
   catalogItemId?: string | null;
+  ledger: ApiExpenseLedger;
+  category: ApiExpenseCategoryCode;
   expenseDate: string;
   description: string;
   quantity?: number | null;
@@ -189,9 +241,60 @@ export type ApiCost = {
   totalAmount: number;
   vendorName?: string | null;
   invoiceNumber?: string | null;
+  billPhotoUrl?: string | null;
+  paymentStatus?: ApiTransactionPaymentStatus | null;
+  paidAmount?: number | null;
+  approvalStatus?: ApiExpenseApprovalStatus | null;
+  approvedById?: string | null;
+  approvedAt?: string | null;
+  rejectedReason?: string | null;
   notes?: string | null;
   clientReferenceId?: string | null;
-  createdById: string;
+  createdById?: string | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type ApiCost = ApiBatchExpense;
+
+export type ApiInventoryLedgerEntry = {
+  id: string;
+  organizationId: string;
+  catalogItemId: string;
+  catalogItemName?: string | null;
+  batchId?: string | null;
+  movementType: ApiInventoryMovementType;
+  movementDate: string;
+  quantityIn?: number | null;
+  quantityOut?: number | null;
+  balanceAfter?: number | null;
+  referenceType?: string | null;
+  referenceId?: string | null;
+  notes?: string | null;
+  createdById?: string | null;
+  createdAt: string;
+};
+
+export type ApiFinancePurchase = {
+  id: string;
+  organizationId: string;
+  batchId?: string | null;
+  purchaseType: ApiPurchaseType;
+  vendorName?: string | null;
+  catalogItemId?: string | null;
+  itemName: string;
+  quantity?: number | null;
+  unit?: string | null;
+  unitCost?: number | null;
+  totalAmount: number;
+  invoiceNumber?: string | null;
+  paymentStatus: ApiTransactionPaymentStatus;
+  paidAmount?: number | null;
+  purchaseDate: string;
+  attachmentUrl?: string | null;
+  remarks?: string | null;
+  clientReferenceId?: string | null;
+  createdById?: string | null;
   createdAt: string;
   updatedAt: string;
 };
@@ -215,6 +318,8 @@ export type CreateUserRequest = {
   role: ApiRole;
   email?: string;
   phone?: string;
+  permissions?: ApiPermissionMatrix;
+  assignedFarmIds?: string[];
 };
 
 export type UpdateUserRequest = {
@@ -318,15 +423,19 @@ export type UpdateTraderRequest = Partial<CreateTraderRequest>;
 export type CreateCatalogItemRequest = {
   name: string;
   type: ApiCatalogItemType;
+  sku?: string;
   unit: string;
   defaultRate?: number;
   manufacturer?: string;
+  reorderLevel?: number;
+  currentStock?: number;
 };
 
 export type UpdateCatalogItemRequest = Partial<CreateCatalogItemRequest>;
 
-export type CreateBatchCostRequest = {
-  category: ApiCostCategory;
+export type CreateBatchExpenseRequest = {
+  ledger: ApiExpenseLedger;
+  category: ApiExpenseCategoryCode;
   catalogItemId?: string;
   expenseDate: string;
   description: string;
@@ -336,8 +445,52 @@ export type CreateBatchCostRequest = {
   totalAmount?: number;
   vendorName?: string;
   invoiceNumber?: string;
+  billPhotoUrl?: string;
   notes?: string;
   clientReferenceId?: string;
+};
+
+export type UpdateBatchExpenseRequest = Partial<
+  Omit<CreateBatchExpenseRequest, "clientReferenceId">
+> & {
+  paymentStatus?: ApiTransactionPaymentStatus;
+  paidAmount?: number;
+};
+
+export type UpdateBatchExpenseApprovalRequest = {
+  approvalStatus: ApiExpenseApprovalStatus;
+  rejectedReason?: string;
+};
+
+export type CreateBatchCostRequest = CreateBatchExpenseRequest;
+
+export type CreateFinancePurchaseRequest = {
+  batchId?: string;
+  purchaseType: ApiPurchaseType;
+  vendorName?: string;
+  catalogItemId?: string;
+  itemName: string;
+  quantity?: number;
+  unit?: string;
+  unitCost?: number;
+  totalAmount: number;
+  invoiceNumber?: string;
+  paymentStatus?: ApiTransactionPaymentStatus;
+  purchaseDate: string;
+  attachmentUrl?: string;
+  remarks?: string;
+  clientReferenceId?: string;
+};
+
+export type UpdateFinancePurchaseRequest = Partial<
+  Omit<CreateFinancePurchaseRequest, "clientReferenceId">
+>;
+
+export type AllocateInventoryRequest = {
+  batchId: string;
+  catalogItemId: string;
+  quantity: number;
+  remarks?: string;
 };
 
 export type CreateTreatmentRequest = {
@@ -667,11 +820,61 @@ export async function updateCatalogItem(
   });
 }
 
-export async function listBatchCosts(token: string, batchId: string) {
-  return apiRequest<ListResponse<ApiCost>>(`/batches/${batchId}/costs`, {
+export async function listBatchExpenses(
+  token: string,
+  batchId: string,
+  params: { ledger?: ApiExpenseLedger } = {},
+) {
+  return apiRequest<ListResponse<ApiBatchExpense>>(`/batches/${batchId}/expenses`, {
     method: "GET",
     token,
+    query: params,
   });
+}
+
+export async function createBatchExpense(
+  token: string,
+  batchId: string,
+  payload: CreateBatchExpenseRequest,
+) {
+  return apiRequest<ApiBatchExpense>(`/batches/${batchId}/expenses`, {
+    method: "POST",
+    token,
+    body: payload,
+  });
+}
+
+export async function updateBatchExpense(
+  token: string,
+  batchId: string,
+  expenseId: string,
+  payload: UpdateBatchExpenseRequest,
+) {
+  return apiRequest<ApiBatchExpense>(`/batches/${batchId}/expenses/${expenseId}`, {
+    method: "PUT",
+    token,
+    body: payload,
+  });
+}
+
+export async function updateBatchExpenseApproval(
+  token: string,
+  batchId: string,
+  expenseId: string,
+  payload: UpdateBatchExpenseApprovalRequest,
+) {
+  return apiRequest<ApiBatchExpense>(
+    `/batches/${batchId}/expenses/${expenseId}/approval`,
+    {
+      method: "PATCH",
+      token,
+      body: payload,
+    },
+  );
+}
+
+export async function listBatchCosts(token: string, batchId: string) {
+  return listBatchExpenses(token, batchId);
 }
 
 export async function createBatchCost(
@@ -679,13 +882,61 @@ export async function createBatchCost(
   batchId: string,
   payload: CreateBatchCostRequest,
 ) {
-  return apiRequest<ApiCost>(`/batches/${batchId}/costs`, {
+  return createBatchExpense(token, batchId, payload);
+}
+
+export async function listInventoryLedger(
+  token: string,
+  params: { catalogItemId?: string; batchId?: string } = {},
+) {
+  return apiRequest<ListResponse<ApiInventoryLedgerEntry>>("/inventory/ledger", {
+    method: "GET",
+    token,
+    query: params,
+  });
+}
+
+export async function allocateInventory(token: string, payload: AllocateInventoryRequest) {
+  return apiRequest<ApiInventoryLedgerEntry>("/inventory/allocate", {
     method: "POST",
     token,
     body: payload,
   });
 }
 
+export async function listFinancePurchases(
+  token: string,
+  params: ListParams = {},
+) {
+  return apiRequest<ListResponse<ApiFinancePurchase>>("/finance/purchases", {
+    method: "GET",
+    token,
+    query: params,
+  });
+}
+
+export async function createFinancePurchase(
+  token: string,
+  payload: CreateFinancePurchaseRequest,
+) {
+  return apiRequest<ApiFinancePurchase>("/finance/purchases", {
+    method: "POST",
+    token,
+    body: payload,
+  });
+}
+
+export async function updateFinancePurchase(
+  token: string,
+  purchaseId: string,
+  payload: UpdateFinancePurchaseRequest,
+) {
+  return apiRequest<ApiFinancePurchase>(`/finance/purchases/${purchaseId}`, {
+    method: "PUT",
+    token,
+    body: payload,
+  });
+}
 
 
 export async function listBatchComments(token: string, batchId: string) {

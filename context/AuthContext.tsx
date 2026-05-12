@@ -16,7 +16,12 @@ import {
   persistStoredSession,
   subscribeToStoredSession,
 } from "../services/authSession";
-import type { ApiUser, AuthSession, AuthTokens } from "../services/authTypes";
+import type {
+  ApiPermissionMatrix,
+  ApiUser,
+  AuthSession,
+  AuthTokens,
+} from "../services/authTypes";
 import {
   clearQuickAuth,
   getPreferredQuickLoginRoute,
@@ -39,8 +44,13 @@ export type Permission =
   | "manage:batches"
   | "manage:inventory"
   | "manage:settlements"
+  | "create:expenses"
+  | "create:company-expense"
+  | "approve:farmer-expense"
+  | "create:purchase"
   | "view:inventory-cost"
-  | "view:reports";
+  | "view:reports"
+  | "view:financial-dashboard";
 
 interface User {
   id: string;
@@ -63,6 +73,7 @@ type UserLike = {
   status?: string;
   role?: string | null;
   farmId?: string;
+  permissions?: ApiPermissionMatrix;
 };
 
 interface AuthContextType {
@@ -105,35 +116,91 @@ function getPermissionsForRole(role: UserRole): Permission[] {
       "manage:batches",
       "manage:inventory",
       "manage:settlements",
+      "create:expenses",
+      "create:company-expense",
+      "approve:farmer-expense",
+      "create:purchase",
       "view:inventory-cost",
       "view:reports",
+      "view:financial-dashboard",
+    ];
+  }
+
+  if (role === "ACCOUNTS") {
+    return [
+      "create:expenses",
+      "create:company-expense",
+      "approve:farmer-expense",
+      "create:purchase",
+      "manage:inventory",
+      "manage:settlements",
+      "view:inventory-cost",
+      "view:reports",
+      "view:financial-dashboard",
     ];
   }
 
   if (role === "SUPERVISOR") {
     return [
-      "create:daily-entry", "create:sales", "view:reports", 
-      "manage:farms", "manage:batches", "manage:partners", "manage:inventory"
+      "create:daily-entry",
+      "create:sales",
+      "create:expenses",
+      "create:company-expense",
+      "create:purchase",
+      "view:reports",
+      "manage:farms",
+      "manage:batches",
+      "manage:partners",
+      "manage:inventory",
     ];
   }
 
   if (role === "FARMER") {
-    return ["create:daily-entry", "create:sales"];
+    return ["create:daily-entry", "create:sales", "create:expenses"];
   }
 
   return [];
 }
 
+function getPermissionsFromApi(permissions?: ApiPermissionMatrix): Permission[] {
+  if (!permissions) return [];
+
+  const mapped: Permission[] = [];
+
+  if (permissions.dailyEntry) mapped.push("create:daily-entry");
+  if (permissions.salesEntry) mapped.push("create:sales");
+  if (permissions.expenseEntry) mapped.push("create:expenses");
+  if (permissions.inventoryView) mapped.push("manage:inventory");
+  if (permissions.costVisibility) mapped.push("view:inventory-cost");
+  if (permissions.reportAccess) mapped.push("view:reports");
+  if (permissions.companyExpenseEntry) mapped.push("create:company-expense");
+  if (permissions.farmerExpenseApproval) mapped.push("approve:farmer-expense");
+  if (permissions.purchaseEntry) mapped.push("create:purchase");
+  if (permissions.settlementEntry) mapped.push("manage:settlements");
+  if (permissions.financialDashboard) mapped.push("view:financial-dashboard");
+
+  return mapped;
+}
+
 function normalizeUser(user: UserLike): User {
   const role =
-    user.role === "OWNER" || user.role === "SUPERVISOR" || user.role === "FARMER"
+    user.role === "OWNER" ||
+    user.role === "ACCOUNTS" ||
+    user.role === "SUPERVISOR" ||
+    user.role === "FARMER"
       ? user.role
       : null;
+  const permissions = Array.from(
+    new Set([
+      ...getPermissionsForRole(role),
+      ...getPermissionsFromApi(user.permissions),
+    ]),
+  );
 
   return {
     ...user,
     role,
-    permissions: getPermissionsForRole(role),
+    permissions,
   };
 }
 

@@ -1,7 +1,8 @@
-export type AppRole = "OWNER" | "SUPERVISOR" | "FARMER" | null;
+export type AppRole = "OWNER" | "ACCOUNTS" | "SUPERVISOR" | "FARMER" | null;
 
 const ROLE_ROUTE_GROUPS = {
   OWNER: "(owner)",
+  ACCOUNTS: "(owner)",
   SUPERVISOR: "(supervisor)",
   FARMER: "(farmer)",
 } as const;
@@ -9,7 +10,12 @@ const ROLE_ROUTE_GROUPS = {
 const PROTECTED_ROUTE_GROUPS = new Set<string>(Object.values(ROLE_ROUTE_GROUPS));
 
 export function getRoleRouteGroup(role: AppRole) {
-  if (role === "OWNER" || role === "SUPERVISOR" || role === "FARMER") {
+  if (
+    role === "OWNER" ||
+    role === "ACCOUNTS" ||
+    role === "SUPERVISOR" ||
+    role === "FARMER"
+  ) {
     return ROLE_ROUTE_GROUPS[role];
   }
 
@@ -18,6 +24,7 @@ export function getRoleRouteGroup(role: AppRole) {
 
 export function getDashboardRoute(role: AppRole) {
   if (role === "OWNER") return "/(owner)/dashboard";
+  if (role === "ACCOUNTS") return "/(owner)/dashboard";
   if (role === "SUPERVISOR") return "/(supervisor)/dashboard";
   return "/(farmer)/dashboard";
 }
