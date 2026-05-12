@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Colors } from '@/constants/Colors';
 import { Layout } from '@/constants/Layout';
 import { Ionicons } from '@expo/vector-icons';
@@ -8,6 +8,8 @@ import { useRouter } from 'expo-router';
 
 export default function FarmerTasksIndexScreen() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
+  const bottomContentPadding = Math.max(100, insets.bottom + 88);
 
   const menuItems = [
     { title: 'Daily Entry', desc: 'Log mortality, feed, and weight', icon: 'clipboard-outline', route: '/(farmer)/tasks/daily' },
@@ -17,12 +19,12 @@ export default function FarmerTasksIndexScreen() {
   ];
 
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Tasks & Entries</Text>
       </View>
       
-      <ScrollView contentContainerStyle={styles.container}>
+      <ScrollView contentContainerStyle={[styles.container, { paddingBottom: bottomContentPadding }]}>
         <View style={styles.infoCard}>
           <Ionicons name="leaf-outline" size={24} color={Colors.primary} />
           <Text style={styles.infoText}>
