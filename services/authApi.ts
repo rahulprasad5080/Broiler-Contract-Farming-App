@@ -25,10 +25,31 @@ export type ChangePasswordRequest = {
   newPassword: string;
 };
 
+export type LoginPinRequest = {
+  phone: string;
+  pin: string;
+};
+
+export type SetPinRequest = {
+  currentPassword: string;
+  pin: string;
+};
+
+export type UpdateBiometricRequest = {
+  enabled: boolean;
+};
+
 export async function login(phone: string, password: string) {
   return apiRequest<LoginResponse>("/auth/login", {
     method: "POST",
     body: { phone, password },
+  });
+}
+
+export async function loginWithPin(payload: LoginPinRequest) {
+  return apiRequest<LoginResponse>("/auth/login-pin", {
+    method: "POST",
+    body: payload,
   });
 }
 
@@ -62,6 +83,25 @@ export async function logout(refreshToken: string) {
 
 export async function changePassword(token: string, payload: ChangePasswordRequest) {
   return apiRequest<{ message: string }>("/auth/change-password", {
+    method: "POST",
+    token,
+    body: payload,
+  });
+}
+
+export async function setServerPin(token: string, payload: SetPinRequest) {
+  return apiRequest<{ message: string }>("/auth/set-pin", {
+    method: "POST",
+    token,
+    body: payload,
+  });
+}
+
+export async function updateServerBiometric(
+  token: string,
+  payload: UpdateBiometricRequest,
+) {
+  return apiRequest<ApiUser>("/auth/biometric", {
     method: "POST",
     token,
     body: payload,

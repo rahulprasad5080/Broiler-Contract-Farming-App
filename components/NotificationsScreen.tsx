@@ -2,6 +2,7 @@ import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import React, { useMemo, useState } from "react";
 import {
+  ActivityIndicator,
   FlatList,
   StyleSheet,
   Text,
@@ -13,84 +14,16 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { Colors } from "@/constants/Colors";
 import { Layout } from "@/constants/Layout";
 import { useAuth } from "@/context/AuthContext";
-
-type NotificationType =
-  | "mortality"
-  | "feed"
-  | "vaccine"
-  | "fcr"
-  | "pending"
-  | "sales";
-
-type NotificationItem = {
-  id: string;
-  type: NotificationType;
-  title: string;
-  body: string;
-  farm: string;
-  createdAt: string;
-  unread: boolean;
-};
-
-const notifications: NotificationItem[] = [
-  {
-    id: "sales-ready-01",
-    type: "sales",
-    title: "Sales Ready",
-    body: "Batch B-104 has crossed target weight and is ready for sale planning.",
-    farm: "Green Valley Farm",
-    createdAt: "2026-05-11T17:45:00+05:30",
-    unread: true,
-  },
-  {
-    id: "pending-entries-01",
-    type: "pending",
-    title: "Pending Entries",
-    body: "Daily entry is still pending for House #04.",
-    farm: "River Edge Co.",
-    createdAt: "2026-05-11T16:20:00+05:30",
-    unread: true,
-  },
-  {
-    id: "mortality-01",
-    type: "mortality",
-    title: "Mortality Alert",
-    body: "Mortality count is above the expected range for Day 28.",
-    farm: "Highland Broilers",
-    createdAt: "2026-05-11T14:05:00+05:30",
-    unread: true,
-  },
-  {
-    id: "feed-01",
-    type: "feed",
-    title: "Feed Alert",
-    body: "Feed stock may run low within 2 days based on current consumption.",
-    farm: "Sunrise Poultry",
-    createdAt: "2026-05-11T10:40:00+05:30",
-    unread: false,
-  },
-  {
-    id: "vaccine-01",
-    type: "vaccine",
-    title: "Vaccine Due",
-    body: "Lasota vaccine is due tomorrow for the active batch.",
-    farm: "Green Valley Farm",
-    createdAt: "2026-05-10T18:00:00+05:30",
-    unread: true,
-  },
-  {
-    id: "fcr-01",
-    type: "fcr",
-    title: "FCR Alert",
-    body: "FCR trend needs review against batch performance target.",
-    farm: "Highland Broilers",
-    createdAt: "2026-05-10T12:30:00+05:30",
-    unread: false,
-  },
-];
+import {
+  listNotifications,
+  markNotificationRead,
+  type ApiNotification,
+  type ApiNotificationType,
+} from "@/services/notificationApi";
+import { showRequestErrorToast } from "@/services/apiFeedback";
 
 const typeMeta: Record<
-  NotificationType,
+  ApiNotificationType,
   {
     label: string;
     icon: React.ComponentProps<typeof MaterialCommunityIcons>["name"];
@@ -98,52 +31,66 @@ const typeMeta: Record<
     soft: string;
   }
 > = {
-  mortality: {
+  MORTALITY_ALERT: {
     label: "Mortality",
     icon: "alert-circle-outline",
     accent: Colors.tertiary,
     soft: "#FFF4F4",
   },
-  feed: {
+  FEED_ALERT: {
     label: "Feed",
     icon: "silverware-fork",
     accent: "#B7791F",
     soft: "#FFF8E1",
   },
-  vaccine: {
+  VACCINE_DUE: {
     label: "Vaccine",
     icon: "needle",
     accent: "#1565C0",
     soft: "#E3F2FD",
   },
-  fcr: {
+  FCR_ALERT: {
     label: "FCR",
     icon: "chart-line",
     accent: "#7C3AED",
     soft: "#F5F3FF",
   },
-  pending: {
+  PENDING_ENTRY: {
     label: "Pending",
     icon: "clipboard-clock-outline",
     accent: "#D97706",
     soft: "#FFF7ED",
   },
-  sales: {
+  SALES_READY: {
     label: "Sales Ready",
     icon: "cash-fast",
     accent: Colors.primary,
     soft: "#E8F5E9",
   },
+  PAYMENT_DUE: {
+    label: "Payment",
+    icon: "cash-clock",
+    accent: "#B7791F",
+    soft: "#FFF8E1",
+  },
+  GENERAL: {
+    label: "General",
+    icon: "bell-outline",
+    accent: Colors.primary,
+    soft: "#E8F5E9",
+  },
 };
 
-const filters: Array<"all" | NotificationType> = [
+const filters: ("all" | ApiNotificationType)[] = [
   "all",
-  "mortality",
-  "feed",
-  "vaccine",
-  "fcr",
-  "pending",
-  "sales",
+  "MORTALITY_ALERT",
+  "FEED_ALERT",
+  "VACCINE_DUE",
+  "FCR_ALERT",
+  "PENDING_ENTRY",
+  "SALES_READY",
+  "PAYMENT_DUE",
+  "GENERAL",
 ];
 
 function formatTime(value: string) {
@@ -155,34 +102,65 @@ function formatTime(value: string) {
   });
 }
 
-function getRelatedRoute(role: string | null | undefined, type: NotificationType) {
-  if (role === "OWNER") {
-    if (type === "feed") return "/(owner)/manage/inventory";
-    if (type === "fcr") return "/(owner)/reports";
-    if (type === "sales") return "/(owner)/manage/sales";
+function getRelatedRoute(role: string | null | undefined, type: ApiNotificationType) {
+  if (role === "OWNER" || role === "ACCOUNTS") {
+    if (type === "FEED_ALERT") return "/(owner)/manage/inventory";
+    if (type === "FCR_ALERT") return "/(owner)/reports";
+    if (type === "SALES_READY") return "/(owner)/manage/sales";
+    if (type === "PAYMENT_DUE") return "/(owner)/manage/settlement";
     return "/(owner)/manage/daily-entry";
   }
 
   if (role === "SUPERVISOR") {
-    if (type === "vaccine") return "/(supervisor)/tasks/treatments";
-    if (type === "fcr") return "/(supervisor)/reports";
-    if (type === "sales") return "/(supervisor)/tasks/sales";
-    if (type === "pending") return "/(supervisor)/review";
+    if (type === "VACCINE_DUE") return "/(supervisor)/tasks/treatments";
+    if (type === "FCR_ALERT") return "/(supervisor)/reports";
+    if (type === "SALES_READY") return "/(supervisor)/tasks/sales";
+    if (type === "PENDING_ENTRY") return "/(supervisor)/review";
     return "/(supervisor)/tasks/daily";
   }
 
-  if (type === "vaccine") return "/(farmer)/tasks/treatments";
-  if (type === "fcr") return "/(farmer)/reports";
-  if (type === "sales") return "/(farmer)/tasks/sales";
+  if (type === "VACCINE_DUE") return "/(farmer)/tasks/treatments";
+  if (type === "FCR_ALERT") return "/(farmer)/reports";
+  if (type === "SALES_READY") return "/(farmer)/tasks/sales";
   return "/(farmer)/tasks/daily";
 }
 
 export function NotificationsScreen() {
   const router = useRouter();
-  const { user } = useAuth();
+  const { accessToken, user } = useAuth();
   const [selectedFilter, setSelectedFilter] =
     useState<(typeof filters)[number]>("all");
-  const [readIds, setReadIds] = useState<Set<string>>(new Set());
+  const [notifications, setNotifications] = useState<ApiNotification[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const loadNotifications = React.useCallback(async () => {
+    if (!accessToken) {
+      setNotifications([]);
+      return;
+    }
+
+    setLoading(true);
+    setError(null);
+
+    try {
+      const response = await listNotifications(accessToken);
+      setNotifications(response.data);
+    } catch (err) {
+      setError(
+        showRequestErrorToast(err, {
+          title: "Unable to load notifications",
+          fallbackMessage: "Failed to load notifications.",
+        }),
+      );
+    } finally {
+      setLoading(false);
+    }
+  }, [accessToken]);
+
+  React.useEffect(() => {
+    void loadNotifications();
+  }, [loadNotifications]);
 
   const orderedNotifications = useMemo(
     () =>
@@ -195,15 +173,38 @@ export function NotificationsScreen() {
         .filter((item) =>
           selectedFilter === "all" ? true : item.type === selectedFilter,
         ),
-    [selectedFilter],
+    [notifications, selectedFilter],
   );
 
   const unreadCount = notifications.filter(
-    (item) => item.unread && !readIds.has(item.id),
+    (item) => !item.isRead,
   ).length;
 
-  const openNotification = (item: NotificationItem) => {
-    setReadIds((current) => new Set(current).add(item.id));
+  const openNotification = async (item: ApiNotification) => {
+    if (accessToken && !item.isRead) {
+      setNotifications((current) =>
+        current.map((notification) =>
+          notification.id === item.id
+            ? { ...notification, isRead: true, readAt: new Date().toISOString() }
+            : notification,
+        ),
+      );
+
+      try {
+        const updated = await markNotificationRead(accessToken, item.id);
+        setNotifications((current) =>
+          current.map((notification) =>
+            notification.id === updated.id ? updated : notification,
+          ),
+        );
+      } catch (err) {
+        showRequestErrorToast(err, {
+          title: "Unable to mark read",
+          fallbackMessage: "Notification opened, but read status was not saved.",
+        });
+      }
+    }
+
     router.push(getRelatedRoute(user?.role, item.type) as never);
   };
 
@@ -234,11 +235,15 @@ export function NotificationsScreen() {
         </View>
       </View>
 
+      {error ? <Text style={styles.errorText}>{error}</Text> : null}
+
       <FlatList
         data={orderedNotifications}
         keyExtractor={(item) => item.id}
         contentContainerStyle={styles.listContent}
         showsVerticalScrollIndicator={false}
+        refreshing={loading}
+        onRefresh={() => void loadNotifications()}
         ListHeaderComponent={
           <FlatList
             horizontal
@@ -269,9 +274,22 @@ export function NotificationsScreen() {
             }}
           />
         }
+        ListEmptyComponent={
+          loading ? (
+            <View style={styles.loadingState}>
+              <ActivityIndicator color={Colors.primary} />
+              <Text style={styles.emptyText}>Loading notifications...</Text>
+            </View>
+          ) : (
+            <View style={styles.loadingState}>
+              <Ionicons name="notifications-off-outline" size={28} color={Colors.textSecondary} />
+              <Text style={styles.emptyText}>No notifications found.</Text>
+            </View>
+          )
+        }
         renderItem={({ item }) => {
           const meta = typeMeta[item.type];
-          const unread = item.unread && !readIds.has(item.id);
+          const unread = !item.isRead;
 
           return (
             <TouchableOpacity
@@ -291,9 +309,13 @@ export function NotificationsScreen() {
                   <Text style={styles.alertTitle}>{item.title}</Text>
                   {unread ? <View style={styles.unreadDot} /> : null}
                 </View>
-                <Text style={styles.alertBody}>{item.body}</Text>
+                <Text style={styles.alertBody}>{item.message}</Text>
                 <View style={styles.alertFooter}>
-                  <Text style={styles.alertFarm}>{item.farm}</Text>
+                  <Text style={styles.alertFarm}>
+                    {[item.farmId ? "Farm linked" : null, item.batchId ? "Batch linked" : null]
+                      .filter(Boolean)
+                      .join(" | ") || typeMeta[item.type].label}
+                  </Text>
                   <Text style={styles.alertTime}>{formatTime(item.createdAt)}</Text>
                 </View>
               </View>
@@ -395,9 +417,32 @@ const styles = StyleSheet.create({
     lineHeight: 17,
     marginTop: 2,
   },
+  errorText: {
+    marginHorizontal: Layout.screenPadding,
+    marginTop: 12,
+    padding: 10,
+    borderRadius: 8,
+    backgroundColor: "#FFF4F4",
+    color: Colors.tertiary,
+    borderWidth: 1,
+    borderColor: "#FECACA",
+    fontSize: 12,
+    fontWeight: "700",
+  },
   listContent: {
     paddingHorizontal: Layout.screenPadding,
     paddingBottom: 100,
+  },
+  loadingState: {
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    paddingVertical: 34,
+  },
+  emptyText: {
+    color: Colors.textSecondary,
+    fontSize: 13,
+    fontWeight: "700",
   },
   filterRow: {
     gap: 8,

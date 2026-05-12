@@ -38,6 +38,17 @@ export type ApiExpenseApprovalStatus = "PENDING" | "APPROVED" | "REJECTED";
 export type ApiTransactionPaymentStatus = "CANCELLED" | "PENDING" | "PARTIAL" | "PAID";
 export type ApiInventoryMovementType = "PURCHASE" | "ALLOCATION" | "ADJUSTMENT" | "RETURN";
 export type ApiPurchaseType = "CHICKS" | "FEED" | "MEDICINE" | "VACCINE" | "EQUIPMENT" | "OTHER";
+export type ApiFinanceEntryType = "INVESTMENT" | "OTHER_INCOME" | "OTHER_EXPENSE";
+export type ApiPaymentDirection = "INBOUND" | "OUTBOUND";
+export type ApiPaymentEntryType =
+  | "OTHER"
+  | "PURCHASE"
+  | "EXPENSE"
+  | "SALE_RECEIPT"
+  | "SETTLEMENT"
+  | "INVESTMENT";
+export type ApiPayoutUnit = "PER_BIRD_PLACED" | "PER_BIRD_SOLD" | "PER_KG_SOLD";
+export type ApiSettlementStatus = "DRAFT" | "FINALIZED";
 export type ApiCatalogItemType = ApiPurchaseType;
 export type ApiCommentTargetType =
   | "PURCHASE"
@@ -175,9 +186,13 @@ export type ApiSale = {
   organizationId: string;
   batchId: string;
   traderId: string;
+  traderName?: string | null;
   saleDate: string;
+  vehicleNumber?: string | null;
   birdCount?: number | null;
   totalWeightKg?: number | null;
+  averageWeightKg?: number | null;
+  loadingMortalityCount?: number | null;
   ratePerKg?: number | null;
   grossAmount?: number | null;
   transportCharge?: number | null;
@@ -185,9 +200,13 @@ export type ApiSale = {
   otherDeduction?: number | null;
   netAmount?: number | null;
   paymentReceivedAmount?: number | null;
+  paymentStatus?: ApiTransactionPaymentStatus | null;
   status: ApiSaleStatus;
   notes?: string | null;
   clientReferenceId?: string | null;
+  createdById?: string | null;
+  finalizedById?: string | null;
+  finalizedAt?: string | null;
   createdAt: string;
   updatedAt: string;
 };
@@ -299,6 +318,77 @@ export type ApiFinancePurchase = {
   updatedAt: string;
 };
 
+export type ApiFinanceEntry = {
+  id: string;
+  organizationId: string;
+  type: ApiFinanceEntryType;
+  amount: number;
+  paymentStatus: ApiTransactionPaymentStatus;
+  entryDate: string;
+  description: string;
+  notes?: string | null;
+  createdById?: string | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type ApiFinancePayment = {
+  id: string;
+  organizationId: string;
+  batchId?: string | null;
+  partyName?: string | null;
+  paymentType: ApiPaymentEntryType;
+  direction: ApiPaymentDirection;
+  amount: number;
+  paymentDate: string;
+  referenceType?: ApiPaymentEntryType | string | null;
+  referenceId?: string | null;
+  notes?: string | null;
+  createdById?: string | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type ApiBatchSettlement = {
+  id: string;
+  organizationId: string;
+  batchId: string;
+  farmerId?: string | null;
+  farmerName?: string | null;
+  payoutRate: number;
+  payoutUnit: ApiPayoutUnit;
+  baseQuantity?: number | null;
+  growingCharges?: number | null;
+  performanceBonus?: number | null;
+  incentiveAmount?: number | null;
+  otherDeductions?: number | null;
+  farmerExpenseTotal?: number | null;
+  netPayable?: number | null;
+  paymentStatus?: ApiTransactionPaymentStatus | null;
+  status: ApiSettlementStatus;
+  remarks?: string | null;
+  finalizedById?: string | null;
+  finalizedAt?: string | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type ApiBatchPnl = {
+  batchId: string;
+  batchCode?: string | null;
+  company: {
+    netProfitOrLoss?: number | null;
+    expenses?: number | null;
+    salesRevenue?: number | null;
+  };
+  farmer: {
+    netEarnings?: number | null;
+    expenses?: number | null;
+    incentives?: number | null;
+    growingIncome?: number | null;
+  };
+};
+
 export type ApiComment = {
   id: string;
   organizationId: string;
@@ -398,16 +488,31 @@ export type UpdateDailyLogRequest = CreateDailyLogRequest;
 export type CreateSaleRequest = {
   traderId: string;
   saleDate: string;
+  vehicleNumber?: string;
   birdCount?: number;
   totalWeightKg?: number;
+  loadingMortalityCount?: number;
   ratePerKg?: number;
   transportCharge?: number;
   commissionCharge?: number;
   otherDeduction?: number;
   paymentReceivedAmount?: number;
+  paymentStatus?: ApiTransactionPaymentStatus;
   status?: ApiSaleStatus;
   notes?: string;
   clientReferenceId?: string;
+};
+
+export type FinalizeSaleRequest = {
+  ratePerKg?: number;
+  grossAmount?: number;
+  transportCharge?: number;
+  commissionCharge?: number;
+  otherDeduction?: number;
+  netAmount?: number;
+  paymentReceivedAmount?: number;
+  paymentStatus?: ApiTransactionPaymentStatus;
+  notes?: string;
 };
 
 export type CreateTraderRequest = {
@@ -486,10 +591,41 @@ export type UpdateFinancePurchaseRequest = Partial<
   Omit<CreateFinancePurchaseRequest, "clientReferenceId">
 >;
 
+export type CreateFinanceEntryRequest = {
+  type: ApiFinanceEntryType;
+  amount: number;
+  paymentStatus?: ApiTransactionPaymentStatus;
+  entryDate: string;
+  description: string;
+  notes?: string;
+};
+
+export type CreateFinancePaymentRequest = {
+  batchId?: string;
+  partyName?: string;
+  paymentType: ApiPaymentEntryType;
+  direction: ApiPaymentDirection;
+  amount: number;
+  paymentDate: string;
+  referenceType?: ApiPaymentEntryType | string;
+  referenceId?: string;
+  notes?: string;
+};
+
 export type AllocateInventoryRequest = {
   batchId: string;
   catalogItemId: string;
   quantity: number;
+  remarks?: string;
+};
+
+export type CreateBatchSettlementRequest = {
+  payoutRate: number;
+  payoutUnit: ApiPayoutUnit;
+  performanceBonus?: number;
+  incentiveAmount?: number;
+  otherDeductions?: number;
+  paymentStatus?: ApiTransactionPaymentStatus;
   remarks?: string;
 };
 
@@ -751,6 +887,45 @@ export async function createSale(token: string, batchId: string, payload: Create
   });
 }
 
+export async function finalizeSale(
+  token: string,
+  batchId: string,
+  saleId: string,
+  payload: FinalizeSaleRequest,
+) {
+  return apiRequest<ApiSale>(`/batches/${batchId}/sales/${saleId}/finalize`, {
+    method: "PATCH",
+    token,
+    body: payload,
+  });
+}
+
+export async function fetchBatchSettlement(token: string, batchId: string) {
+  return apiRequest<ApiBatchSettlement>(`/batches/${batchId}/settlement`, {
+    method: "GET",
+    token,
+  });
+}
+
+export async function createBatchSettlement(
+  token: string,
+  batchId: string,
+  payload: CreateBatchSettlementRequest,
+) {
+  return apiRequest<ApiBatchSettlement>(`/batches/${batchId}/settlement`, {
+    method: "POST",
+    token,
+    body: payload,
+  });
+}
+
+export async function fetchBatchPnl(token: string, batchId: string) {
+  return apiRequest<ApiBatchPnl>(`/batches/${batchId}/pnl`, {
+    method: "GET",
+    token,
+  });
+}
+
 export async function listTraders(
   token: string,
   params: ListParams = {},
@@ -885,6 +1060,25 @@ export async function createBatchCost(
   return createBatchExpense(token, batchId, payload);
 }
 
+export async function listLegacyBatchCosts(token: string, batchId: string) {
+  return apiRequest<ListResponse<ApiBatchExpense>>(`/batches/${batchId}/costs`, {
+    method: "GET",
+    token,
+  });
+}
+
+export async function createLegacyBatchCost(
+  token: string,
+  batchId: string,
+  payload: CreateBatchCostRequest,
+) {
+  return apiRequest<ApiBatchExpense>(`/batches/${batchId}/costs`, {
+    method: "POST",
+    token,
+    body: payload,
+  });
+}
+
 export async function listInventoryLedger(
   token: string,
   params: { catalogItemId?: string; batchId?: string } = {},
@@ -933,6 +1127,50 @@ export async function updateFinancePurchase(
 ) {
   return apiRequest<ApiFinancePurchase>(`/finance/purchases/${purchaseId}`, {
     method: "PUT",
+    token,
+    body: payload,
+  });
+}
+
+export async function listFinanceEntries(
+  token: string,
+  params: ListParams = {},
+) {
+  return apiRequest<ListResponse<ApiFinanceEntry>>("/finance/entries", {
+    method: "GET",
+    token,
+    query: params,
+  });
+}
+
+export async function createFinanceEntry(
+  token: string,
+  payload: CreateFinanceEntryRequest,
+) {
+  return apiRequest<ApiFinanceEntry>("/finance/entries", {
+    method: "POST",
+    token,
+    body: payload,
+  });
+}
+
+export async function listFinancePayments(
+  token: string,
+  params: ListParams = {},
+) {
+  return apiRequest<ListResponse<ApiFinancePayment>>("/finance/payments", {
+    method: "GET",
+    token,
+    query: params,
+  });
+}
+
+export async function createFinancePayment(
+  token: string,
+  payload: CreateFinancePaymentRequest,
+) {
+  return apiRequest<ApiFinancePayment>("/finance/payments", {
+    method: "POST",
     token,
     body: payload,
   });
