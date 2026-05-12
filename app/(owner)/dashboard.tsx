@@ -31,7 +31,7 @@ import {
 } from "react-native-safe-area-context";
 import { Colors } from "../../constants/Colors";
 import { Layout } from "../../constants/Layout";
-import { useAuth } from "../../context/AuthContext";
+import { useAuth, type Permission } from "../../context/AuthContext";
 import { HeaderNotificationButton } from "../../components/ui/HeaderNotificationButton";
 
 type PortalItem = {
@@ -39,6 +39,7 @@ type PortalItem = {
   icon: React.ComponentProps<typeof FontAwesome5>["name"];
   provider: typeof FontAwesome5;
   route: Href | "settings";
+  requiredPermission?: Permission;
 };
 
 type ActivityItem = {
@@ -89,72 +90,82 @@ export default function OwnerDashboard() {
   const [savingUserId, setSavingUserId] = useState<string | null>(null);
   const [settingsError, setSettingsError] = useState<string | null>(null);
 
-  const portalItems: PortalItem[] = [
+  const allPortalItems: PortalItem[] = [
     {
       label: "Add Farm",
       icon: "warehouse",
       provider: FontAwesome5,
       route: "/(owner)/manage/farms/add",
+      requiredPermission: "manage:farms",
     },
     {
       label: "New Batch",
       icon: "file-medical",
       provider: FontAwesome5,
       route: "/(owner)/manage/batches",
+      requiredPermission: "manage:batches",
     },
     {
       label: "Inventory",
       icon: "box",
       provider: FontAwesome5,
       route: "/(owner)/manage/inventory",
+      requiredPermission: "manage:inventory",
     },
-    ...(hasPermission("manage:partners")
-      ? [
-          {
-            label: "Partners",
-            icon: "handshake",
-            provider: FontAwesome5,
-            route: "/(owner)/manage/partners",
-          } as PortalItem,
-        ]
-      : []),
+    {
+      label: "Partners",
+      icon: "handshake",
+      provider: FontAwesome5,
+      route: "/(owner)/manage/partners",
+      requiredPermission: "manage:partners",
+    },
     {
       label: "Daily Entry",
       icon: "clipboard-list",
       provider: FontAwesome5,
       route: "/(owner)/manage/daily-entry",
+      requiredPermission: "create:daily-entry",
     },
     {
       label: "Sales",
       icon: "rupee-sign",
       provider: FontAwesome5,
       route: "/(owner)/manage/sales",
+      requiredPermission: "create:sales",
     },
     {
       label: "Payout",
       icon: "file-invoice-dollar",
       provider: FontAwesome5,
       route: "/(owner)/manage/settlement",
+      requiredPermission: "manage:settlements",
     },
     {
       label: "Reports",
       icon: "chart-bar",
       provider: FontAwesome5,
       route: "/(owner)/reports",
+      requiredPermission: "view:reports",
     },
     {
       label: "Users",
       icon: "user-friends",
       provider: FontAwesome5,
       route: "/(owner)/manage/users",
+      requiredPermission: "manage:users",
     },
     {
       label: "Settings",
       icon: "cog",
       provider: FontAwesome5,
       route: "settings",
+      requiredPermission: "manage:users",
     },
   ];
+
+  const portalItems = allPortalItems.filter(
+    (item) => !item.requiredPermission || hasPermission(item.requiredPermission),
+  );
 
   const loadUsers = async () => {
     if (!accessToken) {
@@ -366,15 +377,17 @@ export default function OwnerDashboard() {
         </View>
       </ScrollView>
 
-      <TouchableOpacity
-        style={[
-          styles.fab,
-          { bottom: 1 + (insets.bottom > 0 ? insets.bottom : 0) },
-        ]}
-        onPress={() => router.push("/(owner)/manage/daily-entry")}
-      >
-        <Ionicons name="add" size={32} color="#FFF" />
-      </TouchableOpacity>
+      {hasPermission("create:daily-entry") ? (
+        <TouchableOpacity
+          style={[
+            styles.fab,
+            { bottom: 1 + (insets.bottom > 0 ? insets.bottom : 0) },
+          ]}
+          onPress={() => router.push("/(owner)/manage/daily-entry")}
+        >
+          <Ionicons name="add" size={32} color="#FFF" />
+        </TouchableOpacity>
+      ) : null}
 
       <Modal visible={showSettingsPanel} transparent animationType="slide">
         <TouchableOpacity

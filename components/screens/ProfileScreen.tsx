@@ -21,7 +21,7 @@ import { z } from 'zod';
 
 import { Colors } from '@/constants/Colors';
 import { Layout } from '@/constants/Layout';
-import { useAuth } from '@/context/AuthContext';
+import { useAuth, type Permission } from '@/context/AuthContext';
 import { showRequestErrorToast, showSuccessToast } from '@/services/apiFeedback';
 import { changePassword } from '@/services/authApi';
 import {
@@ -93,7 +93,10 @@ const getProfileStats = (role: string | null | undefined) => {
   ];
 };
 
-const getManagementItems = (role: string | null | undefined): MenuItem[] => {
+const getManagementItems = (
+  role: string | null | undefined,
+  permissions: Permission[] = [],
+): MenuItem[] => {
   if (role === 'SUPERVISOR') {
     return [
       {
@@ -132,13 +135,14 @@ const getManagementItems = (role: string | null | undefined): MenuItem[] => {
     ];
   }
 
-  return [
+  const ownerItems: MenuItem[] = [
     {
       icon: 'home-group',
       iconLib: 'MaterialCommunityIcons',
       label: 'My Farms',
       sub: '12 farms registered',
       chevron: true,
+      requiredPermission: 'manage:farms',
     },
     {
       icon: 'account-group-outline',
@@ -146,8 +150,13 @@ const getManagementItems = (role: string | null | undefined): MenuItem[] => {
       label: 'Team Members',
       sub: '5 active staff',
       chevron: true,
+      requiredPermission: 'manage:users',
     },
   ];
+
+  return ownerItems.filter((item) =>
+    !item.requiredPermission || permissions.includes(item.requiredPermission),
+  );
 };
 
 type BaseMenuItem = {
@@ -156,6 +165,7 @@ type BaseMenuItem = {
   chevron?: boolean;
   danger?: boolean;
   toggle?: boolean;
+  requiredPermission?: Permission;
 };
 
 type MenuItem =
@@ -270,7 +280,7 @@ export default function ProfileScreen() {
   const roleLabel = getRoleLabel(user?.role);
   const roleColor = getRoleColor(user?.role);
   const stats = getProfileStats(user?.role);
-  const managementItems = getManagementItems(user?.role);
+  const managementItems = getManagementItems(user?.role, user?.permissions);
 
   const handleLogout = () => {
     Alert.alert('Logout', 'Are you sure you want to sign out?', [
@@ -541,15 +551,19 @@ export default function ProfileScreen() {
           />
         </View>
 
-        <Text style={styles.sectionTitle}>Farm Management</Text>
-        <View style={styles.menuCard}>
-          {managementItems.map((item, index) => (
-            <React.Fragment key={item.label}>
-              {index > 0 ? <View style={styles.menuDivider} /> : null}
-              <MenuRow item={item} />
-            </React.Fragment>
-          ))}
-        </View>
+        {managementItems.length ? (
+          <>
+            <Text style={styles.sectionTitle}>Farm Management</Text>
+            <View style={styles.menuCard}>
+              {managementItems.map((item, index) => (
+                <React.Fragment key={item.label}>
+                  {index > 0 ? <View style={styles.menuDivider} /> : null}
+                  <MenuRow item={item} />
+                </React.Fragment>
+              ))}
+            </View>
+          </>
+        ) : null}
 
         {user?.role === 'OWNER' ? (
           <>

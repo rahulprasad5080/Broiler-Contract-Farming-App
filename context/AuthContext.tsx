@@ -35,6 +35,7 @@ import {
 import { normalizeMobileNumber } from "../services/authValidation";
 import {
   getDashboardRoute,
+  getRouteRequiredPermission,
   isRouteAllowedForRole,
 } from "../services/routeGuards";
 
@@ -391,6 +392,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       if (isAppUnlocked) {
         if (!isRouteAllowedForRole(user.role, segmentList)) {
+          if (!cancelled) {
+            router.replace(getDashboardRoute(user.role));
+          }
+          if (!isReady) setIsReady(true);
+          return;
+        }
+
+        const requiredPermission = getRouteRequiredPermission(segmentList);
+
+        if (
+          requiredPermission &&
+          !user.permissions.includes(requiredPermission as Permission)
+        ) {
           if (!cancelled) {
             router.replace(getDashboardRoute(user.role));
           }

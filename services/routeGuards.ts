@@ -11,6 +11,17 @@ const ROLE_ROUTE_GROUPS = {
 
 const PROTECTED_ROUTE_GROUPS = new Set<string>(Object.values(ROLE_ROUTE_GROUPS));
 
+const OWNER_MANAGE_ROUTE_PERMISSIONS: Record<string, string> = {
+  partners: "manage:partners",
+  farms: "manage:farms",
+  batches: "manage:batches",
+  inventory: "manage:inventory",
+  "daily-entry": "create:daily-entry",
+  sales: "create:sales",
+  settlement: "manage:settlements",
+  users: "manage:users",
+};
+
 export function getRoleRouteGroup(role: AppRole) {
   if (
     role === "OWNER" ||
@@ -39,4 +50,30 @@ export function isRouteAllowedForRole(role: AppRole, segments: string[]) {
   }
 
   return protectedGroup === getRoleRouteGroup(role);
+}
+
+export function getRouteRequiredPermission(segments: string[]) {
+  const ownerGroupIndex = segments.indexOf(ROLE_ROUTE_GROUPS.OWNER);
+
+  if (ownerGroupIndex === -1) {
+    return null;
+  }
+
+  const firstPathSegment = segments[ownerGroupIndex + 1];
+
+  if (firstPathSegment === "reports") {
+    return "view:reports";
+  }
+
+  if (firstPathSegment !== "manage") {
+    return null;
+  }
+
+  const manageSection = segments[ownerGroupIndex + 2];
+
+  if (!manageSection) {
+    return null;
+  }
+
+  return OWNER_MANAGE_ROUTE_PERMISSIONS[manageSection] ?? null;
 }

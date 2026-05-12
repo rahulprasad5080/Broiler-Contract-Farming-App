@@ -2,59 +2,69 @@ import {
   RouteMenuScreen,
   type RouteMenuItem,
 } from "@/components/navigation/RouteMenuScreen";
-import { useAuth } from "@/context/AuthContext";
+import { useAuth, type Permission } from "@/context/AuthContext";
 
-const partnerMenuItem: RouteMenuItem = {
-  title: "Partners",
-  desc: "Contracts, commission and payouts",
-  icon: "people-circle-outline",
-  route: "/(owner)/manage/partners",
+type PermissionMenuItem = RouteMenuItem & {
+  requiredPermission: Permission;
 };
 
-const baseMenuItems: RouteMenuItem[] = [
+const menuItemsByPermission: PermissionMenuItem[] = [
+  {
+    title: "Partners",
+    desc: "Contracts, commission and payouts",
+    icon: "people-circle-outline",
+    route: "/(owner)/manage/partners",
+    requiredPermission: "manage:partners",
+  },
   {
     title: "Farms",
     desc: "Manage farms and assigned staff",
     icon: "home-outline",
     route: "/(owner)/manage/farms",
+    requiredPermission: "manage:farms",
   },
   {
     title: "Batches",
     desc: "Active & closed batches",
     icon: "layers-outline",
     route: "/(owner)/manage/batches",
+    requiredPermission: "manage:batches",
   },
   {
     title: "Inventory",
     desc: "Purchases and allocations",
     icon: "cube-outline",
     route: "/(owner)/manage/inventory",
+    requiredPermission: "manage:inventory",
   },
   {
     title: "Sales",
     desc: "Entry and owner rate finalization",
     icon: "cash-outline",
     route: "/(owner)/manage/sales",
+    requiredPermission: "create:sales",
   },
   {
     title: "Payout",
     desc: "Manual FCR based partner payouts",
     icon: "receipt-outline",
     route: "/(owner)/manage/settlement",
+    requiredPermission: "manage:settlements",
   },
   {
     title: "Users",
     desc: "Manage system users",
     icon: "people-outline",
     route: "/(owner)/manage/users",
+    requiredPermission: "manage:users",
   },
 ];
 
 export default function ManageIndexScreen() {
   const { hasPermission } = useAuth();
-  const menuItems = hasPermission("manage:partners")
-    ? [partnerMenuItem, ...baseMenuItems]
-    : baseMenuItems;
+  const menuItems = menuItemsByPermission.filter((item) =>
+    hasPermission(item.requiredPermission),
+  );
 
   return <RouteMenuScreen title="Management Hub" items={menuItems} />;
 }
