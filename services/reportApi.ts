@@ -178,6 +178,7 @@ export async function downloadBatchExcelReport(token: string, batchId: string) {
       headers: {
         Accept: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
       },
+      responseType: "arraybuffer",
     },
   );
 }
@@ -189,5 +190,6 @@ export async function downloadBatchPdfReport(token: string, batchId: string) {
     headers: {
       Accept: "application/pdf",
     },
+    responseType: "arraybuffer",
   });
 }

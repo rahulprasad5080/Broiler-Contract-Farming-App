@@ -8,7 +8,11 @@ export type ApiHealthResponse = {
 };
 
 export async function fetchHealth() {
-  const response = await apiRawRequest("/health", { method: "GET" }, API_ROOT_URL);
+  const response = await apiRawRequest(
+    "/health",
+    { method: "GET", responseType: "text" },
+    API_ROOT_URL,
+  );
   const text = await response.text();
 
   if (!text) {
@@ -19,6 +23,10 @@ export async function fetchHealth() {
 }
 
 export async function fetchDocsHtml() {
-  const response = await apiRawRequest("/docs", { method: "GET" }, API_ROOT_URL);
+  const response = await apiRawRequest(
+    "/docs",
+    { method: "GET", responseType: "text" },
+    API_ROOT_URL,
+  );
   return response.text();
 }

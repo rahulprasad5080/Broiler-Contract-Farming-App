@@ -4,12 +4,21 @@ import {
   persistStoredSession,
 } from "./authSession";
 import type { AuthSession } from "./authTypes";
+import axios, {
+  type AxiosInstance,
+  type AxiosError,
+  type AxiosRequestConfig,
+  type AxiosResponse,
+  type Method,
+} from "axios";
 
 export const API_BASE_URL =
   process.env.EXPO_PUBLIC_API_BASE_URL ??
   "https://boiler-backend-production.up.railway.app/api/v1";
 
 export const API_ROOT_URL = API_BASE_URL.replace(/\/api\/v1\/?$/, "");
+const REQUEST_TIMEOUT_MS = Number(process.env.EXPO_PUBLIC_API_TIMEOUT_MS ?? 30000);
+const DEFAULT_RETRY_COUNT = Number(process.env.EXPO_PUBLIC_API_RETRY_COUNT ?? 2);
 
 export class ApiError extends Error {
   status: number;
@@ -23,43 +32,41 @@ export class ApiError extends Error {
   }
 }
 
-type RequestOptions = Omit<RequestInit, "body"> & {
+type RequestOptions = {
+  method?: Method;
   body?: unknown;
   token?: string | null;
   query?: Record<string, string | number | boolean | null | undefined>;
+  headers?: Record<string, string>;
+  responseType?: AxiosRequestConfig["responseType"];
+  retry?: number;
 };
 
 let refreshPromise: Promise<AuthSession | null> | null = null;
 
-async function parseResponse(response: Response) {
-  const text = await response.text();
+export const apiClient: AxiosInstance = axios.create({
+  baseURL: API_BASE_URL,
+  timeout: REQUEST_TIMEOUT_MS,
+  headers: {
+    Accept: "application/json",
+    "Content-Type": "application/json",
+  },
+});
 
-  if (!text) {
-    return null;
+export const supportClient: AxiosInstance = axios.create({
+  baseURL: API_ROOT_URL,
+  timeout: REQUEST_TIMEOUT_MS,
+});
+
+apiClient.interceptors.request.use((config) => {
+  config.headers.set("Accept", "application/json");
+
+  if (config.data !== undefined) {
+    config.headers.set("Content-Type", "application/json");
   }
 
-  try {
-    return JSON.parse(text);
-  } catch {
-    return text;
-  }
-}
-
-function buildUrl(baseUrl: string, path: string, query?: RequestOptions["query"]) {
-  const url = new URL(`${baseUrl}${path}`);
-
-  if (query) {
-    Object.entries(query).forEach(([key, value]) => {
-      if (value === null || value === undefined || value === "") {
-        return;
-      }
-
-      url.searchParams.set(key, String(value));
-    });
-  }
-
-  return url;
-}
+  return config;
+});
 
 function collectTextMessages(value: unknown): string[] {
   if (typeof value === "string") {
@@ -104,7 +111,7 @@ function isGenericErrorMessage(message: string) {
   );
 }
 
-function getErrorMessage(response: Response, payload: unknown) {
+function getErrorMessage(statusText: string | undefined, payload: unknown) {
   if (payload && typeof payload === "object") {
     const p = payload as Record<string, unknown>;
 
@@ -140,36 +147,96 @@ function getErrorMessage(response: Response, payload: unknown) {
     }
   }
 
-  return response.statusText || "Request failed";
+  return statusText || "Request failed";
 }
 
-async function fetchWithBase(
-  baseUrl: string,
-  path: string,
-  { body, token, headers, query, ...init }: RequestOptions = {},
-) {
-  try {
-    return await fetch(buildUrl(baseUrl, path, query).toString(), {
-      ...init,
-      headers: {
-        Accept: "application/json",
-        ...(body ? { "Content-Type": "application/json" } : {}),
-        ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        ...(headers ?? {}),
-      },
-      body: body === undefined ? undefined : JSON.stringify(body),
-    });
-  } catch (error) {
-    const fallbackMessage =
-      error instanceof Error && error.message.trim()
-        ? error.message
-        : "Unable to reach the server.";
+function getPayloadFromAxiosError(error: AxiosError) {
+  return error.response?.data ?? {
+    cause: error.message || "Unable to reach the server.",
+  };
+}
 
-    throw new ApiError(
-      "Unable to reach the server. Check your internet connection and try again.",
-      0,
-      { cause: fallbackMessage },
+function getStatusFromAxiosError(error: AxiosError) {
+  return error.response?.status ?? 0;
+}
+
+function toApiError(error: unknown): ApiError {
+  if (error instanceof ApiError) {
+    return error;
+  }
+
+  if (axios.isAxiosError(error)) {
+    const payload = getPayloadFromAxiosError(error);
+    const status = getStatusFromAxiosError(error);
+
+    if (!error.response) {
+      return new ApiError(
+        "Unable to reach the server. Check your internet connection and try again.",
+        status,
+        payload,
+      );
+    }
+
+    return new ApiError(
+      getErrorMessage(error.response.statusText, payload),
+      status,
+      payload,
     );
+  }
+
+  const fallbackMessage =
+    error instanceof Error && error.message.trim()
+      ? error.message
+      : "Request failed";
+
+  return new ApiError(fallbackMessage, 0, { cause: fallbackMessage });
+}
+
+function shouldRetry(error: unknown) {
+  if (!axios.isAxiosError(error)) {
+    return false;
+  }
+
+  if (!error.response) {
+    return true;
+  }
+
+  return error.response.status >= 500;
+}
+
+function buildHeaders(token?: string | null, headers?: RequestOptions["headers"]) {
+  return {
+    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    ...(headers ?? {}),
+  };
+}
+
+async function requestWithRetry<T = unknown>(
+  client: AxiosInstance,
+  path: string,
+  options: RequestOptions = {},
+) {
+  const retries = options.retry ?? DEFAULT_RETRY_COUNT;
+  let attempt = 0;
+
+  while (true) {
+    try {
+      return await client.request<T>({
+        url: path,
+        method: options.method ?? "GET",
+        params: options.query,
+        data: options.body,
+        headers: buildHeaders(options.token, options.headers),
+        responseType: options.responseType,
+      });
+    } catch (error) {
+      if (attempt >= retries || !shouldRetry(error)) {
+        throw error;
+      }
+
+      attempt += 1;
+      await new Promise((resolve) => setTimeout(resolve, 250 * attempt));
+    }
   }
 }
 
@@ -183,23 +250,27 @@ async function refreshStoredSession() {
         return null;
       }
 
-      const response = await fetchWithBase(API_BASE_URL, "/auth/refresh", {
-        method: "POST",
-        body: {
-          refreshToken: currentSession.tokens.refreshToken,
-        },
-      });
-      const payload = await parseResponse(response);
+      let response: AxiosResponse<LoginResponseShape>;
 
-      if (!response.ok) {
-        if (response.status === 401 || response.status === 403) {
+      try {
+        response = await requestWithRetry<LoginResponseShape>(apiClient, "/auth/refresh", {
+          method: "POST",
+          body: {
+            refreshToken: currentSession.tokens.refreshToken,
+          },
+          retry: 0,
+        });
+      } catch (error) {
+        const apiError = toApiError(error);
+
+        if (apiError.status === 401 || apiError.status === 403) {
           await clearStoredSession();
         }
 
-        throw new ApiError(getErrorMessage(response, payload), response.status, payload);
+        throw apiError;
       }
 
-      const nextSession = payload as AuthSession;
+      const nextSession = response.data as AuthSession;
       await persistStoredSession(nextSession);
       return nextSession;
     })().finally(() => {
@@ -210,39 +281,53 @@ async function refreshStoredSession() {
   return refreshPromise;
 }
 
+type LoginResponseShape = AuthSession;
+
 async function performRequest(
   path: string,
   options: RequestOptions = {},
-  baseUrl = API_BASE_URL,
+  client: AxiosInstance = apiClient,
   allowAuthRetry = true,
 ) {
-  const response = await fetchWithBase(baseUrl, path, options);
+  try {
+    return await requestWithRetry(client, path, options);
+  } catch (error) {
+    if (
+      client === apiClient &&
+      allowAuthRetry &&
+      options.token &&
+      axios.isAxiosError(error) &&
+      error.response?.status === 401 &&
+      path !== "/auth/login" &&
+      path !== "/auth/refresh" &&
+      path !== "/auth/logout"
+    ) {
+      const refreshedSession = await refreshStoredSession();
 
-  if (
-    baseUrl === API_BASE_URL &&
-    allowAuthRetry &&
-    options.token &&
-    response.status === 401 &&
-    path !== "/auth/login" &&
-    path !== "/auth/refresh" &&
-    path !== "/auth/logout"
-  ) {
-    const refreshedSession = await refreshStoredSession();
-
-    if (refreshedSession?.tokens.accessToken) {
-      return performRequest(
-        path,
-        {
-          ...options,
-          token: refreshedSession.tokens.accessToken,
-        },
-        baseUrl,
-        false,
-      );
+      if (refreshedSession?.tokens.accessToken) {
+        return performRequest(
+          path,
+          {
+            ...options,
+            token: refreshedSession.tokens.accessToken,
+          },
+          client,
+          false,
+        );
+      }
     }
-  }
 
-  return response;
+    const apiError = toApiError(error);
+
+    if (apiError.status === 401 || apiError.status === 403) {
+      const storedSession = await getStoredSession();
+      if (storedSession && path === "/auth/refresh") {
+        await clearStoredSession();
+      }
+    }
+
+    throw apiError;
+  }
 }
 
 export async function apiRequest<T>(
@@ -256,13 +341,8 @@ export async function apiRequest<T>(
     query,
     ...init,
   });
-  const payload = await parseResponse(response);
 
-  if (!response.ok) {
-    throw new ApiError(getErrorMessage(response, payload), response.status, payload);
-  }
-
-  return payload as T;
+  return response.data as T;
 }
 
 export async function apiRawRequest(
@@ -270,12 +350,27 @@ export async function apiRawRequest(
   options: RequestOptions = {},
   baseUrl = API_BASE_URL,
 ) {
-  const response = await performRequest(path, options, baseUrl);
+  const client = baseUrl === API_ROOT_URL ? supportClient : apiClient;
+  const response = (await performRequest(path, {
+    ...options,
+    responseType: options.responseType ?? "blob",
+  }, client)) as AxiosResponse<Blob | ArrayBuffer | string>;
 
-  if (!response.ok) {
-    const payload = await parseResponse(response);
-    throw new ApiError(getErrorMessage(response, payload), response.status, payload);
-  }
+  const headers = new Headers();
+  Object.entries(response.headers).forEach(([key, value]) => {
+    if (Array.isArray(value)) {
+      headers.set(key, value.join(", "));
+      return;
+    }
 
-  return response;
+    if (value !== undefined) {
+      headers.set(key, String(value));
+    }
+  });
+
+  return new Response(response.data, {
+    status: response.status,
+    statusText: response.statusText,
+    headers,
+  });
 }
