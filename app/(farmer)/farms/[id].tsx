@@ -13,7 +13,7 @@ import { format } from 'date-fns';
 export default function FarmerFarmDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
-  const { accessToken } = useAuth();
+  const { accessToken, hasPermission } = useAuth();
   
   const [farm, setFarm] = useState<ApiFarm | null>(null);
   const [batches, setBatches] = useState<ApiBatch[]>([]);
@@ -156,21 +156,25 @@ export default function FarmerFarmDetailScreen() {
               </View>
               
               <View style={styles.batchActions}>
-                <TouchableOpacity 
-                  style={styles.actionBtn}
-                  onPress={() => router.push('/(farmer)/tasks/daily')}
-                >
-                  <Ionicons name="clipboard-outline" size={16} color={Colors.primary} />
-                  <Text style={styles.actionBtnText}>Daily Log</Text>
-                </TouchableOpacity>
-                
-                <TouchableOpacity 
-                  style={styles.actionBtn}
-                  onPress={() => router.push('/(farmer)/tasks/treatments')}
-                >
-                  <Ionicons name="medical-outline" size={16} color={Colors.primary} />
-                  <Text style={styles.actionBtnText}>Treatments</Text>
-                </TouchableOpacity>
+                {hasPermission('create:daily-entry') ? (
+                  <TouchableOpacity
+                    style={styles.actionBtn}
+                    onPress={() => router.push('/(farmer)/tasks/daily')}
+                  >
+                    <Ionicons name="clipboard-outline" size={16} color={Colors.primary} />
+                    <Text style={styles.actionBtnText}>Daily Log</Text>
+                  </TouchableOpacity>
+                ) : null}
+
+                {hasPermission('create:treatments') ? (
+                  <TouchableOpacity
+                    style={styles.actionBtn}
+                    onPress={() => router.push('/(farmer)/tasks/treatments')}
+                  >
+                    <Ionicons name="medical-outline" size={16} color={Colors.primary} />
+                    <Text style={styles.actionBtnText}>Treatments</Text>
+                  </TouchableOpacity>
+                ) : null}
               </View>
             </View>
           ))

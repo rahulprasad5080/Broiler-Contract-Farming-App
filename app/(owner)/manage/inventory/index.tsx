@@ -341,6 +341,7 @@ export default function InventoryScreen() {
     (sum, item) => sum + Number(item.totalAmount ?? 0),
     0,
   );
+  const canCreatePurchase = hasPermission("create:purchase");
 
   const submitCatalogItem = async (data: CatalogFormData) => {
     if (!accessToken) {
@@ -442,12 +443,14 @@ export default function InventoryScreen() {
           <Text style={styles.headerTitle}>Stock, Purchases, Expenses</Text>
         </View>
         <View style={styles.headerActions}>
-          <TouchableOpacity
-            style={styles.iconButton}
-            onPress={() => router.push("/(owner)/manage/inventory/purchase")}
-          >
-            <MaterialCommunityIcons name="cart-plus" size={19} color={Colors.primary} />
-          </TouchableOpacity>
+          {canCreatePurchase ? (
+            <TouchableOpacity
+              style={styles.iconButton}
+              onPress={() => router.push("/(owner)/manage/inventory/purchase")}
+            >
+              <MaterialCommunityIcons name="cart-plus" size={19} color={Colors.primary} />
+            </TouchableOpacity>
+          ) : null}
           <TouchableOpacity
             style={styles.iconButton}
             onPress={() => router.push("/(owner)/manage/inventory/allocate")}
@@ -482,13 +485,15 @@ export default function InventoryScreen() {
         </View>
 
         <View style={styles.actionRow}>
-          <TouchableOpacity
-            style={styles.actionButton}
-            onPress={() => router.push("/(owner)/manage/inventory/purchase")}
-          >
-            <MaterialCommunityIcons name="plus-box-outline" size={18} color="#FFF" />
-            <Text style={styles.actionButtonText}>Purchase</Text>
-          </TouchableOpacity>
+          {canCreatePurchase ? (
+            <TouchableOpacity
+              style={styles.actionButton}
+              onPress={() => router.push("/(owner)/manage/inventory/purchase")}
+            >
+              <MaterialCommunityIcons name="plus-box-outline" size={18} color="#FFF" />
+              <Text style={styles.actionButtonText}>Purchase</Text>
+            </TouchableOpacity>
+          ) : null}
           <TouchableOpacity
             style={[styles.actionButton, styles.actionButtonAlt]}
             onPress={() => router.push("/(owner)/manage/inventory/allocate")}

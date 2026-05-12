@@ -9,7 +9,7 @@ import { useRouter } from 'expo-router';
 import { HeaderNotificationButton } from '../../components/ui/HeaderNotificationButton';
 
 export default function FarmerDashboard() {
-  const { signOut } = useAuth();
+  const { hasPermission, signOut } = useAuth();
   const router = useRouter();
 
   return (
@@ -47,10 +47,12 @@ export default function FarmerDashboard() {
           </View>
         </View>
 
-        <TouchableOpacity style={styles.entryButton} onPress={() => router.push('/(farmer)/tasks/daily')}>
-          <MaterialCommunityIcons name="playlist-edit" size={24} color="#FFF" />
-          <Text style={styles.entryButtonText}>Daily Entry</Text>
-        </TouchableOpacity>
+        {hasPermission('create:daily-entry') ? (
+          <TouchableOpacity style={styles.entryButton} onPress={() => router.push('/(farmer)/tasks/daily')}>
+            <MaterialCommunityIcons name="playlist-edit" size={24} color="#FFF" />
+            <Text style={styles.entryButtonText}>Daily Entry</Text>
+          </TouchableOpacity>
+        ) : null}
 
         <View style={styles.envRow}>
           <View style={styles.envCard}>

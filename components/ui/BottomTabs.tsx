@@ -5,13 +5,32 @@ import { BottomTabBarProps } from '@react-navigation/bottom-tabs';
 import { CommonActions } from '@react-navigation/native';
 import { Colors } from '../../constants/Colors';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useAuth, type Permission } from '../../context/AuthContext';
 
 type BottomTabsProps = BottomTabBarProps & {
   hiddenTabs?: string[];
 };
 
+const TAB_PERMISSIONS: Partial<Record<string, Permission | Permission[]>> = {
+  farms: 'view:farms',
+  tasks: ['create:daily-entry', 'create:treatments', 'view:comments', 'create:sales'],
+  review: 'review:entries',
+  manage: [
+    'manage:partners',
+    'manage:farms',
+    'manage:batches',
+    'manage:inventory',
+    'manage:settlements',
+    'manage:users',
+    'manage:catalog',
+    'manage:traders',
+  ],
+  reports: 'view:reports',
+};
+
 export function BottomTabs({ state, descriptors, navigation, hiddenTabs = [] }: BottomTabsProps) {
   const insets = useSafeAreaInsets();
+  const { hasPermission } = useAuth();
   
   // Navigation states se data nikalna
   const tabs: { name: string; label: string; icon: keyof typeof Ionicons.glyphMap }[] = [
@@ -34,6 +53,15 @@ export function BottomTabs({ state, descriptors, navigation, hiddenTabs = [] }: 
     <View style={[styles.tabBar, { paddingBottom: bottomPadding, height: tabHeight }]}>
       {tabs.map((tab) => {
         if (hiddenTabs.includes(tab.name)) return null;
+
+        const requiredPermission = TAB_PERMISSIONS[tab.name];
+        if (Array.isArray(requiredPermission)) {
+          if (!requiredPermission.some((permission) => hasPermission(permission))) {
+            return null;
+          }
+        } else if (requiredPermission && !hasPermission(requiredPermission)) {
+          return null;
+        }
 
         // Check if this tab exists in the current navigator state
         const route = state.routes.find(r => r.name === tab.name);

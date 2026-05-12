@@ -57,7 +57,13 @@ export type Permission =
   | "view:inventory-cost"
   | "view:reports"
   | "view:financial-dashboard"
-  | "view:notifications";
+  | "view:notifications"
+  | "view:farms"
+  | "create:treatments"
+  | "view:comments"
+  | "review:entries"
+  | "manage:catalog"
+  | "manage:traders";
 
 interface User {
   id: string;
@@ -141,6 +147,12 @@ function getPermissionsForRole(role: UserRole): Permission[] {
       "view:reports",
       "view:financial-dashboard",
       "view:notifications",
+      "view:farms",
+      "create:treatments",
+      "view:comments",
+      "review:entries",
+      "manage:catalog",
+      "manage:traders",
     ];
   }
 
@@ -167,15 +179,30 @@ function getPermissionsForRole(role: UserRole): Permission[] {
       "create:purchase",
       "view:reports",
       "view:notifications",
+      "view:farms",
+      "create:treatments",
+      "view:comments",
+      "review:entries",
       "manage:farms",
       "manage:batches",
       "manage:partners",
       "manage:inventory",
+      "manage:catalog",
+      "manage:traders",
     ];
   }
 
   if (role === "FARMER") {
-    return ["create:daily-entry", "create:sales", "create:expenses", "view:notifications"];
+    return [
+      "create:daily-entry",
+      "create:sales",
+      "create:expenses",
+      "view:reports",
+      "view:notifications",
+      "view:farms",
+      "create:treatments",
+      "view:comments",
+    ];
   }
 
   return [];
@@ -403,11 +430,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
 
         const requiredPermission = getRouteRequiredPermission(segmentList);
+        const hasRoutePermission = Array.isArray(requiredPermission)
+          ? requiredPermission.some((permission) =>
+              user.permissions.includes(permission as Permission),
+            )
+          : requiredPermission
+            ? user.permissions.includes(requiredPermission as Permission)
+            : true;
 
-        if (
-          requiredPermission &&
-          !user.permissions.includes(requiredPermission as Permission)
-        ) {
+        if (!hasRoutePermission) {
           if (!cancelled) {
             router.replace(getDashboardRoute(user.role));
           }

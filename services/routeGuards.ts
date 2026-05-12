@@ -11,6 +11,16 @@ const ROLE_ROUTE_GROUPS = {
 
 const PROTECTED_ROUTE_GROUPS = new Set<string>(Object.values(ROLE_ROUTE_GROUPS));
 
+const OWNER_MANAGE_INDEX_PERMISSIONS = [
+  "manage:partners",
+  "manage:farms",
+  "manage:batches",
+  "manage:inventory",
+  "create:sales",
+  "manage:settlements",
+  "manage:users",
+];
+
 const OWNER_MANAGE_ROUTE_PERMISSIONS: Record<string, string> = {
   partners: "manage:partners",
   farms: "manage:farms",
@@ -20,6 +30,32 @@ const OWNER_MANAGE_ROUTE_PERMISSIONS: Record<string, string> = {
   sales: "create:sales",
   settlement: "manage:settlements",
   users: "manage:users",
+};
+
+const TASK_INDEX_PERMISSIONS = [
+  "create:daily-entry",
+  "create:treatments",
+  "view:comments",
+  "create:sales",
+];
+
+const TASK_ROUTE_PERMISSIONS: Record<string, string> = {
+  daily: "create:daily-entry",
+  treatments: "create:treatments",
+  comments: "view:comments",
+  sales: "create:sales",
+};
+
+const SUPERVISOR_MANAGE_INDEX_PERMISSIONS = [
+  "manage:farms",
+  "manage:batches",
+  "manage:catalog",
+  "manage:traders",
+];
+
+const SUPERVISOR_MANAGE_ROUTE_PERMISSIONS: Record<string, string> = {
+  catalog: "manage:catalog",
+  traders: "manage:traders",
 };
 
 export function getRoleRouteGroup(role: AppRole) {
@@ -53,13 +89,16 @@ export function isRouteAllowedForRole(role: AppRole, segments: string[]) {
 }
 
 export function getRouteRequiredPermission(segments: string[]) {
-  const ownerGroupIndex = segments.indexOf(ROLE_ROUTE_GROUPS.OWNER);
+  const protectedGroupIndex = segments.findIndex((segment) =>
+    PROTECTED_ROUTE_GROUPS.has(segment),
+  );
 
-  if (ownerGroupIndex === -1) {
+  if (protectedGroupIndex === -1) {
     return null;
   }
 
-  const firstPathSegment = segments[ownerGroupIndex + 1];
+  const protectedGroup = segments[protectedGroupIndex];
+  const firstPathSegment = segments[protectedGroupIndex + 1];
 
   if (firstPathSegment === "notifications") {
     return "view:notifications";
@@ -69,15 +108,67 @@ export function getRouteRequiredPermission(segments: string[]) {
     return "view:reports";
   }
 
-  if (firstPathSegment !== "manage") {
+  if (protectedGroup === ROLE_ROUTE_GROUPS.OWNER) {
+    if (firstPathSegment !== "manage") {
+      return null;
+    }
+
+    const manageSection = segments[protectedGroupIndex + 2];
+
+    if (!manageSection) {
+      return OWNER_MANAGE_INDEX_PERMISSIONS;
+    }
+
+    if (manageSection === "inventory" && segments[protectedGroupIndex + 3] === "purchase") {
+      return "create:purchase";
+    }
+
+    return OWNER_MANAGE_ROUTE_PERMISSIONS[manageSection] ?? null;
+  }
+
+  if (protectedGroup === ROLE_ROUTE_GROUPS.SUPERVISOR) {
+    if (firstPathSegment === "tasks") {
+      const taskSection = segments[protectedGroupIndex + 2];
+
+      if (!taskSection) {
+        return TASK_INDEX_PERMISSIONS;
+      }
+
+      return TASK_ROUTE_PERMISSIONS[taskSection] ?? null;
+    }
+
+    if (firstPathSegment === "review") {
+      return "review:entries";
+    }
+
+    if (firstPathSegment === "manage") {
+      const manageSection = segments[protectedGroupIndex + 2];
+
+      if (!manageSection) {
+        return SUPERVISOR_MANAGE_INDEX_PERMISSIONS;
+      }
+
+      return SUPERVISOR_MANAGE_ROUTE_PERMISSIONS[manageSection] ?? null;
+    }
+
     return null;
   }
 
-  const manageSection = segments[ownerGroupIndex + 2];
+  if (protectedGroup === ROLE_ROUTE_GROUPS.FARMER) {
+    if (firstPathSegment === "farms") {
+      return "view:farms";
+    }
 
-  if (!manageSection) {
-    return null;
+    if (firstPathSegment === "tasks") {
+      const taskSection = segments[protectedGroupIndex + 2];
+
+      if (!taskSection) {
+        return TASK_INDEX_PERMISSIONS;
+      }
+
+      return TASK_ROUTE_PERMISSIONS[taskSection] ?? null;
+    }
   }
 
-  return OWNER_MANAGE_ROUTE_PERMISSIONS[manageSection] ?? null;
+  return null;
 }
