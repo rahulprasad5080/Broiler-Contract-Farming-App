@@ -1,24 +1,14 @@
-import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
-import React, { useEffect, useState } from 'react';
-import {
-  ActivityIndicator,
-  Modal,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
-} from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { Colors } from '@/constants/Colors';
 import { Layout } from '@/constants/Layout';
 import { useAuth } from '@/context/AuthContext';
-import Toast from 'react-native-toast-message';
-import { z } from 'zod';
-import { useForm, Controller } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
+import {
+  showRequestErrorToast,
+  showSuccessToast,
+} from '@/services/apiFeedback';
+import {
+  PASSWORD_REQUIREMENT_TEXT,
+  getPasswordValidationError,
+} from '@/services/authValidation';
 import {
   createUser,
   fetchUser,
@@ -31,20 +21,31 @@ import {
   type ApiRole,
   type ApiUser,
 } from '@/services/managementApi';
+import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { useRouter } from 'expo-router';
+import React, { useEffect, useState } from 'react';
+import { Controller, useForm } from 'react-hook-form';
 import {
-  PASSWORD_REQUIREMENT_TEXT,
-  getPasswordValidationError,
-} from '@/services/authValidation';
-import {
-  showRequestErrorToast,
-  showSuccessToast,
-} from '@/services/apiFeedback';
+  ActivityIndicator,
+  Modal,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
+} from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import Toast from 'react-native-toast-message';
+import { z } from 'zod';
 
 type Role = ApiRole;
 type Status = 'Active' | 'Invited' | 'Inactive';
 type FilterTab = 'All Users' | 'Owners' | 'Accounts' | 'Supervisors' | 'Farmers' | 'Inactive';
 
 const ROLE_OPTIONS = ['OWNER', 'ACCOUNTS', 'SUPERVISOR', 'FARMER'] as const;
+const CREATE_ROLE_OPTIONS = ['ACCOUNTS', 'SUPERVISOR', 'FARMER'] as const;
 
 const ROLE_LABELS: Record<Role, string> = {
   OWNER: 'Owner',
@@ -74,7 +75,7 @@ const passwordFieldSchema = z.string().superRefine((value, ctx) => {
 const userSchema = z.object({
   name: z.string().min(2, 'Name must be at least 2 characters'),
   phone: z.string().regex(/^[0-9]{10}$/, 'Phone must be exactly 10 digits'),
-  role: z.enum(ROLE_OPTIONS),
+  role: z.enum(CREATE_ROLE_OPTIONS),
   password: passwordFieldSchema,
 });
 
@@ -597,10 +598,14 @@ export default function UserManagementScreen() {
                 <View>
                   <Text style={styles.formLabel}>Role</Text>
                   <View style={styles.roleToggleRow}>
-                    {ROLE_OPTIONS.map((role) => (
+                    {CREATE_ROLE_OPTIONS.map((role) => (
                       <TouchableOpacity
                         key={role}
-                        style={[styles.roleToggle, value === role && styles.roleToggleActive]}
+                        style={[
+                          styles.roleToggle,
+                          styles.roleToggleOneLine,
+                          value === role && styles.roleToggleActive,
+                        ]}
                         onPress={() => onChange(role)}
                       >
                         <Text style={[styles.roleToggleText, value === role && styles.roleToggleTextActive]}>
@@ -667,7 +672,7 @@ export default function UserManagementScreen() {
                     <View style={[styles.inputBox, editErrors.name && { borderColor: Colors.tertiary }]}>
                       <TextInput
                         style={styles.textInput}
-                        placeholder="e.g. John Doe"
+                        placeholder="Enter Name"
                         placeholderTextColor={Colors.textSecondary}
                         value={value}
                         onChangeText={onChange}
@@ -687,7 +692,7 @@ export default function UserManagementScreen() {
                     <View style={[styles.inputBox, editErrors.email && { borderColor: Colors.tertiary }]}>
                       <TextInput
                         style={styles.textInput}
-                        placeholder="john@example.com"
+                        placeholder="Enter Email"
                         placeholderTextColor={Colors.textSecondary}
                         value={value}
                         autoCapitalize="none"
@@ -709,7 +714,7 @@ export default function UserManagementScreen() {
                     <View style={[styles.inputBox, editErrors.phone && { borderColor: Colors.tertiary }]}>
                       <TextInput
                         style={styles.textInput}
-                        placeholder="9876500001"
+                        placeholder="Enter Phone"
                         placeholderTextColor={Colors.textSecondary}
                         value={value}
                         keyboardType="phone-pad"
@@ -1051,6 +1056,12 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     backgroundColor: '#F9FAFB',
+  },
+  roleToggleOneLine: {
+    flexGrow: 1,
+    flexShrink: 1,
+    flexBasis: 0,
+    minWidth: 0,
   },
   roleToggleActive: { backgroundColor: Colors.primary, borderColor: Colors.primary },
   roleToggleText: { fontSize: 14, fontWeight: '600', color: Colors.text },
