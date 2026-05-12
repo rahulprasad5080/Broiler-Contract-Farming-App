@@ -29,7 +29,6 @@ import {
   getPasswordValidationError,
   PASSWORD_REQUIREMENT_TEXT,
 } from '@/services/authValidation';
-import { isBiometricEnabled } from '@/services/authSecurity';
 
 const getInitials = (name: string) =>
   name
@@ -262,18 +261,8 @@ export default function ProfileScreen() {
 
   useFocusEffect(
     React.useCallback(() => {
-      let isActive = true;
-
-      void isBiometricEnabled().then((enabled) => {
-        if (isActive) {
-          setBiometricsEnabled(enabled);
-        }
-      });
-
-      return () => {
-        isActive = false;
-      };
-    }, []),
+      setBiometricsEnabled(Boolean(user?.biometricEnabled));
+    }, [user?.biometricEnabled]),
   );
 
   const initials = getInitials(user?.name || 'U');
@@ -304,24 +293,16 @@ export default function ProfileScreen() {
     router.push('/(auth)/set-pin');
   };
 
-  const openBiometrics = () => {
-    router.push('/(auth)/enable-biometric');
-  };
-
   const updateBiometricToggle = async (enabled: boolean) => {
-    if (enabled) {
-      openBiometrics();
-      return;
-    }
-
+    const previousValue = biometricsEnabled;
+    setBiometricsEnabled(enabled);
     setIsSavingBiometrics(true);
 
     try {
-      await setBiometricPreference(false);
-      setBiometricsEnabled(false);
-      showSuccessToast('Biometric unlock disabled.');
+      await setBiometricPreference(enabled);
+      showSuccessToast(enabled ? 'Biometric unlock enabled.' : 'Biometric unlock disabled.');
     } catch (error) {
-      setBiometricsEnabled(true);
+      setBiometricsEnabled(previousValue);
       showRequestErrorToast(error, {
         title: 'Biometric update failed',
         fallbackMessage: 'Failed to update biometric unlock.',
