@@ -16,7 +16,6 @@ import Toast from 'react-native-toast-message';
 import {
   hasQuickPin,
   isBiometricEnabled,
-  verifyQuickPin,
 } from "../../services/authSecurity";
 
 const keys = [
@@ -50,7 +49,7 @@ function PinDots({ value, hasError }: { value: string; hasError: boolean }) {
 
 export default function QuickLoginPinScreen() {
   const router = useRouter();
-  const { user, unlockApp } = useAuth();
+  const { user, unlockWithPin } = useAuth();
   const [pin, setPin] = React.useState("");
   const [hasError, setHasError] = React.useState(false);
   const [failedAttempts, setFailedAttempts] = React.useState(0);
@@ -80,11 +79,10 @@ export default function QuickLoginPinScreen() {
       setIsVerifying(true);
 
       try {
-        const matched = await verifyQuickPin(pin);
-        if (matched) {
+        const errorMessage = await unlockWithPin(pin);
+        if (!errorMessage) {
           setHasError(false);
           setFailedAttempts(0);
-          unlockApp();
           return;
         }
 
@@ -94,23 +92,32 @@ export default function QuickLoginPinScreen() {
         setPin("");
 
         if (nextAttempts >= 5) {
-          Toast.show({type: "error",
+          Toast.show({
+            type: "error",
             text1: "Too many attempts",
-            text2: "Use your account password to continue.", position: 'bottom'});
+            text2: "Use your account password to continue.",
+            position: 'bottom',
+          });
           router.replace("/(auth)/quick-login-password");
           return;
         }
 
-        Toast.show({type: "error",
+        Toast.show({
+          type: "error",
           text1: "Incorrect PIN",
-          text2: `${5 - nextAttempts} attempt(s) remaining before password unlock is required.`, position: 'bottom'});
+          text2:
+            errorMessage === "Incorrect PIN. Try again."
+              ? `${5 - nextAttempts} attempt(s) remaining before password unlock is required.`
+              : errorMessage,
+          position: 'bottom',
+        });
       } finally {
         setIsVerifying(false);
       }
     };
 
     void verifyPin();
-  }, [failedAttempts, isVerifying, pin, router, unlockApp]);
+  }, [failedAttempts, isVerifying, pin, router, unlockWithPin]);
 
   const pressNumber = (digit: string) => {
     if (isVerifying) {

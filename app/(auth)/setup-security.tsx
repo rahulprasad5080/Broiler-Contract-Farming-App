@@ -16,11 +16,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { Colors } from "../../constants/Colors";
 import { useAuth } from "../../context/AuthContext";
 import Toast from 'react-native-toast-message';
-import {
-  authenticateWithBiometrics,
-  saveQuickPin,
-  setBiometricEnabled,
-} from "../../services/authSecurity";
+import { authenticateWithBiometrics } from "../../services/authSecurity";
 
 function PinDots({ value, hasError }: { value: string; hasError: boolean }) {
   return (
@@ -40,11 +36,14 @@ function PinDots({ value, hasError }: { value: string; hasError: boolean }) {
 }
 
 export default function SetupSecurityScreen() {
-  const { unlockApp } = useAuth();
+  const { unlockApp, setQuickPin, setBiometricPreference } = useAuth();
   const inputRef = React.useRef<TextInput>(null);
+  const [currentPassword, setCurrentPassword] = React.useState("");
+  const [showPassword, setShowPassword] = React.useState(false);
   const [pin, setPin] = React.useState("");
   const [enableBiometric, setEnableBiometric] = React.useState(false);
   const [pinError, setPinError] = React.useState<string | null>(null);
+  const [passwordError, setPasswordError] = React.useState<string | null>(null);
   const [isSaving, setIsSaving] = React.useState(false);
 
   React.useEffect(() => {
@@ -58,6 +57,11 @@ export default function SetupSecurityScreen() {
   };
 
   const continueToApp = async () => {
+    if (!currentPassword.trim()) {
+      setPasswordError("Current password is required");
+      return;
+    }
+
     if (pin.length !== 4) {
       setPinError("Enter a 4-digit PIN");
       inputRef.current?.focus();
@@ -68,34 +72,45 @@ export default function SetupSecurityScreen() {
     setIsSaving(true);
 
     try {
-      await saveQuickPin(pin);
+      await setQuickPin(currentPassword, pin);
       let biometricWasEnabled = false;
 
       if (enableBiometric) {
         const result = await authenticateWithBiometrics("Enable quick unlock");
         if (!result.success) {
           if (result.error) {
-            Toast.show({type: "error",
+            Toast.show({
+              type: "error",
               text1: "Biometric setup",
-              text2: result.error, position: 'bottom'});
+              text2: result.error,
+              position: 'bottom',
+            });
           }
         } else {
-          await setBiometricEnabled(true);
+          await setBiometricPreference(true);
           biometricWasEnabled = true;
         }
       }
 
-      Toast.show({type: "success",
+      Toast.show({
+        type: "success",
         text1: "Security ready",
         text2: biometricWasEnabled
-          ? "PIN and biometric unlock are ready on this device."
-          : "Your quick unlock PIN is ready on this device.", position: 'bottom'});
+          ? "PIN and biometric unlock are synced with your account."
+          : "Your quick unlock PIN is synced with your account.",
+        position: 'bottom',
+      });
       unlockApp();
     } catch (error) {
-      Toast.show({type: "error",
+      Toast.show({
+        type: "error",
         text1: "Unable to continue",
-        text2: error instanceof Error && error.message.trim()
-            ? error.message : "Please try again.", position: 'bottom'});
+        text2:
+          error instanceof Error && error.message.trim()
+            ? error.message
+            : "Please try again.",
+        position: 'bottom',
+      });
     } finally {
       setIsSaving(false);
     }
@@ -110,6 +125,40 @@ export default function SetupSecurityScreen() {
 
         <Text style={styles.title}>Secure Your App</Text>
         <Text style={styles.subtitle}>Create a fast unlock method for this device.</Text>
+
+        <View style={[styles.passwordPanel, passwordError && styles.passwordPanelError]}>
+          <Ionicons name="lock-closed-outline" size={20} color={Colors.textSecondary} />
+          <TextInput
+            value={currentPassword}
+            onChangeText={(value) => {
+              setCurrentPassword(value);
+              setPasswordError(null);
+            }}
+            placeholder="Current password"
+            placeholderTextColor="#8A94A3"
+            secureTextEntry={!showPassword}
+            autoCapitalize="none"
+            autoComplete="password"
+            textContentType="password"
+            style={styles.passwordInput}
+          />
+          <TouchableOpacity
+            onPress={() => setShowPassword((current) => !current)}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            activeOpacity={0.7}
+          >
+            <Ionicons
+              name={showPassword ? "eye-off-outline" : "eye-outline"}
+              size={21}
+              color={Colors.textSecondary}
+            />
+          </TouchableOpacity>
+        </View>
+        {passwordError ? (
+          <Text style={styles.errorText}>{passwordError}</Text>
+        ) : (
+          <Text style={styles.helperText}>Password confirms this PIN change with backend.</Text>
+        )}
 
         <Pressable
           style={[styles.pinPanel, pinError && styles.pinPanelError]}
@@ -214,6 +263,27 @@ const styles = StyleSheet.create({
     marginTop: 8,
     marginBottom: 30,
   },
+  passwordPanel: {
+    minHeight: 54,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    borderRadius: 8,
+    paddingHorizontal: 14,
+    backgroundColor: "#FFFFFF",
+  },
+  passwordPanelError: {
+    borderColor: Colors.error,
+  },
+  passwordInput: {
+    flex: 1,
+    height: "100%",
+    color: Colors.text,
+    fontSize: 14,
+    fontWeight: "600",
+  },
   pinPanel: {
     borderWidth: 1,
     borderColor: Colors.border,
@@ -221,6 +291,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 18,
     paddingVertical: 18,
     backgroundColor: "#FFFFFF",
+    marginTop: 14,
   },
   pinPanelError: {
     borderColor: Colors.error,

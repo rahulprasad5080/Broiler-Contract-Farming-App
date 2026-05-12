@@ -13,14 +13,11 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { Colors } from "../../constants/Colors";
 import { useAuth } from "../../context/AuthContext";
 import Toast from 'react-native-toast-message';
-import {
-  authenticateWithBiometrics,
-  setBiometricEnabled,
-} from "../../services/authSecurity";
+import { authenticateWithBiometrics } from "../../services/authSecurity";
 
 export default function EnableBiometricScreen() {
   const router = useRouter();
-  const { unlockApp } = useAuth();
+  const { unlockApp, setBiometricPreference } = useAuth();
   const [isEnabling, setIsEnabling] = React.useState(false);
 
   const enableBiometric = async () => {
@@ -34,19 +31,35 @@ export default function EnableBiometricScreen() {
       const result = await authenticateWithBiometrics("Enable quick login");
 
       if (result.success) {
-        await setBiometricEnabled(true);
-        Toast.show({type: "success",
+        await setBiometricPreference(true);
+        Toast.show({
+          type: "success",
           text1: "Biometric enabled",
-          text2: "Fingerprint or face unlock is ready for future logins.", position: 'bottom'});
+          text2: "Fingerprint or face unlock is ready for future logins.",
+          position: 'bottom',
+        });
         unlockApp();
         return;
       }
 
       if (result.error) {
-        Toast.show({type: "error",
+        Toast.show({
+          type: "error",
           text1: "Biometric authentication",
-          text2: result.error, position: 'bottom'});
+          text2: result.error,
+          position: 'bottom',
+        });
       }
+    } catch (error) {
+      Toast.show({
+        type: "error",
+        text1: "Unable to enable biometric",
+        text2:
+          error instanceof Error && error.message.trim()
+            ? error.message
+            : "Please try again.",
+        position: 'bottom',
+      });
     } finally {
       setIsEnabling(false);
     }

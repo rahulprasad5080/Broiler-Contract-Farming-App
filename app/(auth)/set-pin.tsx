@@ -6,14 +6,15 @@ import {
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   TouchableOpacity,
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { Colors } from "../../constants/Colors";
+import { useAuth } from "../../context/AuthContext";
 import Toast from 'react-native-toast-message';
-import { saveQuickPin } from "../../services/authSecurity";
 
 const KEYPAD = [
   { key: "1", letters: "" },
@@ -49,6 +50,9 @@ function PinDots({ value, active }: { value: string; active: boolean }) {
 
 export default function SetPinScreen() {
   const router = useRouter();
+  const { setQuickPin } = useAuth();
+  const [currentPassword, setCurrentPassword] = React.useState("");
+  const [showPassword, setShowPassword] = React.useState(false);
   const [pin, setPin] = React.useState("");
   const [confirmPin, setConfirmPin] = React.useState("");
   const [activeField, setActiveField] = React.useState<"pin" | "confirm">("pin");
@@ -57,7 +61,8 @@ export default function SetPinScreen() {
   const activeValue = activeField === "pin" ? pin : confirmPin;
   const pinIsComplete = pin.length === 4 && confirmPin.length === 4;
   const pinsMatch = pin === confirmPin;
-  const canSave = pinIsComplete && pinsMatch && !isSaving;
+  const canSave =
+    currentPassword.trim().length > 0 && pinIsComplete && pinsMatch && !isSaving;
   const screenTitle = activeField === "pin" ? "Enter PIN" : "Confirm PIN";
 
   const updateActiveValue = (nextValue: string) => {
@@ -103,16 +108,24 @@ export default function SetPinScreen() {
     setIsSaving(true);
 
     try {
-      await saveQuickPin(pin);
-      Toast.show({type: "success",
+      await setQuickPin(currentPassword, pin);
+      Toast.show({
+        type: "success",
         text1: "PIN saved",
-        text2: "Your quick login PIN is ready for this device.", position: 'bottom'});
+        text2: "Your quick login PIN is synced with your account.",
+        position: 'bottom',
+      });
       router.replace("/(auth)/enable-biometric");
     } catch (error) {
-      Toast.show({type: "error",
+      Toast.show({
+        type: "error",
         text1: "Unable to save PIN",
-        text2: error instanceof Error && error.message.trim()
-            ? error.message : "Please try again.", position: 'bottom'});
+        text2:
+          error instanceof Error && error.message.trim()
+            ? error.message
+            : "Please try again.",
+        position: 'bottom',
+      });
     } finally {
       setIsSaving(false);
     }
@@ -143,6 +156,32 @@ export default function SetPinScreen() {
                 ? "Create a 4-digit quick login PIN"
                 : "Re-enter the same PIN"}
             </Text>
+          </View>
+
+          <View style={styles.passwordField}>
+            <Ionicons name="lock-closed-outline" size={19} color={Colors.textSecondary} />
+            <TextInput
+              value={currentPassword}
+              onChangeText={setCurrentPassword}
+              placeholder="Current password"
+              placeholderTextColor="#8A94A3"
+              secureTextEntry={!showPassword}
+              autoCapitalize="none"
+              autoComplete="password"
+              textContentType="password"
+              style={styles.passwordInput}
+            />
+            <TouchableOpacity
+              onPress={() => setShowPassword((current) => !current)}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              activeOpacity={0.7}
+            >
+              <Ionicons
+                name={showPassword ? "eye-off-outline" : "eye-outline"}
+                size={21}
+                color={Colors.textSecondary}
+              />
+            </TouchableOpacity>
           </View>
 
           <PinDots value={activeValue} active />
@@ -187,7 +226,7 @@ export default function SetPinScreen() {
             <Text style={styles.errorText}>PIN does not match</Text>
           ) : (
             <Text style={styles.helperText}>
-              Your PIN is encrypted and stored on this device.
+              Current password is required to sync this PIN with your account.
             </Text>
           )}
 
@@ -289,6 +328,26 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "#CBE6D5",
     marginBottom: 14,
+  },
+  passwordField: {
+    width: "100%",
+    minHeight: 52,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 11,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    borderRadius: 8,
+    paddingHorizontal: 14,
+    backgroundColor: "#FFFFFF",
+    marginBottom: 28,
+  },
+  passwordInput: {
+    flex: 1,
+    height: "100%",
+    color: Colors.text,
+    fontSize: 14,
+    fontWeight: "600",
   },
   title: {
     color: Colors.text,

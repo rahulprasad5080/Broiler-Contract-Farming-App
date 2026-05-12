@@ -23,7 +23,6 @@ import {
   authenticateWithBiometrics,
   hasQuickPin,
   isBiometricEnabled,
-  verifyQuickPin,
 } from "../../services/authSecurity";
 import { maskMobileNumber } from "../../services/authValidation";
 
@@ -56,7 +55,7 @@ const unlockPasswordSchema = z.object({
 type UnlockPasswordForm = z.infer<typeof unlockPasswordSchema>;
 
 export default function QuickUnlockScreen() {
-  const { user, isLoading, unlockApp, unlockWithPassword } = useAuth();
+  const { user, isLoading, unlockApp, unlockWithPassword, unlockWithPin } = useAuth();
   const didAutoPrompt = React.useRef(false);
   const passwordInputRef = React.useRef<TextInput>(null);
   const [mode, setMode] = React.useState<UnlockMode>("loading");
@@ -129,42 +128,60 @@ export default function QuickUnlockScreen() {
   }, [authenticateBiometric, mode]);
 
   React.useEffect(() => {
-    if (pin.length !== 4 || mode !== "pin") {
+    if (pin.length !== 4 || mode !== "pin" || isAuthenticating) {
       return;
     }
 
     const verifyPin = async () => {
-      const matched = await verifyQuickPin(pin);
-      if (matched) {
-        setPinError(null);
-        setFailedAttempts(0);
-        unlockApp();
-        return;
+      setIsAuthenticating(true);
+
+      try {
+        const errorMessage = await unlockWithPin(pin);
+        if (!errorMessage) {
+          setPinError(null);
+          setFailedAttempts(0);
+          return;
+        }
+
+        const nextAttempts = failedAttempts + 1;
+        setFailedAttempts(nextAttempts);
+        setPin("");
+        setPinError(errorMessage);
+
+        if (nextAttempts >= MAX_PIN_ATTEMPTS) {
+          Toast.show({
+            type: "error",
+            text1: "Too many attempts",
+            text2: "Use your password to continue.",
+            position: 'bottom',
+          });
+          setMode("password");
+          setTimeout(() => passwordInputRef.current?.focus(), 220);
+          return;
+        }
+
+        Toast.show({
+          type: "error",
+          text1: "Incorrect PIN",
+          text2:
+            errorMessage === "Incorrect PIN. Try again."
+              ? `${MAX_PIN_ATTEMPTS - nextAttempts} attempt(s) remaining.`
+              : errorMessage,
+          position: 'bottom',
+        });
+      } finally {
+        setIsAuthenticating(false);
       }
-
-      const nextAttempts = failedAttempts + 1;
-      setFailedAttempts(nextAttempts);
-      setPin("");
-      setPinError("Incorrect PIN");
-
-      if (nextAttempts >= MAX_PIN_ATTEMPTS) {
-        Toast.show({type: "error",
-          text1: "Too many attempts",
-          text2: "Use your password to continue.", position: 'bottom'});
-        setMode("password");
-        setTimeout(() => passwordInputRef.current?.focus(), 220);
-        return;
-      }
-
-      Toast.show({type: "error",
-        text1: "Incorrect PIN",
-        text2: `${MAX_PIN_ATTEMPTS - nextAttempts} attempt(s) remaining.`, position: 'bottom'});
     };
 
     void verifyPin();
-  }, [failedAttempts, mode, pin, unlockApp]);
+  }, [failedAttempts, isAuthenticating, mode, pin, unlockWithPin]);
 
   const pressKey = async (key: string) => {
+    if (isAuthenticating) {
+      return;
+    }
+
     setPinError(null);
 
     if (key === "back") {
@@ -294,7 +311,9 @@ export default function QuickUnlockScreen() {
         <PinDots value={pin} hasError={Boolean(pinError)} />
         {pinError ? (
           <Text style={styles.errorText}>
-            {pinError}. {MAX_PIN_ATTEMPTS - failedAttempts} attempt(s) remaining.
+            {pinError === "Incorrect PIN. Try again."
+              ? `Incorrect PIN. ${MAX_PIN_ATTEMPTS - failedAttempts} attempt(s) remaining.`
+              : pinError}
           </Text>
         ) : (
           <Text style={styles.helperText}>Enter your 4-digit PIN to continue.</Text>

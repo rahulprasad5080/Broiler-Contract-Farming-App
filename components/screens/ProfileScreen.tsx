@@ -29,10 +29,7 @@ import {
   getPasswordValidationError,
   PASSWORD_REQUIREMENT_TEXT,
 } from '@/services/authValidation';
-import {
-  isBiometricEnabled,
-  setBiometricEnabled,
-} from '@/services/authSecurity';
+import { isBiometricEnabled } from '@/services/authSecurity';
 
 const getInitials = (name: string) =>
   name
@@ -203,7 +200,13 @@ const passwordSchema = z.object({
 type PasswordFormData = z.infer<typeof passwordSchema>;
 
 export default function ProfileScreen() {
-  const { signOut, user, accessToken, updateProfileName } = useAuth();
+  const {
+    signOut,
+    user,
+    accessToken,
+    updateProfileName,
+    setBiometricPreference,
+  } = useAuth();
   const router = useRouter();
   const [showEditProfile, setShowEditProfile] = React.useState(false);
   const [isSavingProfile, setIsSavingProfile] = React.useState(false);
@@ -211,6 +214,7 @@ export default function ProfileScreen() {
   const [isSavingPassword, setIsSavingPassword] = React.useState(false);
   const [passwordSuccess, setPasswordSuccess] = React.useState<string | null>(null);
   const [biometricsEnabled, setBiometricsEnabled] = React.useState(false);
+  const [isSavingBiometrics, setIsSavingBiometrics] = React.useState(false);
 
   const {
     control: profileControl,
@@ -290,6 +294,29 @@ export default function ProfileScreen() {
     router.push('/(auth)/enable-biometric');
   };
 
+  const updateBiometricToggle = async (enabled: boolean) => {
+    if (enabled) {
+      openBiometrics();
+      return;
+    }
+
+    setIsSavingBiometrics(true);
+
+    try {
+      await setBiometricPreference(false);
+      setBiometricsEnabled(false);
+      showSuccessToast('Biometric unlock disabled.');
+    } catch (error) {
+      setBiometricsEnabled(true);
+      showRequestErrorToast(error, {
+        title: 'Biometric update failed',
+        fallbackMessage: 'Failed to update biometric unlock.',
+      });
+    } finally {
+      setIsSavingBiometrics(false);
+    }
+  };
+
   const openComingSoon = (title: string) => {
     Alert.alert(title, 'This setting will be connected with backend configuration.');
   };
@@ -350,17 +377,20 @@ export default function ProfileScreen() {
     toggleValue,
     onToggle,
     onPress,
+    disabled,
   }: {
     item: MenuItem;
     toggleValue?: boolean;
     onToggle?: (v: boolean) => void;
     onPress?: () => void;
+    disabled?: boolean;
   }) => {
     return (
       <TouchableOpacity
         style={[styles.menuRow, item.danger && styles.menuRowDanger]}
         activeOpacity={item.toggle ? 1 : 0.7}
         onPress={item.danger ? handleLogout : onPress}
+        disabled={disabled}
       >
         <View style={[styles.menuIconBox, item.danger && styles.menuIconBoxDanger]}>
           {item.iconLib === 'MaterialCommunityIcons' ? (
@@ -393,6 +423,7 @@ export default function ProfileScreen() {
           <Switch
             value={toggleValue}
             onValueChange={onToggle}
+            disabled={disabled}
             trackColor={{ false: Colors.border, true: Colors.primary }}
             thumbColor="#FFF"
           />
@@ -501,15 +532,8 @@ export default function ProfileScreen() {
               toggle: true,
             }}
             toggleValue={biometricsEnabled}
-            onToggle={(enabled) => {
-              if (enabled) {
-                openBiometrics();
-                return;
-              }
-
-              setBiometricsEnabled(false);
-              void setBiometricEnabled(false);
-            }}
+            onToggle={(enabled) => void updateBiometricToggle(enabled)}
+            disabled={isSavingBiometrics}
           />
         </View>
 

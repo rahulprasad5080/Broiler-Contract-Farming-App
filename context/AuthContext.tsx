@@ -5,8 +5,11 @@ import { AppState, AppStateStatus } from "react-native";
 import {
   fetchMe,
   login,
+  loginWithPin,
   logout,
   refreshAuth,
+  setServerPin,
+  updateServerBiometric,
   type ApiRole,
 } from "../services/authApi";
 import { ApiError } from "../services/api";
@@ -26,6 +29,8 @@ import {
   clearQuickAuth,
   getPreferredQuickLoginRoute,
   hasAnyQuickAuth,
+  saveQuickPin,
+  setBiometricEnabled,
 } from "../services/authSecurity";
 import { normalizeMobileNumber } from "../services/authValidation";
 import {
@@ -61,6 +66,9 @@ interface User {
   status?: string;
   role: UserRole;
   farmId?: string;
+  mustChangePassword?: boolean;
+  biometricEnabled?: boolean;
+  assignedFarmIds?: string[];
   permissions: Permission[];
 }
 
@@ -73,6 +81,9 @@ type UserLike = {
   status?: string;
   role?: string | null;
   farmId?: string;
+  mustChangePassword?: boolean;
+  biometricEnabled?: boolean;
+  assignedFarmIds?: string[];
   permissions?: ApiPermissionMatrix;
 };
 
@@ -86,6 +97,9 @@ interface AuthContextType {
   signOut: () => Promise<void>;
   unlockApp: () => void;
   unlockWithPassword: (password: string) => Promise<string | null>;
+  unlockWithPin: (pin: string) => Promise<string | null>;
+  setQuickPin: (currentPassword: string, pin: string) => Promise<void>;
+  setBiometricPreference: (enabled: boolean) => Promise<void>;
   updateProfileName: (name: string) => Promise<void>;
   hasPermission: (permission: Permission) => boolean;
 }
@@ -103,6 +117,7 @@ const UNLOCK_SCREENS = [
   "quick-login-password",
 ];
 const BACKGROUND_LOCK_TIMEOUT_MS = 5 * 60 * 1000;
+const QUICK_PIN_PATTERN = /^\d{4}$/;
 
 function getPermissionsForRole(role: UserRole): Permission[] {
   if (role === "OWNER") {
@@ -488,6 +503,82 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     [persistSession, router, user],
   );
 
+  const unlockWithPin = React.useCallback(
+    async (pin: string) => {
+      if (!user?.phone) {
+        return "Please sign in again with your mobile number.";
+      }
+
+      if (!QUICK_PIN_PATTERN.test(pin)) {
+        return "Enter a 4-digit PIN.";
+      }
+
+      setIsLoading(true);
+
+      try {
+        const response = await loginWithPin({
+          phone: normalizeMobileNumber(user.phone),
+          pin,
+        });
+        const hydratedUser = await hydrateServerUser(response.tokens, response.user);
+        const nextSession = {
+          user: hydratedUser,
+          tokens: response.tokens,
+        };
+
+        await persistSession(nextSession);
+        backgroundedAtRef.current = null;
+        setIsAppUnlocked(true);
+        router.replace(getDashboardRoute(normalizeUser(hydratedUser).role));
+        return null;
+      } catch (error) {
+        return getAuthErrorMessage(error, "Incorrect PIN. Try again.");
+      } finally {
+        setIsLoading(false);
+      }
+    },
+    [persistSession, router, user?.phone],
+  );
+
+  const setQuickPin = React.useCallback(
+    async (currentPassword: string, pin: string) => {
+      if (!tokens?.accessToken) {
+        throw new Error("Please sign in again before setting a PIN.");
+      }
+
+      if (!currentPassword.trim()) {
+        throw new Error("Current password is required.");
+      }
+
+      if (!QUICK_PIN_PATTERN.test(pin)) {
+        throw new Error("PIN must be exactly 4 digits.");
+      }
+
+      await setServerPin(tokens.accessToken, {
+        currentPassword,
+        pin,
+      });
+      await saveQuickPin(pin);
+    },
+    [tokens?.accessToken],
+  );
+
+  const setBiometricPreference = React.useCallback(
+    async (enabled: boolean) => {
+      if (!tokens?.accessToken) {
+        throw new Error("Please sign in again before updating biometric unlock.");
+      }
+
+      const updatedUser = await updateServerBiometric(tokens.accessToken, { enabled });
+      await persistSession({
+        user: updatedUser,
+        tokens,
+      });
+      await setBiometricEnabled(enabled);
+    },
+    [persistSession, tokens],
+  );
+
   const signOut = React.useCallback(async () => {
     try {
       if (tokens?.refreshToken) {
@@ -555,6 +646,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         signOut,
         unlockApp,
         unlockWithPassword,
+        unlockWithPin,
+        setQuickPin,
+        setBiometricPreference,
         updateProfileName,
         hasPermission,
       }}
