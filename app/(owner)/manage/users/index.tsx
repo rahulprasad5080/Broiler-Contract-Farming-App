@@ -556,7 +556,7 @@ export default function UserManagementScreen() {
                   <View style={[styles.inputBox, formErrors.name && { borderColor: Colors.tertiary }]}>
                     <TextInput
                       style={styles.textInput}
-                      placeholder="e.g. John Doe"
+                      placeholder="Enter Name"
                       placeholderTextColor={Colors.textSecondary}
                       value={value}
                       onChangeText={onChange}
@@ -576,7 +576,7 @@ export default function UserManagementScreen() {
                   <View style={[styles.inputBox, formErrors.phone && { borderColor: Colors.tertiary }]}>
                     <TextInput
                       style={styles.textInput}
-                      placeholder="9876500001"
+                      placeholder="Enter Phone"
                       placeholderTextColor={Colors.textSecondary}
                       value={value}
                       keyboardType="phone-pad"
@@ -628,7 +628,7 @@ export default function UserManagementScreen() {
                   <View style={[styles.inputBox, { flexDirection: 'row', alignItems: 'center' }, formErrors.password && { borderColor: Colors.tertiary }]}>
                     <TextInput
                       style={[styles.textInput, { flex: 1 }]}
-                      placeholder="Broiler@1234"
+                      placeholder="Enter Password"
                       placeholderTextColor={Colors.textSecondary}
                       value={value}
                       onChangeText={onChange}
