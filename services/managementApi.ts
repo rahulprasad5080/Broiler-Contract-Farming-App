@@ -132,6 +132,19 @@ export type ApiFarm = {
   updatedAt: string;
 };
 
+export type ApiBatchSummary = {
+  currentAgeDays?: number | null;
+  liveBirds?: number | null;
+  mortalityCount?: number | null;
+  cullCount?: number | null;
+  mortalityPercent?: number | null;
+  soldBirds?: number | null;
+  totalFeedConsumedKg?: number | null;
+  totalWeightSoldKg?: number | null;
+  averageWeightGrams?: number | null;
+  fcr?: number | null;
+};
+
 export type ApiBatch = {
   id: string;
   organizationId: string;
@@ -140,13 +153,22 @@ export type ApiBatch = {
   code: string;
   placementDate: string;
   placementCount: number;
+  totalChicksPurchased?: number | null;
+  freeChicks?: number | null;
+  chargeableChicks?: number | null;
+  placementMortality?: number | null;
   chickCostTotal?: number | null;
   chickRatePerBird?: number | null;
+  ratePerChick?: number | null;
+  chickTransportCharge?: number | null;
   sourceHatchery?: string | null;
+  vendorName?: string | null;
   targetCloseDate?: string | null;
   actualCloseDate?: string | null;
   status: ApiBatchStatus;
+  lockedAt?: string | null;
   notes?: string | null;
+  summary?: ApiBatchSummary | null;
   createdAt: string;
   updatedAt: string;
 };
@@ -176,6 +198,7 @@ export type ApiDailyLog = {
   avgWeightGrams?: number | null;
   notes?: string | null;
   clientReferenceId?: string | null;
+  recordedById?: string | null;
   correctedById?: string | null;
   createdAt: string;
   updatedAt: string;
@@ -410,6 +433,7 @@ export type CreateUserRequest = {
   phone?: string;
   permissions?: ApiPermissionMatrix;
   assignedFarmIds?: string[];
+  mustChangePassword?: boolean;
 };
 
 export type UpdateUserRequest = {
@@ -418,6 +442,10 @@ export type UpdateUserRequest = {
   role?: ApiRole;
   email?: string;
   phone?: string;
+  permissions?: ApiPermissionMatrix;
+  assignedFarmIds?: string[];
+  biometricEnabled?: boolean;
+  mustChangePassword?: boolean;
 };
 
 export type UpdateUserStatusRequest = {
@@ -426,6 +454,7 @@ export type UpdateUserStatusRequest = {
 
 export type ResetUserPasswordRequest = {
   newPassword: string;
+  mustChangePassword?: boolean;
 };
 
 export type CreateFarmRequest = {
@@ -457,14 +486,25 @@ export type CreateBatchRequest = {
   code: string;
   placementDate: string;
   placementCount: number;
+  totalChicksPurchased?: number;
+  freeChicks?: number;
+  chargeableChicks?: number;
+  placementMortality?: number;
   chickCostTotal?: number;
   chickRatePerBird?: number;
+  chickTransportCharge?: number;
   sourceHatchery?: string;
+  vendorName?: string;
   targetCloseDate?: string;
   notes?: string;
 };
 
-export type UpdateBatchRequest = Partial<CreateBatchRequest>;
+export type UpdateBatchRequest = Partial<
+  Omit<CreateBatchRequest, "farmId"> & {
+    ratePerChick?: number;
+    actualCloseDate?: string | null;
+  }
+>;
 
 export type UpdateBatchStatusRequest = {
   status: ApiBatchStatus;
@@ -491,11 +531,14 @@ export type CreateSaleRequest = {
   vehicleNumber?: string;
   birdCount?: number;
   totalWeightKg?: number;
+  averageWeightKg?: number;
   loadingMortalityCount?: number;
   ratePerKg?: number;
+  grossAmount?: number;
   transportCharge?: number;
   commissionCharge?: number;
   otherDeduction?: number;
+  netAmount?: number;
   paymentReceivedAmount?: number;
   paymentStatus?: ApiTransactionPaymentStatus;
   status?: ApiSaleStatus;
@@ -536,7 +579,9 @@ export type CreateCatalogItemRequest = {
   currentStock?: number;
 };
 
-export type UpdateCatalogItemRequest = Partial<CreateCatalogItemRequest>;
+export type UpdateCatalogItemRequest = Partial<CreateCatalogItemRequest> & {
+  isActive?: boolean;
+};
 
 export type CreateBatchExpenseRequest = {
   ledger: ApiExpenseLedger;
