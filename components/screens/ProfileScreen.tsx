@@ -312,10 +312,6 @@ export default function ProfileScreen() {
     }
   };
 
-  const openComingSoon = (title: string) => {
-    Alert.alert(title, 'This setting will be connected with backend configuration.');
-  };
-
   const submitProfileUpdate = async (data: ProfileFormData) => {
     setIsSavingProfile(true);
 
