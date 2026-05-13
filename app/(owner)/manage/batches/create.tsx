@@ -1,66 +1,39 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import { useRouter } from 'expo-router';
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useState } from 'react';
 import {
   ActivityIndicator,
-  Animated,
+  Modal,
   ScrollView,
   StyleSheet,
   Text,
   TextInput,
   TouchableOpacity,
   View,
+  StatusBar,
 } from 'react-native';
 import Toast from 'react-native-toast-message';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Controller, useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 
 import { DatePickerField } from '@/components/ui/DatePickerField';
-import { TopAppBar } from '@/components/ui/TopAppBar';
 import { Colors } from '@/constants/Colors';
-import { Layout } from '@/constants/Layout';
 import { useAuth } from '@/context/AuthContext';
-import { useFormPersistence } from '@/hooks/useFormPersistence';
 import { getLocalDateValue } from '@/services/dateUtils';
 import { ApiFarm, createBatch, listAllFarms } from '@/services/managementApi';
+
+const THEME_GREEN = "#0B5C36";
 
 function todayValue() {
   return getLocalDateValue();
 }
 
-function toOptionalNumber(value: string | undefined) {
-  if (!value || value.trim() === '') return undefined;
-  const next = Number(value);
-  return Number.isNaN(next) ? undefined : next;
-}
-
 function toOptionalText(value: string | undefined) {
   const trimmed = value?.trim();
   return trimmed ? trimmed : undefined;
-}
-
-function farmLabel(farm: ApiFarm) {
-  const place = [farm.village, farm.district].filter(Boolean).join(', ');
-  return `${farm.code} | ${farm.name}${place ? ` | ${place}` : ''}`;
-}
-
-function isNumberLike(value?: string) {
-  return value === undefined || value.trim() === '' || !Number.isNaN(Number(value));
-}
-
-function isNonNegativeNumberLike(value?: string) {
-  return value === undefined || value.trim() === '' || Number(value) >= 0;
-}
-
-function optionalNumberField(label: string) {
-  return z
-    .string()
-    .optional()
-    .refine(isNumberLike, { message: `${label} must be a number` })
-    .refine(isNonNegativeNumberLike, { message: `${label} cannot be negative` });
 }
 
 const requiredNumberField = (label: string) =>
@@ -72,51 +45,43 @@ const requiredNumberField = (label: string) =>
 
 const batchSchema = z.object({
   farmId: z.string().min(1, 'Farm is required'),
-  code: z.string().min(1, 'Batch code is required'),
+  shed: z.string().optional(),
+  code: z.string().min(1, 'Batch ID is required'),
+  birdType: z.string().min(1, 'Bird type is required'),
   placementDate: z.string().min(1, 'Placement date is required'),
   placementCount: requiredNumberField('Placement count'),
-  totalChicksPurchased: optionalNumberField('Total chicks purchased'),
-  freeChicks: optionalNumberField('Free chicks'),
-  chargeableChicks: optionalNumberField('Chargeable chicks'),
-  placementMortality: optionalNumberField('Placement mortality'),
-  chickCostTotal: optionalNumberField('Chick cost total'),
-  chickRatePerBird: optionalNumberField('Chick rate per bird'),
-  chickTransportCharge: optionalNumberField('Chick transport charge'),
   sourceHatchery: z.string().optional(),
-  vendorName: z.string().optional(),
-  targetCloseDate: z.string().optional(),
+  placementWeight: z.string().optional(),
+  expectedSaleAge: z.string().optional(),
   notes: z.string().optional(),
 });
 
 type BatchFormData = z.infer<typeof batchSchema>;
 
-const BATCH_FORM_DEFAULTS = {
+const BATCH_FORM_DEFAULTS: BatchFormData = {
   farmId: '',
-  code: '',
+  shed: 'Shed 1',
+  code: 'GV-B-2308',
+  birdType: 'Cobb 430',
   placementDate: todayValue(),
   placementCount: '',
-  totalChicksPurchased: '',
-  freeChicks: '',
-  chargeableChicks: '',
-  placementMortality: '',
-  chickCostTotal: '',
-  chickRatePerBird: '',
-  chickTransportCharge: '',
   sourceHatchery: '',
-  vendorName: '',
-  targetCloseDate: '',
+  placementWeight: '',
+  expectedSaleAge: '',
   notes: '',
-} satisfies BatchFormData;
+};
 
 type InputFieldProps = {
   label: string;
   value?: string;
   onChangeText: (value: string) => void;
   error?: string;
-  placeholder: string;
-  iconName?: keyof typeof Ionicons.glyphMap;
+  placeholder?: string;
   keyboardType?: 'default' | 'numeric' | 'decimal-pad';
   multiline?: boolean;
+  suffix?: string;
+  required?: boolean;
+  editable?: boolean;
 };
 
 function InputField({
@@ -125,26 +90,75 @@ function InputField({
   onChangeText,
   error,
   placeholder,
-  iconName,
   keyboardType = 'default',
   multiline = false,
+  suffix,
+  required = false,
+  editable = true,
 }: InputFieldProps) {
   return (
     <View style={styles.inputGroup}>
-      <Text style={styles.label}>{label}</Text>
+      <Text style={styles.label}>
+        {label} {required && <Text style={{ color: 'red' }}>*</Text>}
+      </Text>
       <View style={[styles.inputBox, multiline && styles.textArea, error && styles.inputError]}>
         <TextInput
-          style={[styles.input, multiline && styles.multiLine]}
+          style={[styles.input, multiline && styles.multiLine, !editable && { color: Colors.textSecondary }]}
           value={value}
           onChangeText={onChangeText}
           placeholder={placeholder}
           placeholderTextColor={Colors.textSecondary}
           keyboardType={keyboardType}
           multiline={multiline}
+          editable={editable}
         />
-        {iconName ? <Ionicons name={iconName} size={18} color={Colors.textSecondary} /> : null}
+        {suffix ? <Text style={styles.suffix}>{suffix}</Text> : null}
       </View>
       {error ? <Text style={styles.fieldErrorText}>{error}</Text> : null}
+    </View>
+  );
+}
+
+function DropdownField({ label, value, options, onSelect, placeholder, required = false, error }: any) {
+  const [modalVisible, setModalVisible] = useState(false);
+  const selectedOption = options.find((o: any) => o.value === value);
+
+  return (
+    <View style={styles.inputGroup}>
+      <Text style={styles.label}>
+        {label} {required && <Text style={{ color: 'red' }}>*</Text>}
+      </Text>
+      <TouchableOpacity
+        style={[styles.inputBox, error && styles.inputError]}
+        activeOpacity={0.8}
+        onPress={() => setModalVisible(true)}
+      >
+        <Text style={[styles.inputText, !selectedOption && { color: Colors.textSecondary }]}>
+          {selectedOption ? selectedOption.label : placeholder}
+        </Text>
+        <Ionicons name="chevron-down" size={18} color={Colors.textSecondary} />
+      </TouchableOpacity>
+      
+      {error ? <Text style={styles.fieldErrorText}>{error}</Text> : null}
+
+      <Modal visible={modalVisible} transparent animationType="fade">
+        <TouchableOpacity style={styles.modalOverlay} activeOpacity={1} onPress={() => setModalVisible(false)}>
+          <View style={styles.modalContent}>
+            {options.map((opt: any) => (
+              <TouchableOpacity
+                key={opt.value}
+                style={styles.modalOption}
+                onPress={() => {
+                  onSelect(opt.value);
+                  setModalVisible(false);
+                }}
+              >
+                <Text style={styles.modalOptionText}>{opt.label}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        </TouchableOpacity>
+      </Modal>
     </View>
   );
 }
@@ -152,118 +166,38 @@ function InputField({
 export default function CreateBatchScreen() {
   const router = useRouter();
   const { accessToken } = useAuth();
+  const insets = useSafeAreaInsets();
   const [farms, setFarms] = useState<ApiFarm[]>([]);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
-  const [message, setMessage] = useState<string | null>(null);
-  const [showDraftBanner, setShowDraftBanner] = useState(false);
-  const draftBannerOpacity = useRef(new Animated.Value(0)).current;
 
   const {
     control,
     handleSubmit,
     setValue,
-    watch,
-    reset,
     formState: { errors: formErrors },
   } = useForm<BatchFormData>({
     resolver: zodResolver(batchSchema),
     defaultValues: BATCH_FORM_DEFAULTS,
   });
 
-  const { clearPersistedData, isRestored } = useFormPersistence(
-    'form_draft_create_batch',
-    watch,
-    reset,
-    BATCH_FORM_DEFAULTS,
-  );
-
-  useEffect(() => {
-    if (!isRestored) return;
-
-    setShowDraftBanner(true);
-    draftBannerOpacity.setValue(0);
-    const animation = Animated.sequence([
-      Animated.timing(draftBannerOpacity, { toValue: 1, duration: 300, useNativeDriver: true }),
-      Animated.delay(2500),
-      Animated.timing(draftBannerOpacity, { toValue: 0, duration: 400, useNativeDriver: true }),
-    ]);
-
-    animation.start(({ finished }) => {
-      if (finished) {
-        setShowDraftBanner(false);
-      }
-    });
-
-    return () => animation.stop();
-  }, [isRestored, draftBannerOpacity]);
-
-  const selectedFarmId = watch('farmId');
-  const placementCount = watch('placementCount');
-  const totalChicksPurchased = watch('totalChicksPurchased');
-  const freeChicks = watch('freeChicks');
-  const chargeableChicks = watch('chargeableChicks');
-
-  const availableFarms = useMemo(
-    () => farms.filter((farm) => (farm.activeBatchCount ?? 0) === 0),
-    [farms],
-  );
-
-  const selectedFarm = farms.find((farm) => farm.id === selectedFarmId) ?? null;
-
-  useEffect(() => {
-    const purchased = toOptionalNumber(totalChicksPurchased);
-    const free = toOptionalNumber(freeChicks) ?? 0;
-
-    if (purchased === undefined) {
-      if (chargeableChicks) {
-        setValue('chargeableChicks', '');
-      }
-      return;
-    }
-
-    const computedChargeable = Math.max(purchased - free, 0);
-    const nextValue = String(computedChargeable);
-
-    if (chargeableChicks !== nextValue) {
-      setValue('chargeableChicks', nextValue, { shouldValidate: true });
-    }
-  }, [chargeableChicks, freeChicks, setValue, totalChicksPurchased]);
-
-  const placementSummary = useMemo(() => {
-    const placed = toOptionalNumber(placementCount);
-    const purchased = toOptionalNumber(totalChicksPurchased);
-    const free = toOptionalNumber(freeChicks);
-    const chargeable = toOptionalNumber(chargeableChicks);
-
-    return [
-      { label: 'Placed', value: placed?.toLocaleString('en-IN') ?? '-' },
-      { label: 'Purchased', value: purchased?.toLocaleString('en-IN') ?? '-' },
-      { label: 'Free', value: free?.toLocaleString('en-IN') ?? '-' },
-      { label: 'Chargeable', value: chargeable?.toLocaleString('en-IN') ?? '-' },
-    ];
-  }, [chargeableChicks, freeChicks, placementCount, totalChicksPurchased]);
-
   const loadFarms = useCallback(async () => {
-    if (!accessToken) {
-      return;
-    }
+    if (!accessToken) return;
 
     setLoading(true);
     try {
       const response = await listAllFarms(accessToken);
       setFarms(response.data);
       const firstEligible = response.data.find((farm) => farm.activeBatchCount === 0);
-      if (firstEligible && !selectedFarmId) {
+      if (firstEligible) {
         setValue('farmId', firstEligible.id);
       }
     } catch (error) {
       console.warn('Failed to load farms:', error);
-      setMessage('Could not load farms from backend.');
     } finally {
       setLoading(false);
     }
-  }, [accessToken, selectedFarmId, setValue]);
+  }, [accessToken, setValue]);
 
   useFocusEffect(
     useCallback(() => {
@@ -271,52 +205,53 @@ export default function CreateBatchScreen() {
     }, [loadFarms]),
   );
 
-  useEffect(() => {
-    if (!selectedFarmId && availableFarms[0]) {
-      setValue('farmId', availableFarms[0].id);
-    }
-  }, [availableFarms, selectedFarmId, setValue]);
+  const farmOptions = farms
+    .filter((farm) => (farm.activeBatchCount ?? 0) === 0)
+    .map(farm => ({ label: farm.name, value: farm.id }));
+
+  const shedOptions = [
+    { label: 'Shed 1', value: 'Shed 1' },
+    { label: 'Shed 2', value: 'Shed 2' },
+    { label: 'Shed 3', value: 'Shed 3' },
+  ];
+
+  const birdTypeOptions = [
+    { label: 'Cobb 430', value: 'Cobb 430' },
+    { label: 'Ross 308', value: 'Ross 308' },
+    { label: 'Hubbard', value: 'Hubbard' },
+  ];
+
+  const supplierOptions = [
+    { label: 'ABC Hatcheries', value: 'ABC Hatcheries' },
+    { label: 'Sunrise Hatchery', value: 'Sunrise Hatchery' },
+    { label: 'Premium Birds', value: 'Premium Birds' },
+  ];
 
   const handleSave = async (data: BatchFormData) => {
-    if (!accessToken) {
-      return;
-    }
+    if (!accessToken) return;
 
     setSubmitting(true);
-    setMessage(null);
 
     try {
-      const created = await createBatch(accessToken, {
+      await createBatch(accessToken, {
         farmId: data.farmId,
         code: data.code.trim(),
         placementDate: data.placementDate,
         placementCount: Number(data.placementCount),
-        totalChicksPurchased: toOptionalNumber(data.totalChicksPurchased),
-        freeChicks: toOptionalNumber(data.freeChicks),
-        chargeableChicks: toOptionalNumber(data.chargeableChicks),
-        placementMortality: toOptionalNumber(data.placementMortality),
-        chickCostTotal: toOptionalNumber(data.chickCostTotal),
-        chickRatePerBird: toOptionalNumber(data.chickRatePerBird),
-        chickTransportCharge: toOptionalNumber(data.chickTransportCharge),
         sourceHatchery: toOptionalText(data.sourceHatchery),
-        vendorName: toOptionalText(data.vendorName),
-        targetCloseDate: toOptionalText(data.targetCloseDate),
         notes: toOptionalText(data.notes),
       });
 
-      await clearPersistedData();
-      reset(BATCH_FORM_DEFAULTS);
       Toast.show({
         type: 'success',
         text1: 'Success',
-        text2: `Batch ${created.code} created successfully.`,
+        text2: `Batch created successfully.`,
         position: 'bottom',
       });
       router.back();
     } catch (error) {
       console.warn('Failed to create batch:', error);
       const fallback = error instanceof Error ? error.message : 'Failed to create batch.';
-      setMessage(fallback);
       Toast.show({
         type: 'error',
         text1: 'Batch create failed',
@@ -328,631 +263,323 @@ export default function CreateBatchScreen() {
     }
   };
 
-  const saveDisabled = submitting || loading || availableFarms.length === 0;
-
   return (
-    <SafeAreaView style={styles.safeArea}>
-      <TopAppBar title="Create New Batch" subtitle="Placement, chicks and schedule" showBack />
+    <View style={styles.container}>
+      <StatusBar barStyle="light-content" backgroundColor={THEME_GREEN} />
+      
+      {/* Header */}
+      <View style={[styles.header, { paddingTop: insets.top + 10 }]}>
+        <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>
+          <Ionicons name="arrow-back" size={24} color="#FFF" />
+        </TouchableOpacity>
+        <Text style={styles.headerTitle}>Create New Batch</Text>
+      </View>
 
-      <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
-        {showDraftBanner ? (
-          <Animated.View style={[styles.draftBanner, { opacity: draftBannerOpacity }]} pointerEvents="none">
-            <Ionicons name="cloud-done-outline" size={16} color={Colors.primary} />
-            <Text style={styles.draftBannerText}>Draft restored</Text>
-          </Animated.View>
-        ) : null}
+      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+        
+        <Controller
+          control={control}
+          name="farmId"
+          render={({ field: { onChange, value } }) => (
+            <DropdownField
+              label="Farm"
+              required
+              value={value}
+              onSelect={onChange}
+              options={farmOptions}
+              placeholder={loading ? "Loading..." : "Select Farm"}
+              error={formErrors.farmId?.message}
+            />
+          )}
+        />
 
-        <View style={styles.card}>
-          <View style={styles.sectionHeader}>
-            <View>
-              <Text style={styles.sectionTitle}>Farm</Text>
-              <Text style={styles.sectionSub}>Only farms without an active batch are shown.</Text>
-            </View>
-            {loading ? <ActivityIndicator color={Colors.primary} /> : null}
-          </View>
+        <Controller
+          control={control}
+          name="shed"
+          render={({ field: { onChange, value } }) => (
+            <DropdownField
+              label="Shed / House"
+              required
+              value={value}
+              onSelect={onChange}
+              options={shedOptions}
+              placeholder="Select Shed"
+            />
+          )}
+        />
 
-          <Controller
-            control={control}
-            name="farmId"
-            render={({ field: { onChange, value } }) => (
-              <>
-                {loading ? (
-                  <View style={styles.loadingBox}>
-                    <Text style={styles.loadingText}>Loading farms...</Text>
-                  </View>
-                ) : availableFarms.length === 0 ? (
-                  <View style={styles.emptyBox}>
-                    <Ionicons name="alert-circle-outline" size={18} color={Colors.tertiary} />
-                    <Text style={styles.emptyText}>No eligible farms available for batch creation.</Text>
-                  </View>
-                ) : (
-                  <View style={styles.farmList}>
-                    {availableFarms.map((farm) => {
-                      const active = farm.id === value;
-                      return (
-                        <TouchableOpacity
-                          key={farm.id}
-                          style={[styles.farmOption, active && styles.farmOptionActive]}
-                          onPress={() => onChange(farm.id)}
-                          activeOpacity={0.8}
-                        >
-                          <View style={styles.farmIconBox}>
-                            <Ionicons
-                              name={active ? 'checkmark-circle' : 'business-outline'}
-                              size={20}
-                              color={active ? Colors.primary : Colors.textSecondary}
-                            />
-                          </View>
-                          <View style={styles.farmOptionCopy}>
-                            <Text style={styles.farmOptionTitle}>{farm.name}</Text>
-                            <Text style={styles.farmOptionSub} numberOfLines={2}>
-                              {farmLabel(farm)}
-                            </Text>
-                          </View>
-                          {farm.capacity ? (
-                            <Text style={styles.capacityText}>{farm.capacity.toLocaleString('en-IN')}</Text>
-                          ) : null}
-                        </TouchableOpacity>
-                      );
-                    })}
-                  </View>
-                )}
-                {formErrors.farmId ? <Text style={styles.fieldErrorText}>{formErrors.farmId.message}</Text> : null}
-              </>
-            )}
-          />
+        <Controller
+          control={control}
+          name="code"
+          render={({ field: { onChange, value } }) => (
+            <InputField
+              label="Batch ID (Auto)"
+              value={value}
+              onChangeText={onChange}
+              error={formErrors.code?.message}
+              editable={false} // Make it look like auto-generated
+            />
+          )}
+        />
 
-          {selectedFarm ? (
-            <View style={styles.summaryStrip}>
-              <Ionicons name="information-circle-outline" size={18} color={Colors.primary} />
-              <Text style={styles.summaryText}>
-                {selectedFarm.code} | {selectedFarm.location ?? 'No location'} | {selectedFarm.status}
-              </Text>
-            </View>
-          ) : null}
-        </View>
+        <Controller
+          control={control}
+          name="birdType"
+          render={({ field: { onChange, value } }) => (
+            <DropdownField
+              label="Bird Type"
+              required
+              value={value}
+              onSelect={onChange}
+              options={birdTypeOptions}
+              placeholder="Select Bird Type"
+              error={formErrors.birdType?.message}
+            />
+          )}
+        />
 
-        <View style={styles.card}>
-          <Text style={styles.sectionTitle}>Batch Basics</Text>
+        <Controller
+          control={control}
+          name="placementDate"
+          render={({ field: { onChange, value } }) => (
+            <DatePickerField
+              label="Chick Placement Date *"
+              value={value}
+              onChange={onChange}
+              placeholder="Select placement date"
+              error={formErrors.placementDate?.message}
+            />
+          )}
+        />
 
-          <Controller
-            control={control}
-            name="code"
-            render={({ field: { onChange, value } }) => (
-              <InputField
-                label="Batch Code *"
-                value={value}
-                onChangeText={onChange}
-                placeholder="BATCH-MAY-2026-01"
-                iconName="pricetag-outline"
-                error={formErrors.code?.message}
-              />
-            )}
-          />
+        <Controller
+          control={control}
+          name="placementCount"
+          render={({ field: { onChange, value } }) => (
+            <InputField
+              label="No. of Chicks Placed"
+              required
+              value={value}
+              onChangeText={onChange}
+              placeholder="10,000"
+              keyboardType="numeric"
+              suffix="birds"
+              error={formErrors.placementCount?.message}
+            />
+          )}
+        />
 
-          <Controller
-            control={control}
-            name="placementDate"
-            render={({ field: { onChange, value } }) => (
-              <DatePickerField
-                label="Placement Date *"
-                value={value}
-                onChange={onChange}
-                placeholder="Select placement date"
-                error={formErrors.placementDate?.message}
-              />
-            )}
-          />
+        <Controller
+          control={control}
+          name="sourceHatchery"
+          render={({ field: { onChange, value } }) => (
+            <DropdownField
+              label="Supplier"
+              value={value}
+              onSelect={onChange}
+              options={supplierOptions}
+              placeholder="Select Supplier"
+            />
+          )}
+        />
 
-          <View style={styles.row}>
-            <View style={styles.flexItem}>
-              <Controller
-                control={control}
-                name="placementCount"
-                render={({ field: { onChange, value } }) => (
-                  <InputField
-                    label="Placement Count *"
-                    value={value}
-                    onChangeText={onChange}
-                    placeholder="5000"
-                    keyboardType="numeric"
-                    iconName="layers-outline"
-                    error={formErrors.placementCount?.message}
-                  />
-                )}
-              />
-            </View>
-            <View style={styles.flexItem}>
-              <Controller
-                control={control}
-                name="placementMortality"
-                render={({ field: { onChange, value } }) => (
-                  <InputField
-                    label="Placement Mortality"
-                    value={value}
-                    onChangeText={onChange}
-                    placeholder="12"
-                    keyboardType="numeric"
-                    iconName="remove-circle-outline"
-                    error={formErrors.placementMortality?.message}
-                  />
-                )}
-              />
-            </View>
-          </View>
-        </View>
+        <Controller
+          control={control}
+          name="placementWeight"
+          render={({ field: { onChange, value } }) => (
+            <InputField
+              label="Placement Weight"
+              value={value}
+              onChangeText={onChange}
+              placeholder="40"
+              keyboardType="numeric"
+              suffix="grams"
+            />
+          )}
+        />
 
-        <View style={styles.card}>
-          <Text style={styles.sectionTitle}>Chick Purchase</Text>
+        <Controller
+          control={control}
+          name="expectedSaleAge"
+          render={({ field: { onChange, value } }) => (
+            <InputField
+              label="Expected Sale Age"
+              value={value}
+              onChangeText={onChange}
+              placeholder="45"
+              keyboardType="numeric"
+              suffix="days"
+            />
+          )}
+        />
 
-          <View style={styles.statsGrid}>
-            {placementSummary.map((item) => (
-              <View key={item.label} style={styles.statTile}>
-                <Text style={styles.statValue}>{item.value}</Text>
-                <Text style={styles.statLabel}>{item.label}</Text>
-              </View>
-            ))}
-          </View>
+        <Controller
+          control={control}
+          name="notes"
+          render={({ field: { onChange, value } }) => (
+            <InputField
+              label="Notes (Optional)"
+              value={value}
+              onChangeText={onChange}
+              placeholder="Summer batch"
+              multiline
+            />
+          )}
+        />
 
-          <View style={styles.row}>
-            <View style={styles.flexItem}>
-              <Controller
-                control={control}
-                name="totalChicksPurchased"
-                render={({ field: { onChange, value } }) => (
-                  <InputField
-                    label="Total Chicks Purchased"
-                    value={value}
-                    onChangeText={onChange}
-                    placeholder="5050"
-                    keyboardType="numeric"
-                    iconName="add-circle-outline"
-                    error={formErrors.totalChicksPurchased?.message}
-                  />
-                )}
-              />
-            </View>
-            <View style={styles.flexItem}>
-              <Controller
-                control={control}
-                name="freeChicks"
-                render={({ field: { onChange, value } }) => (
-                  <InputField
-                    label="Free Chicks"
-                    value={value}
-                    onChangeText={onChange}
-                    placeholder="50"
-                    keyboardType="numeric"
-                    iconName="gift-outline"
-                    error={formErrors.freeChicks?.message}
-                  />
-                )}
-              />
-            </View>
-          </View>
+      </ScrollView>
 
-          <View style={styles.row}>
-            <View style={styles.flexItem}>
-              <Controller
-                control={control}
-                name="chargeableChicks"
-                render={({ field: { onChange, value } }) => (
-                  <InputField
-                    label="Chargeable Chicks (Auto)"
-                    value={value}
-                    onChangeText={onChange}
-                    placeholder="5000"
-                    keyboardType="numeric"
-                    iconName="calculator-outline"
-                    error={formErrors.chargeableChicks?.message}
-                  />
-                )}
-              />
-            </View>
-            <View style={styles.flexItem}>
-              <Controller
-                control={control}
-                name="chickRatePerBird"
-                render={({ field: { onChange, value } }) => (
-                  <InputField
-                    label="Chick Rate / Bird"
-                    value={value}
-                    onChangeText={onChange}
-                    placeholder="44"
-                    keyboardType="decimal-pad"
-                    iconName="cash-outline"
-                    error={formErrors.chickRatePerBird?.message}
-                  />
-                )}
-              />
-            </View>
-          </View>
-
-          <View style={styles.row}>
-            <View style={styles.flexItem}>
-              <Controller
-                control={control}
-                name="chickCostTotal"
-                render={({ field: { onChange, value } }) => (
-                  <InputField
-                    label="Chick Cost Total"
-                    value={value}
-                    onChangeText={onChange}
-                    placeholder="220000"
-                    keyboardType="decimal-pad"
-                    iconName="receipt-outline"
-                    error={formErrors.chickCostTotal?.message}
-                  />
-                )}
-              />
-            </View>
-            <View style={styles.flexItem}>
-              <Controller
-                control={control}
-                name="chickTransportCharge"
-                render={({ field: { onChange, value } }) => (
-                  <InputField
-                    label="Transport Charge"
-                    value={value}
-                    onChangeText={onChange}
-                    placeholder="5500"
-                    keyboardType="decimal-pad"
-                    iconName="car-outline"
-                    error={formErrors.chickTransportCharge?.message}
-                  />
-                )}
-              />
-            </View>
-          </View>
-        </View>
-
-        <View style={styles.card}>
-          <Text style={styles.sectionTitle}>Supplier & Schedule</Text>
-
-          <Controller
-            control={control}
-            name="sourceHatchery"
-            render={({ field: { onChange, value } }) => (
-              <InputField
-                label="Source Hatchery"
-                value={value}
-                onChangeText={onChange}
-                placeholder="Sunrise Hatchery"
-                iconName="home-outline"
-                error={formErrors.sourceHatchery?.message}
-              />
-            )}
-          />
-
-          <Controller
-            control={control}
-            name="vendorName"
-            render={({ field: { onChange, value } }) => (
-              <InputField
-                label="Vendor Name"
-                value={value}
-                onChangeText={onChange}
-                placeholder="Sunrise Hatchery"
-                iconName="person-outline"
-                error={formErrors.vendorName?.message}
-              />
-            )}
-          />
-
-          <Controller
-            control={control}
-            name="targetCloseDate"
-            render={({ field: { onChange, value } }) => (
-              <DatePickerField
-                label="Target Close Date"
-                value={value}
-                onChange={onChange}
-                placeholder="Select target close date"
-                error={formErrors.targetCloseDate?.message}
-              />
-            )}
-          />
-
-          <Controller
-            control={control}
-            name="notes"
-            render={({ field: { onChange, value } }) => (
-              <InputField
-                label="Notes"
-                value={value}
-                onChangeText={onChange}
-                placeholder="New grow-out batch"
-                multiline
-                error={formErrors.notes?.message}
-              />
-            )}
-          />
-        </View>
-
-        {message ? (
-          <View style={styles.messageBox}>
-            <Ionicons name="information-circle-outline" size={18} color={Colors.primary} />
-            <Text style={styles.messageText}>{message}</Text>
-          </View>
-        ) : null}
-
+      {/* Bottom Button */}
+      <View style={[styles.bottomContainer, { paddingBottom: Math.max(insets.bottom, 16) }]}>
         <TouchableOpacity
-          style={[styles.saveButton, saveDisabled && styles.saveButtonDisabled]}
+          style={[styles.createButton, submitting && styles.createButtonDisabled]}
+          activeOpacity={0.8}
           onPress={handleSubmit(handleSave)}
-          disabled={saveDisabled}
-          activeOpacity={0.85}
+          disabled={submitting}
         >
           {submitting ? (
             <ActivityIndicator color="#FFF" />
           ) : (
-            <>
-              <Ionicons name="checkmark-circle-outline" size={18} color="#FFF" />
-              <Text style={styles.saveButtonText}>Create Batch</Text>
-            </>
+            <Text style={styles.createButtonText}>Create Batch</Text>
           )}
         </TouchableOpacity>
-      </ScrollView>
-    </SafeAreaView>
+      </View>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  safeArea: {
+  container: {
     flex: 1,
-    backgroundColor: '#F6F8F7',
+    backgroundColor: '#FFF',
   },
-  draftBanner: {
+  header: {
+    backgroundColor: THEME_GREEN,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
-    backgroundColor: '#E8F5E9',
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#C8E6C9',
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    marginBottom: 10,
+    paddingHorizontal: 16,
+    paddingBottom: 16,
   },
-  draftBannerText: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: Colors.primary,
+  backBtn: {
+    marginRight: 16,
   },
-  container: {
-    width: '100%',
-    maxWidth: Layout.formMaxWidth,
-    alignSelf: 'center',
-    paddingHorizontal: Layout.screenPadding,
-    paddingTop: Layout.spacing.md,
+  headerTitle: {
+    fontSize: 18,
+    color: '#FFF',
+    fontWeight: '600',
+  },
+  scrollContent: {
+    paddingHorizontal: 20,
+    paddingTop: 24,
     paddingBottom: 100,
   },
-  card: {
-    backgroundColor: Colors.surface,
-    borderRadius: 8,
-    padding: 16,
-    marginBottom: 14,
-    borderWidth: 1,
-    borderColor: Colors.border,
-  },
-  sectionHeader: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    justifyContent: 'space-between',
-    gap: 12,
-    marginBottom: 12,
-  },
-  sectionTitle: {
-    fontSize: 16,
-    fontWeight: '800',
-    color: Colors.text,
-    marginBottom: 4,
-  },
-  sectionSub: {
-    fontSize: 12,
-    color: Colors.textSecondary,
-    lineHeight: 17,
-  },
-  loadingBox: {
-    minHeight: 56,
-    justifyContent: 'center',
-  },
-  loadingText: {
-    fontSize: 12,
-    color: Colors.textSecondary,
-  },
-  emptyBox: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    minHeight: 48,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#F1C6C4',
-    backgroundColor: '#FFF7F7',
-    padding: 12,
-  },
-  emptyText: {
-    flex: 1,
-    fontSize: 13,
-    color: Colors.tertiary,
-    fontWeight: '700',
-  },
-  farmList: {
-    gap: 10,
-  },
-  farmOption: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: Colors.border,
-    backgroundColor: '#F9FAFB',
-    padding: 12,
-  },
-  farmOptionActive: {
-    borderColor: Colors.primary,
-    backgroundColor: '#E8F5E9',
-  },
-  farmIconBox: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
-    backgroundColor: '#FFF',
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: Colors.border,
-  },
-  farmOptionCopy: {
-    flex: 1,
-  },
-  farmOptionTitle: {
-    fontSize: 14,
-    fontWeight: '800',
-    color: Colors.text,
-  },
-  farmOptionSub: {
-    marginTop: 3,
-    fontSize: 12,
-    color: Colors.textSecondary,
-    lineHeight: 16,
-  },
-  capacityText: {
-    fontSize: 12,
-    fontWeight: '800',
-    color: Colors.primary,
-  },
-  summaryStrip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    backgroundColor: '#F9FAFB',
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: Colors.border,
-    padding: 12,
-    marginTop: 12,
-  },
-  summaryText: {
-    flex: 1,
-    fontSize: 12,
-    color: Colors.textSecondary,
-    fontWeight: '700',
-  },
   inputGroup: {
-    marginBottom: 14,
+    marginBottom: 20,
   },
   label: {
     fontSize: 13,
     fontWeight: '700',
-    color: Colors.text,
+    color: '#000',
     marginBottom: 8,
   },
   inputBox: {
-    minHeight: 48,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
     borderWidth: 1,
-    borderColor: Colors.border,
+    borderColor: '#EFEFEF',
     borderRadius: 8,
-    paddingHorizontal: 12,
-    backgroundColor: '#F9FAFB',
+    backgroundColor: '#FFF',
+    minHeight: 48,
+    paddingHorizontal: 14,
   },
   inputError: {
-    borderColor: Colors.tertiary,
-  },
-  textArea: {
-    minHeight: 92,
-    alignItems: 'flex-start',
-    paddingTop: 12,
+    borderColor: '#EF4444',
   },
   input: {
     flex: 1,
-    fontSize: 15,
-    color: Colors.text,
-    padding: 0,
-    minWidth: 0,
+    fontSize: 14,
+    color: '#000',
+    paddingVertical: 12,
+  },
+  inputText: {
+    flex: 1,
+    fontSize: 14,
+    color: '#000',
+  },
+  suffix: {
+    fontSize: 13,
+    color: '#666',
+    fontWeight: '600',
+    marginLeft: 8,
+  },
+  textArea: {
+    minHeight: 80,
+    alignItems: 'flex-start',
   },
   multiLine: {
-    minHeight: 64,
     textAlignVertical: 'top',
-  },
-  row: {
-    flexDirection: Layout.isSmallDevice ? 'column' : 'row',
-    gap: 12,
-  },
-  flexItem: {
-    flex: 1,
-    minWidth: 0,
-  },
-  statsGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-    marginBottom: 14,
-  },
-  statTile: {
-    flexGrow: 1,
-    flexBasis: Layout.isSmallDevice ? '47%' : '23%',
-    minHeight: 62,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: Colors.border,
-    backgroundColor: '#F9FAFB',
-    padding: 10,
-    justifyContent: 'center',
-  },
-  statValue: {
-    fontSize: 15,
-    fontWeight: '900',
-    color: Colors.text,
-  },
-  statLabel: {
-    marginTop: 3,
-    fontSize: 11,
-    fontWeight: '700',
-    color: Colors.textSecondary,
-  },
-  messageBox: {
-    flexDirection: 'row',
-    gap: 8,
-    alignItems: 'center',
-    backgroundColor: '#E8F5E9',
-    borderWidth: 1,
-    borderColor: '#C8E6C9',
-    borderRadius: 10,
-    padding: 12,
-    marginBottom: 14,
-  },
-  messageText: {
-    flex: 1,
-    fontSize: 12,
-    color: Colors.primary,
-    fontWeight: '700',
-  },
-  saveButton: {
-    minHeight: 52,
-    borderRadius: 10,
-    backgroundColor: Colors.primary,
-    justifyContent: 'center',
-    alignItems: 'center',
-    flexDirection: 'row',
-    gap: 8,
-  },
-  saveButtonDisabled: {
-    backgroundColor: '#9DB8A8',
-  },
-  saveButtonText: {
-    color: '#FFF',
-    fontSize: 15,
-    fontWeight: '800',
+    height: '100%',
   },
   fieldErrorText: {
-    color: Colors.tertiary,
-    fontSize: 11,
+    color: '#EF4444',
+    fontSize: 12,
     marginTop: 4,
-    fontWeight: '600',
+  },
+  datePickerOverride: {
+    flex: 1,
+    borderWidth: 0,
+    backgroundColor: 'transparent',
+    paddingHorizontal: 0,
+    minHeight: 46,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.3)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalContent: {
+    width: '80%',
+    backgroundColor: '#FFF',
+    borderRadius: 12,
+    padding: 16,
+    elevation: 5,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+  },
+  modalOption: {
+    paddingVertical: 14,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F0F0F0',
+  },
+  modalOptionText: {
+    fontSize: 16,
+    color: '#000',
+  },
+  bottomContainer: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: '#FFF',
+    paddingHorizontal: 20,
+    paddingTop: 12,
+  },
+  createButton: {
+    backgroundColor: THEME_GREEN,
+    height: 50,
+    borderRadius: 8,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  createButtonDisabled: {
+    opacity: 0.7,
+  },
+  createButtonText: {
+    color: '#FFF',
+    fontSize: 16,
+    fontWeight: '700',
   },
 });

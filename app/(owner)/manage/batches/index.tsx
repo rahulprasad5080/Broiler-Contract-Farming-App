@@ -1,32 +1,25 @@
 import { Colors } from '@/constants/Colors';
-import { Layout } from '@/constants/Layout';
-import { TopAppBar } from '@/components/ui/TopAppBar';
 import { useAuth } from '@/context/AuthContext';
-import {
-  showRequestErrorToast,
-  showSuccessToast,
-} from '@/services/apiFeedback';
-import { getLocalDateValue } from '@/services/dateUtils';
 import {
   ApiBatch,
   listAllBatches,
-  updateBatchStatus,
 } from '@/services/managementApi';
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons, Feather } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
-import { useRouter } from 'expo-router';
+import { useRouter, type Href } from 'expo-router';
 import React, { useCallback, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
-  Alert,
   ScrollView,
   StyleSheet,
   Text,
-  TextInput,
   TouchableOpacity,
   View,
+  StatusBar,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+
+const THEME_GREEN = "#0B5C36";
 
 type FilterKey = 'ALL' | 'ACTIVE' | 'SALES_RUNNING' | 'SETTLEMENT_PENDING' | 'CLOSED';
 
@@ -49,23 +42,36 @@ function formatReadableDate(value?: string | null) {
   const [, year, month, day] = match;
   const date = new Date(Number(year), Number(month) - 1, Number(day));
 
-  return date.toLocaleDateString('en-IN', {
+  return date.toLocaleDateString('en-GB', {
     day: '2-digit',
     month: 'short',
     year: 'numeric',
   });
 }
 
+function getBadgeStyle(status: ApiBatch['status']) {
+  switch (status) {
+    case 'ACTIVE':
+      return { bg: '#E8F5E9', text: THEME_GREEN, label: 'Active' };
+    case 'SALES_RUNNING':
+      return { bg: '#FFF3E0', text: '#E65100', label: 'Sales Ready' };
+    case 'SETTLEMENT_PENDING':
+      return { bg: '#E3F2FD', text: '#1565C0', label: 'Settled' };
+    case 'CLOSED':
+    case 'CANCELLED':
+    default:
+      return { bg: '#F5F5F5', text: '#757575', label: 'Closed' };
+  }
+}
+
 export default function BatchManagementScreen() {
   const router = useRouter();
   const { accessToken } = useAuth();
+  const insets = useSafeAreaInsets();
   const [batches, setBatches] = useState<ApiBatch[]>([]);
   const [activeFilter, setActiveFilter] = useState<FilterKey>('ALL');
   const [searchText, setSearchText] = useState('');
   const [loading, setLoading] = useState(true);
-  const [closingId, setClosingId] = useState('');
-  const [message, setMessage] = useState<string | null>(null);
-  const [expandedBatchIds, setExpandedBatchIds] = useState<string[]>([]);
 
   const loadBatches = useCallback(async () => {
     if (!accessToken) return;
@@ -76,7 +82,6 @@ export default function BatchManagementScreen() {
       setBatches(response.data);
     } catch (error) {
       console.warn('Failed to load batches:', error);
-      setMessage('Could not load batches from backend.');
     } finally {
       setLoading(false);
     }
@@ -106,589 +111,310 @@ export default function BatchManagementScreen() {
     });
   }, [activeFilter, batches, searchText]);
 
-  const handleCloseBatch = (batch: ApiBatch) => {
-    if (!accessToken) return;
-
-    Alert.alert('Close batch', `Mark ${batch.code} as closed?`, [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Close',
-        style: 'destructive',
-        onPress: async () => {
-          setClosingId(batch.id);
-          setMessage(null);
-          try {
-            await updateBatchStatus(accessToken, batch.id, {
-              status: 'CLOSED',
-              actualCloseDate: getLocalDateValue(),
-            });
-            await loadBatches();
-            setMessage(`${batch.code} closed successfully.`);
-            showSuccessToast(`${batch.code} closed successfully.`, 'Batch closed');
-          } catch (error) {
-            console.warn('Failed to close batch:', error);
-            setMessage(
-              showRequestErrorToast(error, {
-                title: 'Close batch failed',
-                fallbackMessage: 'Failed to close batch.',
-              }),
-            );
-          } finally {
-            setClosingId('');
-          }
-        },
-      },
-    ]);
-  };
-
-  const toggleExpanded = (batchId: string) => {
-    setExpandedBatchIds((current) =>
-      current.includes(batchId)
-        ? current.filter((id) => id !== batchId)
-        : [...current, batchId],
-    );
-  };
-
   return (
-    <SafeAreaView style={styles.safeArea}>
-      <TopAppBar
-        title="Batches"
-        subtitle="Placement, status and batch health"
-        showBack
-        right={
-          <TouchableOpacity onPress={() => void loadBatches()} style={styles.headerIconBtn}>
-            <Ionicons name="refresh-outline" size={20} color="#FFF" />
+    <View style={styles.container}>
+      <StatusBar barStyle="light-content" backgroundColor={THEME_GREEN} />
+      
+      <View style={[styles.header, { paddingTop: insets.top + 10 }]}>
+        <View style={styles.headerLeft}>
+          <TouchableOpacity onPress={() => router.back()}>
+            <Ionicons name="menu" size={28} color="#FFF" />
           </TouchableOpacity>
-        }
-      />
-
-      <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
-        <View style={styles.searchRow}>
-          <Ionicons name="search-outline" size={18} color={Colors.textSecondary} />
-          <TextInput
-            style={styles.searchInput}
-            value={searchText}
-            onChangeText={setSearchText}
-            placeholder="Search batch or farm..."
-            placeholderTextColor={Colors.textSecondary}
-            autoCapitalize="none"
-          />
+          <Text style={styles.headerTitle}>Batches</Text>
         </View>
+        <View style={styles.headerRight}>
+          <TouchableOpacity style={styles.iconBtn}>
+            <Ionicons name="search" size={24} color="#FFF" />
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.iconBtn}>
+            <Ionicons name="funnel-outline" size={24} color="#FFF" />
+          </TouchableOpacity>
+        </View>
+      </View>
 
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterRow}>
-          {FILTERS.map((filter) => (
-            <TouchableOpacity
-              key={filter.key}
-              style={[styles.filterChip, activeFilter === filter.key && styles.filterChipActive]}
-              onPress={() => setActiveFilter(filter.key)}
-            >
-              <Text style={[styles.filterText, activeFilter === filter.key && styles.filterTextActive]}>
-                {filter.label}
-              </Text>
-            </TouchableOpacity>
-          ))}
+      <View style={styles.filterContainer}>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterScroll}>
+          {FILTERS.map((filter) => {
+            const isActive = activeFilter === filter.key;
+            return (
+              <TouchableOpacity
+                key={filter.key}
+                style={[styles.filterChip, isActive && styles.filterChipActive]}
+                onPress={() => setActiveFilter(filter.key)}
+              >
+                <Text style={[styles.filterText, isActive && styles.filterTextActive]}>
+                  {filter.label}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
         </ScrollView>
+      </View>
 
-        {message ? (
-          <View style={styles.messageBox}>
-            <Ionicons name="information-circle-outline" size={18} color={Colors.primary} />
-            <Text style={styles.messageText}>{message}</Text>
-          </View>
-        ) : null}
-
-        <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>
-            {activeFilter === 'ALL' ? 'BATCH LIST' : `${FILTERS.find((item) => item.key === activeFilter)?.label.toUpperCase()} BATCHES`}{' '}
-            <Text style={styles.sectionCount}>({filteredBatches.length})</Text>
-          </Text>
-          <TouchableOpacity onPress={() => router.push('/(owner)/manage/batches/create')}>
-            <Ionicons name="add-circle-outline" size={22} color={Colors.primary} />
-          </TouchableOpacity>
-        </View>
-
+      <ScrollView contentContainerStyle={styles.listContainer} showsVerticalScrollIndicator={false}>
         {loading ? (
           <View style={styles.loadingBox}>
-            <ActivityIndicator color={Colors.primary} />
+            <ActivityIndicator color={THEME_GREEN} size="large" />
             <Text style={styles.loadingText}>Loading batches...</Text>
           </View>
         ) : filteredBatches.length === 0 ? (
-          <Text style={styles.emptyText}>No batches found.</Text>
+          <View style={styles.loadingBox}>
+            <Text style={styles.emptyText}>No batches found.</Text>
+          </View>
         ) : (
           filteredBatches.map((batch) => {
-            const expanded = expandedBatchIds.includes(batch.id);
-
+            const badge = getBadgeStyle(batch.status);
+            
             return (
-            <View
-              key={batch.id}
-              style={styles.batchCard}
-            >
               <TouchableOpacity
-                activeOpacity={0.86}
-                onPress={() => toggleExpanded(batch.id)}
+                key={batch.id}
+                style={styles.batchCard}
+                activeOpacity={0.9}
+                onPress={() =>
+                  router.push({
+                    pathname: '/(owner)/manage/batches/[id]',
+                    params: { id: batch.id },
+                  })
+                }
               >
-                <View style={styles.batchCardHeader}>
-                  <View style={styles.batchTitleWrap}>
-                    <Text style={styles.batchNo}>{batch.code}</Text>
-                    <Text style={styles.batchFarm}>Farm: {batch.farmName ?? 'Unknown farm'}</Text>
+                <View style={styles.cardHeader}>
+                  <Text style={styles.batchTitle}>
+                    {batch.code} {batch.farmName ? `(${batch.farmName.split(' ')[1] || 'Shed'})` : ''}
+                  </Text>
+                  <View style={[styles.badge, { backgroundColor: badge.bg }]}>
+                    <Text style={[styles.badgeText, { color: badge.text }]}>{badge.label}</Text>
                   </View>
-                  <View style={styles.statusStack}>
-                    <StatusBadge status={batch.status} />
-                    <Ionicons
-                      name={expanded ? 'chevron-up' : 'chevron-down'}
-                      size={18}
-                      color={Colors.textSecondary}
-                    />
+                </View>
+
+                <View style={styles.infoRow}>
+                  <View style={styles.infoCol}>
+                    <Text style={styles.infoLabel}>Farm</Text>
+                    <Text style={styles.infoValue}>{batch.farmName || 'Unknown Farm'}</Text>
+                  </View>
+                  <View style={styles.infoColRight}>
+                    <Text style={styles.infoLabel}>Age</Text>
+                    <Text style={styles.infoValue}>{batch.summary?.currentAgeDays ?? 0} Days</Text>
+                  </View>
+                </View>
+
+                <View style={styles.infoRow}>
+                  <View style={styles.infoCol}>
+                    <Text style={styles.infoLabel}>Placed On</Text>
+                    <Text style={styles.infoValue}>{formatReadableDate(batch.placementDate)}</Text>
+                  </View>
+                </View>
+
+                <View style={styles.divider} />
+
+                <View style={styles.metricsRow}>
+                  <View style={styles.metricCol}>
+                    <Text style={styles.metricLabel}>Live Birds</Text>
+                    <Text style={styles.metricValue}>
+                      {Number(batch.summary?.liveBirds ?? batch.placementCount).toLocaleString('en-IN')}
+                    </Text>
+                  </View>
+                  <View style={styles.metricColCenter}>
+                    <Text style={styles.metricLabel}>Mortality</Text>
+                    <Text style={styles.metricValue}>{batch.summary?.mortalityPercent ?? 0}%</Text>
+                  </View>
+                  <View style={styles.metricColRight}>
+                    <Text style={styles.metricLabel}>FCR</Text>
+                    <Text style={styles.metricValue}>{batch.summary?.fcr ?? '0'}</Text>
                   </View>
                 </View>
               </TouchableOpacity>
-
-              {expanded ? (
-                <View style={styles.expandedBody}>
-                  <View style={styles.batchDetailsRow}>
-                    <View style={styles.batchDetailItem}>
-                      <Text style={styles.batchDetailLabel}>Placement Date</Text>
-                      <Text style={styles.batchDetailValue}>{formatReadableDate(batch.placementDate)}</Text>
-                    </View>
-                    <View style={styles.batchDetailItem}>
-                      <Text style={styles.batchDetailLabel}>Current Age</Text>
-                      <Text style={styles.batchDetailValue}>{batch.summary?.currentAgeDays ?? 0} Days</Text>
-                    </View>
-                  </View>
-
-                  <View style={styles.batchMetricsRow}>
-                    <MetricMini label="Live Birds" value={(batch.summary?.liveBirds ?? batch.placementCount).toLocaleString('en-IN')} />
-                    <MetricMini label="Mortality" value={`${batch.summary?.mortalityPercent ?? 0}%`} />
-                    <MetricMini label="FCR" value={String(batch.summary?.fcr ?? '0')} />
-                  </View>
-                </View>
-              ) : null}
-
-              <View style={styles.batchActions}>
-                {batch.status !== 'CLOSED' && batch.status !== 'CANCELLED' ? (
-                  <TouchableOpacity
-                    style={[styles.closeButton, closingId === batch.id && styles.disabledButton]}
-                    onPress={() => handleCloseBatch(batch)}
-                    disabled={closingId === batch.id}
-                  >
-                    <Text style={styles.closeButtonText}>Close Batch</Text>
-                  </TouchableOpacity>
-                ) : null}
-                <TouchableOpacity
-                  style={styles.viewHint}
-                  onPress={() =>
-                    router.push({
-                      pathname: '/(owner)/manage/batches/[id]',
-                      params: { id: batch.id },
-                    })
-                  }
-                >
-                  <Text style={styles.viewHintText}>View Details</Text>
-                  <Ionicons name="chevron-forward" size={16} color={Colors.primary} />
-                </TouchableOpacity>
-              </View>
-            </View>
-          );
+            );
           })
         )}
-
-        <TouchableOpacity style={styles.floatingCreateBtn} onPress={() => router.push('/(owner)/manage/batches/create')}>
-          <Ionicons name="add" size={18} color="#FFF" />
-          <Text style={styles.floatingCreateText}>Create New Batch</Text>
-        </TouchableOpacity>
-
-        <View style={{ height: 32 }} />
       </ScrollView>
-    </SafeAreaView>
-  );
-}
 
-function StatusBadge({ status }: { status: ApiBatch['status'] }) {
-  const isSales = status === 'SALES_RUNNING';
-  const isClosed = status === 'CLOSED' || status === 'CANCELLED';
-  const label = status === 'SALES_RUNNING' ? 'Sales Ready' : status.replace(/_/g, ' ');
-  return (
-    <View style={[styles.progressBadge, isSales && styles.progressBadgeSales, isClosed && styles.progressBadgeClosed]}>
-      <Text style={[styles.progressBadgeText, isSales && styles.progressBadgeTextSales, isClosed && styles.progressBadgeTextClosed]}>
-        {label}
-      </Text>
-    </View>
-  );
-}
-
-function MetricMini({ label, value }: { label: string; value: string }) {
-  return (
-    <View style={styles.metricMini}>
-      <Text style={styles.metricMiniLabel}>{label}</Text>
-      <Text style={styles.metricMiniValue}>{value}</Text>
+      {/* Floating Action Button */}
+      <TouchableOpacity
+        style={[styles.fab, { bottom: Math.max(insets.bottom, 20) }]}
+        activeOpacity={0.8}
+        onPress={() => router.push('/(owner)/manage/batches/create' as Href)}
+      >
+        <Feather name="plus" size={28} color="#FFF" />
+      </TouchableOpacity>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  safeArea: {
-    flex: 1,
-    backgroundColor: '#F6F8F7',
-  },
-  headerIconBtn: {
-    width: 38,
-    height: 38,
-    borderRadius: 10,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: 'rgba(255,255,255,0.16)',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.24)',
-  },
   container: {
-    padding: Layout.screenPadding,
-    paddingBottom: 40,
+    flex: 1,
+    backgroundColor: '#F9FAF9',
   },
-  searchRow: {
-    minHeight: 46,
+  header: {
+    backgroundColor: THEME_GREEN,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 9,
-    paddingHorizontal: 12,
-    marginBottom: 12,
-    borderRadius: 8,
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingBottom: 16,
+  },
+  headerLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  headerTitle: {
+    fontSize: 20,
+    color: '#FFF',
+    fontWeight: '600',
+    marginLeft: 16,
+  },
+  headerRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  iconBtn: {
+    marginLeft: 16,
+  },
+  filterContainer: {
     backgroundColor: '#FFF',
-    borderWidth: 1,
-    borderColor: Colors.border,
+    borderBottomWidth: 1,
+    borderBottomColor: '#EFEFEF',
   },
-  searchInput: {
-    flex: 1,
-    color: Colors.text,
-    fontSize: 14,
-    paddingVertical: 0,
-  },
-  filterRow: {
+  filterScroll: {
+    paddingHorizontal: 16,
+    paddingVertical: 12,
     gap: 8,
-    paddingBottom: 14,
   },
   filterChip: {
-    minHeight: 34,
-    borderRadius: 8,
-    paddingHorizontal: 14,
-    alignItems: 'center',
-    justifyContent: 'center',
     backgroundColor: '#FFF',
     borderWidth: 1,
-    borderColor: Colors.border,
+    borderColor: '#EFEFEF',
+    borderRadius: 8,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    marginRight: 8,
   },
   filterChipActive: {
-    backgroundColor: Colors.primary,
-    borderColor: Colors.primary,
+    backgroundColor: THEME_GREEN,
+    borderColor: THEME_GREEN,
   },
   filterText: {
+    fontSize: 13,
+    fontWeight: '600',
     color: Colors.textSecondary,
-    fontWeight: '800',
-    fontSize: 12,
   },
   filterTextActive: {
     color: '#FFF',
   },
-  pageTitle: {
-    fontSize: 20,
-    fontWeight: '800',
-    color: Colors.text,
-    marginBottom: 4,
-  },
-  pageSubtitle: {
-    fontSize: 13,
-    color: Colors.textSecondary,
-    marginBottom: 20,
-    lineHeight: 18,
-  },
-  createCard: {
-    backgroundColor: Colors.surface,
-    borderRadius: 14,
+  listContainer: {
     padding: 16,
-    marginBottom: 24,
-    borderWidth: 1,
-    borderColor: Colors.border,
-    ...Layout.cardShadow,
-  },
-  createButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
-  createIconCircle: {},
-  createCopy: {
-    flex: 1,
-  },
-  createTitle: {
-    fontSize: 15,
-    fontWeight: '800',
-    color: Colors.text,
-  },
-  createSub: {
-    marginTop: 3,
-    fontSize: 12,
-    color: Colors.textSecondary,
-  },
-  messageBox: {
-    flexDirection: 'row',
-    gap: 8,
-    alignItems: 'center',
-    backgroundColor: '#E8F5E9',
-    borderWidth: 1,
-    borderColor: '#C8E6C9',
-    borderRadius: 10,
-    padding: 12,
-    marginBottom: 14,
-  },
-  messageText: {
-    flex: 1,
-    fontSize: 12,
-    color: Colors.primary,
-    fontWeight: '700',
-  },
-  sectionHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 12,
-  },
-  sectionTitle: {
-    fontSize: 13,
-    fontWeight: '800',
-    color: Colors.primary,
-    letterSpacing: 0.5,
-  },
-  sectionCount: {
-    color: Colors.primary,
-  },
-  loadingBox: {
-    minHeight: 96,
-    justifyContent: 'center',
-    alignItems: 'center',
-    gap: 8,
-  },
-  loadingText: {
-    fontSize: 12,
-    color: Colors.textSecondary,
-  },
-  emptyText: {
-    fontSize: 13,
-    color: Colors.textSecondary,
-    marginBottom: 12,
+    paddingBottom: 100,
   },
   batchCard: {
-    backgroundColor: Colors.surface,
-    borderRadius: 8,
-    padding: 16,
-    marginBottom: 14,
+    backgroundColor: '#FFF',
+    borderRadius: 12,
     borderWidth: 1,
-    borderColor: Colors.border,
+    borderColor: '#EFEFEF',
+    padding: 16,
+    marginBottom: 16,
+    elevation: 1,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
   },
-  batchCardHeader: {
+  cardHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 8,
+    marginBottom: 16,
   },
-  batchTitleWrap: {
-    flex: 1,
-    paddingRight: 10,
-  },
-  statusStack: {
-    alignItems: 'flex-end',
-    gap: 6,
-  },
-  expandedBody: {
-    marginTop: 2,
-  },
-  progressBadge: {
-    backgroundColor: '#E8F5E9',
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 4,
-    borderWidth: 1,
-    borderColor: '#CBE6D5',
-  },
-  progressBadgeSales: {
-    backgroundColor: '#FFF7ED',
-    borderColor: '#FED7AA',
-  },
-  progressBadgeClosed: {
-    backgroundColor: '#F3F4F6',
-    borderColor: Colors.border,
-  },
-  progressBadgeText: {
-    fontSize: 12,
-    fontWeight: '800',
-    color: Colors.primary,
-  },
-  progressBadgeTextSales: {
-    color: '#C2410C',
-  },
-  progressBadgeTextClosed: {
-    color: Colors.textSecondary,
-  },
-  chickenIconBox: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: '#E8F5E9',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  batchNo: {
-    fontSize: 15,
-    fontWeight: '800',
+  batchTitle: {
+    fontSize: 16,
+    fontWeight: '700',
     color: Colors.text,
-    marginBottom: 4,
   },
-  batchFarm: {
+  badge: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 6,
+  },
+  badgeText: {
     fontSize: 12,
-    color: Colors.textSecondary,
-    marginBottom: 12,
+    fontWeight: '700',
   },
-  batchDetailsRow: {
+  infoRow: {
     flexDirection: 'row',
+    justifyContent: 'space-between',
     marginBottom: 12,
   },
-  batchDetailItem: {
+  infoCol: {
     flex: 1,
   },
-  batchDetailLabel: {
+  infoColRight: {
+    alignItems: 'flex-end',
+  },
+  infoLabel: {
     fontSize: 11,
     color: Colors.textSecondary,
-    marginBottom: 2,
+    marginBottom: 4,
   },
-  batchDetailValue: {
-    fontSize: 13,
-    fontWeight: '700',
+  infoValue: {
+    fontSize: 14,
+    fontWeight: '600',
     color: Colors.text,
   },
-  batchActions: {
+  divider: {
+    height: 1,
+    backgroundColor: '#F0F0F0',
+    marginVertical: 12,
+  },
+  metricsRow: {
     flexDirection: 'row',
-    gap: 10,
-    alignItems: 'center',
     justifyContent: 'space-between',
   },
-  closeButton: {
-    minHeight: 34,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: Colors.primary,
-    paddingHorizontal: 13,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: '#FFF',
-  },
-  closeButtonText: {
-    fontSize: 13,
-    fontWeight: '800',
-    color: Colors.primary,
-  },
-  viewButton: {
+  metricCol: {
     flex: 1,
-    height: 40,
-    borderRadius: 8,
-    backgroundColor: Colors.primary,
-    justifyContent: 'center',
+  },
+  metricColCenter: {
+    flex: 1,
     alignItems: 'center',
   },
-  viewButtonText: {
-    fontSize: 13,
-    fontWeight: '800',
-    color: '#FFF',
-  },
-  disabledButton: {
-    opacity: 0.6,
-  },
-  batchMetricsRow: {
-    flexDirection: 'row',
-    borderTopWidth: 1,
-    borderBottomWidth: 1,
-    borderColor: '#EDF1EF',
-    marginBottom: 12,
-  },
-  metricMini: {
+  metricColRight: {
     flex: 1,
-    paddingVertical: 10,
-    paddingHorizontal: 6,
-    borderRightWidth: 1,
-    borderRightColor: '#EDF1EF',
+    alignItems: 'flex-end',
   },
-  metricMiniLabel: {
-    fontSize: 10,
+  metricLabel: {
+    fontSize: 11,
     color: Colors.textSecondary,
-    fontWeight: '700',
+    marginBottom: 4,
   },
-  metricMiniValue: {
-    marginTop: 3,
-    fontSize: 13,
-    color: Colors.text,
-    fontWeight: '900',
-  },
-  viewHint: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 3,
-    marginLeft: 'auto',
-  },
-  viewHintText: {
-    color: Colors.primary,
-    fontWeight: '800',
-    fontSize: 12,
-  },
-  floatingCreateBtn: {
-    minHeight: 48,
-    borderRadius: 8,
-    backgroundColor: Colors.primary,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    marginTop: 6,
-  },
-  floatingCreateText: {
-    color: '#FFF',
+  metricValue: {
     fontSize: 14,
-    fontWeight: '900',
-  },
-  closedSectionTitle: {
-    fontSize: 13,
-    fontWeight: '800',
-    color: Colors.textSecondary,
-    letterSpacing: 0.5,
-    marginBottom: 10,
-    marginTop: 8,
-  },
-  closedBatchRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: Colors.surface,
-    borderRadius: 12,
-    padding: 14,
-    marginBottom: 10,
-    borderWidth: 1,
-    borderColor: Colors.border,
-    ...Layout.cardShadow,
-  },
-  lockBox: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: '#F3F4F6',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 12,
-  },
-  closedBatchInfo: {
-    flex: 1,
-  },
-  closedBatchNo: {
-    fontSize: 14,
-    fontWeight: '700',
+    fontWeight: 'bold',
     color: Colors.text,
   },
-  closedBatchDate: {
-    fontSize: 12,
+  fab: {
+    position: 'absolute',
+    right: 20,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: THEME_GREEN,
+    justifyContent: 'center',
+    alignItems: 'center',
+    elevation: 6,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4.65,
+  },
+  loadingBox: {
+    paddingTop: 40,
+    alignItems: 'center',
+  },
+  loadingText: {
+    marginTop: 12,
     color: Colors.textSecondary,
-    marginTop: 2,
+    fontSize: 14,
+  },
+  emptyText: {
+    color: Colors.textSecondary,
+    fontSize: 14,
   },
 });
