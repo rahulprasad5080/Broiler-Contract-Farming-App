@@ -123,6 +123,13 @@ export default function OwnerDashboard() {
       requiredPermission: "manage:inventory",
     },
     {
+      label: "Financials",
+      icon: "chart-line",
+      provider: FontAwesome5,
+      route: "/(owner)/manage/financials/index",
+      requiredPermission: "view:financial-dashboard",
+    },
+    {
       label: "Partners",
       icon: "handshake",
       provider: FontAwesome5,
@@ -155,6 +162,13 @@ export default function OwnerDashboard() {
       icon: "file-invoice-dollar",
       provider: FontAwesome5,
       route: "/(owner)/manage/settlement",
+      requiredPermission: "manage:settlements",
+    },
+    {
+      label: "Payment",
+      icon: "wallet",
+      provider: FontAwesome5,
+      route: "/(owner)/manage/payments/index",
       requiredPermission: "manage:settlements",
     },
     {

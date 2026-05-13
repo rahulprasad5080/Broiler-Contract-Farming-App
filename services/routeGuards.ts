@@ -17,8 +17,9 @@ const OWNER_MANAGE_INDEX_PERMISSIONS = [
   "manage:batches",
   "manage:inventory",
   "create:expenses",
-  "create:sales",
+  "view:financial-dashboard",
   "manage:settlements",
+  "create:sales",
   "manage:users",
 ];
 
@@ -27,6 +28,8 @@ const OWNER_MANAGE_ROUTE_PERMISSIONS: Record<string, string> = {
   farms: "manage:farms",
   batches: "manage:batches",
   inventory: "manage:inventory",
+  financials: "view:financial-dashboard",
+  payments: "manage:settlements",
   expenses: "create:expenses",
   "daily-entry": "create:daily-entry",
   sales: "create:sales",

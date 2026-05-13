@@ -246,13 +246,13 @@ export default function SettlementScreen() {
     <SafeAreaView style={styles.safeArea}>
       <View style={styles.header}>
         <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-          <Ionicons name="arrow-back" size={24} color={Colors.primary} />
+          <Ionicons name="arrow-back" size={24} color="#FFF" />
         </TouchableOpacity>
         <View style={styles.headerCopy}>
-          <Text style={styles.headerTitle}>Settlement</Text>
+          <Text style={styles.headerTitle}>Farmer Settlement</Text>
           <Text style={styles.headerSub}>{user?.role ?? 'User'} payout entry</Text>
         </View>
-        {loading || loadingSettlement ? <ActivityIndicator color={Colors.primary} /> : null}
+        {loading || loadingSettlement ? <ActivityIndicator color="#FFF" /> : null}
       </View>
 
       <ScrollView
@@ -531,21 +531,19 @@ function Metric({ label, value }: { label: string; value: string }) {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: Colors.background,
+    backgroundColor: '#F6F8F7',
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: Colors.surface,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.border,
+    backgroundColor: Colors.primary,
     paddingHorizontal: Layout.screenPadding,
-    paddingVertical: 14,
+    paddingVertical: 15,
   },
   backBtn: { marginRight: 14 },
   headerCopy: { flex: 1 },
-  headerTitle: { fontSize: 18, fontWeight: '800', color: Colors.text },
-  headerSub: { marginTop: 2, fontSize: 12, color: Colors.textSecondary },
+  headerTitle: { fontSize: 19, fontWeight: '900', color: '#FFF' },
+  headerSub: { marginTop: 2, fontSize: 12, color: 'rgba(255,255,255,0.82)', fontWeight: '700' },
   scroll: {
     padding: Layout.screenPadding,
     paddingBottom: 110,
@@ -608,7 +606,6 @@ const styles = StyleSheet.create({
     borderColor: Colors.border,
     padding: 16,
     marginBottom: 14,
-    ...Layout.cardShadow,
   },
   sectionTitle: { fontSize: 16, fontWeight: '800', color: Colors.text, marginBottom: 12 },
   horizontalChips: {

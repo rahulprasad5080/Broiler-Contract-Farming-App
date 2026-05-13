@@ -39,6 +39,20 @@ const menuItemsByPermission: PermissionMenuItem[] = [
     requiredPermission: "manage:inventory",
   },
   {
+    title: "Financials",
+    desc: "Overview, payments and recent transactions",
+    icon: "wallet-outline",
+    route: "/(owner)/manage/financials/index",
+    requiredPermission: "view:financial-dashboard",
+  },
+  {
+    title: "Payment Entry",
+    desc: "Track payments made and received",
+    icon: "card-outline",
+    route: "/(owner)/manage/payments/index",
+    requiredPermission: "manage:settlements",
+  },
+  {
     title: "Expense Entry",
     desc: "Separate company and farmer batch expenses",
     icon: "receipt-outline",
