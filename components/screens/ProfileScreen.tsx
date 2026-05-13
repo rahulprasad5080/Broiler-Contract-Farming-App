@@ -558,7 +558,7 @@ export default function ProfileScreen() {
                   sub: 'Rates, charges, and settlement defaults',
                   chevron: true,
                 }}
-                onPress={() => openComingSoon('Financial Configurations')}
+                onPress={() => router.push('/(owner)/manage/api')}
               />
               <View style={styles.menuDivider} />
               <MenuRow
@@ -569,7 +569,7 @@ export default function ProfileScreen() {
                   sub: 'Feed, medicine, labor, and farm costs',
                   chevron: true,
                 }}
-                onPress={() => openComingSoon('Expense Categories')}
+                onPress={() => router.push('/(owner)/manage/api')}
               />
               <View style={styles.menuDivider} />
               <MenuRow

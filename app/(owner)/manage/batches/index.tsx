@@ -202,7 +202,12 @@ export default function BatchManagementScreen() {
                 </TouchableOpacity>
                 <TouchableOpacity
                   style={styles.viewButton}
-                  onPress={() => router.push('/(owner)/manage/batches/performance')}
+                  onPress={() =>
+                    router.push({
+                      pathname: '/(owner)/manage/batches/[id]',
+                      params: { id: batch.id },
+                    })
+                  }
                 >
                   <Text style={styles.viewButtonText}>View Details</Text>
                 </TouchableOpacity>
@@ -216,7 +221,16 @@ export default function BatchManagementScreen() {
           <Text style={styles.emptyText}>No closed batches yet.</Text>
         ) : (
           closedBatches.map((batch) => (
-            <TouchableOpacity key={batch.id} style={styles.closedBatchRow}>
+            <TouchableOpacity
+              key={batch.id}
+              style={styles.closedBatchRow}
+              onPress={() =>
+                router.push({
+                  pathname: '/(owner)/manage/batches/[id]',
+                  params: { id: batch.id },
+                })
+              }
+            >
               <View style={styles.lockBox}>
                 <Ionicons name="lock-closed" size={16} color={Colors.textSecondary} />
               </View>
