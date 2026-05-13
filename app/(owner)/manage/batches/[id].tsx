@@ -136,14 +136,14 @@ export default function BatchDetailsScreen() {
     <SafeAreaView style={styles.safeArea}>
       <View style={styles.header}>
         <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-          <Ionicons name="arrow-back" size={24} color={Colors.text} />
+          <Ionicons name="arrow-back" size={24} color="#FFF" />
         </TouchableOpacity>
         <View style={styles.headerCopy}>
-          <Text style={styles.headerTitle}>{batch ? `Batch #${batch.code}` : 'Batch Details'}</Text>
+          <Text style={styles.headerTitle}>Batch Details</Text>
           <Text style={styles.headerSub}>{batch?.farmName ?? 'Overview, entries, expenses, sales, settlement and P&L'}</Text>
         </View>
         <TouchableOpacity onPress={() => void loadBatchDetails()} style={styles.refreshButton}>
-          <Ionicons name="refresh-outline" size={21} color={Colors.primary} />
+          <Ionicons name="refresh-outline" size={21} color="#FFF" />
         </TouchableOpacity>
       </View>
 
@@ -155,6 +155,23 @@ export default function BatchDetailsScreen() {
       ) : (
         <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
           {message ? <Text style={styles.messageText}>{message}</Text> : null}
+
+          <View style={styles.heroCard}>
+            <View style={styles.heroTop}>
+              <View style={styles.heroTitleBlock}>
+                <Text style={styles.heroTitle}>{batch?.code ?? 'Batch'}</Text>
+                <Text style={styles.heroFarm}>{batch?.farmName ?? 'Farm not linked'}</Text>
+              </View>
+              <View style={styles.statusBadge}>
+                <Text style={styles.statusBadgeText}>{labelize(batch?.status)}</Text>
+              </View>
+            </View>
+            <View style={styles.heroMetaRow}>
+              <Text style={styles.heroMeta}>Placed On: {formatDate(batch?.placementDate)}</Text>
+              <View style={styles.heroDivider} />
+              <Text style={styles.heroMeta}>Age: {formatNumber(summary?.currentAgeDays, ' Days')}</Text>
+            </View>
+          </View>
 
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.tabRow}>
             {TABS.map((tab) => (
@@ -313,21 +330,28 @@ function ExpenseSection({ title, total, rows }: { title: string; total: number; 
 }
 
 const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: Colors.background },
+  safeArea: { flex: 1, backgroundColor: '#F6F8F7' },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: Layout.screenPadding,
-    paddingVertical: 14,
-    backgroundColor: Colors.surface,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.border,
+    paddingVertical: 15,
+    backgroundColor: Colors.primary,
   },
   backButton: { marginRight: 12 },
   headerCopy: { flex: 1 },
-  headerTitle: { fontSize: 18, fontWeight: '800', color: Colors.text },
-  headerSub: { marginTop: 2, fontSize: 12, color: Colors.textSecondary },
-  refreshButton: { padding: 6 },
+  headerTitle: { fontSize: 19, fontWeight: '900', color: '#FFF' },
+  headerSub: { marginTop: 2, fontSize: 12, color: 'rgba(255,255,255,0.82)', fontWeight: '700' },
+  refreshButton: {
+    width: 38,
+    height: 38,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(255,255,255,0.16)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.24)',
+  },
   centerBox: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 10 },
   loadingText: { color: Colors.textSecondary },
   container: {
@@ -343,6 +367,44 @@ const styles = StyleSheet.create({
     padding: 12,
     marginBottom: 12,
   },
+  heroCard: {
+    backgroundColor: '#FFF',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    padding: 14,
+    marginBottom: 12,
+  },
+  heroTop: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+    gap: 12,
+  },
+  heroTitleBlock: { flex: 1 },
+  heroTitle: { color: Colors.text, fontSize: 20, fontWeight: '900' },
+  heroFarm: { color: Colors.textSecondary, fontSize: 13, fontWeight: '700', marginTop: 3 },
+  statusBadge: {
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 5,
+    backgroundColor: '#E8F5E9',
+    borderWidth: 1,
+    borderColor: '#CBE6D5',
+  },
+  statusBadgeText: {
+    color: Colors.primary,
+    fontSize: 12,
+    fontWeight: '900',
+  },
+  heroMetaRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    marginTop: 12,
+  },
+  heroMeta: { color: Colors.text, fontSize: 12, fontWeight: '700' },
+  heroDivider: { width: 1, height: 14, backgroundColor: Colors.border },
   tabRow: { gap: 8, paddingBottom: 12 },
   tabChip: {
     paddingHorizontal: 14,

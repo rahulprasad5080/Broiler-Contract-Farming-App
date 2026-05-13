@@ -150,7 +150,7 @@ function InputField({
 
 export default function CreateBatchScreen() {
   const router = useRouter();
-  const { accessToken, user } = useAuth();
+  const { accessToken } = useAuth();
   const [farms, setFarms] = useState<ApiFarm[]>([]);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
@@ -314,11 +314,11 @@ export default function CreateBatchScreen() {
     <SafeAreaView style={styles.safeArea}>
       <View style={styles.header}>
         <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-          <Ionicons name="arrow-back" size={24} color={Colors.text} />
+          <Ionicons name="arrow-back" size={24} color="#FFF" />
         </TouchableOpacity>
         <View style={styles.headerCopy}>
-          <Text style={styles.headerTitle}>Create Batch</Text>
-          <Text style={styles.headerSub}>{user?.role ?? 'User'}</Text>
+          <Text style={styles.headerTitle}>Create New Batch</Text>
+          <Text style={styles.headerSub}>Placement, chicks and schedule</Text>
         </View>
       </View>
 
@@ -687,7 +687,7 @@ export default function CreateBatchScreen() {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: Colors.background,
+    backgroundColor: '#F6F8F7',
   },
   draftBanner: {
     flexDirection: 'row',
@@ -710,10 +710,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: Layout.screenPadding,
-    paddingVertical: 14,
-    backgroundColor: Colors.surface,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.border,
+    paddingVertical: 15,
+    backgroundColor: Colors.primary,
   },
   backButton: {
     marginRight: 14,
@@ -722,14 +720,15 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   headerTitle: {
-    fontSize: 18,
-    fontWeight: '800',
-    color: Colors.text,
+    fontSize: 19,
+    fontWeight: '900',
+    color: '#FFF',
   },
   headerSub: {
     marginTop: 2,
     fontSize: 12,
-    color: Colors.textSecondary,
+    color: 'rgba(255,255,255,0.82)',
+    fontWeight: '700',
   },
   container: {
     width: '100%',
@@ -741,12 +740,11 @@ const styles = StyleSheet.create({
   },
   card: {
     backgroundColor: Colors.surface,
-    borderRadius: 10,
+    borderRadius: 8,
     padding: 16,
     marginBottom: 14,
     borderWidth: 1,
     borderColor: Colors.border,
-    ...Layout.cardShadow,
   },
   sectionHeader: {
     flexDirection: 'row',
@@ -798,7 +796,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
-    borderRadius: 10,
+    borderRadius: 8,
     borderWidth: 1,
     borderColor: Colors.border,
     backgroundColor: '#F9FAFB',
@@ -870,7 +868,7 @@ const styles = StyleSheet.create({
     gap: 8,
     borderWidth: 1,
     borderColor: Colors.border,
-    borderRadius: 10,
+    borderRadius: 8,
     paddingHorizontal: 12,
     backgroundColor: '#F9FAFB',
   },

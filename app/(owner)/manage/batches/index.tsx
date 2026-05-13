@@ -11,7 +11,7 @@ import {
   listAllBatches,
   updateBatchStatus,
 } from '@/services/managementApi';
-import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import { useRouter } from 'expo-router';
 import React, { useCallback, useMemo, useState } from 'react';
@@ -21,10 +21,21 @@ import {
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   TouchableOpacity,
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+
+type FilterKey = 'ALL' | 'ACTIVE' | 'SALES_RUNNING' | 'SETTLEMENT_PENDING' | 'CLOSED';
+
+const FILTERS: { key: FilterKey; label: string }[] = [
+  { key: 'ALL', label: 'All' },
+  { key: 'ACTIVE', label: 'Active' },
+  { key: 'SALES_RUNNING', label: 'Sales Ready' },
+  { key: 'SETTLEMENT_PENDING', label: 'Settled' },
+  { key: 'CLOSED', label: 'Closed' },
+];
 
 function formatReadableDate(value?: string | null) {
   if (!value) return 'Not set';
@@ -48,6 +59,8 @@ export default function BatchManagementScreen() {
   const router = useRouter();
   const { accessToken } = useAuth();
   const [batches, setBatches] = useState<ApiBatch[]>([]);
+  const [activeFilter, setActiveFilter] = useState<FilterKey>('ALL');
+  const [searchText, setSearchText] = useState('');
   const [loading, setLoading] = useState(true);
   const [closingId, setClosingId] = useState('');
   const [message, setMessage] = useState<string | null>(null);
@@ -73,17 +86,23 @@ export default function BatchManagementScreen() {
     }, [loadBatches]),
   );
 
-  const activeBatches = useMemo(
-    () =>
-      batches.filter(
-        (batch) => batch.status !== 'CLOSED' && batch.status !== 'CANCELLED',
-      ),
-    [batches],
-  );
-  const closedBatches = useMemo(
-    () => batches.filter((batch) => batch.status === 'CLOSED' || batch.status === 'CANCELLED'),
-    [batches],
-  );
+  const filteredBatches = useMemo(() => {
+    const query = searchText.trim().toLowerCase();
+    return batches.filter((batch) => {
+      const matchesStatus =
+        activeFilter === 'ALL'
+          ? batch.status !== 'CANCELLED'
+          : activeFilter === 'CLOSED'
+            ? batch.status === 'CLOSED' || batch.status === 'CANCELLED'
+            : batch.status === activeFilter;
+      const matchesSearch =
+        !query ||
+        batch.code.toLowerCase().includes(query) ||
+        (batch.farmName ?? '').toLowerCase().includes(query);
+
+      return matchesStatus && matchesSearch;
+    });
+  }, [activeFilter, batches, searchText]);
 
   const handleCloseBatch = (batch: ApiBatch) => {
     if (!accessToken) return;
@@ -124,24 +143,43 @@ export default function BatchManagementScreen() {
     <SafeAreaView style={styles.safeArea}>
       <View style={styles.header}>
         <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-          <Ionicons name="arrow-back" size={24} color={Colors.text} />
+          <Ionicons name="arrow-back" size={24} color="#FFF" />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Batch Management</Text>
+        <View style={styles.headerCopy}>
+          <Text style={styles.headerTitle}>Batches</Text>
+          <Text style={styles.headerSub}>Placement, status and batch health</Text>
+        </View>
+        <TouchableOpacity onPress={() => void loadBatches()} style={styles.headerIconBtn}>
+          <Ionicons name="refresh-outline" size={20} color="#FFF" />
+        </TouchableOpacity>
       </View>
 
       <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
-        <View style={styles.createCard}>
-          <TouchableOpacity style={styles.createButton} onPress={() => router.push('/(owner)/manage/batches/create')}>
-            <View style={styles.createIconCircle}>
-              <Ionicons name="add-circle" size={22} color={Colors.primary} />
-            </View>
-            <View style={styles.createCopy}>
-              <Text style={styles.createTitle}>Create New Batch</Text>
-              <Text style={styles.createSub}>Only farms without an active batch appear in the form.</Text>
-            </View>
-            <Ionicons name="chevron-forward" size={20} color={Colors.textSecondary} />
-          </TouchableOpacity>
+        <View style={styles.searchRow}>
+          <Ionicons name="search-outline" size={18} color={Colors.textSecondary} />
+          <TextInput
+            style={styles.searchInput}
+            value={searchText}
+            onChangeText={setSearchText}
+            placeholder="Search batch or farm..."
+            placeholderTextColor={Colors.textSecondary}
+            autoCapitalize="none"
+          />
         </View>
+
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterRow}>
+          {FILTERS.map((filter) => (
+            <TouchableOpacity
+              key={filter.key}
+              style={[styles.filterChip, activeFilter === filter.key && styles.filterChipActive]}
+              onPress={() => setActiveFilter(filter.key)}
+            >
+              <Text style={[styles.filterText, activeFilter === filter.key && styles.filterTextActive]}>
+                {filter.label}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </ScrollView>
 
         {message ? (
           <View style={styles.messageBox}>
@@ -152,10 +190,11 @@ export default function BatchManagementScreen() {
 
         <View style={styles.sectionHeader}>
           <Text style={styles.sectionTitle}>
-            ACTIVE BATCHES <Text style={styles.sectionCount}>({activeBatches.length})</Text>
+            {activeFilter === 'ALL' ? 'BATCH LIST' : `${FILTERS.find((item) => item.key === activeFilter)?.label.toUpperCase()} BATCHES`}{' '}
+            <Text style={styles.sectionCount}>({filteredBatches.length})</Text>
           </Text>
-          <TouchableOpacity onPress={() => void loadBatches()}>
-            <Ionicons name="refresh-outline" size={20} color={Colors.primary} />
+          <TouchableOpacity onPress={() => router.push('/(owner)/manage/batches/create')}>
+            <Ionicons name="add-circle-outline" size={22} color={Colors.primary} />
           </TouchableOpacity>
         </View>
 
@@ -164,66 +203,14 @@ export default function BatchManagementScreen() {
             <ActivityIndicator color={Colors.primary} />
             <Text style={styles.loadingText}>Loading batches...</Text>
           </View>
-        ) : activeBatches.length === 0 ? (
-          <Text style={styles.emptyText}>No active batches found.</Text>
+        ) : filteredBatches.length === 0 ? (
+          <Text style={styles.emptyText}>No batches found.</Text>
         ) : (
-          activeBatches.map((batch) => (
-            <View key={batch.id} style={styles.batchCard}>
-              <View style={styles.batchCardHeader}>
-                <View style={styles.progressBadge}>
-                  <Text style={styles.progressBadgeText}>{batch.status.replace('_', ' ')}</Text>
-                </View>
-                <View style={styles.chickenIconBox}>
-                  <MaterialCommunityIcons name="layers-outline" size={22} color={Colors.primary} />
-                </View>
-              </View>
-
-              <Text style={styles.batchNo}>Batch #{batch.code}</Text>
-              <Text style={styles.batchFarm}>{batch.farmName ?? 'Unknown farm'}</Text>
-
-              <View style={styles.batchDetailsRow}>
-                <View style={styles.batchDetailItem}>
-                  <Text style={styles.batchDetailLabel}>Placement</Text>
-                  <Text style={styles.batchDetailValue}>{formatReadableDate(batch.placementDate)}</Text>
-                </View>
-                <View style={styles.batchDetailItem}>
-                  <Text style={styles.batchDetailLabel}>Current Pop.</Text>
-                  <Text style={styles.batchDetailValue}>{batch.placementCount.toLocaleString()} Chicks</Text>
-                </View>
-              </View>
-
-              <View style={styles.batchActions}>
-                <TouchableOpacity
-                  style={[styles.closeButton, closingId === batch.id && styles.disabledButton]}
-                  onPress={() => handleCloseBatch(batch)}
-                  disabled={closingId === batch.id}
-                >
-                  <Text style={styles.closeButtonText}>Close Batch</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={styles.viewButton}
-                  onPress={() =>
-                    router.push({
-                      pathname: '/(owner)/manage/batches/[id]',
-                      params: { id: batch.id },
-                    })
-                  }
-                >
-                  <Text style={styles.viewButtonText}>View Details</Text>
-                </TouchableOpacity>
-              </View>
-            </View>
-          ))
-        )}
-
-        <Text style={styles.closedSectionTitle}>CLOSED BATCHES</Text>
-        {closedBatches.length === 0 ? (
-          <Text style={styles.emptyText}>No closed batches yet.</Text>
-        ) : (
-          closedBatches.map((batch) => (
+          filteredBatches.map((batch) => (
             <TouchableOpacity
               key={batch.id}
-              style={styles.closedBatchRow}
+              style={styles.batchCard}
+              activeOpacity={0.86}
               onPress={() =>
                 router.push({
                   pathname: '/(owner)/manage/batches/[id]',
@@ -231,19 +218,53 @@ export default function BatchManagementScreen() {
                 })
               }
             >
-              <View style={styles.lockBox}>
-                <Ionicons name="lock-closed" size={16} color={Colors.textSecondary} />
+              <View style={styles.batchCardHeader}>
+                <Text style={styles.batchNo}>{batch.code}</Text>
+                <StatusBadge status={batch.status} />
               </View>
-              <View style={styles.closedBatchInfo}>
-                <Text style={styles.closedBatchNo}>Batch #{batch.code}</Text>
-                <Text style={styles.closedBatchDate}>
-                  Closed: {formatReadableDate(batch.actualCloseDate ?? batch.updatedAt)}
-                </Text>
+
+              <Text style={styles.batchFarm}>Farm: {batch.farmName ?? 'Unknown farm'}</Text>
+
+              <View style={styles.batchDetailsRow}>
+                <View style={styles.batchDetailItem}>
+                  <Text style={styles.batchDetailLabel}>Placed On</Text>
+                  <Text style={styles.batchDetailValue}>{formatReadableDate(batch.placementDate)}</Text>
+                </View>
+                <View style={styles.batchDetailItem}>
+                  <Text style={styles.batchDetailLabel}>Age</Text>
+                  <Text style={styles.batchDetailValue}>{batch.summary?.currentAgeDays ?? 0} Days</Text>
+                </View>
               </View>
-              <Ionicons name="chevron-forward" size={20} color={Colors.textSecondary} />
+
+              <View style={styles.batchMetricsRow}>
+                <MetricMini label="Live Birds" value={(batch.summary?.liveBirds ?? batch.placementCount).toLocaleString('en-IN')} />
+                <MetricMini label="Mortality" value={`${batch.summary?.mortalityPercent ?? 0}%`} />
+                <MetricMini label="FCR" value={String(batch.summary?.fcr ?? '0')} />
+              </View>
+
+              <View style={styles.batchActions}>
+                {batch.status !== 'CLOSED' && batch.status !== 'CANCELLED' ? (
+                  <TouchableOpacity
+                    style={[styles.closeButton, closingId === batch.id && styles.disabledButton]}
+                    onPress={() => handleCloseBatch(batch)}
+                    disabled={closingId === batch.id}
+                  >
+                    <Text style={styles.closeButtonText}>Close Batch</Text>
+                  </TouchableOpacity>
+                ) : null}
+                <View style={styles.viewHint}>
+                  <Text style={styles.viewHintText}>View Details</Text>
+                  <Ionicons name="chevron-forward" size={16} color={Colors.primary} />
+                </View>
+              </View>
             </TouchableOpacity>
           ))
         )}
+
+        <TouchableOpacity style={styles.floatingCreateBtn} onPress={() => router.push('/(owner)/manage/batches/create')}>
+          <Ionicons name="add" size={18} color="#FFF" />
+          <Text style={styles.floatingCreateText}>Create New Batch</Text>
+        </TouchableOpacity>
 
         <View style={{ height: 32 }} />
       </ScrollView>
@@ -251,31 +272,114 @@ export default function BatchManagementScreen() {
   );
 }
 
+function StatusBadge({ status }: { status: ApiBatch['status'] }) {
+  const isSales = status === 'SALES_RUNNING';
+  const isClosed = status === 'CLOSED' || status === 'CANCELLED';
+  const label = status === 'SALES_RUNNING' ? 'Sales Ready' : status.replace(/_/g, ' ');
+  return (
+    <View style={[styles.progressBadge, isSales && styles.progressBadgeSales, isClosed && styles.progressBadgeClosed]}>
+      <Text style={[styles.progressBadgeText, isSales && styles.progressBadgeTextSales, isClosed && styles.progressBadgeTextClosed]}>
+        {label}
+      </Text>
+    </View>
+  );
+}
+
+function MetricMini({ label, value }: { label: string; value: string }) {
+  return (
+    <View style={styles.metricMini}>
+      <Text style={styles.metricMiniLabel}>{label}</Text>
+      <Text style={styles.metricMiniValue}>{value}</Text>
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: Colors.background,
+    backgroundColor: '#F6F8F7',
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: Layout.screenPadding,
-    paddingVertical: 14,
-    backgroundColor: Colors.surface,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.border,
+    paddingVertical: 15,
+    backgroundColor: Colors.primary,
   },
   backButton: {
     marginRight: 14,
   },
+  headerCopy: {
+    flex: 1,
+  },
   headerTitle: {
-    fontSize: 18,
-    fontWeight: '800',
-    color: Colors.text,
+    fontSize: 19,
+    fontWeight: '900',
+    color: '#FFF',
+  },
+  headerSub: {
+    marginTop: 2,
+    fontSize: 12,
+    color: 'rgba(255,255,255,0.82)',
+    fontWeight: '700',
+  },
+  headerIconBtn: {
+    width: 38,
+    height: 38,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(255,255,255,0.16)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.24)',
   },
   container: {
     padding: Layout.screenPadding,
     paddingBottom: 40,
+  },
+  searchRow: {
+    minHeight: 46,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 9,
+    paddingHorizontal: 12,
+    marginBottom: 12,
+    borderRadius: 8,
+    backgroundColor: '#FFF',
+    borderWidth: 1,
+    borderColor: Colors.border,
+  },
+  searchInput: {
+    flex: 1,
+    color: Colors.text,
+    fontSize: 14,
+    paddingVertical: 0,
+  },
+  filterRow: {
+    gap: 8,
+    paddingBottom: 14,
+  },
+  filterChip: {
+    minHeight: 34,
+    borderRadius: 8,
+    paddingHorizontal: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#FFF',
+    borderWidth: 1,
+    borderColor: Colors.border,
+  },
+  filterChipActive: {
+    backgroundColor: Colors.primary,
+    borderColor: Colors.primary,
+  },
+  filterText: {
+    color: Colors.textSecondary,
+    fontWeight: '800',
+    fontSize: 12,
+  },
+  filterTextActive: {
+    color: '#FFF',
   },
   pageTitle: {
     fontSize: 20,
@@ -366,12 +470,11 @@ const styles = StyleSheet.create({
   },
   batchCard: {
     backgroundColor: Colors.surface,
-    borderRadius: 14,
+    borderRadius: 8,
     padding: 16,
     marginBottom: 14,
     borderWidth: 1,
     borderColor: Colors.border,
-    ...Layout.cardShadow,
   },
   batchCardHeader: {
     flexDirection: 'row',
@@ -381,14 +484,30 @@ const styles = StyleSheet.create({
   },
   progressBadge: {
     backgroundColor: '#E8F5E9',
-    borderRadius: 20,
+    borderRadius: 8,
     paddingHorizontal: 12,
     paddingVertical: 4,
+    borderWidth: 1,
+    borderColor: '#CBE6D5',
+  },
+  progressBadgeSales: {
+    backgroundColor: '#FFF7ED',
+    borderColor: '#FED7AA',
+  },
+  progressBadgeClosed: {
+    backgroundColor: '#F3F4F6',
+    borderColor: Colors.border,
   },
   progressBadgeText: {
     fontSize: 12,
-    fontWeight: '700',
+    fontWeight: '800',
     color: Colors.primary,
+  },
+  progressBadgeTextSales: {
+    color: '#C2410C',
+  },
+  progressBadgeTextClosed: {
+    color: Colors.textSecondary,
   },
   chickenIconBox: {
     width: 36,
@@ -411,7 +530,7 @@ const styles = StyleSheet.create({
   },
   batchDetailsRow: {
     flexDirection: 'row',
-    marginBottom: 14,
+    marginBottom: 12,
   },
   batchDetailItem: {
     flex: 1,
@@ -429,13 +548,15 @@ const styles = StyleSheet.create({
   batchActions: {
     flexDirection: 'row',
     gap: 10,
+    alignItems: 'center',
+    justifyContent: 'space-between',
   },
   closeButton: {
-    flex: 1,
-    height: 40,
+    minHeight: 34,
     borderRadius: 8,
-    borderWidth: 1.5,
+    borderWidth: 1,
     borderColor: Colors.primary,
+    paddingHorizontal: 13,
     justifyContent: 'center',
     alignItems: 'center',
     backgroundColor: '#FFF',
@@ -460,6 +581,57 @@ const styles = StyleSheet.create({
   },
   disabledButton: {
     opacity: 0.6,
+  },
+  batchMetricsRow: {
+    flexDirection: 'row',
+    borderTopWidth: 1,
+    borderBottomWidth: 1,
+    borderColor: '#EDF1EF',
+    marginBottom: 12,
+  },
+  metricMini: {
+    flex: 1,
+    paddingVertical: 10,
+    paddingHorizontal: 6,
+    borderRightWidth: 1,
+    borderRightColor: '#EDF1EF',
+  },
+  metricMiniLabel: {
+    fontSize: 10,
+    color: Colors.textSecondary,
+    fontWeight: '700',
+  },
+  metricMiniValue: {
+    marginTop: 3,
+    fontSize: 13,
+    color: Colors.text,
+    fontWeight: '900',
+  },
+  viewHint: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    marginLeft: 'auto',
+  },
+  viewHintText: {
+    color: Colors.primary,
+    fontWeight: '800',
+    fontSize: 12,
+  },
+  floatingCreateBtn: {
+    minHeight: 48,
+    borderRadius: 8,
+    backgroundColor: Colors.primary,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    marginTop: 6,
+  },
+  floatingCreateText: {
+    color: '#FFF',
+    fontSize: 14,
+    fontWeight: '900',
   },
   closedSectionTitle: {
     fontSize: 13,
