@@ -20,6 +20,7 @@ import { useAuth } from '@/context/AuthContext';
 import {
   ApiBatch,
   ApiTrader,
+  ApiTransactionPaymentStatus,
   createSale,
   listAllBatches,
   listAllTraders,
@@ -59,15 +60,41 @@ const salesEntrySchema = z.object({
   batchId: z.string().min(1, 'Please select a batch'),
   traderId: z.string().min(1, 'Please select a trader'),
   saleDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Date must be in YYYY-MM-DD format'),
+  vehicleNumber: z.string().optional(),
   birdCount: z.string().min(1, 'Birds sold is required').refine((val) => !isNaN(Number(val)), {
     message: 'Must be a number',
   }),
   totalWeightKg: z.string().min(1, 'Total weight is required').refine((val) => !isNaN(Number(val)), {
     message: 'Must be a number',
   }),
+  averageWeightKg: z.string().optional().refine((val) => !val || !isNaN(Number(val)), {
+    message: 'Must be a number',
+  }),
+  loadingMortalityCount: z.string().optional().refine((val) => !val || !isNaN(Number(val)), {
+    message: 'Must be a number',
+  }),
   ratePerKg: z.string().min(1, 'Rate is required').refine((val) => !isNaN(Number(val)), {
     message: 'Must be a number',
   }),
+  grossAmount: z.string().optional().refine((val) => !val || !isNaN(Number(val)), {
+    message: 'Must be a number',
+  }),
+  transportCharge: z.string().optional().refine((val) => !val || !isNaN(Number(val)), {
+    message: 'Must be a number',
+  }),
+  commissionCharge: z.string().optional().refine((val) => !val || !isNaN(Number(val)), {
+    message: 'Must be a number',
+  }),
+  otherDeduction: z.string().optional().refine((val) => !val || !isNaN(Number(val)), {
+    message: 'Must be a number',
+  }),
+  netAmount: z.string().optional().refine((val) => !val || !isNaN(Number(val)), {
+    message: 'Must be a number',
+  }),
+  paymentReceivedAmount: z.string().optional().refine((val) => !val || !isNaN(Number(val)), {
+    message: 'Must be a number',
+  }),
+  paymentStatus: z.enum(['PENDING', 'PARTIAL', 'PAID', 'CANCELLED']),
   notes: z.string().optional(),
 });
 
@@ -77,11 +104,28 @@ const SALES_ENTRY_DEFAULTS = {
   batchId: '',
   traderId: '',
   saleDate: todayValue(),
+  vehicleNumber: '',
   birdCount: '',
   totalWeightKg: '',
+  averageWeightKg: '',
+  loadingMortalityCount: '',
   ratePerKg: '',
+  grossAmount: '',
+  transportCharge: '',
+  commissionCharge: '',
+  otherDeduction: '',
+  netAmount: '',
+  paymentReceivedAmount: '',
+  paymentStatus: 'PENDING',
   notes: '',
 } satisfies SalesEntryFormData;
+
+const PAYMENT_STATUSES = [
+  'PENDING',
+  'PARTIAL',
+  'PAID',
+  'CANCELLED',
+] as const satisfies readonly ApiTransactionPaymentStatus[];
 
 export function SalesEntryScreen({
   title = 'Sales Entry',
@@ -213,9 +257,19 @@ export function SalesEntryScreen({
       const created = await createSale(accessToken, data.batchId, {
         traderId: data.traderId,
         saleDate: data.saleDate,
+        vehicleNumber: data.vehicleNumber?.trim() || undefined,
         birdCount: toOptionalNumber(data.birdCount),
         totalWeightKg: toOptionalNumber(data.totalWeightKg),
+        averageWeightKg: toOptionalNumber(data.averageWeightKg),
+        loadingMortalityCount: toOptionalNumber(data.loadingMortalityCount),
         ratePerKg: toOptionalNumber(data.ratePerKg),
+        grossAmount: toOptionalNumber(data.grossAmount),
+        transportCharge: toOptionalNumber(data.transportCharge),
+        commissionCharge: toOptionalNumber(data.commissionCharge),
+        otherDeduction: toOptionalNumber(data.otherDeduction),
+        netAmount: toOptionalNumber(data.netAmount),
+        paymentReceivedAmount: toOptionalNumber(data.paymentReceivedAmount),
+        paymentStatus: data.paymentStatus,
         status,
         notes: data.notes?.trim() || undefined,
         clientReferenceId: `sale-${Date.now()}`,
@@ -230,7 +284,15 @@ export function SalesEntryScreen({
         ...data,
         birdCount: '',
         totalWeightKg: '',
+        averageWeightKg: '',
+        loadingMortalityCount: '',
         ratePerKg: '',
+        grossAmount: '',
+        transportCharge: '',
+        commissionCharge: '',
+        otherDeduction: '',
+        netAmount: '',
+        paymentReceivedAmount: '',
         notes: '',
       };
       reset(nextValues);
@@ -529,6 +591,28 @@ export function SalesEntryScreen({
             )}
           />
 
+          <Controller
+            control={control}
+            name="vehicleNumber"
+            render={({ field: { onChange, value } }) => (
+              <View style={styles.inputGroup}>
+                <Text style={styles.label}>Vehicle Number</Text>
+                <View style={[styles.inputBox, formErrors.vehicleNumber && { borderColor: Colors.tertiary }]}>
+                  <TextInput
+                    style={styles.input}
+                    value={value}
+                    onChangeText={onChange}
+                    placeholder="MP09AB1234"
+                    placeholderTextColor={Colors.textSecondary}
+                    autoCapitalize="characters"
+                  />
+                  <MaterialCommunityIcons name="truck-outline" size={18} color={Colors.textSecondary} />
+                </View>
+                {formErrors.vehicleNumber && <Text style={styles.fieldErrorText}>{formErrors.vehicleNumber.message}</Text>}
+              </View>
+            )}
+          />
+
           <View style={styles.row}>
             <Controller
               control={control}
@@ -574,6 +658,51 @@ export function SalesEntryScreen({
             />
           </View>
 
+          <View style={styles.row}>
+            <Controller
+              control={control}
+              name="averageWeightKg"
+              render={({ field: { onChange, value } }) => (
+                <View style={[styles.inputGroup, styles.half]}>
+                  <Text style={styles.label}>Average Weight (kg)</Text>
+                  <View style={[styles.inputBox, formErrors.averageWeightKg && { borderColor: Colors.tertiary }]}>
+                    <TextInput
+                      style={styles.input}
+                      value={value}
+                      onChangeText={onChange}
+                      placeholder="Optional"
+                      placeholderTextColor={Colors.textSecondary}
+                      keyboardType="decimal-pad"
+                    />
+                    <MaterialCommunityIcons name="scale-balance" size={18} color={Colors.textSecondary} />
+                  </View>
+                  {formErrors.averageWeightKg && <Text style={styles.fieldErrorText}>{formErrors.averageWeightKg.message}</Text>}
+                </View>
+              )}
+            />
+            <Controller
+              control={control}
+              name="loadingMortalityCount"
+              render={({ field: { onChange, value } }) => (
+                <View style={[styles.inputGroup, styles.half]}>
+                  <Text style={styles.label}>Loading Mortality</Text>
+                  <View style={[styles.inputBox, formErrors.loadingMortalityCount && { borderColor: Colors.tertiary }]}>
+                    <TextInput
+                      style={styles.input}
+                      value={value}
+                      onChangeText={onChange}
+                      placeholder="Optional"
+                      placeholderTextColor={Colors.textSecondary}
+                      keyboardType="numeric"
+                    />
+                    <MaterialCommunityIcons name="alert-circle-outline" size={18} color={Colors.textSecondary} />
+                  </View>
+                  {formErrors.loadingMortalityCount && <Text style={styles.fieldErrorText}>{formErrors.loadingMortalityCount.message}</Text>}
+                </View>
+              )}
+            />
+          </View>
+
           <Controller
             control={control}
             name="ratePerKg"
@@ -602,6 +731,116 @@ export function SalesEntryScreen({
               <Text style={styles.summaryValue}>Rs {grossAmount.toLocaleString('en-IN')}</Text>
             </View>
           </View>
+
+          <View style={styles.row}>
+            <Controller
+              control={control}
+              name="grossAmount"
+              render={({ field: { onChange, value } }) => (
+                <View style={[styles.inputGroup, styles.half]}>
+                  <Text style={styles.label}>Gross Amount</Text>
+                  <View style={[styles.inputBox, formErrors.grossAmount && { borderColor: Colors.tertiary }]}>
+                    <TextInput style={styles.input} value={value} onChangeText={onChange} placeholder="Auto/optional" placeholderTextColor={Colors.textSecondary} keyboardType="decimal-pad" />
+                  </View>
+                  {formErrors.grossAmount && <Text style={styles.fieldErrorText}>{formErrors.grossAmount.message}</Text>}
+                </View>
+              )}
+            />
+            <Controller
+              control={control}
+              name="netAmount"
+              render={({ field: { onChange, value } }) => (
+                <View style={[styles.inputGroup, styles.half]}>
+                  <Text style={styles.label}>Net Amount</Text>
+                  <View style={[styles.inputBox, formErrors.netAmount && { borderColor: Colors.tertiary }]}>
+                    <TextInput style={styles.input} value={value} onChangeText={onChange} placeholder="Optional" placeholderTextColor={Colors.textSecondary} keyboardType="decimal-pad" />
+                  </View>
+                  {formErrors.netAmount && <Text style={styles.fieldErrorText}>{formErrors.netAmount.message}</Text>}
+                </View>
+              )}
+            />
+          </View>
+
+          <View style={styles.row}>
+            <Controller
+              control={control}
+              name="transportCharge"
+              render={({ field: { onChange, value } }) => (
+                <View style={[styles.inputGroup, styles.half]}>
+                  <Text style={styles.label}>Transport Charge</Text>
+                  <View style={[styles.inputBox, formErrors.transportCharge && { borderColor: Colors.tertiary }]}>
+                    <TextInput style={styles.input} value={value} onChangeText={onChange} placeholder="Optional" placeholderTextColor={Colors.textSecondary} keyboardType="decimal-pad" />
+                  </View>
+                  {formErrors.transportCharge && <Text style={styles.fieldErrorText}>{formErrors.transportCharge.message}</Text>}
+                </View>
+              )}
+            />
+            <Controller
+              control={control}
+              name="commissionCharge"
+              render={({ field: { onChange, value } }) => (
+                <View style={[styles.inputGroup, styles.half]}>
+                  <Text style={styles.label}>Commission Charge</Text>
+                  <View style={[styles.inputBox, formErrors.commissionCharge && { borderColor: Colors.tertiary }]}>
+                    <TextInput style={styles.input} value={value} onChangeText={onChange} placeholder="Optional" placeholderTextColor={Colors.textSecondary} keyboardType="decimal-pad" />
+                  </View>
+                  {formErrors.commissionCharge && <Text style={styles.fieldErrorText}>{formErrors.commissionCharge.message}</Text>}
+                </View>
+              )}
+            />
+          </View>
+
+          <View style={styles.row}>
+            <Controller
+              control={control}
+              name="otherDeduction"
+              render={({ field: { onChange, value } }) => (
+                <View style={[styles.inputGroup, styles.half]}>
+                  <Text style={styles.label}>Other Deduction</Text>
+                  <View style={[styles.inputBox, formErrors.otherDeduction && { borderColor: Colors.tertiary }]}>
+                    <TextInput style={styles.input} value={value} onChangeText={onChange} placeholder="Optional" placeholderTextColor={Colors.textSecondary} keyboardType="decimal-pad" />
+                  </View>
+                  {formErrors.otherDeduction && <Text style={styles.fieldErrorText}>{formErrors.otherDeduction.message}</Text>}
+                </View>
+              )}
+            />
+            <Controller
+              control={control}
+              name="paymentReceivedAmount"
+              render={({ field: { onChange, value } }) => (
+                <View style={[styles.inputGroup, styles.half]}>
+                  <Text style={styles.label}>Payment Received</Text>
+                  <View style={[styles.inputBox, formErrors.paymentReceivedAmount && { borderColor: Colors.tertiary }]}>
+                    <TextInput style={styles.input} value={value} onChangeText={onChange} placeholder="Optional" placeholderTextColor={Colors.textSecondary} keyboardType="decimal-pad" />
+                  </View>
+                  {formErrors.paymentReceivedAmount && <Text style={styles.fieldErrorText}>{formErrors.paymentReceivedAmount.message}</Text>}
+                </View>
+              )}
+            />
+          </View>
+
+          <Controller
+            control={control}
+            name="paymentStatus"
+            render={({ field: { onChange, value } }) => (
+              <View style={styles.inputGroup}>
+                <Text style={styles.label}>Payment Status</Text>
+                <View style={styles.statusChipRow}>
+                  {PAYMENT_STATUSES.map((status) => (
+                    <TouchableOpacity
+                      key={status}
+                      style={[styles.statusChip, value === status && styles.statusChipActive]}
+                      onPress={() => onChange(status)}
+                    >
+                      <Text style={[styles.statusChipText, value === status && styles.statusChipTextActive]}>
+                        {status.replace(/_/g, ' ')}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </View>
+            )}
+          />
 
           <Controller
             control={control}
@@ -1171,6 +1410,32 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '800',
     color: Colors.text,
+  },
+  statusChipRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  statusChip: {
+    minHeight: 34,
+    borderRadius: 999,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    backgroundColor: '#F3F4F6',
+    borderWidth: 1,
+    borderColor: Colors.border,
+  },
+  statusChipActive: {
+    backgroundColor: '#E8F5E9',
+    borderColor: Colors.primary,
+  },
+  statusChipText: {
+    color: Colors.textSecondary,
+    fontSize: 12,
+    fontWeight: '800',
+  },
+  statusChipTextActive: {
+    color: Colors.primary,
   },
   messageBox: {
     flexDirection: 'row',

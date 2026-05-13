@@ -149,8 +149,14 @@ export default function ApiOperationsScreen() {
     expenseId: "",
     ledger: "COMPANY" as ApiExpenseLedger,
     category: "FEED" as ApiExpenseCategoryCode,
+    catalogItemId: "",
     description: "Legacy feed/cost entry",
-    totalAmount: "0",
+    quantity: "1200",
+    unit: "kg",
+    rate: "36.5",
+    vendorName: "",
+    invoiceNumber: "",
+    notes: "",
     approvalStatus: "APPROVED" as ApiExpenseApprovalStatus,
     rejectedReason: "",
     paymentStatus: "PAID" as ApiTransactionPaymentStatus,
@@ -159,9 +165,14 @@ export default function ApiOperationsScreen() {
   const [saleForm, setSaleForm] = useState({
     saleId: "",
     ratePerKg: "",
+    grossAmount: "",
+    transportCharge: "",
+    commissionCharge: "",
+    otherDeduction: "",
     netAmount: "",
     paymentReceivedAmount: "",
     paymentStatus: "PAID" as ApiTransactionPaymentStatus,
+    notes: "",
   });
   const [settlementForm, setSettlementForm] = useState({
     payoutRate: "8",
@@ -173,6 +184,7 @@ export default function ApiOperationsScreen() {
     remarks: "Owner payout draft",
   });
   const [commentForm, setCommentForm] = useState({
+    targetType: "BATCH" as "PURCHASE" | "SETTLEMENT" | "FARM" | "BATCH" | "DAILY_LOG" | "TREATMENT" | "COST" | "SALE" | "PAYMENT",
     targetId: "",
     comment: "Please review this entry.",
     correctionNote: "",
@@ -197,8 +209,8 @@ export default function ApiOperationsScreen() {
   });
   const [purchaseForm, setPurchaseForm] = useState({
     purchaseId: "",
+    totalAmount: "0",
     paymentStatus: "PAID" as ApiTransactionPaymentStatus,
-    paidAmount: "0",
     remarks: "Payment updated",
   });
   const [settingsForm, setSettingsForm] = useState({
@@ -302,10 +314,16 @@ export default function ApiOperationsScreen() {
     runBatchAction("legacy-cost-create", "Create legacy cost", (token, selectedBatchId) =>
       createLegacyBatchCost(token, selectedBatchId, {
         ledger: expenseForm.ledger,
+        catalogItemId: expenseForm.catalogItemId.trim() || undefined,
         category: expenseForm.category,
         expenseDate: TODAY,
         description: expenseForm.description.trim() || "Legacy cost",
-        totalAmount: toOptionalNumber(expenseForm.totalAmount),
+        quantity: toOptionalNumber(expenseForm.quantity),
+        unit: expenseForm.unit.trim() || undefined,
+        rate: toOptionalNumber(expenseForm.rate),
+        vendorName: expenseForm.vendorName.trim() || undefined,
+        invoiceNumber: expenseForm.invoiceNumber.trim() || undefined,
+        notes: expenseForm.notes.trim() || undefined,
         clientReferenceId: `legacy-cost-${Date.now()}`,
       }),
     );
@@ -336,9 +354,14 @@ export default function ApiOperationsScreen() {
     runBatchAction("sale-finalize", "Finalize sale", (token, selectedBatchId) =>
       finalizeSale(token, selectedBatchId, saleForm.saleId.trim(), {
         ratePerKg: toOptionalNumber(saleForm.ratePerKg),
+        grossAmount: toOptionalNumber(saleForm.grossAmount),
+        transportCharge: toOptionalNumber(saleForm.transportCharge),
+        commissionCharge: toOptionalNumber(saleForm.commissionCharge),
+        otherDeduction: toOptionalNumber(saleForm.otherDeduction),
         netAmount: toOptionalNumber(saleForm.netAmount),
         paymentReceivedAmount: toOptionalNumber(saleForm.paymentReceivedAmount),
         paymentStatus: saleForm.paymentStatus,
+        notes: saleForm.notes.trim() || undefined,
       }),
     );
   };
@@ -360,7 +383,7 @@ export default function ApiOperationsScreen() {
   const submitComment = () => {
     runBatchAction("comment-create", "Create batch comment", (token, selectedBatchId) =>
       createBatchComment(token, selectedBatchId, {
-        targetType: "BATCH",
+        targetType: commentForm.targetType,
         targetId: commentForm.targetId.trim() || selectedBatchId,
         comment: commentForm.comment.trim(),
         correctionNote: commentForm.correctionNote.trim() || undefined,
@@ -400,8 +423,8 @@ export default function ApiOperationsScreen() {
   const submitPurchaseUpdate = () => {
     void runAction("purchase-update", "Update purchase", () =>
       updateFinancePurchase(accessToken!, purchaseForm.purchaseId.trim(), {
+        totalAmount: toOptionalNumber(purchaseForm.totalAmount),
         paymentStatus: purchaseForm.paymentStatus,
-        paidAmount: toOptionalNumber(purchaseForm.paidAmount),
         remarks: purchaseForm.remarks.trim() || undefined,
       }),
     );
@@ -549,7 +572,13 @@ export default function ApiOperationsScreen() {
                 onSelect={(category) => setExpenseForm((v) => ({ ...v, category: category as ApiExpenseCategoryCode }))}
               />
               <Field label="Description" value={expenseForm.description} onChangeText={(description) => setExpenseForm((v) => ({ ...v, description }))} />
-              <Field label="Total Amount" value={expenseForm.totalAmount} onChangeText={(totalAmount) => setExpenseForm((v) => ({ ...v, totalAmount }))} keyboardType="decimal-pad" />
+              <Field label="Catalog Item ID" value={expenseForm.catalogItemId} onChangeText={(catalogItemId) => setExpenseForm((v) => ({ ...v, catalogItemId }))} />
+              <Field label="Quantity" value={expenseForm.quantity} onChangeText={(quantity) => setExpenseForm((v) => ({ ...v, quantity }))} keyboardType="decimal-pad" />
+              <Field label="Unit" value={expenseForm.unit} onChangeText={(unit) => setExpenseForm((v) => ({ ...v, unit }))} />
+              <Field label="Rate" value={expenseForm.rate} onChangeText={(rate) => setExpenseForm((v) => ({ ...v, rate }))} keyboardType="decimal-pad" />
+              <Field label="Vendor Name" value={expenseForm.vendorName} onChangeText={(vendorName) => setExpenseForm((v) => ({ ...v, vendorName }))} />
+              <Field label="Invoice Number" value={expenseForm.invoiceNumber} onChangeText={(invoiceNumber) => setExpenseForm((v) => ({ ...v, invoiceNumber }))} />
+              <Field label="Notes" value={expenseForm.notes} onChangeText={(notes) => setExpenseForm((v) => ({ ...v, notes }))} />
               <ActionButton label="Create Legacy Cost" onPress={submitLegacyCost} busy={busyKey === "legacy-cost-create"} />
               <ChipRow
                 values={["PENDING", "APPROVED", "REJECTED"]}
@@ -570,8 +599,13 @@ export default function ApiOperationsScreen() {
             <Section title="Sales, Settlement, Comments" icon="receipt-outline">
               <Field label="Sale ID" value={saleForm.saleId} onChangeText={(saleId) => setSaleForm((v) => ({ ...v, saleId }))} />
               <Field label="Final Rate / Kg" value={saleForm.ratePerKg} onChangeText={(ratePerKg) => setSaleForm((v) => ({ ...v, ratePerKg }))} keyboardType="decimal-pad" />
+              <Field label="Gross Amount" value={saleForm.grossAmount} onChangeText={(grossAmount) => setSaleForm((v) => ({ ...v, grossAmount }))} keyboardType="decimal-pad" />
+              <Field label="Transport Charge" value={saleForm.transportCharge} onChangeText={(transportCharge) => setSaleForm((v) => ({ ...v, transportCharge }))} keyboardType="decimal-pad" />
+              <Field label="Commission Charge" value={saleForm.commissionCharge} onChangeText={(commissionCharge) => setSaleForm((v) => ({ ...v, commissionCharge }))} keyboardType="decimal-pad" />
+              <Field label="Other Deduction" value={saleForm.otherDeduction} onChangeText={(otherDeduction) => setSaleForm((v) => ({ ...v, otherDeduction }))} keyboardType="decimal-pad" />
               <Field label="Net Amount" value={saleForm.netAmount} onChangeText={(netAmount) => setSaleForm((v) => ({ ...v, netAmount }))} keyboardType="decimal-pad" />
               <Field label="Payment Received" value={saleForm.paymentReceivedAmount} onChangeText={(paymentReceivedAmount) => setSaleForm((v) => ({ ...v, paymentReceivedAmount }))} keyboardType="decimal-pad" />
+              <Field label="Finalization Notes" value={saleForm.notes} onChangeText={(notes) => setSaleForm((v) => ({ ...v, notes }))} />
               <ActionButton label="Finalize Existing Sale" onPress={submitSaleFinalization} busy={busyKey === "sale-finalize"} />
 
               <Field label="Payout Rate" value={settlementForm.payoutRate} onChangeText={(payoutRate) => setSettlementForm((v) => ({ ...v, payoutRate }))} keyboardType="decimal-pad" />
@@ -586,6 +620,11 @@ export default function ApiOperationsScreen() {
               <Field label="Remarks" value={settlementForm.remarks} onChangeText={(remarks) => setSettlementForm((v) => ({ ...v, remarks }))} />
               <ActionButton label="Create Settlement" onPress={submitSettlement} busy={busyKey === "settlement-create"} />
 
+              <ChipRow
+                values={["BATCH", "DAILY_LOG", "TREATMENT", "COST", "SALE", "PAYMENT", "PURCHASE", "SETTLEMENT", "FARM"]}
+                selected={commentForm.targetType}
+                onSelect={(targetType) => setCommentForm((v) => ({ ...v, targetType: targetType as typeof commentForm.targetType }))}
+              />
               <Field label="Target ID" value={commentForm.targetId} onChangeText={(targetId) => setCommentForm((v) => ({ ...v, targetId }))} />
               <Field label="Comment" value={commentForm.comment} onChangeText={(comment) => setCommentForm((v) => ({ ...v, comment }))} multiline />
               <Field label="Correction Note" value={commentForm.correctionNote} onChangeText={(correctionNote) => setCommentForm((v) => ({ ...v, correctionNote }))} multiline />
@@ -609,6 +648,7 @@ export default function ApiOperationsScreen() {
               <Field label="Entry Amount" value={financeEntryForm.amount} onChangeText={(amount) => setFinanceEntryForm((v) => ({ ...v, amount }))} keyboardType="decimal-pad" />
               <Field label="Entry Date" value={financeEntryForm.entryDate} onChangeText={(entryDate) => setFinanceEntryForm((v) => ({ ...v, entryDate }))} />
               <Field label="Description" value={financeEntryForm.description} onChangeText={(description) => setFinanceEntryForm((v) => ({ ...v, description }))} />
+              <Field label="Entry Notes" value={financeEntryForm.notes} onChangeText={(notes) => setFinanceEntryForm((v) => ({ ...v, notes }))} />
               <ActionButton label="Create Finance Entry" onPress={submitFinanceEntry} busy={busyKey === "finance-entry-create"} />
 
               <ChipRow values={["INBOUND", "OUTBOUND"]} selected={paymentForm.direction} onSelect={(direction) => setPaymentForm((v) => ({ ...v, direction: direction as ApiPaymentDirection }))} />
@@ -621,8 +661,8 @@ export default function ApiOperationsScreen() {
               <ActionButton label="Create Finance Payment" onPress={submitFinancePayment} busy={busyKey === "finance-payment-create"} />
 
               <Field label="Purchase ID" value={purchaseForm.purchaseId} onChangeText={(purchaseId) => setPurchaseForm((v) => ({ ...v, purchaseId }))} />
+              <Field label="Total Amount" value={purchaseForm.totalAmount} onChangeText={(totalAmount) => setPurchaseForm((v) => ({ ...v, totalAmount }))} keyboardType="decimal-pad" />
               <ChipRow values={["PENDING", "PARTIAL", "PAID", "CANCELLED"]} selected={purchaseForm.paymentStatus} onSelect={(paymentStatus) => setPurchaseForm((v) => ({ ...v, paymentStatus: paymentStatus as ApiTransactionPaymentStatus }))} />
-              <Field label="Paid Amount" value={purchaseForm.paidAmount} onChangeText={(paidAmount) => setPurchaseForm((v) => ({ ...v, paidAmount }))} keyboardType="decimal-pad" />
               <Field label="Remarks" value={purchaseForm.remarks} onChangeText={(remarks) => setPurchaseForm((v) => ({ ...v, remarks }))} />
               <ActionButton label="Update Purchase" onPress={submitPurchaseUpdate} busy={busyKey === "purchase-update"} />
             </Section>

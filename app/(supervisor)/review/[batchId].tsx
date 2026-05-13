@@ -19,6 +19,9 @@ const correctionSchema = z.object({
   mortality: z.string().optional().refine((val) => !val || !isNaN(Number(val)), {
     message: 'Must be a number',
   }),
+  cull: z.string().optional().refine((val) => !val || !isNaN(Number(val)), {
+    message: 'Must be a number',
+  }),
   feed: z.string().optional().refine((val) => !val || !isNaN(Number(val)), {
     message: 'Must be a number',
   }),
@@ -43,6 +46,7 @@ export default function SupervisorReviewLogsScreen() {
     resolver: zodResolver(correctionSchema),
     defaultValues: {
       mortality: '',
+      cull: '',
       feed: '',
       correctionNote: '',
     },
@@ -82,6 +86,7 @@ export default function SupervisorReviewLogsScreen() {
     setSelectedLog(log);
     reset({
       mortality: log.mortalityCount?.toString() || '',
+      cull: log.cullCount?.toString() || '',
       feed: log.feedConsumedKg?.toString() || '',
       correctionNote: '',
     });
@@ -91,19 +96,13 @@ export default function SupervisorReviewLogsScreen() {
     if (!accessToken || !batchId || !selectedLog) return;
     setSaving(true);
     try {
-      // 1. Update the log
       await updateDailyLog(accessToken, batchId, selectedLog.id, {
-        logDate: selectedLog.logDate,
         mortalityCount: data.mortality ? Number(data.mortality) : undefined,
+        cullCount: data.cull ? Number(data.cull) : undefined,
         feedConsumedKg: data.feed ? Number(data.feed) : undefined,
-        openingBirdCount: selectedLog.openingBirdCount || undefined,
-        cullCount: selectedLog.cullCount || undefined,
-        waterConsumedLtr: selectedLog.waterConsumedLtr || undefined,
-        avgWeightGrams: selectedLog.avgWeightGrams || undefined,
-        notes: selectedLog.notes || undefined,
+        notes: data.correctionNote?.trim() || undefined,
       });
 
-      // 2. Add correction note if provided
       if (data.correctionNote?.trim()) {
         await createBatchComment(accessToken, batchId, {
           targetType: 'DAILY_LOG',
@@ -205,6 +204,21 @@ export default function SupervisorReviewLogsScreen() {
                         <TextInput style={styles.input} value={value} onChangeText={onChange} keyboardType="numeric" />
                       </View>
                       {formErrors.mortality && <Text style={styles.fieldErrorText}>{formErrors.mortality.message}</Text>}
+                    </>
+                  )}
+                />
+              </View>
+              <View style={styles.flexHalf}>
+                <Controller
+                  control={control}
+                  name="cull"
+                  render={({ field: { onChange, value } }) => (
+                    <>
+                      <Text style={styles.label}>Cull</Text>
+                      <View style={[styles.inputBox, formErrors.cull && { borderColor: Colors.tertiary }]}>
+                        <TextInput style={styles.input} value={value} onChangeText={onChange} keyboardType="numeric" />
+                      </View>
+                      {formErrors.cull && <Text style={styles.fieldErrorText}>{formErrors.cull.message}</Text>}
                     </>
                   )}
                 />

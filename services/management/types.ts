@@ -521,7 +521,9 @@ export type CreateDailyLogRequest = {
   clientReferenceId?: string;
 };
 
-export type UpdateDailyLogRequest = CreateDailyLogRequest;
+export type UpdateDailyLogRequest = Partial<
+  Omit<CreateDailyLogRequest, "clientReferenceId">
+>;
 
 export type CreateSaleRequest = {
   traderId: string;
@@ -624,7 +626,6 @@ export type CreateFinancePurchaseRequest = {
   totalAmount: number;
   invoiceNumber?: string;
   paymentStatus?: ApiTransactionPaymentStatus;
-  paidAmount?: number;
   purchaseDate: string;
   attachmentUrl?: string;
   remarks?: string;

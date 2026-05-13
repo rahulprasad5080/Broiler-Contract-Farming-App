@@ -52,11 +52,16 @@ function batchLabel(batch: ApiBatch) {
 
 const treatmentSchema = z.object({
   batchId: z.string().min(1, 'Please select a batch'),
+  dailyLogId: z.string().optional(),
   treatmentDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Date must be in YYYY-MM-DD format'),
   kind: z.enum(['MEDICATION', 'VACCINATION', 'OTHER']),
   catalogItemId: z.string().optional(),
+  treatmentName: z.string().optional(),
   quantity: z.string().optional().refine((val) => !val || !isNaN(Number(val)), {
     message: 'Quantity must be a number',
+  }),
+  birdCount: z.string().optional().refine((val) => !val || !isNaN(Number(val)), {
+    message: 'Bird count must be a number',
   }),
   notes: z.string().optional(),
 });
@@ -65,10 +70,13 @@ type TreatmentFormData = z.infer<typeof treatmentSchema>;
 
 const TREATMENT_DEFAULTS = {
   batchId: '',
+  dailyLogId: '',
   treatmentDate: todayValue(),
   kind: 'MEDICATION' as const,
   catalogItemId: '',
+  treatmentName: '',
   quantity: '',
+  birdCount: '',
   notes: '',
 } satisfies TreatmentFormData;
 
@@ -179,13 +187,16 @@ export function TreatmentEntryScreen({
         filteredCatalogItems.find((item) => item.id === data.catalogItemId) ?? null;
 
       await createTreatment(accessToken, data.batchId, {
+        dailyLogId: data.dailyLogId?.trim() || undefined,
         treatmentDate: data.treatmentDate,
         kind: data.kind,
         catalogItemId: data.catalogItemId || undefined,
         treatmentName:
-          selectedCatalogItem?.name ??
+          data.treatmentName?.trim() ||
+          selectedCatalogItem?.name ||
           `${data.kind.charAt(0)}${data.kind.slice(1).toLowerCase()}`,
         dosage: data.quantity?.trim() || undefined,
+        birdCount: data.birdCount ? Number(data.birdCount) : undefined,
         notes: data.notes?.trim() || undefined,
         clientReferenceId: `tx-${Date.now()}`,
       });
@@ -194,8 +205,11 @@ export function TreatmentEntryScreen({
       const nextValues = {
         ...data,
         quantity: '',
+        birdCount: '',
         notes: '',
         catalogItemId: '',
+        dailyLogId: '',
+        treatmentName: '',
       };
       reset(nextValues);
       await clearPersistedData();
@@ -305,6 +319,27 @@ export function TreatmentEntryScreen({
 
           <Controller
             control={control}
+            name="dailyLogId"
+            render={({ field: { onChange, value } }) => (
+              <View style={styles.inputGroup}>
+                <Text style={styles.label}>Daily Log ID (Optional)</Text>
+                <View style={[styles.inputMock, formErrors.dailyLogId && { borderColor: Colors.tertiary }]}>
+                  <TextInput
+                    style={styles.textInput}
+                    value={value}
+                    onChangeText={onChange}
+                    placeholder="Link to daily log"
+                    placeholderTextColor={Colors.textSecondary}
+                  />
+                  <MaterialCommunityIcons name="link-variant" size={20} color={Colors.textSecondary} />
+                </View>
+                {formErrors.dailyLogId && <Text style={styles.fieldErrorText}>{formErrors.dailyLogId.message}</Text>}
+              </View>
+            )}
+          />
+
+          <Controller
+            control={control}
             name="kind"
             render={({ field: { onChange, value } }) => (
               <View style={styles.inputGroup}>
@@ -360,6 +395,27 @@ export function TreatmentEntryScreen({
 
           <Controller
             control={control}
+            name="treatmentName"
+            render={({ field: { onChange, value } }) => (
+              <View style={styles.inputGroup}>
+                <Text style={styles.label}>Treatment Name</Text>
+                <View style={[styles.inputMock, formErrors.treatmentName && { borderColor: Colors.tertiary }]}>
+                  <TextInput
+                    style={styles.textInput}
+                    value={value}
+                    onChangeText={onChange}
+                    placeholder={filteredCatalogItems.find((item) => item.id === catalogItemId)?.name ?? 'Newcastle Vaccine'}
+                    placeholderTextColor={Colors.textSecondary}
+                  />
+                  <MaterialCommunityIcons name="needle" size={20} color={Colors.textSecondary} />
+                </View>
+                {formErrors.treatmentName && <Text style={styles.fieldErrorText}>{formErrors.treatmentName.message}</Text>}
+              </View>
+            )}
+          />
+
+          <Controller
+            control={control}
             name="quantity"
             render={({ field: { onChange, value } }) => (
               <View style={styles.inputGroup}>
@@ -376,6 +432,28 @@ export function TreatmentEntryScreen({
                   <MaterialCommunityIcons name="beaker-outline" size={20} color={Colors.textSecondary} />
                 </View>
                 {formErrors.quantity && <Text style={styles.fieldErrorText}>{formErrors.quantity.message}</Text>}
+              </View>
+            )}
+          />
+
+          <Controller
+            control={control}
+            name="birdCount"
+            render={({ field: { onChange, value } }) => (
+              <View style={styles.inputGroup}>
+                <Text style={styles.label}>Bird Count</Text>
+                <View style={[styles.inputMock, formErrors.birdCount && { borderColor: Colors.tertiary }]}>
+                  <TextInput
+                    style={styles.textInput}
+                    value={value}
+                    onChangeText={onChange}
+                    placeholder="5000"
+                    placeholderTextColor={Colors.textSecondary}
+                    keyboardType="numeric"
+                  />
+                  <MaterialCommunityIcons name="counter" size={20} color={Colors.textSecondary} />
+                </View>
+                {formErrors.birdCount && <Text style={styles.fieldErrorText}>{formErrors.birdCount.message}</Text>}
               </View>
             )}
           />
