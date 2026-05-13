@@ -20,7 +20,6 @@ import {
   ActivityIndicator,
   Animated,
   FlatList,
-  Modal,
   ScrollView,
   StyleSheet,
   Text,
@@ -32,6 +31,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 
 import { useFormPersistence } from "@/hooks/useFormPersistence";
 import { HeaderNotificationButton } from "@/components/ui/HeaderNotificationButton";
+import { DatePickerField } from "@/components/ui/DatePickerField";
 import {
   showRequestErrorToast,
   showSuccessToast,
@@ -46,51 +46,8 @@ type DailyEntryScreenProps = {
   subtitle?: string;
 };
 
-const WEEK_DAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-
 function todayValue() {
   return getLocalDateValue();
-}
-
-function formatDateValue(date: Date) {
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, "0");
-  const day = String(date.getDate()).padStart(2, "0");
-  return `${year}-${month}-${day}`;
-}
-
-function dateFromValue(value: string) {
-  if (!isValidDateValue(value)) {
-    return new Date();
-  }
-
-  const [year, month, day] = value.split("-").map(Number);
-  return new Date(year, month - 1, day);
-}
-
-function monthFromValue(value: string) {
-  const date = dateFromValue(value);
-  return new Date(date.getFullYear(), date.getMonth(), 1);
-}
-
-function addMonths(date: Date, amount: number) {
-  return new Date(date.getFullYear(), date.getMonth() + amount, 1);
-}
-
-function getCalendarCells(monthDate: Date) {
-  const year = monthDate.getFullYear();
-  const month = monthDate.getMonth();
-  const firstDay = new Date(year, month, 1);
-  const daysInMonth = new Date(year, month + 1, 0).getDate();
-  const leadingEmptyDays = firstDay.getDay();
-
-  return [
-    ...Array.from({ length: leadingEmptyDays }, () => null),
-    ...Array.from(
-      { length: daysInMonth },
-      (_, index) => new Date(year, month, index + 1),
-    ),
-  ];
 }
 
 function toOptionalNumber(value: string) {
@@ -221,11 +178,7 @@ export function DailyEntryScreen({
   const [submitting, setSubmitting] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [batchDropdownOpen, setBatchDropdownOpen] = useState(false);
-  const [showDatePicker, setShowDatePicker] = useState(false);
   const [showDraftBanner, setShowDraftBanner] = useState(false);
-  const [calendarMonth, setCalendarMonth] = useState(() =>
-    monthFromValue(todayValue()),
-  );
 
   const draftBannerOpacity = useRef(new Animated.Value(0)).current;
 
@@ -269,31 +222,6 @@ export function DailyEntryScreen({
 
   const selectedBatchId = watch("batchId");
   const logDateValue = watch("logDate");
-  const calendarCells = useMemo(
-    () => getCalendarCells(calendarMonth),
-    [calendarMonth],
-  );
-  const calendarTitle = calendarMonth.toLocaleDateString("en-US", {
-    month: "long",
-    year: "numeric",
-  });
-
-  const openDatePicker = useCallback(() => {
-    setCalendarMonth(monthFromValue(logDateValue));
-    setShowDatePicker(true);
-  }, [logDateValue]);
-
-  const selectLogDate = useCallback(
-    (date: Date) => {
-      setValue("logDate", formatDateValue(date), {
-        shouldDirty: true,
-        shouldTouch: true,
-        shouldValidate: true,
-      });
-      setShowDatePicker(false);
-    },
-    [setValue],
-  );
 
   const activeBatches = useMemo(
     () =>
@@ -615,34 +543,15 @@ export function DailyEntryScreen({
           <Controller
             control={control}
             name="logDate"
-            render={({ field: { value } }) => (
-              <View style={styles.inputGroup}>
-                <Text style={styles.label}>Log Date *</Text>
-                <TouchableOpacity
-                  style={[
-                    styles.inputMock,
-                    formErrors.logDate && { borderColor: Colors.tertiary },
-                  ]}
-                  onPress={openDatePicker}
-                  activeOpacity={0.78}
-                >
-                  <Text
-                    style={[styles.dateValue, !value && styles.datePlaceholder]}
-                  >
-                    {value || "YYYY-MM-DD"}
-                  </Text>
-                  <Ionicons
-                    name="calendar-outline"
-                    size={20}
-                    color={Colors.textSecondary}
-                  />
-                </TouchableOpacity>
-                {formErrors.logDate && (
-                  <Text style={styles.fieldErrorText}>
-                    {formErrors.logDate.message}
-                  </Text>
-                )}
-              </View>
+            render={({ field: { onChange, value } }) => (
+              <DatePickerField
+                label="Log Date *"
+                value={value}
+                onChange={onChange}
+                placeholder="Select log date"
+                error={formErrors.logDate?.message}
+                disableFuture
+              />
             )}
           />
           <View style={styles.row}>
@@ -929,96 +838,6 @@ export function DailyEntryScreen({
           )}
         </TouchableOpacity>
       </ScrollView>
-
-      <Modal
-        visible={showDatePicker}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setShowDatePicker(false)}
-      >
-        <TouchableOpacity
-          style={styles.calendarOverlay}
-          activeOpacity={1}
-          onPress={() => setShowDatePicker(false)}
-        >
-          <View
-            style={styles.calendarSheet}
-            onStartShouldSetResponder={() => true}
-          >
-            <View style={styles.calendarHeader}>
-              <TouchableOpacity
-                style={styles.calendarNavBtn}
-                onPress={() =>
-                  setCalendarMonth((current) => addMonths(current, -1))
-                }
-              >
-                <Ionicons name="chevron-back" size={20} color={Colors.text} />
-              </TouchableOpacity>
-              <Text style={styles.calendarTitle}>{calendarTitle}</Text>
-              <TouchableOpacity
-                style={styles.calendarNavBtn}
-                onPress={() =>
-                  setCalendarMonth((current) => addMonths(current, 1))
-                }
-              >
-                <Ionicons
-                  name="chevron-forward"
-                  size={20}
-                  color={Colors.text}
-                />
-              </TouchableOpacity>
-            </View>
-
-            <View style={styles.weekRow}>
-              {WEEK_DAYS.map((day) => (
-                <Text key={day} style={styles.weekDay}>
-                  {day}
-                </Text>
-              ))}
-            </View>
-
-            <View style={styles.calendarGrid}>
-              {calendarCells.map((date, index) => {
-                const dateValue = date ? formatDateValue(date) : "";
-                const isSelected = dateValue === logDateValue;
-                const isToday = dateValue === todayValue();
-                const disabled = date ? isFutureDate(dateValue) : true;
-
-                return (
-                  <TouchableOpacity
-                    key={`${dateValue || "empty"}-${index}`}
-                    style={[
-                      styles.calendarDay,
-                      disabled && styles.calendarDayDisabled,
-                    ]}
-                    onPress={() => date && !disabled && selectLogDate(date)}
-                    disabled={disabled}
-                    activeOpacity={0.78}
-                  >
-                    <View
-                      style={[
-                        styles.calendarDayInner,
-                        isToday && styles.calendarDayToday,
-                        isSelected && styles.calendarDaySelected,
-                      ]}
-                    >
-                      <Text
-                        style={[
-                          styles.calendarDayText,
-                          isSelected && styles.calendarDayTextSelected,
-                          disabled && styles.calendarDayTextDisabled,
-                        ]}
-                      >
-                        {date ? date.getDate() : ""}
-                      </Text>
-                    </View>
-                  </TouchableOpacity>
-                );
-              })}
-            </View>
-          </View>
-        </TouchableOpacity>
-      </Modal>
     </SafeAreaView>
   );
 }
@@ -1385,16 +1204,6 @@ const styles = StyleSheet.create({
     color: Colors.text,
     padding: 0,
   },
-  dateValue: {
-    flex: 1,
-    fontSize: 15,
-    fontWeight: "700",
-    color: Colors.text,
-  },
-  datePlaceholder: {
-    color: Colors.textSecondary,
-    fontWeight: "500",
-  },
   multiLine: {
     minHeight: 56,
     textAlignVertical: "top",
@@ -1439,91 +1248,5 @@ const styles = StyleSheet.create({
     fontSize: 11,
     marginTop: 4,
     fontWeight: "600",
-  },
-  calendarOverlay: {
-    flex: 1,
-    backgroundColor: "rgba(0,0,0,0.42)",
-    justifyContent: "center",
-    padding: 20,
-  },
-  calendarSheet: {
-    width: "100%",
-    maxWidth: 420,
-    alignSelf: "center",
-    backgroundColor: Colors.surface,
-    borderRadius: 16,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: Colors.border,
-    ...Layout.cardShadow,
-  },
-  calendarHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    marginBottom: 14,
-  },
-  calendarNavBtn: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: "#F4F6F8",
-    borderWidth: 1,
-    borderColor: Colors.border,
-  },
-  calendarTitle: {
-    fontSize: 17,
-    fontWeight: "900",
-    color: Colors.text,
-  },
-  weekRow: {
-    flexDirection: "row",
-    marginBottom: 8,
-  },
-  weekDay: {
-    width: `${100 / 7}%`,
-    textAlign: "center",
-    fontSize: 11,
-    fontWeight: "800",
-    color: Colors.textSecondary,
-  },
-  calendarGrid: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-  },
-  calendarDay: {
-    width: `${100 / 7}%`,
-    aspectRatio: 1,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  calendarDayInner: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  calendarDayToday: {
-    backgroundColor: "#E8F5E9",
-  },
-  calendarDaySelected: {
-    backgroundColor: Colors.primary,
-  },
-  calendarDayDisabled: {
-    opacity: 0.35,
-  },
-  calendarDayText: {
-    fontSize: 14,
-    fontWeight: "800",
-    color: Colors.text,
-  },
-  calendarDayTextSelected: {
-    color: "#FFF",
-  },
-  calendarDayTextDisabled: {
-    color: Colors.textSecondary,
   },
 });

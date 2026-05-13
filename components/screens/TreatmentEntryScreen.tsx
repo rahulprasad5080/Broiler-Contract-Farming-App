@@ -35,6 +35,7 @@ import {
 import { getLocalDateValue } from '@/services/dateUtils';
 import { useFormPersistence } from '@/hooks/useFormPersistence';
 import { HeaderNotificationButton } from '@/components/ui/HeaderNotificationButton';
+import { DatePickerField } from '@/components/ui/DatePickerField';
 
 type TreatmentEntryScreenProps = {
   title?: string;
@@ -300,20 +301,13 @@ export function TreatmentEntryScreen({
             control={control}
             name="treatmentDate"
             render={({ field: { onChange, value } }) => (
-              <View style={styles.inputGroup}>
-                <Text style={styles.label}>Treatment Date *</Text>
-                <View style={[styles.inputMock, formErrors.treatmentDate && { borderColor: Colors.tertiary }]}>
-                  <TextInput
-                    style={styles.textInput}
-                    value={value}
-                    onChangeText={onChange}
-                    placeholder="YYYY-MM-DD"
-                    placeholderTextColor={Colors.textSecondary}
-                  />
-                  <Ionicons name="calendar-outline" size={20} color={Colors.textSecondary} />
-                </View>
-                {formErrors.treatmentDate && <Text style={styles.fieldErrorText}>{formErrors.treatmentDate.message}</Text>}
-              </View>
+              <DatePickerField
+                label="Treatment Date *"
+                value={value}
+                onChange={onChange}
+                placeholder="Select treatment date"
+                error={formErrors.treatmentDate?.message}
+              />
             )}
           />
 

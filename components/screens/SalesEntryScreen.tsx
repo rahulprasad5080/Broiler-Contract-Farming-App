@@ -36,6 +36,7 @@ import {
 import { getLocalDateValue } from '@/services/dateUtils';
 import { useFormPersistence } from '@/hooks/useFormPersistence';
 import { HeaderNotificationButton } from '@/components/ui/HeaderNotificationButton';
+import { DatePickerField } from '@/components/ui/DatePickerField';
 
 type SalesEntryScreenProps = {
   title?: string;
@@ -574,20 +575,13 @@ export function SalesEntryScreen({
             control={control}
             name="saleDate"
             render={({ field: { onChange, value } }) => (
-              <View style={styles.inputGroup}>
-                <Text style={styles.label}>Sale Date *</Text>
-                <View style={[styles.inputBox, formErrors.saleDate && { borderColor: Colors.tertiary }]}>
-                  <TextInput
-                    style={styles.input}
-                    value={value}
-                    onChangeText={onChange}
-                    placeholder="YYYY-MM-DD"
-                    placeholderTextColor={Colors.textSecondary}
-                  />
-                  <Ionicons name="calendar-outline" size={18} color={Colors.textSecondary} />
-                </View>
-                {formErrors.saleDate && <Text style={styles.fieldErrorText}>{formErrors.saleDate.message}</Text>}
-              </View>
+              <DatePickerField
+                label="Sale Date *"
+                value={value}
+                onChange={onChange}
+                placeholder="Select sale date"
+                error={formErrors.saleDate?.message}
+              />
             )}
           />
 

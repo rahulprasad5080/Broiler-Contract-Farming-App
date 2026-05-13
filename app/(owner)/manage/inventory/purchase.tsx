@@ -18,6 +18,7 @@ import { z } from "zod";
 
 import { Colors } from "@/constants/Colors";
 import { Layout } from "@/constants/Layout";
+import { DatePickerField } from "@/components/ui/DatePickerField";
 import { useAuth } from "@/context/AuthContext";
 import { useFormPersistence } from "@/hooks/useFormPersistence";
 import {
@@ -563,21 +564,13 @@ export default function PurchaseEntryScreen() {
                 control={control}
                 name="purchaseDate"
                 render={({ field: { onChange, value } }) => (
-                  <>
-                    <Text style={styles.label}>Purchase Date</Text>
-                    <View style={[styles.inputBox, errors.purchaseDate && styles.inputError]}>
-                      <TextInput
-                        style={styles.input}
-                        value={value}
-                        onChangeText={onChange}
-                        placeholder="YYYY-MM-DD"
-                        placeholderTextColor={Colors.textSecondary}
-                      />
-                    </View>
-                    {errors.purchaseDate ? (
-                      <Text style={styles.fieldErrorText}>{errors.purchaseDate.message}</Text>
-                    ) : null}
-                  </>
+                  <DatePickerField
+                    label="Purchase Date"
+                    value={value}
+                    onChange={onChange}
+                    placeholder="Select purchase date"
+                    error={errors.purchaseDate?.message}
+                  />
                 )}
               />
             </View>

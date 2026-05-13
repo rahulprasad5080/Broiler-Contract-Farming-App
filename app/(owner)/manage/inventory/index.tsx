@@ -18,6 +18,7 @@ import { z } from "zod";
 
 import { Colors } from "@/constants/Colors";
 import { Layout } from "@/constants/Layout";
+import { DatePickerField } from "@/components/ui/DatePickerField";
 import { useAuth } from "@/context/AuthContext";
 import {
   showRequestErrorToast,
@@ -1015,18 +1016,13 @@ export default function InventoryScreen() {
                     control={expenseControl}
                     name="expenseDate"
                     render={({ field: { onChange, value } }) => (
-                      <>
-                        <Text style={styles.fieldLabel}>Expense Date</Text>
-                        <View style={[styles.inputBox, expenseErrors.expenseDate && styles.inputError]}>
-                          <TextInput
-                            style={styles.input}
-                            value={value}
-                            onChangeText={onChange}
-                            placeholder="YYYY-MM-DD"
-                            placeholderTextColor={Colors.textSecondary}
-                          />
-                        </View>
-                      </>
+                      <DatePickerField
+                        label="Expense Date"
+                        value={value}
+                        onChange={onChange}
+                        placeholder="Select expense date"
+                        error={expenseErrors.expenseDate?.message}
+                      />
                     )}
                   />
                 </View>

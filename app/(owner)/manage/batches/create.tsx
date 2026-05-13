@@ -20,6 +20,7 @@ import Toast from 'react-native-toast-message';
 import { ApiFarm, createBatch, listAllFarms } from '@/services/managementApi';
 import { getLocalDateValue } from '@/services/dateUtils';
 import { useFormPersistence } from '@/hooks/useFormPersistence';
+import { DatePickerField } from '@/components/ui/DatePickerField';
 
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -79,6 +80,7 @@ export default function CreateBatchScreen() {
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
+  const [showDraftBanner, setShowDraftBanner] = useState(false);
 
   // Animated opacity for the "Draft restored" banner
   const draftBannerOpacity = useRef(new Animated.Value(0)).current;
@@ -98,11 +100,21 @@ export default function CreateBatchScreen() {
   // Show and fade out the draft-restored banner
   useEffect(() => {
     if (!isRestored) return;
-    Animated.sequence([
+    setShowDraftBanner(true);
+    draftBannerOpacity.setValue(0);
+    const animation = Animated.sequence([
       Animated.timing(draftBannerOpacity, { toValue: 1, duration: 300, useNativeDriver: true }),
       Animated.delay(2500),
       Animated.timing(draftBannerOpacity, { toValue: 0, duration: 400, useNativeDriver: true }),
-    ]).start();
+    ]);
+
+    animation.start(({ finished }) => {
+      if (finished) {
+        setShowDraftBanner(false);
+      }
+    });
+
+    return () => animation.stop();
   }, [isRestored, draftBannerOpacity]);
 
   const selectedFarmId = watch('farmId');
@@ -197,18 +209,12 @@ export default function CreateBatchScreen() {
       </View>
 
       <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
-        {/* Draft restored banner */}
-        <Animated.View style={[styles.draftBanner, { opacity: draftBannerOpacity }]} pointerEvents="none">
-          <Ionicons name="cloud-done-outline" size={16} color={Colors.primary} />
-          <Text style={styles.draftBannerText}>Draft restored</Text>
-        </Animated.View>
-
-        <View style={styles.noticeCard}>
-          <Ionicons name="information-circle-outline" size={20} color={Colors.primary} />
-          <Text style={styles.noticeText}>
-            A live batch is created directly in the backend. Only farms without an active batch are shown here.
-          </Text>
-        </View>
+        {showDraftBanner ? (
+          <Animated.View style={[styles.draftBanner, { opacity: draftBannerOpacity }]} pointerEvents="none">
+            <Ionicons name="cloud-done-outline" size={16} color={Colors.primary} />
+            <Text style={styles.draftBannerText}>Draft restored</Text>
+          </Animated.View>
+        ) : null}
 
         <View style={styles.card}>
           <Text style={styles.sectionTitle}>Select Farm</Text>
@@ -274,7 +280,7 @@ export default function CreateBatchScreen() {
                     style={styles.input}
                     value={value}
                     onChangeText={onChange}
-                    placeholder="BATCH-APR-2026-01"
+                    placeholder="Enter batch code"
                     placeholderTextColor={Colors.textSecondary}
                   />
                 </View>
@@ -287,20 +293,13 @@ export default function CreateBatchScreen() {
             control={control}
             name="placementDate"
             render={({ field: { onChange, value } }) => (
-              <View style={styles.inputGroup}>
-                <Text style={styles.label}>Placement Date *</Text>
-                <View style={[styles.inputBox, formErrors.placementDate && { borderColor: Colors.tertiary }]}>
-                  <TextInput
-                    style={styles.input}
-                    value={value}
-                    onChangeText={onChange}
-                    placeholder="YYYY-MM-DD"
-                    placeholderTextColor={Colors.textSecondary}
-                  />
-                  <Ionicons name="calendar-outline" size={18} color={Colors.textSecondary} />
-                </View>
-                {formErrors.placementDate && <Text style={styles.fieldErrorText}>{formErrors.placementDate.message}</Text>}
-              </View>
+              <DatePickerField
+                label="Placement Date *"
+                value={value}
+                onChange={onChange}
+                placeholder="Enter placement date"
+                error={formErrors.placementDate?.message}
+              />
             )}
           />
 
@@ -317,7 +316,7 @@ export default function CreateBatchScreen() {
                         style={styles.input}
                         value={value}
                         onChangeText={onChange}
-                        placeholder="5000"
+                        placeholder="Enter placement count"
                         placeholderTextColor={Colors.textSecondary}
                         keyboardType="numeric"
                       />
@@ -340,7 +339,7 @@ export default function CreateBatchScreen() {
                         style={styles.input}
                         value={value}
                         onChangeText={onChange}
-                        placeholder="44"
+                        placeholder="Enter chick rate"
                         placeholderTextColor={Colors.textSecondary}
                         keyboardType="decimal-pad"
                       />
@@ -366,7 +365,7 @@ export default function CreateBatchScreen() {
                         style={styles.input}
                         value={value}
                         onChangeText={onChange}
-                        placeholder="220000"
+                        placeholder="Enter total chick cost"
                         placeholderTextColor={Colors.textSecondary}
                         keyboardType="decimal-pad"
                       />
@@ -377,29 +376,21 @@ export default function CreateBatchScreen() {
                 )}
               />
             </View>
-            <View style={[styles.inputGroup, styles.half]}>
-              <Controller
-                control={control}
-                name="targetCloseDate"
-                render={({ field: { onChange, value } }) => (
-                  <>
-                    <Text style={styles.label}>Target Close Date</Text>
-                    <View style={[styles.inputBox, formErrors.targetCloseDate && { borderColor: Colors.tertiary }]}>
-                      <TextInput
-                        style={styles.input}
-                        value={value}
-                        onChangeText={onChange}
-                        placeholder="YYYY-MM-DD"
-                        placeholderTextColor={Colors.textSecondary}
-                      />
-                      <Ionicons name="calendar-number-outline" size={18} color={Colors.textSecondary} />
-                    </View>
-                    {formErrors.targetCloseDate && <Text style={styles.fieldErrorText}>{formErrors.targetCloseDate.message}</Text>}
-                  </>
-                )}
-              />
-            </View>
           </View>
+
+          <Controller
+            control={control}
+            name="targetCloseDate"
+            render={({ field: { onChange, value } }) => (
+              <DatePickerField
+                label="Target Close Date"
+                value={value}
+                onChange={onChange}
+                placeholder="Enter target close date"
+                error={formErrors.targetCloseDate?.message}
+              />
+            )}
+          />
 
           <Controller
             control={control}
@@ -412,7 +403,7 @@ export default function CreateBatchScreen() {
                     style={styles.input}
                     value={value}
                     onChangeText={onChange}
-                    placeholder="Sunrise Hatchery"
+                    placeholder="Enter source hatchery"
                     placeholderTextColor={Colors.textSecondary}
                   />
                 </View>
@@ -432,7 +423,7 @@ export default function CreateBatchScreen() {
                     style={[styles.input, styles.multiLine]}
                     value={value}
                     onChangeText={onChange}
-                    placeholder="Phase 1 starter batch"
+                    placeholder="Add batch notes"
                     placeholderTextColor={Colors.textSecondary}
                     multiline
                   />
@@ -463,6 +454,7 @@ export default function CreateBatchScreen() {
           )}
         </TouchableOpacity>
       </ScrollView>
+
     </SafeAreaView>
   );
 }
@@ -515,25 +507,9 @@ const styles = StyleSheet.create({
     color: Colors.textSecondary,
   },
   container: {
-    padding: Layout.screenPadding,
+    paddingHorizontal: Layout.screenPadding,
+    paddingTop: Layout.spacing.md,
     paddingBottom: 100,
-  },
-  noticeCard: {
-    flexDirection: 'row',
-    gap: 8,
-    alignItems: 'center',
-    backgroundColor: '#E8F5E9',
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: '#C8E6C9',
-    padding: 14,
-    marginBottom: 14,
-  },
-  noticeText: {
-    flex: 1,
-    fontSize: 12,
-    color: Colors.text,
-    lineHeight: 18,
   },
   card: {
     backgroundColor: Colors.surface,
