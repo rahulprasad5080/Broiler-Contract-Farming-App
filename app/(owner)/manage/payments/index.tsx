@@ -1,10 +1,5 @@
-import { DatePickerField } from '@/components/ui/DatePickerField';
-import { TopAppBar } from '@/components/ui/TopAppBar';
 import { Colors } from '@/constants/Colors';
-import { Layout } from '@/constants/Layout';
 import { useAuth } from '@/context/AuthContext';
-import { showRequestErrorToast, showSuccessToast } from '@/services/apiFeedback';
-import { getLocalDateValue } from '@/services/dateUtils';
 import {
   createFinancePayment,
   listAllBatches,
@@ -14,89 +9,108 @@ import {
   type ApiPaymentDirection,
   type ApiPaymentEntryType,
 } from '@/services/managementApi';
-import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { showRequestErrorToast, showSuccessToast } from '@/services/apiFeedback';
+import { getLocalDateValue } from '@/services/dateUtils';
+import { Ionicons } from '@expo/vector-icons';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useFocusEffect } from '@react-navigation/native';
+import { useRouter } from 'expo-router';
 import React, { useCallback, useMemo, useState } from 'react';
-import { ActivityIndicator, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import {
+  ActivityIndicator,
+  ScrollView,
+  StatusBar,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Controller, useForm } from 'react-hook-form';
 import { z } from 'zod';
 
 const PAYMENT_TYPES = ['PURCHASE', 'EXPENSE', 'SALE_RECEIPT', 'SETTLEMENT', 'INVESTMENT', 'OTHER'] as const satisfies readonly ApiPaymentEntryType[];
 const DIRECTIONS = ['OUTBOUND', 'INBOUND'] as const satisfies readonly ApiPaymentDirection[];
+const METHODS = ['Cash', 'UPI', 'Bank Transfer', 'Cheque'];
 
 const paymentSchema = z.object({
   direction: z.enum(DIRECTIONS),
   paymentType: z.enum(PAYMENT_TYPES),
   batchId: z.string().optional(),
-  partyName: z.string().optional(),
-  amount: z.string().trim().min(1, 'Amount is required').refine((value) => !Number.isNaN(Number(value)), 'Amount must be a number'),
+  partyName: z.string().trim().min(1, 'Paid To / Received From is required'),
+  amount: z.string().trim().min(1, 'Amount is required').refine((value) => !Number.isNaN(Number(value.replace(/,/g, ''))), 'Amount must be a number'),
   paymentDate: z.string().trim().min(1, 'Payment date is required'),
-  referenceType: z.string().optional(),
   referenceId: z.string().optional(),
   notes: z.string().optional(),
+  paymentMethod: z.string().min(1, 'Payment method is required'),
+  fromAccount: z.string().optional(),
 });
 
 type PaymentFormData = z.infer<typeof paymentSchema>;
 
-const DEFAULTS = {
+const DEFAULTS: PaymentFormData = {
   direction: 'OUTBOUND',
-  paymentType: 'PURCHASE',
+  paymentType: 'EXPENSE',
   batchId: '',
   partyName: '',
   amount: '',
   paymentDate: getLocalDateValue(),
-  referenceType: '',
   referenceId: '',
   notes: '',
-} satisfies PaymentFormData;
+  paymentMethod: 'Cash',
+  fromAccount: 'HDFC Bank - 1234',
+};
 
-function labelize(value: string) {
-  return value.replace(/_/g, ' ').toLowerCase().replace(/\b\w/g, (char) => char.toUpperCase());
-}
-
-function formatINR(value?: number | null) {
-  return `Rs ${Number(value ?? 0).toLocaleString('en-IN')}`;
+function formatReadableDate(value?: string | null) {
+  if (!value) return "Select date";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  return date.toLocaleDateString("en-GB", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+  });
 }
 
 export default function PaymentEntryScreen() {
+  const router = useRouter();
   const { accessToken } = useAuth();
   const [batches, setBatches] = useState<ApiBatch[]>([]);
-  const [payments, setPayments] = useState<ApiFinancePayment[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [error, setError] = useState<string | null>(null);
 
-  const { control, handleSubmit, setValue, watch, reset, formState: { errors } } = useForm<PaymentFormData>({
+  // Dropdown states
+  const [paidToDropdownOpen, setPaidToDropdownOpen] = useState(false);
+  const [againstDropdownOpen, setAgainstDropdownOpen] = useState(false);
+  const [accountDropdownOpen, setAccountDropdownOpen] = useState(false);
+
+  const {
+    control,
+    handleSubmit,
+    setValue,
+    watch,
+    reset,
+    formState: { errors },
+  } = useForm<PaymentFormData>({
     resolver: zodResolver(paymentSchema),
     defaultValues: DEFAULTS,
   });
 
   const direction = watch('direction');
-  const selectedBatchId = watch('batchId');
-
-  const selectedBatch = useMemo(
-    () => batches.find((batch) => batch.id === selectedBatchId) ?? null,
-    [batches, selectedBatchId],
-  );
+  const paymentType = watch('paymentType');
+  const paymentMethod = watch('paymentMethod');
+  const fromAccount = watch('fromAccount');
+  const partyName = watch('partyName');
 
   const loadData = useCallback(async () => {
     if (!accessToken) return;
     setLoading(true);
-    setError(null);
     try {
-      const [batchRes, paymentRes] = await Promise.all([
-        listAllBatches(accessToken),
-        listFinancePayments(accessToken, { limit: 20 }),
-      ]);
+      const batchRes = await listAllBatches(accessToken);
       setBatches(batchRes.data);
-      setPayments(paymentRes.data);
     } catch (err) {
-      setError(showRequestErrorToast(err, {
-        title: 'Unable to load payments',
-        fallbackMessage: 'Failed to load payment entry data.',
-      }));
+      showRequestErrorToast(err, { title: 'Unable to load data' });
     } finally {
       setLoading(false);
     }
@@ -108,211 +122,485 @@ export default function PaymentEntryScreen() {
     }, [loadData]),
   );
 
-  const submitPayment = async (data: PaymentFormData) => {
+  const onSubmit = async (data: PaymentFormData) => {
     if (!accessToken) return;
     setSaving(true);
-    setError(null);
     try {
-      const created = await createFinancePayment(accessToken, {
+      await createFinancePayment(accessToken, {
         direction: data.direction,
         paymentType: data.paymentType,
         batchId: data.batchId || undefined,
-        partyName: data.partyName?.trim() || undefined,
-        amount: Number(data.amount),
+        partyName: data.partyName,
+        amount: Number(data.amount.replace(/,/g, '')),
         paymentDate: data.paymentDate,
-        referenceType: data.referenceType?.trim() || data.paymentType,
+        referenceType: data.paymentMethod,
         referenceId: data.referenceId?.trim() || undefined,
         notes: data.notes?.trim() || undefined,
       });
-      setPayments((current) => [created, ...current]);
+      showSuccessToast('Payment saved successfully.');
       reset(DEFAULTS);
-      showSuccessToast('Payment saved successfully.', 'Saved');
     } catch (err) {
-      setError(showRequestErrorToast(err, {
-        title: 'Payment save failed',
-        fallbackMessage: 'Failed to save payment.',
-      }));
+      showRequestErrorToast(err, { title: 'Payment save failed' });
     } finally {
       setSaving(false);
     }
   };
 
   return (
-    <SafeAreaView style={styles.safeArea}>
-      <TopAppBar
-        title="Payment Entry"
-        subtitle="Track paid and received amounts"
-        showBack
-        right={loading ? <ActivityIndicator color="#FFF" /> : null}
-      />
-
-      <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
-        {error ? <Text style={styles.errorText}>{error}</Text> : null}
-
-        <View style={styles.card}>
-          <Text style={styles.sectionTitle}>Payment Type</Text>
-          <Controller
-            control={control}
-            name="direction"
-            render={({ field: { onChange, value } }) => (
-              <View style={styles.segment}>
-                {DIRECTIONS.map((item) => (
-                  <TouchableOpacity key={item} style={[styles.segmentBtn, value === item && styles.segmentBtnActive]} onPress={() => onChange(item)}>
-                    <Text style={[styles.segmentText, value === item && styles.segmentTextActive]}>
-                      {item === 'OUTBOUND' ? 'Payment Made' : 'Payment Received'}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-            )}
-          />
-
-          <Controller
-            control={control}
-            name="paymentDate"
-            render={({ field: { onChange, value } }) => (
-              <DatePickerField label="Date" value={value} onChange={onChange} error={errors.paymentDate?.message} />
-            )}
-          />
-
-          <Text style={styles.label}>{direction === 'OUTBOUND' ? 'Paid To' : 'Received From'}</Text>
-          <Controller
-            control={control}
-            name="partyName"
-            render={({ field: { onChange, value } }) => (
-              <View style={styles.inputBox}>
-                <TextInput style={styles.input} value={value} onChangeText={onChange} placeholder="Party name" placeholderTextColor={Colors.textSecondary} />
-              </View>
-            )}
-          />
-
-          <Text style={styles.label}>Against</Text>
-          <Controller
-            control={control}
-            name="paymentType"
-            render={({ field: { onChange, value } }) => (
-              <View style={styles.chipRow}>
-                {PAYMENT_TYPES.map((type) => (
-                  <TouchableOpacity key={type} style={[styles.chip, value === type && styles.chipActive]} onPress={() => onChange(type)}>
-                    <Text style={[styles.chipText, value === type && styles.chipTextActive]}>{labelize(type)}</Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-            )}
-          />
-
-          <Text style={styles.label}>Batch Link</Text>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.horizontalChips}>
-            <TouchableOpacity style={[styles.chip, !selectedBatchId && styles.chipActive]} onPress={() => setValue('batchId', '')}>
-              <Text style={[styles.chipText, !selectedBatchId && styles.chipTextActive]}>No Batch</Text>
-            </TouchableOpacity>
-            {batches.slice(0, 20).map((batch) => (
-              <TouchableOpacity key={batch.id} style={[styles.chip, selectedBatchId === batch.id && styles.chipActive]} onPress={() => setValue('batchId', batch.id)}>
-                <Text style={[styles.chipText, selectedBatchId === batch.id && styles.chipTextActive]}>{batch.code}</Text>
-              </TouchableOpacity>
-            ))}
-          </ScrollView>
-          {selectedBatch ? <Text style={styles.helperText}>{selectedBatch.farmName ?? 'Farm'} | {selectedBatch.status}</Text> : null}
-
-          <Controller
-            control={control}
-            name="amount"
-            render={({ field: { onChange, value } }) => (
-              <>
-                <Text style={styles.label}>Amount</Text>
-                <View style={[styles.inputBox, errors.amount && styles.inputError]}>
-                  <TextInput style={styles.input} value={value} onChangeText={onChange} placeholder="225000" placeholderTextColor={Colors.textSecondary} keyboardType="decimal-pad" />
-                </View>
-                {errors.amount ? <Text style={styles.fieldErrorText}>{errors.amount.message}</Text> : null}
-              </>
-            )}
-          />
-
-          <Controller
-            control={control}
-            name="referenceId"
-            render={({ field: { onChange, value } }) => (
-              <>
-                <Text style={styles.label}>Reference / Transaction ID</Text>
-                <View style={styles.inputBox}>
-                  <TextInput style={styles.input} value={value} onChangeText={onChange} placeholder="UTR1234567890" placeholderTextColor={Colors.textSecondary} autoCapitalize="characters" />
-                </View>
-              </>
-            )}
-          />
-
-          <Controller
-            control={control}
-            name="notes"
-            render={({ field: { onChange, value } }) => (
-              <>
-                <Text style={styles.label}>Remarks</Text>
-                <View style={[styles.inputBox, styles.textArea]}>
-                  <TextInput style={[styles.input, styles.multiLineInput]} value={value} onChangeText={onChange} placeholder="Payment remarks" placeholderTextColor={Colors.textSecondary} multiline />
-                </View>
-              </>
-            )}
-          />
+    <SafeAreaView style={styles.safeArea} edges={['top']}>
+      <StatusBar barStyle="light-content" backgroundColor="#0B5C36" />
+      
+      {/* Header */}
+      <View style={styles.header}>
+        <View style={styles.headerLeft}>
+          <TouchableOpacity onPress={() => router.back()} style={styles.headerBtn}>
+            <Ionicons name="arrow-back" size={24} color="#FFF" />
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>Payment Entry</Text>
         </View>
-
-        <TouchableOpacity style={[styles.saveButton, saving && styles.saveDisabled]} onPress={handleSubmit(submitPayment)} disabled={saving}>
-          {saving ? <ActivityIndicator color="#FFF" /> : <Text style={styles.saveButtonText}>Save Payment</Text>}
+        <TouchableOpacity style={styles.headerBtn}>
+          <View>
+            <Ionicons name="notifications-outline" size={24} color="#FFF" />
+            <View style={styles.notifDot} />
+          </View>
         </TouchableOpacity>
+      </View>
 
-        <View style={styles.card}>
-          <Text style={styles.sectionTitle}>Recent Payments</Text>
-          {payments.length ? payments.map((payment) => (
-            <View key={payment.id} style={styles.paymentRow}>
-              <View style={styles.paymentIcon}>
-                <MaterialCommunityIcons name={payment.direction === 'INBOUND' ? 'cash-plus' : 'cash-minus'} size={18} color={Colors.primary} />
-              </View>
-              <View style={styles.paymentCopy}>
-                <Text style={styles.paymentTitle}>{payment.partyName || labelize(payment.paymentType)}</Text>
-                <Text style={styles.paymentSub}>{labelize(payment.paymentType)} | {payment.paymentDate}</Text>
-              </View>
-              <Text style={[styles.paymentAmount, payment.direction === 'OUTBOUND' && styles.outbound]}>{formatINR(payment.amount)}</Text>
+      <ScrollView 
+        contentContainerStyle={styles.scrollContainer} 
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+      >
+        <View style={styles.form}>
+          {/* Payment Type */}
+          <View style={styles.inputGroup}>
+            <Text style={styles.label}>Payment Type</Text>
+            <View style={styles.toggleContainer}>
+              {DIRECTIONS.map((dir) => (
+                <TouchableOpacity 
+                  key={dir}
+                  style={[styles.toggleBtn, direction === dir && styles.toggleBtnActive]}
+                  onPress={() => setValue("direction", dir)}
+                >
+                  <Text style={[styles.toggleBtnText, direction === dir && styles.toggleBtnTextActive]}>
+                    {dir === 'OUTBOUND' ? 'Payment Made' : 'Payment Received'}
+                  </Text>
+                </TouchableOpacity>
+              ))}
             </View>
-          )) : <Text style={styles.emptyText}>No payments recorded yet.</Text>}
+          </View>
+
+          {/* Date */}
+          <View style={styles.inputGroup}>
+            <Text style={styles.label}>Date</Text>
+            <Controller
+              control={control}
+              name="paymentDate"
+              render={({ field: { value } }) => (
+                <View style={styles.inputMock}>
+                  <Text style={styles.inputValue}>{formatReadableDate(value)}</Text>
+                  <Ionicons name="calendar-outline" size={20} color="#6B7280" />
+                </View>
+              )}
+            />
+          </View>
+
+          {/* Paid To / Received From */}
+          <View style={styles.inputGroup}>
+            <Text style={styles.label}>{direction === 'OUTBOUND' ? 'Paid To' : 'Received From'}</Text>
+            <TouchableOpacity 
+              style={styles.inputMock} 
+              activeOpacity={0.7}
+              onPress={() => setPaidToDropdownOpen(!paidToDropdownOpen)}
+            >
+              <Text style={styles.inputValue}>{partyName || (direction === 'OUTBOUND' ? "Select Party" : "Select Sender")}</Text>
+              <Ionicons name="chevron-down" size={20} color="#6B7280" />
+            </TouchableOpacity>
+            {paidToDropdownOpen && (
+              <View style={styles.dropdownList}>
+                {["Agro Feed Suppliers", "Zenith Pharma", "City Bank", "General Expenses"].map((item) => (
+                  <TouchableOpacity 
+                    key={item} 
+                    style={styles.dropdownItem}
+                    onPress={() => {
+                      setValue("partyName", item);
+                      setPaidToDropdownOpen(false);
+                    }}
+                  >
+                    <Text style={styles.dropdownItemText}>{item}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            )}
+            {errors.partyName && <Text style={styles.errorText}>{errors.partyName.message}</Text>}
+          </View>
+
+          {/* Against */}
+          <View style={styles.inputGroup}>
+            <Text style={styles.label}>Against</Text>
+            <TouchableOpacity 
+              style={styles.inputMock} 
+              activeOpacity={0.7}
+              onPress={() => setAgainstDropdownOpen(!againstDropdownOpen)}
+            >
+              <Text style={styles.inputValue}>{paymentType ? paymentType.charAt(0) + paymentType.slice(1).toLowerCase() : "Select Reference"}</Text>
+              <Ionicons name="chevron-down" size={20} color="#6B7280" />
+            </TouchableOpacity>
+            {againstDropdownOpen && (
+              <View style={styles.dropdownList}>
+                {PAYMENT_TYPES.map((type) => (
+                  <TouchableOpacity 
+                    key={type} 
+                    style={styles.dropdownItem}
+                    onPress={() => {
+                      setValue("paymentType", type);
+                      setAgainstDropdownOpen(false);
+                    }}
+                  >
+                    <Text style={styles.dropdownItemText}>{type.charAt(0) + type.slice(1).toLowerCase()}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            )}
+          </View>
+
+          {/* Amount */}
+          <View style={styles.inputGroup}>
+            <Text style={styles.label}>Amount (₹)</Text>
+            <Controller
+              control={control}
+              name="amount"
+              render={({ field: { value, onChange } }) => (
+                <TextInput
+                  style={styles.input}
+                  value={value}
+                  onChangeText={onChange}
+                  keyboardType="numeric"
+                  placeholder="2,25,000"
+                  placeholderTextColor="#9CA3AF"
+                />
+              )}
+            />
+            {errors.amount && <Text style={styles.errorText}>{errors.amount.message}</Text>}
+          </View>
+
+          {/* Payment Method */}
+          <View style={styles.inputGroup}>
+            <Text style={styles.label}>Payment Method</Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.horizontalChips}>
+              {METHODS.map((method) => (
+                <TouchableOpacity 
+                  key={method}
+                  style={[styles.smallToggleBtn, paymentMethod === method && styles.toggleBtnActive]}
+                  onPress={() => setValue("paymentMethod", method)}
+                >
+                  <Text style={[styles.smallToggleBtnText, paymentMethod === method && styles.toggleBtnTextActive]}>{method}</Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          </View>
+
+          {/* Reference No. */}
+          <View style={styles.inputGroup}>
+            <Text style={styles.label}>Reference No. / Transaction ID</Text>
+            <Controller
+              control={control}
+              name="referenceId"
+              render={({ field: { value, onChange } }) => (
+                <TextInput
+                  style={styles.input}
+                  value={value}
+                  onChangeText={onChange}
+                  placeholder="UTR1234567890"
+                  placeholderTextColor="#9CA3AF"
+                  autoCapitalize="characters"
+                />
+              )}
+            />
+          </View>
+
+          {/* Payment From Account */}
+          <View style={styles.inputGroup}>
+            <Text style={styles.label}>Payment From Account</Text>
+            <TouchableOpacity 
+              style={styles.inputMock} 
+              activeOpacity={0.7}
+              onPress={() => setAccountDropdownOpen(!accountDropdownOpen)}
+            >
+              <Text style={styles.inputValue}>{fromAccount || "Select Account"}</Text>
+              <Ionicons name="chevron-down" size={20} color="#6B7280" />
+            </TouchableOpacity>
+            {accountDropdownOpen && (
+              <View style={styles.dropdownList}>
+                {["HDFC Bank - 1234", "ICICI Bank - 5678", "Cash in Hand"].map((acc) => (
+                  <TouchableOpacity 
+                    key={acc} 
+                    style={styles.dropdownItem}
+                    onPress={() => {
+                      setValue("fromAccount", acc);
+                      setAccountDropdownOpen(false);
+                    }}
+                  >
+                    <Text style={styles.dropdownItemText}>{acc}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            )}
+          </View>
+
+          {/* Remarks */}
+          <View style={styles.inputGroup}>
+            <Text style={styles.label}>Remarks (Optional)</Text>
+            <Controller
+              control={control}
+              name="notes"
+              render={({ field: { value, onChange } }) => (
+                <TextInput
+                  style={[styles.input, styles.textArea]}
+                  value={value}
+                  onChangeText={onChange}
+                  placeholder="Payment for feed purchase"
+                  placeholderTextColor="#9CA3AF"
+                  multiline
+                />
+              )}
+            />
+          </View>
+
+          {/* Attachment */}
+          <View style={styles.inputGroup}>
+            <Text style={styles.label}>Attachment (Optional)</Text>
+            <View style={styles.attachmentBox}>
+              <View style={styles.attachmentInfo}>
+                <View style={styles.attachmentIcon}>
+                   <Ionicons name="image-outline" size={18} color="#059669" />
+                </View>
+                <Text style={styles.attachmentName} numberOfLines={1}>payment_proof.jpg</Text>
+              </View>
+              <TouchableOpacity>
+                <Ionicons name="trash-outline" size={18} color="#EF4444" />
+              </TouchableOpacity>
+            </View>
+          </View>
+
+          <TouchableOpacity 
+            style={[styles.submitBtn, saving && styles.btnDisabled]} 
+            onPress={handleSubmit(onSubmit)}
+            disabled={saving}
+          >
+            {saving ? (
+              <ActivityIndicator color="#FFF" />
+            ) : (
+              <Text style={styles.submitBtnText}>Save Payment</Text>
+            )}
+          </TouchableOpacity>
         </View>
+        <View style={{ height: 40 }} />
       </ScrollView>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: '#F6F8F7' },
-  container: { padding: Layout.screenPadding, paddingBottom: 90 },
-  errorText: { color: Colors.tertiary, backgroundColor: '#FFF4F4', borderRadius: 8, padding: 10, marginBottom: 12 },
-  card: { backgroundColor: '#FFF', borderRadius: 8, borderWidth: 1, borderColor: Colors.border, padding: 16, marginBottom: 14 },
-  sectionTitle: { fontSize: 15, fontWeight: '900', color: Colors.text, marginBottom: 12 },
-  segment: { flexDirection: 'row', backgroundColor: '#F3F4F6', borderRadius: 8, padding: 3, marginBottom: 12 },
-  segmentBtn: { flex: 1, minHeight: 38, alignItems: 'center', justifyContent: 'center', borderRadius: 7 },
-  segmentBtnActive: { backgroundColor: Colors.primary },
-  segmentText: { color: Colors.textSecondary, fontSize: 12, fontWeight: '800' },
-  segmentTextActive: { color: '#FFF' },
-  label: { fontSize: 13, fontWeight: '800', color: Colors.text, marginTop: 12, marginBottom: 7 },
-  inputBox: { minHeight: 48, borderWidth: 1, borderColor: Colors.border, borderRadius: 8, paddingHorizontal: 12, justifyContent: 'center', backgroundColor: '#F9FAFB' },
-  inputError: { borderColor: Colors.tertiary },
-  input: { color: Colors.text, fontSize: 14, padding: 0 },
-  textArea: { minHeight: 82, paddingTop: 10, paddingBottom: 10 },
-  multiLineInput: { minHeight: 58, textAlignVertical: 'top' },
-  chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  horizontalChips: { gap: 8, paddingRight: 8 },
-  chip: { minHeight: 34, borderRadius: 8, paddingHorizontal: 12, paddingVertical: 8, backgroundColor: '#F3F4F6', borderWidth: 1, borderColor: 'transparent', justifyContent: 'center' },
-  chipActive: { backgroundColor: '#E8F5E9', borderColor: Colors.primary },
-  chipText: { color: Colors.textSecondary, fontSize: 12, fontWeight: '800' },
-  chipTextActive: { color: Colors.primary },
-  helperText: { marginTop: 7, color: Colors.textSecondary, fontSize: 12, fontWeight: '700' },
-  fieldErrorText: { color: Colors.tertiary, fontSize: 11, marginTop: 4, fontWeight: '700' },
-  saveButton: { minHeight: 52, borderRadius: 8, backgroundColor: Colors.primary, alignItems: 'center', justifyContent: 'center', marginBottom: 14 },
-  saveDisabled: { opacity: 0.7 },
-  saveButtonText: { color: '#FFF', fontSize: 15, fontWeight: '900' },
-  paymentRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 11, borderBottomWidth: 1, borderBottomColor: Colors.border },
-  paymentIcon: { width: 34, height: 34, borderRadius: 8, backgroundColor: '#E8F5E9', alignItems: 'center', justifyContent: 'center' },
-  paymentCopy: { flex: 1 },
-  paymentTitle: { color: Colors.text, fontSize: 13, fontWeight: '900' },
-  paymentSub: { color: Colors.textSecondary, fontSize: 11, marginTop: 2 },
-  paymentAmount: { color: Colors.primary, fontSize: 13, fontWeight: '900' },
-  outbound: { color: Colors.tertiary },
-  emptyText: { color: Colors.textSecondary, paddingVertical: 10 },
+  safeArea: { flex: 1, backgroundColor: "#0B5C36" },
+  header: {
+    backgroundColor: "#0B5C36",
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+  },
+  headerLeft: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  headerBtn: {
+    padding: 4,
+  },
+  headerTitle: {
+    color: "#FFF",
+    fontSize: 18,
+    fontWeight: "700",
+    marginLeft: 12,
+  },
+  notifDot: {
+    position: "absolute",
+    top: 2,
+    right: 2,
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: "#EF4444",
+    borderWidth: 1.5,
+    borderColor: "#0B5C36",
+  },
+  scrollContainer: {
+    flexGrow: 1,
+    backgroundColor: "#FFF",
+    paddingHorizontal: 20,
+    paddingTop: 24,
+  },
+  form: {
+    flex: 1,
+  },
+  inputGroup: {
+    marginBottom: 20,
+  },
+  label: {
+    fontSize: 14,
+    fontWeight: "700",
+    color: "#111827",
+    marginBottom: 8,
+  },
+  input: {
+    backgroundColor: "#FFF",
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    height: 52,
+    fontSize: 15,
+    color: "#111827",
+  },
+  inputMock: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    backgroundColor: "#FFF",
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    height: 52,
+  },
+  inputValue: {
+    fontSize: 15,
+    color: "#374151",
+  },
+  textArea: {
+    height: 100,
+    paddingTop: 16,
+    textAlignVertical: "top",
+  },
+  toggleContainer: {
+    flexDirection: "row",
+    backgroundColor: "#F3F4F6",
+    borderRadius: 12,
+    padding: 4,
+  },
+  toggleBtn: {
+    flex: 1,
+    height: 44,
+    borderRadius: 10,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  toggleBtnActive: {
+    backgroundColor: "#0B5C36",
+  },
+  toggleBtnText: {
+    fontSize: 13,
+    fontWeight: "600",
+    color: "#6B7280",
+  },
+  toggleBtnTextActive: {
+    color: "#FFF",
+  },
+  horizontalChips: {
+    gap: 10,
+    paddingRight: 10,
+  },
+  smallToggleBtn: {
+    minWidth: 80,
+    paddingHorizontal: 16,
+    height: 44,
+    borderRadius: 12,
+    backgroundColor: "#F3F4F6",
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
+  },
+  smallToggleBtnText: {
+    fontSize: 13,
+    fontWeight: "600",
+    color: "#4B5563",
+  },
+  attachmentBox: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    backgroundColor: "#F9FAFB",
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    height: 56,
+  },
+  attachmentInfo: {
+    flexDirection: "row",
+    alignItems: "center",
+    flex: 1,
+  },
+  attachmentIcon: {
+    width: 32,
+    height: 32,
+    borderRadius: 8,
+    backgroundColor: "#ECFDF5",
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: 12,
+  },
+  attachmentName: {
+    fontSize: 14,
+    color: "#374151",
+    fontWeight: "500",
+  },
+  dropdownList: {
+    marginTop: 4,
+    backgroundColor: "#FFF",
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
+    borderRadius: 12,
+    overflow: "hidden",
+    elevation: 4,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+  },
+  dropdownItem: {
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: "#F3F4F6",
+  },
+  dropdownItemText: {
+    fontSize: 14,
+    color: "#374151",
+  },
+  submitBtn: {
+    backgroundColor: "#0B5C36",
+    height: 56,
+    borderRadius: 12,
+    alignItems: "center",
+    justifyContent: "center",
+    marginTop: 12,
+    marginBottom: 20,
+  },
+  submitBtnText: {
+    color: "#FFF",
+    fontSize: 16,
+    fontWeight: "700",
+  },
+  btnDisabled: {
+    opacity: 0.7,
+  },
+  errorText: {
+    color: "#EF4444",
+    fontSize: 12,
+    marginTop: 4,
+    marginLeft: 4,
+  },
 });

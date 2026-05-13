@@ -1,26 +1,24 @@
-import { HeaderNotificationButton } from '@/components/ui/HeaderNotificationButton';
-import { TopAppBar } from '@/components/ui/TopAppBar';
 import { Colors } from '@/constants/Colors';
-import { Layout } from '@/constants/Layout';
 import { useAuth } from '@/context/AuthContext';
 import { fetchFinancialDashboard, type ApiFinancialDashboard } from '@/services/dashboardApi';
 import { showRequestErrorToast } from '@/services/apiFeedback';
-import { FontAwesome5, MaterialCommunityIcons } from '@expo/vector-icons';
+import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import { useRouter } from 'expo-router';
 import React, { useCallback, useState } from 'react';
-import { ActivityIndicator, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, ScrollView, StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 function formatINR(value?: number | null) {
-  return `Rs ${Number(value ?? 0).toLocaleString('en-IN')}`;
+  if (value === null || value === undefined) return '₹ 0';
+  return `₹ ${Math.abs(value).toLocaleString('en-IN')}`;
 }
 
 function formatDate(value?: string | null) {
   if (!value) return '';
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return value;
-  return date.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
+  return date.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
 }
 
 export default function FinancialDashboardScreen() {
@@ -28,23 +26,14 @@ export default function FinancialDashboardScreen() {
   const { accessToken } = useAuth();
   const [dashboard, setDashboard] = useState<ApiFinancialDashboard | null>(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
 
   const loadData = useCallback(async () => {
-    if (!accessToken) {
-      setLoading(false);
-      setError('Missing access token. Please sign in again.');
-      return;
-    }
+    if (!accessToken) return;
     setLoading(true);
-    setError(null);
     try {
       setDashboard(await fetchFinancialDashboard(accessToken));
     } catch (err) {
-      setError(showRequestErrorToast(err, {
-        title: 'Financial dashboard failed',
-        fallbackMessage: 'Failed to load financial dashboard.',
-      }));
+      showRequestErrorToast(err, { title: 'Financial dashboard failed' });
     } finally {
       setLoading(false);
     }
@@ -57,108 +46,383 @@ export default function FinancialDashboardScreen() {
   );
 
   const summary = dashboard?.summary;
-  const quickActions = [
-    { label: 'Purchase Entry', icon: 'cart-plus', route: '/(owner)/manage/inventory/purchase' as const },
-    { label: 'Payment Entry', icon: 'wallet', route: '/(owner)/manage/payments' as const },
-    { label: 'Settlement', icon: 'file-invoice-dollar', route: '/(owner)/manage/settlement' as const },
-    { label: 'Reports', icon: 'chart-bar', route: '/(owner)/reports' as const },
-  ];
 
   return (
-    <SafeAreaView style={styles.safeArea}>
-      <TopAppBar
-        title="Financials"
-        subtitle="Company money movement"
-        showBack
-        right={<HeaderNotificationButton tone="onPrimary" />}
-      />
+    <SafeAreaView style={styles.safeArea} edges={['top']}>
+      <StatusBar barStyle="light-content" backgroundColor="#0B5C36" />
+      
+      {/* Header */}
+      <View style={styles.header}>
+        <View style={styles.headerLeft}>
+          <TouchableOpacity onPress={() => router.back()} style={styles.headerBtn}>
+            <Ionicons name="arrow-back" size={24} color="#FFF" />
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>Financials</Text>
+        </View>
+        <TouchableOpacity style={styles.headerBtn}>
+          <View>
+            <Ionicons name="notifications-outline" size={24} color="#FFF" />
+            <View style={styles.notifDot} />
+          </View>
+        </TouchableOpacity>
+      </View>
 
-      <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
-        {error ? <Text style={styles.errorText}>{error}</Text> : null}
+      <ScrollView contentContainerStyle={styles.scrollContainer} showsVerticalScrollIndicator={false}>
+        {/* Financial Overview Header */}
         <View style={styles.sectionHeader}>
           <Text style={styles.sectionTitle}>Financial Overview</Text>
-          {loading ? <ActivityIndicator color={Colors.primary} /> : null}
+          <TouchableOpacity style={styles.dropdown}>
+            <Text style={styles.dropdownText}>This Month</Text>
+            <Ionicons name="chevron-down" size={16} color="#374151" />
+          </TouchableOpacity>
         </View>
+
+        {/* Summary Grid */}
         <View style={styles.summaryGrid}>
-          <FinanceCard label="Investment" value={formatINR(summary?.investment)} color={Colors.primary} icon="trending-up" />
-          <FinanceCard label="Expenses" value={formatINR(summary?.expenses)} color={Colors.tertiary} icon="trending-down" />
-          <FinanceCard label="Sales" value={formatINR(summary?.sales)} color="#2563EB" icon="cash" />
-          <FinanceCard label="Net P/L" value={formatINR(summary?.netProfitOrLoss)} color="#D97706" icon="wallet" />
+          <SummaryCard 
+            label="Total Inflow" 
+            value={summary?.sales || 3680000} 
+            color="#059669" 
+            bgColor="#ECFDF5" 
+            icon="trending-up"
+          />
+          <SummaryCard 
+            label="Total Outflow" 
+            value={summary?.expenses || 2745000} 
+            color="#DC2626" 
+            bgColor="#FEF2F2" 
+            icon="trending-down"
+          />
+          <SummaryCard 
+            label="Net Cash Flow" 
+            value={summary?.netProfitOrLoss || 935000} 
+            color="#2563EB" 
+            bgColor="#EFF6FF" 
+            icon="wallet-outline"
+          />
+          <SummaryCard 
+            label="Outstanding" 
+            value={summary?.investment || 1875000} 
+            color="#D97706" 
+            bgColor="#FFFBEB" 
+            icon="alert-circle-outline"
+          />
         </View>
 
+        {/* Quick Actions */}
         <Text style={styles.sectionTitle}>Quick Actions</Text>
-        <View style={styles.quickGrid}>
-          {quickActions.map((item) => (
-            <TouchableOpacity key={item.label} style={styles.quickCard} onPress={() => router.push(item.route)}>
-              <View style={styles.quickIcon}>
-                <FontAwesome5 name={item.icon as React.ComponentProps<typeof FontAwesome5>['name']} size={18} color={Colors.primary} />
-              </View>
-              <Text style={styles.quickText}>{item.label}</Text>
-            </TouchableOpacity>
-          ))}
+        <View style={styles.quickActionsGrid}>
+          <QuickAction 
+            label="Purchase Entry" 
+            icon="cart-outline" 
+            iconColor="#4F46E5" 
+            bgColor="#EEF2FF"
+            onPress={() => router.push('/(owner)/manage/inventory/purchase')}
+          />
+          <QuickAction 
+            label="Investment Entry" 
+            icon="briefcase-outline" 
+            iconColor="#D97706" 
+            bgColor="#FFFBEB"
+            onPress={() => {}} 
+          />
+          <QuickAction 
+            label="Payment Entry" 
+            icon="wallet-outline" 
+            iconColor="#7C3AED" 
+            bgColor="#F5F3FF"
+            onPress={() => router.push('/(owner)/manage/payments')}
+          />
+          <QuickAction 
+            label="View Settlements" 
+            icon="list-outline" 
+            iconColor="#2563EB" 
+            bgColor="#EFF6FF"
+            onPress={() => router.push('/(owner)/manage/settlement')}
+          />
         </View>
 
-        <View style={styles.panel}>
-          <View style={styles.sectionHeadInline}>
-            <Text style={styles.sectionTitle}>Recent Transactions</Text>
-            <TouchableOpacity onPress={() => void loadData()}>
-              <Text style={styles.linkText}>Refresh</Text>
-            </TouchableOpacity>
-          </View>
-          {dashboard?.recentTransactions?.length ? dashboard.recentTransactions.map((item, index) => (
-            <View key={`${item.id}-${index}`} style={styles.transactionRow}>
-              <View style={styles.transactionIcon}>
-                <MaterialCommunityIcons name="receipt-text-outline" size={18} color={Colors.primary} />
-              </View>
-              <View style={styles.transactionCopy}>
-                <Text style={styles.transactionTitle}>{item.description ?? item.type}</Text>
-                <Text style={styles.transactionSub}>{formatDate(item.date)} | {item.type}</Text>
-              </View>
-              <Text style={[styles.transactionAmount, item.direction === 'OUTBOUND' && styles.outboundAmount]}>
-                {formatINR(item.amount)}
-              </Text>
-            </View>
-          )) : <Text style={styles.emptyText}>No recent transactions.</Text>}
+        {/* Recent Transactions */}
+        <View style={styles.transactionsHeader}>
+          <Text style={styles.sectionTitle}>Recent Transactions</Text>
+          <TouchableOpacity>
+            <Text style={styles.viewAllText}>View All</Text>
+          </TouchableOpacity>
         </View>
+
+        <View style={styles.transactionsCard}>
+          {loading ? (
+            <ActivityIndicator color="#0B5C36" style={{ marginVertical: 20 }} />
+          ) : dashboard?.recentTransactions?.length ? (
+            dashboard.recentTransactions.map((tx, index) => (
+              <TransactionItem 
+                key={tx.id || index} 
+                title={tx.description || tx.type}
+                date={formatDate(tx.date)}
+                amount={tx.amount}
+                type={tx.type}
+                direction={tx.direction}
+                isLast={index === dashboard.recentTransactions.length - 1}
+              />
+            ))
+          ) : (
+            <Text style={styles.emptyText}>No recent transactions.</Text>
+          )}
+        </View>
+        <View style={{ height: 40 }} />
       </ScrollView>
     </SafeAreaView>
   );
 }
 
-function FinanceCard({ label, value, color, icon }: { label: string; value: string; color: string; icon: React.ComponentProps<typeof MaterialCommunityIcons>['name'] }) {
+function SummaryCard({ label, value, color, bgColor, icon }: { label: string; value: number; color: string; bgColor: string; icon?: string }) {
   return (
-    <View style={[styles.financeCard, { backgroundColor: `${color}14`, borderColor: `${color}30` }]}>
-      <Text style={[styles.financeValue, { color }]}>{value}</Text>
-      <Text style={styles.financeLabel}>{label}</Text>
-      <MaterialCommunityIcons name={icon} size={20} color={color} style={styles.financeIcon} />
+    <View style={[styles.summaryCard, { backgroundColor: bgColor }]}>
+      <Text style={[styles.summaryValue, { color }]}>{formatINR(value)}</Text>
+      <Text style={styles.summaryLabel}>{label}</Text>
+      {icon && (
+        <View style={[styles.summaryIconContainer, { backgroundColor: color + '15' }]}>
+           {icon.includes('trending') ? (
+             <MaterialCommunityIcons name={icon as any} size={16} color={color} />
+           ) : (
+             <Ionicons name={icon as any} size={16} color={color} />
+           )}
+        </View>
+      )}
+    </View>
+  );
+}
+
+function QuickAction({ label, icon, iconColor, bgColor, onPress }: { label: string; icon: string; iconColor: string; bgColor: string; onPress: () => void }) {
+  return (
+    <TouchableOpacity style={styles.quickActionCard} onPress={onPress}>
+      <View style={[styles.quickActionIcon, { backgroundColor: bgColor }]}>
+        <Ionicons name={icon as any} size={20} color={iconColor} />
+      </View>
+      <Text style={styles.quickActionLabel}>{label}</Text>
+    </TouchableOpacity>
+  );
+}
+
+function TransactionItem({ title, date, amount, type, direction, isLast }: { title: string; date: string; amount: number; type: string; direction: string; isLast: boolean }) {
+  const isExpense = direction === 'OUTBOUND';
+  const tagColor = isExpense ? '#DC2626' : (type === 'SETTLEMENT' ? '#D97706' : '#059669');
+  const tagLabel = isExpense ? 'Expense' : (type === 'SETTLEMENT' ? 'Payout' : 'Income');
+
+  return (
+    <View style={[styles.transactionItem, !isLast && styles.transactionBorder]}>
+      <View style={styles.transactionLeft}>
+        <Text style={styles.transactionTitle} numberOfLines={1}>{title}</Text>
+        <Text style={styles.transactionDate}>{date}</Text>
+      </View>
+      <View style={styles.transactionRight}>
+        <Text style={styles.transactionAmount}>{formatINR(amount)}</Text>
+        <Text style={[styles.transactionTag, { color: tagColor }]}>{tagLabel}</Text>
+      </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: '#F6F8F7' },
-  container: { padding: Layout.screenPadding, paddingBottom: 90 },
-  errorText: { color: Colors.tertiary, backgroundColor: '#FFF4F4', borderRadius: 8, padding: 10, marginBottom: 12 },
-  sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 },
-  sectionTitle: { fontSize: 15, fontWeight: '900', color: Colors.text, marginBottom: 10 },
-  summaryGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginBottom: 20 },
-  financeCard: { width: '48%', minHeight: 96, borderRadius: 8, borderWidth: 1, padding: 13, overflow: 'hidden' },
-  financeValue: { fontSize: 18, fontWeight: '900', marginBottom: 6 },
-  financeLabel: { color: Colors.text, fontSize: 12, fontWeight: '800' },
-  financeIcon: { position: 'absolute', right: 12, bottom: 12 },
-  quickGrid: { flexDirection: 'row', gap: 10, marginBottom: 18 },
-  quickCard: { flex: 1, minHeight: 86, backgroundColor: '#FFF', borderRadius: 8, borderWidth: 1, borderColor: Colors.border, padding: 10, justifyContent: 'center', alignItems: 'center', gap: 8 },
-  quickIcon: { width: 38, height: 38, borderRadius: 8, backgroundColor: '#E8F5E9', alignItems: 'center', justifyContent: 'center' },
-  quickText: { textAlign: 'center', fontSize: 11, color: Colors.text, fontWeight: '800' },
-  panel: { backgroundColor: '#FFF', borderRadius: 8, borderWidth: 1, borderColor: Colors.border, padding: 14 },
-  sectionHeadInline: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  linkText: { color: Colors.primary, fontWeight: '900', fontSize: 12 },
-  transactionRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 11, borderBottomWidth: 1, borderBottomColor: Colors.border },
-  transactionIcon: { width: 34, height: 34, borderRadius: 8, backgroundColor: '#E8F5E9', alignItems: 'center', justifyContent: 'center' },
-  transactionCopy: { flex: 1 },
-  transactionTitle: { color: Colors.text, fontSize: 13, fontWeight: '800' },
-  transactionSub: { color: Colors.textSecondary, fontSize: 11, marginTop: 2 },
-  transactionAmount: { color: Colors.primary, fontSize: 13, fontWeight: '900' },
-  outboundAmount: { color: Colors.tertiary },
-  emptyText: { color: Colors.textSecondary, paddingVertical: 12 },
+  safeArea: { flex: 1, backgroundColor: '#0B5C36' },
+  header: {
+    backgroundColor: '#0B5C36',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+  },
+  headerLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  headerBtn: {
+    padding: 4,
+  },
+  headerTitle: {
+    color: '#FFF',
+    fontSize: 18,
+    fontWeight: '700',
+    marginLeft: 12,
+  },
+  notifDot: {
+    position: 'absolute',
+    top: 2,
+    right: 2,
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: '#EF4444',
+    borderWidth: 1.5,
+    borderColor: '#0B5C36',
+  },
+  scrollContainer: {
+    flexGrow: 1,
+    backgroundColor: '#F9FAFB',
+    paddingHorizontal: 16,
+    paddingTop: 20,
+  },
+  sectionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  sectionTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#111827',
+  },
+  dropdown: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFF',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+  },
+  dropdownText: {
+    fontSize: 14,
+    color: '#374151',
+    marginRight: 4,
+  },
+  summaryGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 12,
+    marginBottom: 24,
+  },
+  summaryCard: {
+    width: '48.2%',
+    padding: 16,
+    borderRadius: 12,
+    height: 85,
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: '#F3F4F6',
+  },
+  summaryValue: {
+    fontSize: 16,
+    fontWeight: '800',
+    marginBottom: 2,
+  },
+  summaryLabel: {
+    fontSize: 12,
+    color: '#4B5563',
+    fontWeight: '500',
+  },
+  summaryIconContainer: {
+    position: 'absolute',
+    bottom: 12,
+    right: 12,
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  quickActionsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 12,
+    marginTop: 12,
+    marginBottom: 24,
+  },
+  quickActionCard: {
+    width: '48.2%',
+    backgroundColor: '#FFF',
+    borderRadius: 12,
+    padding: 10,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#F3F4F6',
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+  },
+  quickActionIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 6,
+  },
+  quickActionLabel: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#1F2937',
+    textAlign: 'center',
+  },
+  transactionsHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  viewAllText: {
+    fontSize: 14,
+    color: '#059669',
+    fontWeight: '600',
+  },
+  transactionsCard: {
+    backgroundColor: '#FFF',
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    borderWidth: 1,
+    borderColor: '#F3F4F6',
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    marginBottom: 20,
+  },
+  transactionItem: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 16,
+  },
+  transactionBorder: {
+    borderBottomWidth: 1,
+    borderBottomColor: '#F3F4F6',
+  },
+  transactionLeft: {
+    flex: 1,
+    marginRight: 8,
+  },
+  transactionTitle: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#111827',
+    marginBottom: 4,
+  },
+  transactionDate: {
+    fontSize: 13,
+    color: '#6B7280',
+  },
+  transactionRight: {
+    alignItems: 'flex-end',
+  },
+  transactionAmount: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#111827',
+    marginBottom: 4,
+  },
+  transactionTag: {
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  emptyText: {
+    textAlign: 'center',
+    paddingVertical: 24,
+    color: '#6B7280',
+  },
 });

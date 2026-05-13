@@ -1,10 +1,12 @@
-import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
+import { Ionicons } from "@expo/vector-icons";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useFocusEffect } from "@react-navigation/native";
+import { useRouter } from "expo-router";
 import React, { useCallback, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   ScrollView,
+  StatusBar,
   StyleSheet,
   Text,
   TextInput,
@@ -15,74 +17,74 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { Controller, useForm } from "react-hook-form";
 import { z } from "zod";
 
-import { TopAppBar } from "@/components/ui/TopAppBar";
-import { Colors } from "@/constants/Colors";
-import { Layout } from "@/constants/Layout";
 import { useAuth } from "@/context/AuthContext";
-import { useFormPersistence } from "@/hooks/useFormPersistence";
 import {
   showRequestErrorToast,
   showSuccessToast,
 } from "@/services/apiFeedback";
+import { getLocalDateValue } from "@/services/dateUtils";
 import {
   allocateInventory,
   listAllBatches,
   listCatalogItems,
-  listInventoryLedger,
+  listAllFarms,
   type ApiBatch,
   type ApiCatalogItem,
-  type ApiInventoryLedgerEntry,
+  type ApiFarm,
 } from "@/services/managementApi";
 
-const ACTIVE_BATCH_STATUSES = new Set([
-  "ACTIVE",
-  "SALES_RUNNING",
-]);
-
 const allocationSchema = z.object({
-  catalogItemId: z.string().trim().min(1, "Catalog item is required"),
-  batchId: z.string().trim().min(1, "Batch is required"),
-  quantity: z.string().trim().min(1, "Quantity is required").refine(
-    (value) => !Number.isNaN(Number(value)) && Number(value) > 0,
-    { message: "Enter a positive quantity" },
+  date: z.string().min(1, "Date is required"),
+  farmId: z.string().min(1, "Farm is required"),
+  batchId: z.string().min(1, "Batch is required"),
+  itemType: z.enum(["Feed", "Medicine", "Vaccine", "Other"]),
+  catalogItemId: z.string().min(1, "Item is required"),
+  quantity: z.string().min(1, "Quantity is required").refine(
+    (val) => !Number.isNaN(Number(val)) && Number(val) > 0,
+    "Enter a valid quantity"
   ),
+  fromStock: z.string().min(1, "Stock source is required"),
   remarks: z.string().optional(),
 });
 
 type AllocationFormData = z.infer<typeof allocationSchema>;
 
-const ALLOCATION_DEFAULTS = {
-  catalogItemId: "",
+const DEFAULTS: AllocationFormData = {
+  date: getLocalDateValue(),
+  farmId: "",
   batchId: "",
+  itemType: "Feed",
+  catalogItemId: "",
   quantity: "",
+  fromStock: "Main Store",
   remarks: "",
-} satisfies AllocationFormData;
+};
 
-function labelize(value: string) {
-  return value
-    .replace(/_/g, " ")
-    .toLowerCase()
-    .replace(/\b\w/g, (char) => char.toUpperCase());
-}
-
-function formatQuantity(value?: number | null, unit?: string | null) {
-  const quantity = Number(value ?? 0).toLocaleString("en-IN");
-  return unit ? `${quantity} ${unit}` : quantity;
-}
-
-function batchLabel(batch: ApiBatch) {
-  return [batch.code, batch.farmName, batch.status].filter(Boolean).join(" | ");
+function formatReadableDate(value?: string | null) {
+  if (!value) return "Select date";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  return date.toLocaleDateString("en-GB", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+  });
 }
 
 export default function AllocateStockScreen() {
+  const router = useRouter();
   const { accessToken } = useAuth();
-  const [catalogItems, setCatalogItems] = useState<ApiCatalogItem[]>([]);
+  const [farms, setFarms] = useState<ApiFarm[]>([]);
   const [batches, setBatches] = useState<ApiBatch[]>([]);
-  const [ledgerRows, setLedgerRows] = useState<ApiInventoryLedgerEntry[]>([]);
+  const [catalogItems, setCatalogItems] = useState<ApiCatalogItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [loadingLedger, setLoadingLedger] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+
+  // Dropdown states
+  const [farmDropdownOpen, setFarmDropdownOpen] = useState(false);
+  const [batchDropdownOpen, setBatchDropdownOpen] = useState(false);
+  const [itemDropdownOpen, setItemDropdownOpen] = useState(false);
+  const [stockDropdownOpen, setStockDropdownOpen] = useState(false);
 
   const {
     control,
@@ -93,633 +95,464 @@ export default function AllocateStockScreen() {
     formState: { errors },
   } = useForm<AllocationFormData>({
     resolver: zodResolver(allocationSchema),
-    defaultValues: ALLOCATION_DEFAULTS,
+    defaultValues: DEFAULTS,
   });
 
-  const { clearPersistedData, isRestored } = useFormPersistence(
-    "form_draft_inventory_allocation",
-    watch,
-    reset,
-    ALLOCATION_DEFAULTS,
-  );
+  const itemType = watch("itemType");
+  const farmId = watch("farmId");
+  const batchId = watch("batchId");
+  const catalogItemId = watch("catalogItemId");
+  const fromStock = watch("fromStock");
 
-  const selectedCatalogItemId = watch("catalogItemId");
-  const selectedBatchId = watch("batchId");
-
-  const selectedItem = useMemo(
-    () => catalogItems.find((item) => item.id === selectedCatalogItemId) ?? null,
-    [catalogItems, selectedCatalogItemId],
-  );
-
-  const selectedBatch = useMemo(
-    () => batches.find((batch) => batch.id === selectedBatchId) ?? null,
-    [batches, selectedBatchId],
-  );
-
-  const activeBatches = useMemo(
-    () => batches.filter((batch) => ACTIVE_BATCH_STATUSES.has(batch.status)),
-    [batches],
-  );
-
-  const loadLedger = useCallback(
-    async (catalogItemId = selectedCatalogItemId, batchId = selectedBatchId) => {
-      if (!accessToken || !catalogItemId) return;
-
-      setLoadingLedger(true);
-
-      try {
-        const response = await listInventoryLedger(accessToken, {
-          catalogItemId,
-          batchId: batchId || undefined,
-        });
-        setLedgerRows(response.data);
-      } catch (err) {
-        setError(
-          showRequestErrorToast(err, {
-            title: "Unable to load ledger",
-            fallbackMessage: "Failed to load allocation ledger.",
-          }),
-        );
-      } finally {
-        setLoadingLedger(false);
-      }
-    },
-    [accessToken, selectedBatchId, selectedCatalogItemId],
-  );
+  const selectedFarm = farms.find(f => f.id === farmId);
+  const selectedBatch = batches.find(b => b.id === batchId);
+  const selectedItem = catalogItems.find(i => i.id === catalogItemId);
 
   const loadData = useCallback(async () => {
-    if (!accessToken) {
-      setError("Missing access token. Please sign in again.");
-      return;
-    }
-
+    if (!accessToken) return;
     setLoading(true);
-    setError(null);
-
     try {
-      const [catalogResponse, batchResponse] = await Promise.all([
-        listCatalogItems(accessToken, { limit: 100 }),
+      const [farmRes, batchRes, catalogRes] = await Promise.all([
+        listAllFarms(accessToken),
         listAllBatches(accessToken),
+        listCatalogItems(accessToken, { limit: 100 }),
       ]);
-
-      setCatalogItems(catalogResponse.data);
-      setBatches(batchResponse.data);
-
-      const firstItem = catalogResponse.data[0];
-      const firstBatch = batchResponse.data.find((batch) =>
-        ACTIVE_BATCH_STATUSES.has(batch.status),
-      );
-
-      if (firstItem && !selectedCatalogItemId) {
-        setValue("catalogItemId", firstItem.id);
-      }
-
-      if (firstBatch && !selectedBatchId) {
-        setValue("batchId", firstBatch.id);
-      }
-
-      if (firstItem) {
-        void loadLedger(
-          selectedCatalogItemId || firstItem.id,
-          selectedBatchId || firstBatch?.id || "",
-        );
-      }
+      setFarms(farmRes.data);
+      setBatches(batchRes.data);
+      setCatalogItems(catalogRes.data);
     } catch (err) {
-      setError(
-        showRequestErrorToast(err, {
-          title: "Unable to load allocation data",
-          fallbackMessage: "Failed to load allocation data.",
-        }),
-      );
+      showRequestErrorToast(err, { title: "Unable to load data" });
     } finally {
       setLoading(false);
     }
-  }, [accessToken, loadLedger, selectedBatchId, selectedCatalogItemId, setValue]);
+  }, [accessToken]);
 
   useFocusEffect(
     useCallback(() => {
       void loadData();
-    }, [loadData]),
+    }, [loadData])
   );
 
-  const submitAllocation = async (data: AllocationFormData) => {
-    if (!accessToken) {
-      setError("Missing access token. Please sign in again.");
-      return;
-    }
-
+  const onSubmit = async (data: AllocationFormData) => {
+    if (!accessToken) return;
     setSaving(true);
-    setError(null);
-
     try {
-      const created = await allocateInventory(accessToken, {
-        batchId: data.batchId.trim(),
-        catalogItemId: data.catalogItemId.trim(),
+      await allocateInventory(accessToken, {
+        batchId: data.batchId,
+        catalogItemId: data.catalogItemId,
         quantity: Number(data.quantity),
         remarks: data.remarks?.trim() || undefined,
       });
-
-      setLedgerRows((prev) => [created, ...prev]);
-      setCatalogItems((prev) =>
-        prev.map((item) =>
-          item.id === created.catalogItemId
-            ? { ...item, currentStock: created.balanceAfter ?? item.currentStock }
-            : item,
-        ),
-      );
-      await clearPersistedData();
-      reset({
-        ...ALLOCATION_DEFAULTS,
-        catalogItemId: data.catalogItemId,
-        batchId: data.batchId,
-      });
-      showSuccessToast("Stock allocated successfully.", "Saved");
+      showSuccessToast("Inventory allocated successfully.");
+      reset(DEFAULTS);
     } catch (err) {
-      setError(
-        showRequestErrorToast(err, {
-          title: "Allocation failed",
-          fallbackMessage: "Failed to allocate stock.",
-        }),
-      );
+      showRequestErrorToast(err, { title: "Allocation failed" });
     } finally {
       setSaving(false);
     }
   };
 
   return (
-    <SafeAreaView style={styles.safeArea}>
-      <TopAppBar
-        title="Inventory Allocation"
-        subtitle="Issue central stock to an active batch"
-        showBack
-        right={loading ? <ActivityIndicator color="#FFF" /> : null}
-      />
+    <SafeAreaView style={styles.safeArea} edges={['top']}>
+      <StatusBar barStyle="light-content" backgroundColor="#0B5C36" />
+      
+      {/* Header */}
+      <View style={styles.header}>
+        <View style={styles.headerLeft}>
+          <TouchableOpacity onPress={() => router.back()} style={styles.headerBtn}>
+            <Ionicons name="arrow-back" size={24} color="#FFF" />
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>Inventory Allocation</Text>
+        </View>
+        <TouchableOpacity style={styles.headerBtn}>
+          <View>
+            <Ionicons name="notifications-outline" size={24} color="#FFF" />
+            <View style={styles.notifDot} />
+          </View>
+        </TouchableOpacity>
+      </View>
 
-      <ScrollView
-        contentContainerStyle={styles.container}
+      <ScrollView 
+        contentContainerStyle={styles.scrollContainer} 
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
       >
-        {isRestored ? (
-          <View style={styles.draftBanner}>
-            <Ionicons name="cloud-done-outline" size={16} color={Colors.primary} />
-            <Text style={styles.draftBannerText}>Draft restored</Text>
-          </View>
-        ) : null}
-
-        {error ? <Text style={styles.errorText}>{error}</Text> : null}
-
-        <View style={styles.infoCard}>
-          <Ionicons name="information-circle-outline" size={22} color={Colors.primary} />
-          <Text style={styles.infoText}>
-            Allocation posts a stock-out movement in /inventory/ledger and links it to the target batch.
-          </Text>
-        </View>
-
-        <View style={styles.card}>
-          <Text style={styles.sectionTitle}>Allocation Details</Text>
-
-          <Controller
-            control={control}
-            name="catalogItemId"
-            render={({ field: { onChange, value } }) => (
-              <>
-                <Text style={styles.label}>Catalog Item</Text>
-                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.horizontalChips}>
-                  {catalogItems.map((item) => (
-                    <TouchableOpacity
-                      key={item.id}
-                      style={[styles.chip, value === item.id && styles.chipActive]}
-                      onPress={() => {
-                        onChange(item.id);
-                        void loadLedger(item.id, selectedBatchId);
-                      }}
-                    >
-                      <Text style={[styles.chipText, value === item.id && styles.chipTextActive]}>
-                        {item.name}
-                      </Text>
-                    </TouchableOpacity>
-                  ))}
-                </ScrollView>
-                {errors.catalogItemId ? (
-                  <Text style={styles.fieldErrorText}>{errors.catalogItemId.message}</Text>
-                ) : null}
-              </>
-            )}
-          />
-
-          {selectedItem ? (
-            <View style={styles.stockCard}>
-              <View style={styles.stockIcon}>
-                <MaterialCommunityIcons name="warehouse" size={20} color={Colors.primary} />
-              </View>
-              <View style={styles.stockMeta}>
-                <Text style={styles.stockTitle}>{selectedItem.name}</Text>
-                <Text style={styles.stockSub}>
-                  {labelize(selectedItem.type)} | {selectedItem.unit}
-                  {selectedItem.reorderLevel ? ` | Reorder ${selectedItem.reorderLevel}` : ""}
-                </Text>
-              </View>
-              <Text style={styles.stockQty}>
-                {formatQuantity(selectedItem.currentStock, selectedItem.unit)}
-              </Text>
-            </View>
-          ) : null}
-
-          <Controller
-            control={control}
-            name="batchId"
-            render={({ field: { onChange, value } }) => (
-              <>
-                <Text style={styles.label}>Target Batch</Text>
-                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.horizontalChips}>
-                  {activeBatches.map((batch) => (
-                    <TouchableOpacity
-                      key={batch.id}
-                      style={[styles.chip, value === batch.id && styles.chipActive]}
-                      onPress={() => {
-                        onChange(batch.id);
-                        void loadLedger(selectedCatalogItemId, batch.id);
-                      }}
-                    >
-                      <Text style={[styles.chipText, value === batch.id && styles.chipTextActive]}>
-                        {batchLabel(batch)}
-                      </Text>
-                    </TouchableOpacity>
-                  ))}
-                </ScrollView>
-                {errors.batchId ? (
-                  <Text style={styles.fieldErrorText}>{errors.batchId.message}</Text>
-                ) : null}
-              </>
-            )}
-          />
-
-          {selectedBatch ? (
-            <View style={styles.batchStrip}>
-              <Ionicons name="layers-outline" size={18} color={Colors.primary} />
-              <Text style={styles.batchStripText}>{batchLabel(selectedBatch)}</Text>
-            </View>
-          ) : null}
-
-          <Controller
-            control={control}
-            name="quantity"
-            render={({ field: { onChange, value } }) => (
-              <>
-                <Text style={styles.label}>Quantity</Text>
-                <View style={[styles.inputBox, errors.quantity && styles.inputError]}>
-                  <TextInput
-                    style={styles.input}
-                    value={value}
-                    onChangeText={onChange}
-                    placeholder="400"
-                    placeholderTextColor={Colors.textSecondary}
-                    keyboardType="decimal-pad"
-                  />
+        <View style={styles.form}>
+          {/* Date */}
+          <View style={styles.inputGroup}>
+            <Text style={styles.label}>Date</Text>
+            <Controller
+              control={control}
+              name="date"
+              render={({ field: { value } }) => (
+                <View style={styles.inputMock}>
+                  <Text style={styles.inputValue}>{formatReadableDate(value)}</Text>
+                  <Ionicons name="calendar-outline" size={20} color="#6B7280" />
                 </View>
-                {errors.quantity ? (
-                  <Text style={styles.fieldErrorText}>{errors.quantity.message}</Text>
-                ) : null}
-              </>
-            )}
-          />
-
-          <Controller
-            control={control}
-            name="remarks"
-            render={({ field: { onChange, value } }) => (
-              <>
-                <Text style={styles.label}>Remarks</Text>
-                <View style={[styles.inputBox, styles.textArea]}>
-                  <TextInput
-                    style={[styles.input, styles.multiLineInput]}
-                    value={value}
-                    onChangeText={onChange}
-                    placeholder="Released to feed store"
-                    placeholderTextColor={Colors.textSecondary}
-                    multiline
-                  />
-                </View>
-              </>
-            )}
-          />
-        </View>
-
-        <TouchableOpacity
-          style={[styles.saveButton, saving && styles.saveButtonDisabled]}
-          onPress={handleSubmit(submitAllocation)}
-          disabled={saving}
-        >
-          {saving ? (
-            <ActivityIndicator color="#FFF" />
-          ) : (
-            <Text style={styles.saveButtonText}>Confirm Allocation</Text>
-          )}
-        </TouchableOpacity>
-
-        <View style={styles.card}>
-          <View style={styles.cardHeader}>
-            <View>
-              <Text style={styles.sectionTitle}>Allocation Ledger</Text>
-              <Text style={styles.sectionSub}>Latest movements for selected item and batch</Text>
-            </View>
-            {loadingLedger ? <ActivityIndicator color={Colors.primary} /> : null}
+              )}
+            />
           </View>
 
-          {ledgerRows.length ? (
-            ledgerRows.map((row) => (
-              <View key={row.id} style={styles.ledgerRow}>
-                <View style={styles.ledgerMeta}>
-                  <Text style={styles.ledgerTitle}>
-                    {row.catalogItemName || row.catalogItemId}
-                  </Text>
-                  <Text style={styles.ledgerSub}>
-                    {[labelize(row.movementType), row.movementDate, row.referenceType]
-                      .filter(Boolean)
-                      .join(" | ")}
-                  </Text>
-                  {row.notes ? <Text style={styles.ledgerNote}>{row.notes}</Text> : null}
-                </View>
-                <View style={styles.ledgerNumbers}>
-                  <Text style={styles.ledgerOut}>-{formatQuantity(row.quantityOut)}</Text>
-                  <Text style={styles.ledgerBalance}>
-                    Bal {formatQuantity(row.balanceAfter)}
-                  </Text>
-                </View>
+          {/* Farm */}
+          <View style={styles.inputGroup}>
+            <Text style={styles.label}>Farm</Text>
+            <TouchableOpacity 
+              style={styles.inputMock} 
+              activeOpacity={0.7}
+              onPress={() => setFarmDropdownOpen(!farmDropdownOpen)}
+            >
+              <Text style={styles.inputValue}>{selectedFarm?.name || "Select Farm"}</Text>
+              <Ionicons name="chevron-down" size={20} color="#6B7280" />
+            </TouchableOpacity>
+            {farmDropdownOpen && (
+              <View style={styles.dropdownList}>
+                {farms.map((f) => (
+                  <TouchableOpacity 
+                    key={f.id} 
+                    style={styles.dropdownItem}
+                    onPress={() => {
+                      setValue("farmId", f.id);
+                      setFarmDropdownOpen(false);
+                    }}
+                  >
+                    <Text style={styles.dropdownItemText}>{f.name}</Text>
+                  </TouchableOpacity>
+                ))}
               </View>
-            ))
-          ) : (
-            <Text style={styles.emptyText}>No ledger movements loaded yet.</Text>
-          )}
+            )}
+          </View>
+
+          {/* Batch */}
+          <View style={styles.inputGroup}>
+            <Text style={styles.label}>Batch</Text>
+            <TouchableOpacity 
+              style={styles.inputMock} 
+              activeOpacity={0.7}
+              onPress={() => setBatchDropdownOpen(!batchDropdownOpen)}
+            >
+              <Text style={styles.inputValue}>{selectedBatch?.code || "Select Batch"}</Text>
+              <Ionicons name="chevron-down" size={20} color="#6B7280" />
+            </TouchableOpacity>
+            {batchDropdownOpen && (
+              <View style={styles.dropdownList}>
+                {batches.filter(b => b.farmId === farmId).map((b) => (
+                  <TouchableOpacity 
+                    key={b.id} 
+                    style={styles.dropdownItem}
+                    onPress={() => {
+                      setValue("batchId", b.id);
+                      setBatchDropdownOpen(false);
+                    }}
+                  >
+                    <Text style={styles.dropdownItemText}>{b.code}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            )}
+          </View>
+
+          {/* Item Type */}
+          <View style={styles.inputGroup}>
+            <Text style={styles.label}>Item Type</Text>
+            <View style={styles.chipRow}>
+              {["Feed", "Medicine", "Vaccine", "Other"].map((type) => (
+                <TouchableOpacity 
+                  key={type}
+                  style={[styles.smallToggleBtn, itemType === type && styles.toggleBtnActive]}
+                  onPress={() => setValue("itemType", type as any)}
+                >
+                  <Text style={[styles.smallToggleBtnText, itemType === type && styles.toggleBtnTextActive]}>{type}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </View>
+
+          {/* Item */}
+          <View style={styles.inputGroup}>
+            <Text style={styles.label}>Item</Text>
+            <TouchableOpacity 
+              style={styles.inputMock} 
+              activeOpacity={0.7}
+              onPress={() => setItemDropdownOpen(!itemDropdownOpen)}
+            >
+              <Text style={styles.inputValue}>{selectedItem?.name || "Select Item"}</Text>
+              <Ionicons name="chevron-down" size={20} color="#6B7280" />
+            </TouchableOpacity>
+            {itemDropdownOpen && (
+              <View style={styles.dropdownList}>
+                {catalogItems.filter(i => i.type.toLowerCase().includes(itemType.toLowerCase())).map((i) => (
+                  <TouchableOpacity 
+                    key={i.id} 
+                    style={styles.dropdownItem}
+                    onPress={() => {
+                      setValue("catalogItemId", i.id);
+                      setItemDropdownOpen(false);
+                    }}
+                  >
+                    <Text style={styles.dropdownItemText}>{i.name}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            )}
+          </View>
+
+          {/* Quantity */}
+          <View style={styles.inputGroup}>
+            <Text style={styles.label}>Quantity</Text>
+            <Controller
+              control={control}
+              name="quantity"
+              render={({ field: { value, onChange } }) => (
+                <View style={styles.inputContainer}>
+                  <TextInput
+                    style={styles.inputWithSuffix}
+                    value={value}
+                    onChangeText={onChange}
+                    keyboardType="numeric"
+                    placeholder="500"
+                    placeholderTextColor="#9CA3AF"
+                  />
+                  <Text style={styles.suffix}>{selectedItem?.unit || "kg"}</Text>
+                </View>
+              )}
+            />
+          </View>
+
+          {/* From Stock */}
+          <View style={styles.inputGroup}>
+            <Text style={styles.label}>From Stock</Text>
+            <TouchableOpacity 
+              style={styles.inputMock} 
+              activeOpacity={0.7}
+              onPress={() => setStockDropdownOpen(!stockDropdownOpen)}
+            >
+              <Text style={styles.inputValue}>{fromStock}</Text>
+              <Ionicons name="chevron-down" size={20} color="#6B7280" />
+            </TouchableOpacity>
+            {stockDropdownOpen && (
+              <View style={styles.dropdownList}>
+                {["Main Store", "Warehouse A", "Godown 1"].map((s) => (
+                  <TouchableOpacity 
+                    key={s} 
+                    style={styles.dropdownItem}
+                    onPress={() => {
+                      setValue("fromStock", s);
+                      setStockDropdownOpen(false);
+                    }}
+                  >
+                    <Text style={styles.dropdownItemText}>{s}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            )}
+          </View>
+
+          {/* Remarks */}
+          <View style={styles.inputGroup}>
+            <Text style={styles.label}>Remarks (Optional)</Text>
+            <Controller
+              control={control}
+              name="remarks"
+              render={({ field: { value, onChange } }) => (
+                <TextInput
+                  style={[styles.input, styles.textArea]}
+                  value={value}
+                  onChangeText={onChange}
+                  placeholder="Starter feed allocated"
+                  placeholderTextColor="#9CA3AF"
+                  multiline
+                />
+              )}
+            />
+          </View>
+
+          <TouchableOpacity 
+            style={[styles.submitBtn, saving && styles.btnDisabled]} 
+            onPress={handleSubmit(onSubmit)}
+            disabled={saving}
+          >
+            {saving ? (
+              <ActivityIndicator color="#FFF" />
+            ) : (
+              <Text style={styles.submitBtnText}>Allocate</Text>
+            )}
+          </TouchableOpacity>
         </View>
+        <View style={{ height: 40 }} />
       </ScrollView>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  safeArea: {
-    flex: 1,
-    backgroundColor: "#F6F8F7",
-  },
-  container: {
-    padding: Layout.screenPadding,
-    paddingBottom: 40,
-    alignSelf: "center",
-    width: "100%",
-    maxWidth: Layout.formMaxWidth,
-  },
-  draftBanner: {
+  safeArea: { flex: 1, backgroundColor: "#0B5C36" },
+  header: {
+    backgroundColor: "#0B5C36",
     flexDirection: "row",
     alignItems: "center",
-    gap: 6,
-    backgroundColor: "#E8F5E9",
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: "#C8E6C9",
-    paddingHorizontal: 12,
-    paddingVertical: 9,
-    marginBottom: 12,
-  },
-  draftBannerText: {
-    fontSize: 12,
-    fontWeight: "700",
-    color: Colors.primary,
-  },
-  errorText: {
-    marginBottom: 14,
-    padding: 10,
-    borderRadius: 10,
-    backgroundColor: "#FFF4F4",
-    color: Colors.tertiary,
-    borderWidth: 1,
-    borderColor: "#FECACA",
-    fontSize: 12,
-  },
-  infoCard: {
-    flexDirection: "row",
-    backgroundColor: "#E8F5E9",
-    padding: 14,
-    borderRadius: 8,
-    marginBottom: Layout.spacing.md,
-    borderWidth: 1,
-    borderColor: "#C8E6C9",
-    alignItems: "center",
-    gap: 10,
-  },
-  infoText: {
-    flex: 1,
-    fontSize: 12,
-    color: Colors.text,
-    lineHeight: 18,
-  },
-  card: {
-    backgroundColor: Colors.surface,
-    borderRadius: 8,
-    padding: 16,
-    marginBottom: Layout.spacing.md,
-    borderWidth: 1,
-    borderColor: Colors.border,
-  },
-  cardHeader: {
-    flexDirection: "row",
-    alignItems: "flex-start",
     justifyContent: "space-between",
-    marginBottom: 8,
-    gap: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
   },
-  sectionTitle: {
-    fontSize: 16,
-    fontWeight: "800",
-    color: Colors.text,
-    marginBottom: 6,
+  headerLeft: {
+    flexDirection: "row",
+    alignItems: "center",
   },
-  sectionSub: {
-    fontSize: 12,
-    color: Colors.textSecondary,
-    lineHeight: 17,
+  headerBtn: {
+    padding: 4,
+  },
+  headerTitle: {
+    color: "#FFF",
+    fontSize: 18,
+    fontWeight: "700",
+    marginLeft: 12,
+  },
+  notifDot: {
+    position: "absolute",
+    top: 2,
+    right: 2,
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: "#EF4444",
+    borderWidth: 1.5,
+    borderColor: "#0B5C36",
+  },
+  scrollContainer: {
+    flexGrow: 1,
+    backgroundColor: "#FFF",
+    paddingHorizontal: 20,
+    paddingTop: 24,
+  },
+  form: {
+    flex: 1,
+  },
+  inputGroup: {
+    marginBottom: 20,
   },
   label: {
-    fontSize: 13,
+    fontSize: 14,
     fontWeight: "700",
-    color: Colors.text,
-    marginTop: 12,
-    marginBottom: 7,
-  },
-  inputBox: {
-    minHeight: 48,
-    borderWidth: 1,
-    borderColor: Colors.border,
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    justifyContent: "center",
-    backgroundColor: "#F9FAFB",
-  },
-  inputError: {
-    borderColor: Colors.tertiary,
+    color: "#111827",
+    marginBottom: 8,
   },
   input: {
-    fontSize: 14,
-    color: Colors.text,
-    padding: 0,
-  },
-  textArea: {
-    minHeight: 86,
-    paddingTop: 10,
-    paddingBottom: 10,
-  },
-  multiLineInput: {
-    minHeight: 62,
-    textAlignVertical: "top",
-  },
-  horizontalChips: {
-    gap: 8,
-    paddingRight: 8,
-  },
-  chip: {
-    minHeight: 34,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 8,
-    backgroundColor: "#F3F4F6",
+    backgroundColor: "#FFF",
     borderWidth: 1,
-    borderColor: "transparent",
-    justifyContent: "center",
-  },
-  chipActive: {
-    backgroundColor: "#E8F5E9",
-    borderColor: Colors.primary,
-  },
-  chipText: {
-    fontSize: 12,
-    fontWeight: "700",
-    color: Colors.textSecondary,
-  },
-  chipTextActive: {
-    color: Colors.primary,
-  },
-  stockCard: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginTop: 12,
-    padding: 12,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: Colors.border,
-    backgroundColor: "#F9FAFB",
-    gap: 10,
-  },
-  stockIcon: {
-    width: 36,
-    height: 36,
-    borderRadius: 8,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: "#E8F5E9",
-  },
-  stockMeta: {
-    flex: 1,
-  },
-  stockTitle: {
-    fontSize: 14,
-    color: Colors.text,
-    fontWeight: "800",
-  },
-  stockSub: {
-    marginTop: 3,
-    fontSize: 12,
-    color: Colors.textSecondary,
-  },
-  stockQty: {
-    fontSize: 13,
-    color: Colors.primary,
-    fontWeight: "800",
-  },
-  batchStrip: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-    backgroundColor: "#F9FAFB",
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: Colors.border,
-    padding: 12,
-    marginTop: 12,
-  },
-  batchStripText: {
-    flex: 1,
-    fontSize: 12,
-    color: Colors.text,
-    fontWeight: "700",
-  },
-  fieldErrorText: {
-    color: Colors.tertiary,
-    fontSize: 11,
-    marginTop: 4,
-    fontWeight: "600",
-  },
-  saveButton: {
-    minHeight: 52,
-    borderRadius: 10,
-    backgroundColor: Colors.primary,
-    justifyContent: "center",
-    alignItems: "center",
-    marginBottom: Layout.spacing.md,
-  },
-  saveButtonDisabled: {
-    backgroundColor: "#9DB8A8",
-  },
-  saveButtonText: {
-    color: "#FFF",
+    borderColor: "#E5E7EB",
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    height: 52,
     fontSize: 15,
-    fontWeight: "800",
+    color: "#111827",
   },
-  ledgerRow: {
+  inputContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#FFF",
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    height: 52,
+  },
+  inputWithSuffix: {
+    flex: 1,
+    fontSize: 15,
+    color: "#111827",
+    height: "100%",
+  },
+  suffix: {
+    fontSize: 14,
+    fontWeight: "700",
+    color: "#111827",
+    marginLeft: 8,
+  },
+  inputMock: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    gap: 10,
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.border,
+    backgroundColor: "#FFF",
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    height: 52,
   },
-  ledgerMeta: {
+  inputValue: {
+    fontSize: 15,
+    color: "#374151",
+  },
+  textArea: {
+    height: 100,
+    paddingTop: 16,
+    textAlignVertical: "top",
+  },
+  chipRow: {
+    flexDirection: "row",
+    gap: 8,
+  },
+  smallToggleBtn: {
     flex: 1,
+    height: 44,
+    borderRadius: 12,
+    backgroundColor: "#F3F4F6",
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
   },
-  ledgerTitle: {
+  toggleBtnActive: {
+    backgroundColor: "#0B5C36",
+    borderColor: "#0B5C36",
+  },
+  smallToggleBtnText: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: "#6B7280",
+  },
+  toggleBtnTextActive: {
+    color: "#FFF",
+  },
+  dropdownList: {
+    marginTop: 4,
+    backgroundColor: "#FFF",
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
+    borderRadius: 12,
+    overflow: "hidden",
+    elevation: 4,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    zIndex: 10,
+  },
+  dropdownItem: {
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: "#F3F4F6",
+  },
+  dropdownItemText: {
     fontSize: 14,
-    fontWeight: "800",
-    color: Colors.text,
+    color: "#374151",
   },
-  ledgerSub: {
-    fontSize: 12,
-    color: Colors.textSecondary,
-    marginTop: 3,
-    lineHeight: 16,
+  submitBtn: {
+    backgroundColor: "#0B5C36",
+    height: 56,
+    borderRadius: 12,
+    alignItems: "center",
+    justifyContent: "center",
+    marginTop: 12,
+    marginBottom: 20,
   },
-  ledgerNote: {
-    fontSize: 11,
-    color: Colors.textSecondary,
-    marginTop: 3,
+  submitBtnText: {
+    color: "#FFF",
+    fontSize: 16,
+    fontWeight: "700",
   },
-  ledgerNumbers: {
-    alignItems: "flex-end",
-    minWidth: 88,
-  },
-  ledgerOut: {
-    fontSize: 12,
-    color: Colors.tertiary,
-    fontWeight: "800",
-  },
-  ledgerBalance: {
-    fontSize: 11,
-    color: Colors.textSecondary,
-    marginTop: 3,
-  },
-  emptyText: {
-    fontSize: 13,
-    color: Colors.textSecondary,
-    paddingVertical: 10,
+  btnDisabled: {
+    opacity: 0.7,
   },
 });
