@@ -1,3 +1,8 @@
+import { Colors } from '@/constants/Colors';
+import { Layout } from '@/constants/Layout';
+import { useAuth } from '@/context/AuthContext';
+import { useFormPersistence } from '@/hooks/useFormPersistence';
+import { createFarm, listAllUsers, type ApiUser } from '@/services/managementApi';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import React, { useEffect, useRef, useState } from 'react';
@@ -13,15 +18,10 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Colors } from '@/constants/Colors';
-import { Layout } from '@/constants/Layout';
-import { useAuth } from '@/context/AuthContext';
 import Toast from 'react-native-toast-message';
-import { createFarm, listAllUsers, type ApiUser } from '@/services/managementApi';
-import { useFormPersistence } from '@/hooks/useFormPersistence';
 
-import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
+import { Controller, useForm } from 'react-hook-form';
 import { z } from 'zod';
 
 type AssignmentField = 'primaryFarmerId' | 'supervisorId' | 'assignmentUserIds';
@@ -310,12 +310,6 @@ export default function AddFarmScreen() {
             <Text style={styles.draftBannerText}>Draft restored</Text>
           </Animated.View>
         ) : null}
-
-        <Text style={styles.pageTitle}>Create Farm</Text>
-        <Text style={styles.pageSubtitle}>Set up farm details and assign staff in one place.</Text>
-
-        {error ? <Text style={styles.errorText}>{error}</Text> : null}
-
         <View style={styles.card}>
           <Text style={styles.sectionTitle}>Farm Details</Text>
 
