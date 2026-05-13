@@ -88,17 +88,17 @@ export type ApiUser = {
 };
 
 export type ApiPermissionMatrix = {
-  dailyEntry?: boolean;
-  salesEntry?: boolean;
-  expenseEntry?: boolean;
-  inventoryView?: boolean;
-  costVisibility?: boolean;
-  reportAccess?: boolean;
-  companyExpenseEntry?: boolean;
-  farmerExpenseApproval?: boolean;
-  purchaseEntry?: boolean;
-  settlementEntry?: boolean;
-  financialDashboard?: boolean;
+  dailyEntry: boolean;
+  salesEntry: boolean;
+  expenseEntry: boolean;
+  inventoryView: boolean;
+  costVisibility: boolean;
+  reportAccess: boolean;
+  companyExpenseEntry: boolean;
+  farmerExpenseApproval: boolean;
+  purchaseEntry: boolean;
+  settlementEntry: boolean;
+  financialDashboard: boolean;
 };
 
 export type ApiFarmAssignment = {
@@ -424,13 +424,13 @@ export type ApiComment = {
 
 export type CreateUserRequest = {
   name: string;
+  email: string;
+  phone: string;
   password: string;
   role: ApiRole;
-  email?: string;
-  phone?: string;
-  permissions?: ApiPermissionMatrix;
-  assignedFarmIds?: string[];
-  mustChangePassword?: boolean;
+  assignedFarmIds: string[];
+  permissions: ApiPermissionMatrix;
+  mustChangePassword: boolean;
 };
 
 export type UpdateUserRequest = {

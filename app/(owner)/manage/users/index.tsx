@@ -18,6 +18,7 @@ import {
   updateUser,
   updateUserStatus,
   type ApiFarm,
+  type ApiPermissionMatrix,
   type ApiRole,
   type ApiUser,
 } from '@/services/managementApi';
@@ -74,9 +75,11 @@ const passwordFieldSchema = z.string().superRefine((value, ctx) => {
 
 const userSchema = z.object({
   name: z.string().min(2, 'Name must be at least 2 characters'),
+  email: z.string().email('Invalid email address'),
   phone: z.string().regex(/^[0-9]{10}$/, 'Phone must be exactly 10 digits'),
   role: z.enum(CREATE_ROLE_OPTIONS),
   password: passwordFieldSchema,
+  assignedFarmIds: z.array(z.string()),
 });
 
 type AddUserFormData = z.infer<typeof userSchema>;
@@ -118,12 +121,79 @@ function toStatus(status: ApiUser['status']): Status {
 }
 
 function getAssignedFarm(user: ApiUser, farms: ApiFarm[]) {
+  if (user.assignedFarmIds?.length) {
+    const farmNames = user.assignedFarmIds
+      .map((farmId) => farms.find((farm) => farm.id === farmId)?.name)
+      .filter(Boolean);
+
+    return farmNames.length ? farmNames.join(', ') : `${user.assignedFarmIds.length} farm(s) assigned`;
+  }
+
   const match = farms.find((farm) => {
     const assignments = farm.assignments.some((assignment) => assignment.userId === user.id);
     return farm.primaryFarmerId === user.id || farm.supervisorId === user.id || assignments;
   });
 
   return match?.name || 'Unassigned';
+}
+
+function getDefaultPermissionMatrix(role: Role): Required<ApiPermissionMatrix> {
+  const permissions: Required<ApiPermissionMatrix> = {
+    dailyEntry: false,
+    salesEntry: false,
+    expenseEntry: false,
+    inventoryView: false,
+    costVisibility: false,
+    reportAccess: false,
+    companyExpenseEntry: false,
+    farmerExpenseApproval: false,
+    purchaseEntry: false,
+    settlementEntry: false,
+    financialDashboard: false,
+  };
+
+  if (role === 'OWNER') {
+    Object.keys(permissions).forEach((key) => {
+      permissions[key as keyof ApiPermissionMatrix] = true;
+    });
+    return permissions;
+  }
+
+  if (role === 'ACCOUNTS') {
+    return {
+      ...permissions,
+      expenseEntry: true,
+      inventoryView: true,
+      costVisibility: true,
+      reportAccess: true,
+      companyExpenseEntry: true,
+      farmerExpenseApproval: true,
+      purchaseEntry: true,
+      settlementEntry: true,
+      financialDashboard: true,
+    };
+  }
+
+  if (role === 'SUPERVISOR') {
+    return {
+      ...permissions,
+      dailyEntry: true,
+      salesEntry: true,
+      expenseEntry: true,
+      inventoryView: true,
+      reportAccess: true,
+      companyExpenseEntry: true,
+      purchaseEntry: true,
+    };
+  }
+
+  return {
+    ...permissions,
+    dailyEntry: true,
+    salesEntry: true,
+    expenseEntry: true,
+    reportAccess: true,
+  };
 }
 
 function toUserCard(user: ApiUser, farms: ApiFarm[]): UserCard {
@@ -160,9 +230,11 @@ export default function UserManagementScreen() {
     resolver: zodResolver(userSchema),
     defaultValues: {
       name: '',
+      email: '',
       phone: '',
       role: 'FARMER',
       password: '',
+      assignedFarmIds: [],
     },
   });
 
@@ -281,9 +353,13 @@ export default function UserManagementScreen() {
     try {
       const created = await createUser(accessToken, {
         name: data.name.trim(),
+        email: data.email.trim(),
         phone: data.phone.trim(),
         role: data.role,
-        password: data.password.trim() || 'Broiler@1234',
+        password: data.password.trim(),
+        assignedFarmIds: data.assignedFarmIds,
+        permissions: getDefaultPermissionMatrix(data.role),
+        mustChangePassword: true,
       });
 
       setUsers((prev) => [
@@ -291,7 +367,7 @@ export default function UserManagementScreen() {
           id: created.id,
           name: created.name,
           role: created.role,
-          farm: 'Unassigned',
+          farm: getAssignedFarm(created, farms),
           status: toStatus(created.status),
           hasAvatar: Boolean(created.email),
         },
@@ -544,122 +620,194 @@ export default function UserManagementScreen() {
       <Modal visible={showAddModal} transparent animationType="slide">
         <TouchableOpacity style={styles.modalOverlay} activeOpacity={1} onPress={() => setShowAddModal(false)}>
           <View style={styles.modalSheet} onStartShouldSetResponder={() => true}>
-            <View style={styles.modalHeaderRow}>
-              <Text style={styles.modalTitle}>Add New User</Text>
-              <TouchableOpacity
-                style={styles.modalCloseBtn}
-                onPress={() => setShowAddModal(false)}
-                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-              >
-                <Ionicons name="close" size={20} color={Colors.text} />
-              </TouchableOpacity>
-            </View>
-            {error ? <Text style={styles.errorText}>{error}</Text> : null}
+            <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+              <View style={styles.modalHeaderRow}>
+                <Text style={styles.modalTitle}>Add New User</Text>
+                <TouchableOpacity
+                  style={styles.modalCloseBtn}
+                  onPress={() => setShowAddModal(false)}
+                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                >
+                  <Ionicons name="close" size={20} color={Colors.text} />
+                </TouchableOpacity>
+              </View>
+              {error ? <Text style={styles.errorText}>{error}</Text> : null}
 
-            <Controller
-              control={control}
-              name="name"
-              render={({ field: { onChange, value } }) => (
-                <View>
-                  <Text style={styles.formLabel}>Full Name</Text>
-                  <View style={[styles.inputBox, formErrors.name && { borderColor: Colors.tertiary }]}>
-                    <TextInput
-                      style={styles.textInput}
-                      placeholder="Enter Name"
-                      placeholderTextColor={Colors.textSecondary}
-                      value={value}
-                      onChangeText={onChange}
-                    />
+              <Controller
+                control={control}
+                name="name"
+                render={({ field: { onChange, value } }) => (
+                  <View>
+                    <Text style={styles.formLabel}>Full Name</Text>
+                    <View style={[styles.inputBox, formErrors.name && { borderColor: Colors.tertiary }]}>
+                      <TextInput
+                        style={styles.textInput}
+                        placeholder="Enter Name"
+                        placeholderTextColor={Colors.textSecondary}
+                        value={value}
+                        onChangeText={onChange}
+                      />
+                    </View>
+                    {formErrors.name && <Text style={styles.fieldErrorText}>{formErrors.name.message}</Text>}
                   </View>
-                  {formErrors.name && <Text style={styles.fieldErrorText}>{formErrors.name.message}</Text>}
-                </View>
-              )}
-            />
+                )}
+              />
 
-            <Controller
-              control={control}
-              name="phone"
-              render={({ field: { onChange, value } }) => (
-                <View>
-                  <Text style={styles.formLabel}>Phone</Text>
-                  <View style={[styles.inputBox, formErrors.phone && { borderColor: Colors.tertiary }]}>
-                    <TextInput
-                      style={styles.textInput}
-                      placeholder="Enter Phone"
-                      placeholderTextColor={Colors.textSecondary}
-                      value={value}
-                      keyboardType="phone-pad"
-                      maxLength={10}
-                      onChangeText={onChange}
-                    />
+              <Controller
+                control={control}
+                name="email"
+                render={({ field: { onChange, value } }) => (
+                  <View>
+                    <Text style={styles.formLabel}>Email</Text>
+                    <View style={[styles.inputBox, formErrors.email && { borderColor: Colors.tertiary }]}>
+                      <TextInput
+                        style={styles.textInput}
+                        placeholder="Enter Email"
+                        placeholderTextColor={Colors.textSecondary}
+                        value={value}
+                        autoCapitalize="none"
+                        keyboardType="email-address"
+                        onChangeText={onChange}
+                      />
+                    </View>
+                    {formErrors.email && <Text style={styles.fieldErrorText}>{formErrors.email.message}</Text>}
                   </View>
-                  {formErrors.phone && <Text style={styles.fieldErrorText}>{formErrors.phone.message}</Text>}
-                </View>
-              )}
-            />
+                )}
+              />
 
-            <Text style={styles.helperText}>Phone number is required for new users.</Text>
+              <Controller
+                control={control}
+                name="phone"
+                render={({ field: { onChange, value } }) => (
+                  <View>
+                    <Text style={styles.formLabel}>Phone</Text>
+                    <View style={[styles.inputBox, formErrors.phone && { borderColor: Colors.tertiary }]}>
+                      <TextInput
+                        style={styles.textInput}
+                        placeholder="Enter Phone"
+                        placeholderTextColor={Colors.textSecondary}
+                        value={value}
+                        keyboardType="phone-pad"
+                        maxLength={10}
+                        onChangeText={onChange}
+                      />
+                    </View>
+                    {formErrors.phone && <Text style={styles.fieldErrorText}>{formErrors.phone.message}</Text>}
+                  </View>
+                )}
+              />
 
-            <Controller
-              control={control}
-              name="role"
-              render={({ field: { onChange, value } }) => (
-                <View>
-                  <Text style={styles.formLabel}>Role</Text>
-                  <View style={styles.roleToggleRow}>
-                    {CREATE_ROLE_OPTIONS.map((role) => (
-                      <TouchableOpacity
-                        key={role}
-                        style={[
-                          styles.roleToggle,
-                          styles.roleToggleOneLine,
-                          value === role && styles.roleToggleActive,
-                        ]}
-                        onPress={() => onChange(role)}
-                      >
-                        <Text style={[styles.roleToggleText, value === role && styles.roleToggleTextActive]}>
-                          {ROLE_LABELS[role]}
-                        </Text>
+              <Text style={styles.helperText}>Email and phone number are required for new users.</Text>
+
+              <Controller
+                control={control}
+                name="role"
+                render={({ field: { onChange, value } }) => (
+                  <View>
+                    <Text style={styles.formLabel}>Role</Text>
+                    <View style={styles.roleToggleRow}>
+                      {CREATE_ROLE_OPTIONS.map((role) => (
+                        <TouchableOpacity
+                          key={role}
+                          style={[
+                            styles.roleToggle,
+                            styles.roleToggleOneLine,
+                            value === role && styles.roleToggleActive,
+                          ]}
+                          onPress={() => onChange(role)}
+                        >
+                          <Text style={[styles.roleToggleText, value === role && styles.roleToggleTextActive]}>
+                            {ROLE_LABELS[role]}
+                          </Text>
+                        </TouchableOpacity>
+                      ))}
+                    </View>
+                    {formErrors.role && <Text style={styles.fieldErrorText}>{formErrors.role.message}</Text>}
+                  </View>
+                )}
+              />
+
+              <Controller
+                control={control}
+                name="assignedFarmIds"
+                render={({ field: { onChange, value } }) => {
+                  const selectedFarmIds = value ?? [];
+
+                  return (
+                    <View>
+                      <Text style={styles.formLabel}>Assigned Farms</Text>
+                      {farms.length ? (
+                        <View style={styles.farmPicker}>
+                          {farms.map((farm) => {
+                            const isSelected = selectedFarmIds.includes(farm.id);
+
+                            return (
+                              <TouchableOpacity
+                                key={farm.id}
+                                style={[styles.farmOption, isSelected && styles.farmOptionActive]}
+                                onPress={() => {
+                                  onChange(
+                                    isSelected
+                                      ? selectedFarmIds.filter((farmId) => farmId !== farm.id)
+                                      : [...selectedFarmIds, farm.id],
+                                  );
+                                }}
+                                activeOpacity={0.85}
+                              >
+                                <Ionicons
+                                  name={isSelected ? 'checkbox' : 'square-outline'}
+                                  size={20}
+                                  color={isSelected ? Colors.primary : Colors.textSecondary}
+                                />
+                                <View style={styles.farmOptionTextBlock}>
+                                  <Text style={styles.farmOptionName}>{farm.name}</Text>
+                                  {farm.code ? <Text style={styles.farmOptionMeta}>{farm.code}</Text> : null}
+                                </View>
+                              </TouchableOpacity>
+                            );
+                          })}
+                        </View>
+                      ) : (
+                        <Text style={styles.helperText}>No farms available to assign.</Text>
+                      )}
+                    </View>
+                  );
+                }}
+              />
+
+              <Controller
+                control={control}
+                name="password"
+                render={({ field: { onChange, value } }) => (
+                  <View>
+                    <Text style={styles.formLabel}>Temporary Password</Text>
+                    <View style={[styles.inputBox, styles.passwordInputRow, formErrors.password && { borderColor: Colors.tertiary }]}>
+                      <TextInput
+                        style={[styles.textInput, { flex: 1 }]}
+                        placeholder="Enter Password"
+                        placeholderTextColor={Colors.textSecondary}
+                        value={value}
+                        onChangeText={onChange}
+                        secureTextEntry={!showPassword}
+                      />
+                      <TouchableOpacity onPress={() => setShowPassword(!showPassword)} style={{ padding: 4 }}>
+                        <Ionicons name={showPassword ? 'eye-off-outline' : 'eye-outline'} size={20} color={Colors.textSecondary} />
                       </TouchableOpacity>
-                    ))}
+                    </View>
+                    {formErrors.password && <Text style={styles.fieldErrorText}>{formErrors.password.message}</Text>}
+                    {!formErrors.password ? <Text style={styles.helperText}>{PASSWORD_REQUIREMENT_TEXT}</Text> : null}
                   </View>
-                  {formErrors.role && <Text style={styles.fieldErrorText}>{formErrors.role.message}</Text>}
-                </View>
-              )}
-            />
+                )}
+              />
 
-            <Controller
-              control={control}
-              name="password"
-              render={({ field: { onChange, value } }) => (
-                <View>
-                  <Text style={styles.formLabel}>Temporary Password</Text>
-                  <View style={[styles.inputBox, { flexDirection: 'row', alignItems: 'center' }, formErrors.password && { borderColor: Colors.tertiary }]}>
-                    <TextInput
-                      style={[styles.textInput, { flex: 1 }]}
-                      placeholder="Enter Password"
-                      placeholderTextColor={Colors.textSecondary}
-                      value={value}
-                      onChangeText={onChange}
-                      secureTextEntry={!showPassword}
-                    />
-                    <TouchableOpacity onPress={() => setShowPassword(!showPassword)} style={{ padding: 4 }}>
-                      <Ionicons name={showPassword ? "eye-off-outline" : "eye-outline"} size={20} color={Colors.textSecondary} />
-                    </TouchableOpacity>
-                  </View>
-                  {formErrors.password && <Text style={styles.fieldErrorText}>{formErrors.password.message}</Text>}
-                  {!formErrors.password ? <Text style={styles.helperText}>{PASSWORD_REQUIREMENT_TEXT}</Text> : null}
-                </View>
-              )}
-            />
-
-            <TouchableOpacity
-              style={[styles.submitBtn, isSubmitting && styles.buttonDisabled]}
-              onPress={handleSubmit(onAddSubmit)}
-              disabled={isSubmitting}
-            >
-              {isSubmitting ? <ActivityIndicator color="#FFF" /> : <Text style={styles.submitBtnText}>Create User</Text>}
-            </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.submitBtn, isSubmitting && styles.buttonDisabled]}
+                onPress={handleSubmit(onAddSubmit)}
+                disabled={isSubmitting}
+              >
+                {isSubmitting ? <ActivityIndicator color="#FFF" /> : <Text style={styles.submitBtnText}>Create User</Text>}
+              </TouchableOpacity>
+            </ScrollView>
           </View>
           <Toast position="bottom" bottomOffset={100} />
         </TouchableOpacity>
@@ -1056,6 +1204,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFF',
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
+    maxHeight: '90%',
     padding: 24,
     paddingBottom: 40,
   },
@@ -1084,7 +1233,29 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     backgroundColor: '#F9FAFB',
   },
+  passwordInputRow: { flexDirection: 'row', alignItems: 'center' },
   textInput: { fontSize: 14, color: Colors.text, padding: 0 },
+  farmPicker: {
+    borderWidth: 1,
+    borderColor: Colors.border,
+    borderRadius: 10,
+    backgroundColor: '#F9FAFB',
+    overflow: 'hidden',
+  },
+  farmOption: {
+    minHeight: 48,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.border,
+  },
+  farmOptionActive: { backgroundColor: '#EEF8F0' },
+  farmOptionTextBlock: { flex: 1 },
+  farmOptionName: { fontSize: 14, fontWeight: '600', color: Colors.text },
+  farmOptionMeta: { marginTop: 2, fontSize: 11, color: Colors.textSecondary },
   roleToggleRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
   roleToggle: {
     flexGrow: 1,
