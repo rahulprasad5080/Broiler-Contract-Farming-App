@@ -16,9 +16,9 @@ import {
   type ApiDailyLog,
   type ApiSale,
 } from '@/services/managementApi';
-import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
-import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useLocalSearchParams } from 'expo-router';
 import React, { useCallback, useState } from 'react';
 import {
   ActivityIndicator,
@@ -31,6 +31,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 type TabKey = 'overview' | 'daily' | 'expenses' | 'sales' | 'settlement' | 'pnl';
+type ExpenseLedgerTab = 'company' | 'farmer';
 
 const TABS: { key: TabKey; label: string }[] = [
   { key: 'overview', label: 'Overview' },
@@ -67,7 +68,6 @@ function sumExpenses(rows: ApiBatchExpense[]) {
 
 export default function BatchDetailsScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
-  const router = useRouter();
   const { accessToken, user } = useAuth();
   const [activeTab, setActiveTab] = useState<TabKey>('overview');
   const [batch, setBatch] = useState<ApiBatch | null>(null);
@@ -77,11 +77,16 @@ export default function BatchDetailsScreen() {
   const [sales, setSales] = useState<ApiSale[]>([]);
   const [settlement, setSettlement] = useState<ApiBatchSettlement | null>(null);
   const [pnl, setPnl] = useState<ApiBatchPnl | null>(null);
+  const [activeExpenseLedger, setActiveExpenseLedger] = useState<ExpenseLedgerTab>('company');
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState<string | null>(null);
 
   const canViewCompanyFinancial = user?.role === 'OWNER' || user?.role === 'ACCOUNTS';
-  const canViewFarmerFinancial = canViewCompanyFinancial;
+  const canViewFarmerFinancial = canViewCompanyFinancial || user?.role === 'FARMER';
+  const visibleExpenseLedger =
+    activeExpenseLedger === 'company' && !canViewCompanyFinancial
+      ? 'farmer'
+      : activeExpenseLedger;
 
   const loadBatchDetails = useCallback(async () => {
     if (!accessToken || !id) return;
@@ -213,12 +218,62 @@ export default function BatchDetailsScreen() {
           {activeTab === 'expenses' ? (
             <View style={styles.panel}>
               <Text style={styles.panelTitle}>Expenses</Text>
-              {canViewCompanyFinancial ? (
-                <ExpenseSection title="Company Expenses" total={companyExpenseTotal} rows={companyExpenses} />
+              <View style={styles.subTabRow}>
+                {canViewCompanyFinancial ? (
+                  <TouchableOpacity
+                    style={[
+                      styles.subTab,
+                      visibleExpenseLedger === 'company' && styles.subTabActive,
+                    ]}
+                    onPress={() => setActiveExpenseLedger('company')}
+                  >
+                    <Text
+                      style={[
+                        styles.subTabText,
+                        visibleExpenseLedger === 'company' && styles.subTabTextActive,
+                      ]}
+                    >
+                      Company
+                    </Text>
+                  </TouchableOpacity>
+                ) : null}
+                {canViewFarmerFinancial ? (
+                  <TouchableOpacity
+                    style={[
+                      styles.subTab,
+                      visibleExpenseLedger === 'farmer' && styles.subTabActive,
+                    ]}
+                    onPress={() => setActiveExpenseLedger('farmer')}
+                  >
+                    <Text
+                      style={[
+                        styles.subTabText,
+                        visibleExpenseLedger === 'farmer' && styles.subTabTextActive,
+                      ]}
+                    >
+                      Farmer
+                    </Text>
+                  </TouchableOpacity>
+                ) : null}
+              </View>
+
+              {visibleExpenseLedger === 'company' && canViewCompanyFinancial ? (
+                <ExpenseSection
+                  title="Company-paid Expenses"
+                  total={companyExpenseTotal}
+                  rows={companyExpenses}
+                />
               ) : null}
-              {canViewFarmerFinancial ? (
-                <ExpenseSection title="Farmer Expenses" total={farmerExpenseTotal} rows={farmerExpenses} />
+              {visibleExpenseLedger === 'farmer' && canViewFarmerFinancial ? (
+                <ExpenseSection
+                  title="Farmer-paid Expenses"
+                  total={farmerExpenseTotal}
+                  rows={farmerExpenses}
+                />
               ) : null}
+              <Text style={styles.ruleText}>
+                Farmer expenses are tracked only for farmer P&L and settlement. They do not affect company profitability.
+              </Text>
             </View>
           ) : null}
 
@@ -449,4 +504,37 @@ const styles = StyleSheet.create({
   sectionHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 },
   splitTitle: { fontSize: 14, fontWeight: '800', color: Colors.text, marginBottom: 8 },
   totalText: { color: Colors.primary, fontWeight: '800' },
+  subTabRow: {
+    flexDirection: 'row',
+    gap: 8,
+    marginBottom: 12,
+  },
+  subTab: {
+    flex: 1,
+    minHeight: 38,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#FFF',
+  },
+  subTabActive: {
+    backgroundColor: Colors.primary,
+    borderColor: Colors.primary,
+  },
+  subTabText: {
+    color: Colors.textSecondary,
+    fontSize: 13,
+    fontWeight: '800',
+  },
+  subTabTextActive: {
+    color: '#FFF',
+  },
+  ruleText: {
+    color: Colors.textSecondary,
+    fontSize: 11,
+    lineHeight: 16,
+    fontWeight: '700',
+  },
 });

@@ -11,6 +11,7 @@ import {
   FontAwesome5,
   Ionicons,
   MaterialCommunityIcons,
+  Feather,
 } from "@expo/vector-icons";
 import { useRouter, type Href } from "expo-router";
 import React, { useEffect, useState } from "react";
@@ -24,6 +25,8 @@ import {
   TextInput,
   TouchableOpacity,
   View,
+  Image,
+  StatusBar,
 } from "react-native";
 import {
   SafeAreaView,
@@ -31,9 +34,7 @@ import {
 } from "react-native-safe-area-context";
 import { Colors } from "../../constants/Colors";
 import { Layout } from "../../constants/Layout";
-import { useAuth, type Permission } from "../../context/AuthContext";
-import { HeaderNotificationButton } from "../../components/ui/HeaderNotificationButton";
-import { TopAppBar } from "../../components/ui/TopAppBar";
+import { useAuth } from "../../context/AuthContext";
 import {
   fetchDashboard,
   fetchFinancialDashboard,
@@ -41,167 +42,30 @@ import {
   type ApiFinancialDashboard,
 } from "../../services/dashboardApi";
 
-type PortalItem = {
-  label: string;
-  icon: React.ComponentProps<typeof FontAwesome5>["name"];
-  provider: typeof FontAwesome5;
-  route: Href | "settings";
-  requiredPermission?: Permission;
-};
-
-type ActivityItem = {
-  title: string;
-  sub: string;
-  icon: React.ComponentProps<typeof Ionicons>["name"];
-  color: string;
-};
-
-type QuickUser = {
-  id: string;
-  name: string;
-  role: ApiUser["role"];
-  email?: string | null;
-  phone?: string | null;
-  status: ApiUser["status"];
-};
-
-const recentActivityItems: ActivityItem[] = [
-  {
-    title: "Batch #402 Harvested",
-    sub: "Farm: Green Valley • 2h ago",
-    icon: "checkmark-circle-outline",
-    color: Colors.primary,
-  },
-  {
-    title: "New Batch Started",
-    sub: "Farm: Sunnyside • 5h ago",
-    icon: "add-circle-outline",
-    color: Colors.primary,
-  },
-  {
-    title: "Temp Alert: Farm #02",
-    sub: "High Temp detected • 8h ago",
-    icon: "warning-outline",
-    color: Colors.tertiary,
-  },
-];
+// Using a custom deeper green based on the image
+const THEME_GREEN = "#0B5C36";
 
 export default function OwnerDashboard() {
   const { hasPermission, user, accessToken } = useAuth();
   const insets = useSafeAreaInsets();
   const router = useRouter();
+
+  // Settings Panel State
   const [showSettingsPanel, setShowSettingsPanel] = useState(false);
-  const [users, setUsers] = useState<QuickUser[]>([]);
+  const [users, setUsers] = useState<any[]>([]);
   const [userSearch, setUserSearch] = useState("");
   const [loadingUsers, setLoadingUsers] = useState(false);
   const [savingUserId, setSavingUserId] = useState<string | null>(null);
   const [settingsError, setSettingsError] = useState<string | null>(null);
+
+  // Dashboard Data State
   const [dashboard, setDashboard] = useState<ApiDashboardSummary | null>(null);
   const [financialDashboard, setFinancialDashboard] =
     useState<ApiFinancialDashboard | null>(null);
   const [loadingDashboard, setLoadingDashboard] = useState(false);
 
-  const allPortalItems: PortalItem[] = [
-    {
-      label: "Add Farm",
-      icon: "warehouse",
-      provider: FontAwesome5,
-      route: "/(owner)/manage/farms/add",
-      requiredPermission: "manage:farms",
-    },
-    {
-      label: "New Batch",
-      icon: "file-medical",
-      provider: FontAwesome5,
-      route: "/(owner)/manage/batches",
-      requiredPermission: "manage:batches",
-    },
-    {
-      label: "Inventory",
-      icon: "box",
-      provider: FontAwesome5,
-      route: "/(owner)/manage/inventory",
-      requiredPermission: "manage:inventory",
-    },
-    {
-      label: "Financials",
-      icon: "chart-line",
-      provider: FontAwesome5,
-      route: "/(owner)/manage/financials/index",
-      requiredPermission: "view:financial-dashboard",
-    },
-    {
-      label: "Partners",
-      icon: "handshake",
-      provider: FontAwesome5,
-      route: "/(owner)/manage/partners",
-      requiredPermission: "manage:partners",
-    },
-    {
-      label: "Daily Entry",
-      icon: "clipboard-list",
-      provider: FontAwesome5,
-      route: "/(owner)/manage/daily-entry",
-      requiredPermission: "create:daily-entry",
-    },
-    {
-      label: "Expense Entry",
-      icon: "receipt",
-      provider: FontAwesome5,
-      route: "/(owner)/manage/expenses/index",
-      requiredPermission: "create:expenses",
-    },
-    {
-      label: "Sales",
-      icon: "rupee-sign",
-      provider: FontAwesome5,
-      route: "/(owner)/manage/sales",
-      requiredPermission: "create:sales",
-    },
-    {
-      label: "Payout",
-      icon: "file-invoice-dollar",
-      provider: FontAwesome5,
-      route: "/(owner)/manage/settlement",
-      requiredPermission: "manage:settlements",
-    },
-    {
-      label: "Payment",
-      icon: "wallet",
-      provider: FontAwesome5,
-      route: "/(owner)/manage/payments/index",
-      requiredPermission: "manage:settlements",
-    },
-    {
-      label: "Reports",
-      icon: "chart-bar",
-      provider: FontAwesome5,
-      route: "/(owner)/reports",
-      requiredPermission: "view:reports",
-    },
-    {
-      label: "Users",
-      icon: "user-friends",
-      provider: FontAwesome5,
-      route: "/(owner)/manage/users",
-      requiredPermission: "manage:users",
-    },
-    {
-      label: "Settings",
-      icon: "cog",
-      provider: FontAwesome5,
-      route: "settings",
-      requiredPermission: "manage:users",
-    },
-  ];
-
-  const portalItems = allPortalItems.filter(
-    (item) => !item.requiredPermission || hasPermission(item.requiredPermission),
-  );
-
   const loadDashboard = async () => {
     if (!accessToken) return;
-
     setLoadingDashboard(true);
     try {
       const [dashboardResponse, financialResponse] = await Promise.all([
@@ -224,18 +88,16 @@ export default function OwnerDashboard() {
 
   useEffect(() => {
     void loadDashboard();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [accessToken]);
 
+  // Load Users for settings panel
   const loadUsers = async () => {
     if (!accessToken) {
       setSettingsError("Missing access token. Please sign in again.");
       return;
     }
-
     setLoadingUsers(true);
     setSettingsError(null);
-
     try {
       const response = await listAllUsers(accessToken);
       setUsers(
@@ -246,14 +108,14 @@ export default function OwnerDashboard() {
           email: item.email,
           phone: item.phone,
           status: item.status,
-        })),
+        }))
       );
     } catch (err) {
       setSettingsError(
         showRequestErrorToast(err, {
           title: "Unable to load users",
           fallbackMessage: "Failed to load users.",
-        }),
+        })
       );
     } finally {
       setLoadingUsers(false);
@@ -264,8 +126,39 @@ export default function OwnerDashboard() {
     if (showSettingsPanel) {
       void loadUsers();
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [showSettingsPanel, accessToken]);
+
+  const toggleUserStatus = async (nextUser: any, active: boolean) => {
+    if (!accessToken) return;
+    setSavingUserId(nextUser.id);
+    setSettingsError(null);
+    try {
+      const nextStatus = active ? "ACTIVE" : "DISABLED";
+      const updated = await updateUserStatus(accessToken, nextUser.id, {
+        status: nextStatus,
+      });
+      setUsers((prev) =>
+        prev.map((item) =>
+          item.id === updated.id ? { ...item, status: updated.status } : item
+        )
+      );
+      showSuccessToast(
+        `${updated.name} is now ${
+          updated.status === "ACTIVE" ? "active" : "inactive"
+        }.`,
+        "User updated"
+      );
+    } catch (err) {
+      setSettingsError(
+        showRequestErrorToast(err, {
+          title: "User status update failed",
+          fallbackMessage: "Failed to update user status.",
+        })
+      );
+    } finally {
+      setSavingUserId(null);
+    }
+  };
 
   const filteredUsers = users.filter((item) => {
     const query = userSearch.trim().toLowerCase();
@@ -277,188 +170,253 @@ export default function OwnerDashboard() {
       .includes(query);
   });
 
-  const toggleUserStatus = async (nextUser: QuickUser, active: boolean) => {
-    if (!accessToken) {
-      setSettingsError("Missing access token. Please sign in again.");
-      return;
-    }
-
-    setSavingUserId(nextUser.id);
-    setSettingsError(null);
-
-    try {
-      const nextStatus = active ? "ACTIVE" : "DISABLED";
-      const updated = await updateUserStatus(accessToken, nextUser.id, {
-        status: nextStatus,
-      });
-
-      setUsers((prev) =>
-        prev.map((item) =>
-          item.id === updated.id
-            ? {
-                ...item,
-                status: updated.status,
-              }
-            : item,
-        ),
-      );
-      showSuccessToast(
-        `${updated.name} is now ${updated.status === "ACTIVE" ? "active" : "inactive"}.`,
-        "User updated",
-      );
-    } catch (err) {
-      setSettingsError(
-        showRequestErrorToast(err, {
-          title: "User status update failed",
-          fallbackMessage: "Failed to update user status.",
-        }),
-      );
-    } finally {
-      setSavingUserId(null);
-    }
-  };
-
   return (
-    <SafeAreaView style={styles.safeArea} edges={["top", "left", "right"]}>
-      <TopAppBar
-        title="PoultryFlow"
-        subtitle={`Hello, ${user?.name?.split(" ")[0] ?? "Admin"}`}
-        right={<HeaderNotificationButton tone="onPrimary" />}
-      />
-
-      <ScrollView contentContainerStyle={styles.scrollContent}>
-        <View style={styles.welcomeSection}>
-          <Text style={styles.welcomeText}>
-            Welcome back, {user?.name?.split(" ")[0] ?? "Owner"}
-          </Text>
-          <Text style={styles.sectionTitle}>Farm Overview</Text>
-        </View>
-
-        <View style={styles.overviewRow}>
-          <View style={styles.overviewCard}>
-            <View style={styles.cardHeader}>
-              <Ionicons name="home-outline" size={20} color={Colors.primary} />
-              <View style={styles.badge}>
-                <Text style={styles.badgeText}>+2 new</Text>
-              </View>
-            </View>
-            <Text style={styles.cardLabel}>Total Farms</Text>
-            <Text style={styles.cardValue}>
-              {loadingDashboard ? "..." : dashboard?.farmCount ?? 0}
-            </Text>
+    <View style={styles.container}>
+      <StatusBar barStyle="light-content" backgroundColor={THEME_GREEN} />
+      
+      {/* Top Header */}
+      <View style={[styles.header, { paddingTop: insets.top + 10 }]}>
+        <TouchableOpacity onPress={() => setShowSettingsPanel(true)}>
+          <Ionicons name="menu" size={28} color="#FFF" />
+        </TouchableOpacity>
+        <Text style={styles.headerLogoText}>
+          Poultry<Text style={styles.headerLogoLight}>Flow</Text>
+        </Text>
+        <TouchableOpacity style={styles.bellIconBtn}>
+          <Feather name="bell" size={24} color="#FFF" />
+          <View style={styles.bellBadge}>
+            <Text style={styles.bellBadgeText}>3</Text>
           </View>
+        </TouchableOpacity>
+      </View>
 
-          <View style={styles.overviewCard}>
-            <View style={styles.cardHeader}>
-              <Ionicons name="water-outline" size={20} color={Colors.primary} />
-              <View style={[styles.badge, { backgroundColor: Colors.primary }]}>
-                <Text style={[styles.badgeText, { color: "#FFF" }]}>
-                  84% Cap
-                </Text>
-              </View>
-            </View>
-            <Text style={styles.cardLabel}>Active Batches</Text>
-            <Text style={styles.cardValue}>
-              {loadingDashboard ? "..." : dashboard?.today.activeBatches ?? 0}
-            </Text>
-          </View>
-        </View>
-
-        <View style={styles.birdsCard}>
-          <View style={styles.birdsIconBox}>
-            <MaterialCommunityIcons
-              name="account-group"
-              size={24}
-              color={Colors.primary}
+      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+        
+        {/* Profile Section */}
+        <View style={styles.profileSection}>
+          <View style={styles.profileLeft}>
+            <Image
+              source={{ uri: "https://i.pravatar.cc/100?img=11" }}
+              style={styles.avatar}
             />
+            <View>
+              <Text style={styles.greetingText}>Hello, Admin 👋</Text>
+              <TouchableOpacity style={styles.farmSelector}>
+                <Text style={styles.farmName}>Green Valley Farms</Text>
+                <Feather name="chevron-down" size={16} color={Colors.text} />
+              </TouchableOpacity>
+            </View>
           </View>
-          <View style={styles.birdsInfo}>
-            <Text style={styles.birdsLabel}>Total Live Birds</Text>
-            <Text style={styles.birdsValue}>
-              {Number(dashboard?.today.liveBirds ?? 0).toLocaleString("en-IN")}
-            </Text>
-          </View>
-          <View style={styles.mortalityInfo}>
-            <Text style={styles.mortalityValue}>
-              Mortality: {Number(dashboard?.today.mortalityTotal ?? 0).toLocaleString("en-IN")}
-            </Text>
-            <Text style={styles.mortalityTarget}>
-              Net: {Number(financialDashboard?.summary.netProfitOrLoss ?? 0).toLocaleString("en-IN")}
-            </Text>
-          </View>
-        </View>
-
-        <Text style={styles.sectionTitle}>Management Portal</Text>
-        <View style={styles.portalGrid}>
-          {portalItems.map((item, idx) => (
-            <TouchableOpacity
-              key={idx}
-              style={styles.portalCard}
-              onPress={() => {
-                if (item.route === "settings") {
-                  setShowSettingsPanel(true);
-                  return;
-                }
-                router.push(item.route);
-              }}
-            >
-              <View style={styles.portalIconBox}>
-                <item.provider
-                  name={item.icon}
-                  size={20}
-                  color={Colors.primary}
-                />
-              </View>
-              <Text style={styles.portalLabel}>{item.label}</Text>
-            </TouchableOpacity>
-          ))}
-        </View>
-
-        <View style={styles.alertBanner}>
-          <View style={styles.alertHeader}>
-            <Text style={styles.alertTitle}>Inventory Alert</Text>
-          </View>
-          <Text style={styles.alertText}>
-            {dashboard?.alerts[0]?.message ??
-              "No live dashboard alerts at the moment."}
-          </Text>
-          <TouchableOpacity style={styles.alertBtn}>
-            <Text style={styles.alertBtnText}>Order Feed</Text>
+          <TouchableOpacity style={styles.dateBtn}>
+            <Text style={styles.dateBtnText}>20 May 2024</Text>
           </TouchableOpacity>
         </View>
 
-        <View style={styles.activityHeader}>
-          <Text style={styles.sectionTitle}>Recent Activity</Text>
-          <TouchableOpacity>
+        {/* Today at a Glance */}
+        <Text style={styles.sectionTitle}>Today at a Glance</Text>
+        <View style={styles.glanceGrid}>
+          {/* Active Batches */}
+          <View style={styles.glanceCard}>
+            <Text style={styles.glanceValue}>
+              {dashboard?.today?.activeBatches ?? "12"}
+            </Text>
+            <Text style={styles.glanceLabel}>Active Batches</Text>
+          </View>
+          {/* Total Live Birds */}
+          <View style={styles.glanceCard}>
+            <Text style={styles.glanceValue}>
+              {dashboard?.today?.liveBirds
+                ? Number(dashboard.today.liveBirds).toLocaleString("en-IN")
+                : "45,320"}
+            </Text>
+            <Text style={styles.glanceLabel}>Total Live Birds</Text>
+          </View>
+          {/* Mortality Today */}
+          <View style={styles.glanceCard}>
+            <View style={styles.glanceRow}>
+              <Text style={styles.glanceValueSmall}>
+                {dashboard?.today?.mortalityToday ?? "320"}
+              </Text>
+              <Text style={styles.glancePercentBold}>0.71%</Text>
+            </View>
+            <Text style={styles.glanceLabel}>
+              Mortality{"\n"}(Today)
+            </Text>
+          </View>
+          {/* Mortality Total */}
+          <View style={styles.glanceCard}>
+            <View style={styles.glanceRow}>
+              <Text style={styles.glanceValueSmall}>
+                {dashboard?.today?.mortalityTotal
+                  ? Number(dashboard.today.mortalityTotal).toLocaleString("en-IN")
+                  : "1,850"}
+              </Text>
+              <Text style={styles.glancePercentBold}>4.08%</Text>
+            </View>
+            <Text style={styles.glanceLabel}>
+              Mortality{"\n"}(Total)
+            </Text>
+          </View>
+        </View>
+
+        {/* Alert Pills */}
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.alertPillsContainer}
+        >
+          <View style={styles.alertPill}>
+            <Text style={[styles.alertPillValue, { color: THEME_GREEN }]}>
+              {dashboard?.today?.salesReady ?? "3"}
+            </Text>
+            <Text style={styles.alertPillLabel}>Sales Ready</Text>
+          </View>
+          <View style={styles.alertPill}>
+            <Text style={[styles.alertPillValue, { color: "#1976D2" }]}>
+              {dashboard?.today?.pendingEntries ?? "5"}
+            </Text>
+            <Text style={styles.alertPillLabel}>Pending{"\n"}Entries</Text>
+          </View>
+          <View style={styles.alertPill}>
+            <Text style={[styles.alertPillValue, { color: "#F57C00" }]}>
+              {dashboard?.today?.feedAlert ?? "2"}
+            </Text>
+            <Text style={styles.alertPillLabel}>Feed Alert</Text>
+          </View>
+          <View style={styles.alertPill}>
+            <Text style={[styles.alertPillValue, { color: "#D32F2F" }]}>
+              {dashboard?.today?.fcrAlert ?? "1"}
+            </Text>
+            <Text style={styles.alertPillLabel}>FCR Alert</Text>
+          </View>
+        </ScrollView>
+
+        {/* Active Batches Section */}
+        <View style={styles.sectionHeader}>
+          <Text style={styles.sectionTitleNoMargin}>Active Batches</Text>
+          <TouchableOpacity onPress={() => router.push("/(owner)/manage/batches" as Href)}>
+            <Text style={styles.viewAllText}>View All</Text>
+          </TouchableOpacity>
+        </View>
+        
+        <TouchableOpacity style={styles.activeBatchCard} onPress={() => router.push("/(owner)/manage/batches" as Href)}>
+          <View style={styles.batchCardHeader}>
+            <View>
+              <Text style={styles.batchFarmName}>Green Valley - Shed 1</Text>
+              <Text style={styles.batchCode}>GV-B-2307</Text>
+            </View>
+            <Feather name="chevron-right" size={24} color={Colors.textSecondary} />
+          </View>
+          <View style={styles.batchStatsRow}>
+            <View style={styles.batchStatCol}>
+              <Text style={styles.batchStatLabel}>Age</Text>
+              <Text style={styles.batchStatValue}>28 Days</Text>
+            </View>
+            <View style={styles.batchStatCol}>
+              <Text style={styles.batchStatLabel}>Live Birds</Text>
+              <Text style={styles.batchStatValue}>8,250</Text>
+            </View>
+            <View style={styles.batchStatCol}>
+              <Text style={styles.batchStatLabel}>Mortality</Text>
+              <Text style={styles.batchStatValue}>3.12%</Text>
+            </View>
+          </View>
+          <View style={styles.paginationDots}>
+            <View style={[styles.dot, styles.dotActive]} />
+            <View style={styles.dot} />
+            <View style={styles.dot} />
+            <View style={styles.dot} />
+          </View>
+        </TouchableOpacity>
+
+        {/* Overall P&L */}
+        <View style={styles.sectionHeader}>
+          <Text style={styles.sectionTitleNoMargin}>Overall P&L (This Month)</Text>
+          <TouchableOpacity style={styles.dropdownBtn}>
+            <Text style={styles.dropdownBtnText}>Monthly</Text>
+            <Feather name="chevron-down" size={14} color={Colors.textSecondary} />
+          </TouchableOpacity>
+        </View>
+
+        <View style={styles.plGrid}>
+          <View style={styles.plCard}>
+            <Text style={[styles.plValue, { color: THEME_GREEN }]}>
+              ₹ 10,75,000
+            </Text>
+            <Text style={styles.plLabel}>Investment</Text>
+          </View>
+          <View style={styles.plCard}>
+            <Text style={[styles.plValue, { color: THEME_GREEN }]}>
+              ₹ 27,45,000
+            </Text>
+            <Text style={styles.plLabel}>Expenses</Text>
+          </View>
+          <View style={styles.plCard}>
+            <Text style={[styles.plValue, { color: THEME_GREEN }]}>
+              ₹ 36,80,000
+            </Text>
+            <Text style={styles.plLabel}>Sales</Text>
+          </View>
+          <View style={styles.plCard}>
+            <Text style={[styles.plValue, { color: "#D32F2F" }]}>
+              ₹ 8,35,000
+            </Text>
+            <Text style={styles.plLabel}>Profit</Text>
+          </View>
+        </View>
+
+        {/* Payment Status */}
+        <View style={styles.sectionHeader}>
+          <Text style={styles.sectionTitleNoMargin}>Payment Status</Text>
+          <TouchableOpacity onPress={() => router.push("/(owner)/manage/payments/index" as Href)}>
             <Text style={styles.viewAllText}>View All</Text>
           </TouchableOpacity>
         </View>
 
-        <View style={styles.activityList}>
-          {recentActivityItems.map((item, idx) => (
-            <View key={idx} style={styles.activityItem}>
-              <Ionicons name={item.icon} size={24} color={item.color} />
-              <View style={styles.activityContent}>
-                <Text style={styles.activityTitle}>{item.title}</Text>
-                <Text style={styles.activitySub}>{item.sub}</Text>
-              </View>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.paymentCardsContainer}
+        >
+          <View style={styles.paymentCard}>
+            <View style={styles.paymentCardHeader}>
+              <Text style={styles.paymentCardTitle}>Vendor{"\n"}Pending</Text>
+              <Feather name="x" size={16} color="#D32F2F" />
             </View>
-          ))}
-        </View>
+            <Text style={styles.paymentCardAmount}>₹ 2,45,000</Text>
+            <Text style={styles.paymentCardSub}>3 Pending</Text>
+          </View>
+          <View style={styles.paymentCard}>
+            <View style={styles.paymentCardHeader}>
+              <Text style={styles.paymentCardTitle}>Trader{"\n"}Collection</Text>
+              <Feather name="x" size={16} color="#D32F2F" />
+            </View>
+            <Text style={styles.paymentCardAmount}>₹ 1,80,000</Text>
+            <Text style={styles.paymentCardSub}>2 Pending</Text>
+          </View>
+          <View style={styles.paymentCard}>
+            <View style={styles.paymentCardHeader}>
+              <Text style={styles.paymentCardTitle}>Expense{"\n"}Pending</Text>
+              <Feather name="x" size={16} color="#D32F2F" />
+            </View>
+            <Text style={styles.paymentCardAmount}>₹ 75,000</Text>
+            <Text style={styles.paymentCardSub}>2 Pending</Text>
+          </View>
+        </ScrollView>
+        
+        {/* Bottom padding for FAB */}
+        <View style={{ height: 80 }} />
       </ScrollView>
 
-      {hasPermission("create:daily-entry") ? (
-        <TouchableOpacity
-          style={[
-            styles.fab,
-            { bottom: 1 + (insets.bottom > 0 ? insets.bottom : 0) },
-          ]}
-          onPress={() => router.push("/(owner)/manage/daily-entry")}
-        >
-          <Ionicons name="add" size={32} color="#FFF" />
-        </TouchableOpacity>
-      ) : null}
+      {/* Floating Action Button */}
+      <TouchableOpacity
+        style={[styles.fab, { bottom: 20 + (insets.bottom > 0 ? insets.bottom : 0) }]}
+        onPress={() => router.push("/(owner)/manage/daily-entry" as Href)}
+      >
+        <Feather name="plus" size={28} color="#FFF" />
+      </TouchableOpacity>
 
+      {/* Settings Panel Modal */}
       <Modal visible={showSettingsPanel} transparent animationType="slide">
         <TouchableOpacity
           style={styles.modalOverlay}
@@ -509,7 +467,7 @@ export default function OwnerDashboard() {
             >
               {loadingUsers ? (
                 <View style={styles.loadingState}>
-                  <ActivityIndicator color={Colors.primary} />
+                  <ActivityIndicator color={THEME_GREEN} />
                   <Text style={styles.loadingText}>Loading users...</Text>
                 </View>
               ) : filteredUsers.length ? (
@@ -525,7 +483,7 @@ export default function OwnerDashboard() {
                             {item.name
                               .split(" ")
                               .filter(Boolean)
-                              .map((part) => part[0])
+                              .map((part: string) => part[0])
                               .join("")
                               .toUpperCase()
                               .slice(0, 2)}
@@ -542,7 +500,7 @@ export default function OwnerDashboard() {
                       </View>
                       <View style={styles.switchWrap}>
                         {isSaving ? (
-                          <ActivityIndicator color={Colors.primary} />
+                          <ActivityIndicator color={THEME_GREEN} />
                         ) : (
                           <Switch
                             value={isActive}
@@ -550,7 +508,7 @@ export default function OwnerDashboard() {
                               void toggleUserStatus(item, next)
                             }
                             trackColor={{ false: "#D1D5DB", true: "#B7E0C2" }}
-                            thumbColor={isActive ? Colors.primary : "#F9FAFB"}
+                            thumbColor={isActive ? THEME_GREEN : "#F9FAFB"}
                           />
                         )}
                         <Text
@@ -581,258 +539,365 @@ export default function OwnerDashboard() {
           </View>
         </TouchableOpacity>
       </Modal>
-    </SafeAreaView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  safeArea: {
+  container: {
     flex: 1,
-    backgroundColor: "#F6F8F7",
+    backgroundColor: "#F9FAF9", // Very light background
+  },
+  header: {
+    backgroundColor: THEME_GREEN,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 20,
+    paddingBottom: 16,
+  },
+  headerLogoText: {
+    fontSize: 20,
+    color: "#FFF",
+    fontWeight: "bold",
+  },
+  headerLogoLight: {
+    fontWeight: "400",
+    opacity: 0.8,
+  },
+  bellIconBtn: {
+    position: "relative",
+    padding: 4,
+  },
+  bellBadge: {
+    position: "absolute",
+    top: 2,
+    right: 2,
+    backgroundColor: "#D32F2F",
+    minWidth: 16,
+    height: 16,
+    borderRadius: 8,
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1.5,
+    borderColor: THEME_GREEN,
+  },
+  bellBadgeText: {
+    color: "#FFF",
+    fontSize: 9,
+    fontWeight: "bold",
   },
   scrollContent: {
-    padding: Layout.screenPadding,
-    paddingBottom: 100,
-    alignSelf: "center",
-    width: "100%",
-    maxWidth: Layout.contentMaxWidth,
+    paddingBottom: 40,
   },
-  welcomeSection: {
-    marginBottom: Layout.spacing.lg,
-  },
-  welcomeText: {
-    fontSize: 14,
-    color: Colors.textSecondary,
-    marginBottom: 4,
-  },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: "bold",
-    color: Colors.text,
-  },
-  overviewRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    marginBottom: Layout.spacing.lg,
-  },
-  overviewCard: {
-    width: "48%",
-    backgroundColor: "#FFF",
-    borderRadius: 8,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: Colors.border,
-  },
-  cardHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: 12,
-  },
-  badge: {
-    backgroundColor: "#E8F5E9",
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 8,
-  },
-  badgeText: {
-    fontSize: 10,
-    fontWeight: "bold",
-    color: Colors.primary,
-  },
-  cardLabel: {
-    fontSize: 13,
-    color: Colors.textSecondary,
-  },
-  cardValue: {
-    fontSize: 22,
-    fontWeight: "bold",
-    color: Colors.text,
-    marginTop: 4,
-  },
-  birdsCard: {
-    backgroundColor: "#FFF",
-    borderRadius: 12,
-    padding: 16,
+  profileSection: {
     flexDirection: "row",
     alignItems: "center",
-    borderWidth: 1,
-    borderColor: Colors.border,
-    marginBottom: Layout.spacing.xl,
+    justifyContent: "space-between",
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    backgroundColor: "#F9FAF9",
   },
-  birdsIconBox: {
+  profileLeft: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  avatar: {
     width: 44,
     height: 44,
-    backgroundColor: "#E8F5E9",
-    borderRadius: 8,
-    justifyContent: "center",
-    alignItems: "center",
+    borderRadius: 22,
     marginRight: 12,
   },
-  birdsInfo: {
-    flex: 1,
-  },
-  birdsLabel: {
-    fontSize: 13,
-    color: Colors.textSecondary,
-  },
-  birdsValue: {
-    fontSize: 20,
-    fontWeight: "bold",
+  greetingText: {
+    fontSize: 14,
+    fontWeight: "600",
     color: Colors.text,
+    marginBottom: 2,
   },
-  mortalityInfo: {
-    alignItems: "flex-end",
-  },
-  mortalityValue: {
-    fontSize: 13,
-    fontWeight: "bold",
-    color: Colors.tertiary,
-  },
-  mortalityTarget: {
-    fontSize: 11,
-    color: Colors.textSecondary,
-  },
-  portalGrid: {
+  farmSelector: {
     flexDirection: "row",
-    flexWrap: "wrap",
-    justifyContent: "space-between",
-    marginTop: Layout.spacing.sm,
-    marginBottom: Layout.spacing.xl,
-  },
-  portalCard: {
-    width: "31%",
-    backgroundColor: "#FFF",
-    borderRadius: 8,
-    padding: 16,
     alignItems: "center",
+  },
+  farmName: {
+    fontSize: 13,
+    color: Colors.textSecondary,
+    marginRight: 4,
+  },
+  dateBtn: {
     borderWidth: 1,
-    borderColor: Colors.border,
-    marginBottom: 12,
-  },
-  portalIconBox: {
-    width: 40,
-    height: 40,
-    backgroundColor: "#F9FAFB",
+    borderColor: "#E0E0E0",
     borderRadius: 8,
-    justifyContent: "center",
-    alignItems: "center",
-    marginBottom: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    backgroundColor: "#FFF",
   },
-  portalLabel: {
+  dateBtnText: {
     fontSize: 12,
     fontWeight: "600",
     color: Colors.text,
-    textAlign: "center",
   },
-  alertBanner: {
-    backgroundColor: Colors.primary,
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: Layout.spacing.xl,
-  },
-  alertHeader: {
-    marginBottom: 8,
-  },
-  alertTitle: {
-    fontSize: 14,
+  sectionTitle: {
+    fontSize: 16,
     fontWeight: "bold",
-    color: "#FFF",
-  },
-  alertText: {
-    fontSize: 13,
-    color: "rgba(255,255,255,0.9)",
-    lineHeight: 18,
+    color: Colors.text,
+    paddingHorizontal: 20,
     marginBottom: 12,
   },
-  alertBtn: {
-    backgroundColor: "#FFF",
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 6,
-    alignSelf: "flex-start",
-  },
-  alertBtnText: {
-    color: Colors.primary,
-    fontSize: 13,
+  sectionTitleNoMargin: {
+    fontSize: 16,
     fontWeight: "bold",
+    color: Colors.text,
   },
-  activityHeader: {
+  glanceGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    paddingHorizontal: 20,
+    justifyContent: "space-between",
+    marginBottom: 16,
+  },
+  glanceCard: {
+    width: "48%",
+    backgroundColor: "#F0F9F3",
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 12,
+  },
+  glanceValue: {
+    fontSize: 24,
+    fontWeight: "bold",
+    color: THEME_GREEN,
+    marginBottom: 4,
+  },
+  glanceValueSmall: {
+    fontSize: 20,
+    fontWeight: "bold",
+    color: THEME_GREEN,
+  },
+  glanceRow: {
+    flexDirection: "row",
+    alignItems: "baseline",
+    justifyContent: "space-between",
+    marginBottom: 4,
+  },
+  glancePercentBold: {
+    fontSize: 12,
+    fontWeight: "bold",
+    color: Colors.text,
+  },
+  glanceLabel: {
+    fontSize: 12,
+    color: Colors.textSecondary,
+    lineHeight: 16,
+  },
+  alertPillsContainer: {
+    paddingHorizontal: 20,
+    marginBottom: 24,
+  },
+  alertPill: {
+    backgroundColor: "#FFF",
+    borderWidth: 1,
+    borderColor: "#F0F0F0",
+    borderRadius: 12,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    marginRight: 10,
+    alignItems: "center",
+    justifyContent: "center",
+    minWidth: 90,
+    elevation: 1,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+  },
+  alertPillValue: {
+    fontSize: 20,
+    fontWeight: "bold",
+    marginBottom: 4,
+  },
+  alertPillLabel: {
+    fontSize: 10,
+    color: Colors.textSecondary,
+    textAlign: "center",
+  },
+  sectionHeader: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    marginBottom: Layout.spacing.sm,
+    paddingHorizontal: 20,
+    marginBottom: 12,
   },
   viewAllText: {
     fontSize: 13,
-    color: Colors.primary,
     fontWeight: "bold",
+    color: THEME_GREEN,
   },
-  activityList: {
+  activeBatchCard: {
     backgroundColor: "#FFF",
-    borderRadius: 12,
     borderWidth: 1,
-    borderColor: Colors.border,
-  },
-  activityItem: {
-    flexDirection: "row",
-    alignItems: "center",
+    borderColor: "#F0F0F0",
+    borderRadius: 16,
+    marginHorizontal: 20,
     padding: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.border,
+    marginBottom: 24,
+    elevation: 2,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
   },
-  activityContent: {
-    marginLeft: 12,
-    flex: 1,
+  batchCardHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 16,
   },
-  activityTitle: {
+  batchFarmName: {
     fontSize: 14,
-    fontWeight: "600",
+    fontWeight: "bold",
     color: Colors.text,
+    marginBottom: 2,
   },
-  activitySub: {
+  batchCode: {
     fontSize: 12,
     color: Colors.textSecondary,
-    marginTop: 2,
+  },
+  batchStatsRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginBottom: 16,
+  },
+  batchStatCol: {
+    flex: 1,
+  },
+  batchStatLabel: {
+    fontSize: 11,
+    color: Colors.textSecondary,
+    marginBottom: 4,
+  },
+  batchStatValue: {
+    fontSize: 14,
+    fontWeight: "bold",
+    color: Colors.text,
+  },
+  paginationDots: {
+    flexDirection: "row",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  dot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: "#E0E0E0",
+    marginHorizontal: 3,
+  },
+  dotActive: {
+    backgroundColor: THEME_GREEN,
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+  },
+  dropdownBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    borderWidth: 1,
+    borderColor: "#E0E0E0",
+    borderRadius: 6,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    backgroundColor: "#FFF",
+  },
+  dropdownBtnText: {
+    fontSize: 11,
+    color: Colors.textSecondary,
+    marginRight: 4,
+  },
+  plGrid: {
+    flexDirection: "row",
+    paddingHorizontal: 20,
+    justifyContent: "space-between",
+    marginBottom: 24,
+  },
+  plCard: {
+    backgroundColor: "#FFF",
+    borderWidth: 1,
+    borderColor: "#F0F0F0",
+    borderRadius: 12,
+    paddingVertical: 12,
+    paddingHorizontal: 4,
+    flex: 1,
+    marginHorizontal: 4,
+    alignItems: "center",
+    justifyContent: "center",
+    elevation: 1,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+  },
+  plValue: {
+    fontSize: 11,
+    fontWeight: "bold",
+    marginBottom: 8,
+    textAlign: "center",
+  },
+  plLabel: {
+    fontSize: 9,
+    color: Colors.textSecondary,
+    textAlign: "center",
+  },
+  paymentCardsContainer: {
+    paddingHorizontal: 20,
+    paddingBottom: 20,
+  },
+  paymentCard: {
+    backgroundColor: "#FFF5F5",
+    borderRadius: 12,
+    padding: 16,
+    marginRight: 12,
+    width: 130,
+    borderWidth: 1,
+    borderColor: "#FFEBEE",
+  },
+  paymentCardHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "flex-start",
+    marginBottom: 12,
+  },
+  paymentCardTitle: {
+    fontSize: 12,
+    color: Colors.text,
+    fontWeight: "500",
+    lineHeight: 16,
+  },
+  paymentCardAmount: {
+    fontSize: 16,
+    fontWeight: "bold",
+    color: Colors.text,
+    marginBottom: 4,
+  },
+  paymentCardSub: {
+    fontSize: 11,
+    color: Colors.textSecondary,
   },
   fab: {
     position: "absolute",
     right: 20,
-    bottom: 80,
     width: 56,
     height: 56,
     borderRadius: 28,
-    backgroundColor: Colors.primary,
+    backgroundColor: THEME_GREEN,
     justifyContent: "center",
     alignItems: "center",
-    elevation: 5,
+    elevation: 6,
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 3.84,
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4.65,
   },
-  tabBar: {
-    position: "absolute",
-    bottom: 0,
-    left: 0,
-    right: 0,
-    height: 65,
-    backgroundColor: "#F9FAFB",
-    flexDirection: "row",
-    borderTopWidth: 1,
-    borderTopColor: Colors.border,
-    paddingBottom: 10,
-  },
-  tabItem: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  tabLabel: {
-    fontSize: 10,
-    color: Colors.textSecondary,
-    marginTop: 4,
-  },
+  // Settings Panel Styles (preserved)
   modalOverlay: {
     flex: 1,
     backgroundColor: "rgba(0,0,0,0.4)",
@@ -878,7 +943,6 @@ const styles = StyleSheet.create({
     height: 44,
     gap: 8,
     marginBottom: 12,
-    ...Layout.cardShadow,
   },
   searchInput: { flex: 1, fontSize: 14, color: Colors.text, padding: 0 },
   errorText: {
@@ -886,7 +950,7 @@ const styles = StyleSheet.create({
     padding: 10,
     borderRadius: 10,
     backgroundColor: "#FFF4F4",
-    color: Colors.tertiary,
+    color: "#D32F2F",
     borderWidth: 1,
     borderColor: "#FECACA",
     fontSize: 12,
@@ -917,14 +981,15 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     marginRight: 10,
   },
-  userAvatarText: { fontSize: 13, fontWeight: "800", color: Colors.primary },
+  userAvatarText: { fontSize: 13, fontWeight: "800", color: THEME_GREEN },
   userTextWrap: { flex: 1 },
   userName: { fontSize: 14, fontWeight: "700", color: Colors.text },
   userSub: { fontSize: 12, color: Colors.textSecondary, marginTop: 2 },
   switchWrap: { alignItems: "center", gap: 4, minWidth: 70 },
   statusLabel: { fontSize: 11, fontWeight: "700" },
-  statusActive: { color: Colors.primary },
+  statusActive: { color: THEME_GREEN },
   statusInactive: { color: Colors.textSecondary },
   emptyState: { alignItems: "center", paddingVertical: 30, gap: 8 },
   emptyText: { fontSize: 14, color: Colors.textSecondary },
 });
+

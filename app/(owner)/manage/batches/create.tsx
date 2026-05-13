@@ -211,6 +211,25 @@ export default function CreateBatchScreen() {
 
   const selectedFarm = farms.find((farm) => farm.id === selectedFarmId) ?? null;
 
+  useEffect(() => {
+    const purchased = toOptionalNumber(totalChicksPurchased);
+    const free = toOptionalNumber(freeChicks) ?? 0;
+
+    if (purchased === undefined) {
+      if (chargeableChicks) {
+        setValue('chargeableChicks', '');
+      }
+      return;
+    }
+
+    const computedChargeable = Math.max(purchased - free, 0);
+    const nextValue = String(computedChargeable);
+
+    if (chargeableChicks !== nextValue) {
+      setValue('chargeableChicks', nextValue, { shouldValidate: true });
+    }
+  }, [chargeableChicks, freeChicks, setValue, totalChicksPurchased]);
+
   const placementSummary = useMemo(() => {
     const placed = toOptionalNumber(placementCount);
     const purchased = toOptionalNumber(totalChicksPurchased);
@@ -519,7 +538,7 @@ export default function CreateBatchScreen() {
                 name="chargeableChicks"
                 render={({ field: { onChange, value } }) => (
                   <InputField
-                    label="Chargeable Chicks"
+                    label="Chargeable Chicks (Auto)"
                     value={value}
                     onChangeText={onChange}
                     placeholder="5000"

@@ -37,6 +37,7 @@ type FarmCard = {
   capacity: number;
   status: 'Active' | 'Inactive';
   staffCount: number;
+  activeBatchCount: number;
   farmer: { role: 'farmer'; name: string } | null;
   supervisor: { role: 'supervisor'; name: string } | null;
   needsSupervisor?: boolean;
@@ -128,6 +129,7 @@ function toFarmCard(farm: ApiFarm): FarmCard {
     capacity: Math.round(farm.capacity ?? 0),
     status: farm.status === 'ACTIVE' ? 'Active' : 'Inactive',
     staffCount: farm.assignments.length,
+    activeBatchCount: farm.activeBatchCount,
     farmer: farmerName ? { role: 'farmer', name: farmerName } : null,
     supervisor: supervisorName ? { role: 'supervisor', name: supervisorName } : null,
     needsSupervisor: !supervisorName,
@@ -140,6 +142,7 @@ export default function FarmListScreen() {
 
   const [farms, setFarms] = useState<FarmCard[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
+  const [statusFilter, setStatusFilter] = useState<'ALL' | FarmCard['status']>('ALL');
   const [showEditModal, setShowEditModal] = useState(false);
   const [showAssignmentPicker, setShowAssignmentPicker] = useState(false);
   
@@ -424,7 +427,10 @@ export default function FarmListScreen() {
 
   const filtered = farms.filter((farm) => {
     const haystack = [farm.name, farm.code, farm.location].join(' ').toLowerCase();
-    return haystack.includes(searchQuery.toLowerCase());
+    const matchesSearch = haystack.includes(searchQuery.toLowerCase());
+    const matchesStatus = statusFilter === 'ALL' || farm.status === statusFilter;
+
+    return matchesSearch && matchesStatus;
   });
 
   const statusColor = (status: FarmCard['status']) => {
@@ -534,6 +540,32 @@ export default function FarmListScreen() {
           </TouchableOpacity>
         </View>
 
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.statusFilterRow}
+        >
+          {(['ALL', 'Active', 'Inactive'] as const).map((filter) => (
+            <TouchableOpacity
+              key={filter}
+              style={[
+                styles.statusFilterChip,
+                statusFilter === filter && styles.statusFilterChipActive,
+              ]}
+              onPress={() => setStatusFilter(filter)}
+            >
+              <Text
+                style={[
+                  styles.statusFilterText,
+                  statusFilter === filter && styles.statusFilterTextActive,
+                ]}
+              >
+                {filter === 'ALL' ? 'All Farms' : filter}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </ScrollView>
+
         {isLoading ? (
           <View style={styles.loadingState}>
             <ActivityIndicator color={Colors.primary} />
@@ -612,7 +644,12 @@ export default function FarmListScreen() {
                       <Text style={styles.staffText}>{farm.staffCount} Staff Members</Text>
                     </View>
                   )}
-                  <Text style={styles.capText}>Cap: {farm.capacity.toLocaleString()}</Text>
+                  <View style={styles.footerMetrics}>
+                    <Text style={styles.capText}>Cap: {farm.capacity.toLocaleString()}</Text>
+                    <Text style={styles.batchCountText}>
+                      {farm.activeBatchCount} active batch
+                    </Text>
+                  </View>
                 </View>
               </View>
             );
@@ -1171,6 +1208,33 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     ...Layout.cardShadow,
   },
+  statusFilterRow: {
+    gap: 8,
+    paddingBottom: 14,
+  },
+  statusFilterChip: {
+    minHeight: 34,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    paddingHorizontal: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#FFF',
+    marginRight: 8,
+  },
+  statusFilterChipActive: {
+    backgroundColor: Colors.primary,
+    borderColor: Colors.primary,
+  },
+  statusFilterText: {
+    color: Colors.textSecondary,
+    fontSize: 12,
+    fontWeight: '800',
+  },
+  statusFilterTextActive: {
+    color: '#FFF',
+  },
   loadingState: { alignItems: 'center', paddingVertical: 40, gap: 10 },
   loadingText: { color: Colors.textSecondary, fontSize: 13 },
   farmCard: {
@@ -1246,6 +1310,8 @@ const styles = StyleSheet.create({
   staffRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   staffText: { fontSize: 12, color: Colors.textSecondary },
   capText: { fontSize: 12, color: Colors.textSecondary },
+  footerMetrics: { alignItems: 'flex-end', gap: 2 },
+  batchCountText: { fontSize: 11, color: Colors.primary, fontWeight: '800' },
   emptyState: { alignItems: 'center', paddingVertical: 40, gap: 8 },
   emptyText: { fontSize: 14, color: Colors.textSecondary },
   modalTitle: { fontSize: 18, fontWeight: 'bold', color: Colors.text, marginBottom: 16 },

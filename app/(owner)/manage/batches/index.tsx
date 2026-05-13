@@ -65,6 +65,7 @@ export default function BatchManagementScreen() {
   const [loading, setLoading] = useState(true);
   const [closingId, setClosingId] = useState('');
   const [message, setMessage] = useState<string | null>(null);
+  const [expandedBatchIds, setExpandedBatchIds] = useState<string[]>([]);
 
   const loadBatches = useCallback(async () => {
     if (!accessToken) return;
@@ -140,6 +141,14 @@ export default function BatchManagementScreen() {
     ]);
   };
 
+  const toggleExpanded = (batchId: string) => {
+    setExpandedBatchIds((current) =>
+      current.includes(batchId)
+        ? current.filter((id) => id !== batchId)
+        : [...current, batchId],
+    );
+  };
+
   return (
     <SafeAreaView style={styles.safeArea}>
       <TopAppBar
@@ -205,41 +214,54 @@ export default function BatchManagementScreen() {
         ) : filteredBatches.length === 0 ? (
           <Text style={styles.emptyText}>No batches found.</Text>
         ) : (
-          filteredBatches.map((batch) => (
-            <TouchableOpacity
+          filteredBatches.map((batch) => {
+            const expanded = expandedBatchIds.includes(batch.id);
+
+            return (
+            <View
               key={batch.id}
               style={styles.batchCard}
-              activeOpacity={0.86}
-              onPress={() =>
-                router.push({
-                  pathname: '/(owner)/manage/batches/[id]',
-                  params: { id: batch.id },
-                })
-              }
             >
-              <View style={styles.batchCardHeader}>
-                <Text style={styles.batchNo}>{batch.code}</Text>
-                <StatusBadge status={batch.status} />
-              </View>
-
-              <Text style={styles.batchFarm}>Farm: {batch.farmName ?? 'Unknown farm'}</Text>
-
-              <View style={styles.batchDetailsRow}>
-                <View style={styles.batchDetailItem}>
-                  <Text style={styles.batchDetailLabel}>Placed On</Text>
-                  <Text style={styles.batchDetailValue}>{formatReadableDate(batch.placementDate)}</Text>
+              <TouchableOpacity
+                activeOpacity={0.86}
+                onPress={() => toggleExpanded(batch.id)}
+              >
+                <View style={styles.batchCardHeader}>
+                  <View style={styles.batchTitleWrap}>
+                    <Text style={styles.batchNo}>{batch.code}</Text>
+                    <Text style={styles.batchFarm}>Farm: {batch.farmName ?? 'Unknown farm'}</Text>
+                  </View>
+                  <View style={styles.statusStack}>
+                    <StatusBadge status={batch.status} />
+                    <Ionicons
+                      name={expanded ? 'chevron-up' : 'chevron-down'}
+                      size={18}
+                      color={Colors.textSecondary}
+                    />
+                  </View>
                 </View>
-                <View style={styles.batchDetailItem}>
-                  <Text style={styles.batchDetailLabel}>Age</Text>
-                  <Text style={styles.batchDetailValue}>{batch.summary?.currentAgeDays ?? 0} Days</Text>
-                </View>
-              </View>
+              </TouchableOpacity>
 
-              <View style={styles.batchMetricsRow}>
-                <MetricMini label="Live Birds" value={(batch.summary?.liveBirds ?? batch.placementCount).toLocaleString('en-IN')} />
-                <MetricMini label="Mortality" value={`${batch.summary?.mortalityPercent ?? 0}%`} />
-                <MetricMini label="FCR" value={String(batch.summary?.fcr ?? '0')} />
-              </View>
+              {expanded ? (
+                <View style={styles.expandedBody}>
+                  <View style={styles.batchDetailsRow}>
+                    <View style={styles.batchDetailItem}>
+                      <Text style={styles.batchDetailLabel}>Placement Date</Text>
+                      <Text style={styles.batchDetailValue}>{formatReadableDate(batch.placementDate)}</Text>
+                    </View>
+                    <View style={styles.batchDetailItem}>
+                      <Text style={styles.batchDetailLabel}>Current Age</Text>
+                      <Text style={styles.batchDetailValue}>{batch.summary?.currentAgeDays ?? 0} Days</Text>
+                    </View>
+                  </View>
+
+                  <View style={styles.batchMetricsRow}>
+                    <MetricMini label="Live Birds" value={(batch.summary?.liveBirds ?? batch.placementCount).toLocaleString('en-IN')} />
+                    <MetricMini label="Mortality" value={`${batch.summary?.mortalityPercent ?? 0}%`} />
+                    <MetricMini label="FCR" value={String(batch.summary?.fcr ?? '0')} />
+                  </View>
+                </View>
+              ) : null}
 
               <View style={styles.batchActions}>
                 {batch.status !== 'CLOSED' && batch.status !== 'CANCELLED' ? (
@@ -251,13 +273,22 @@ export default function BatchManagementScreen() {
                     <Text style={styles.closeButtonText}>Close Batch</Text>
                   </TouchableOpacity>
                 ) : null}
-                <View style={styles.viewHint}>
+                <TouchableOpacity
+                  style={styles.viewHint}
+                  onPress={() =>
+                    router.push({
+                      pathname: '/(owner)/manage/batches/[id]',
+                      params: { id: batch.id },
+                    })
+                  }
+                >
                   <Text style={styles.viewHintText}>View Details</Text>
                   <Ionicons name="chevron-forward" size={16} color={Colors.primary} />
-                </View>
+                </TouchableOpacity>
               </View>
-            </TouchableOpacity>
-          ))
+            </View>
+          );
+          })
         )}
 
         <TouchableOpacity style={styles.floatingCreateBtn} onPress={() => router.push('/(owner)/manage/batches/create')}>
@@ -456,6 +487,17 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: 8,
+  },
+  batchTitleWrap: {
+    flex: 1,
+    paddingRight: 10,
+  },
+  statusStack: {
+    alignItems: 'flex-end',
+    gap: 6,
+  },
+  expandedBody: {
+    marginTop: 2,
   },
   progressBadge: {
     backgroundColor: '#E8F5E9',
