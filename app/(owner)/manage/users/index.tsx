@@ -544,7 +544,16 @@ export default function UserManagementScreen() {
       <Modal visible={showAddModal} transparent animationType="slide">
         <TouchableOpacity style={styles.modalOverlay} activeOpacity={1} onPress={() => setShowAddModal(false)}>
           <View style={styles.modalSheet} onStartShouldSetResponder={() => true}>
-            <Text style={styles.modalTitle}>Add New User</Text>
+            <View style={styles.modalHeaderRow}>
+              <Text style={styles.modalTitle}>Add New User</Text>
+              <TouchableOpacity
+                style={styles.modalCloseBtn}
+                onPress={() => setShowAddModal(false)}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              >
+                <Ionicons name="close" size={20} color={Colors.text} />
+              </TouchableOpacity>
+            </View>
             {error ? <Text style={styles.errorText}>{error}</Text> : null}
 
             <Controller
@@ -660,7 +669,16 @@ export default function UserManagementScreen() {
         <TouchableOpacity style={styles.modalOverlay} activeOpacity={1} onPress={() => setShowEditModal(false)}>
           <View style={styles.modalSheet} onStartShouldSetResponder={() => true}>
             <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
-              <Text style={styles.modalTitle}>Edit User</Text>
+              <View style={styles.modalHeaderRow}>
+                <Text style={styles.modalTitle}>Edit User</Text>
+                <TouchableOpacity
+                  style={styles.modalCloseBtn}
+                  onPress={() => setShowEditModal(false)}
+                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                >
+                  <Ionicons name="close" size={20} color={Colors.text} />
+                </TouchableOpacity>
+              </View>
               {error ? <Text style={styles.errorText}>{error}</Text> : null}
 
               <Controller
@@ -734,10 +752,14 @@ export default function UserManagementScreen() {
                   <View>
                     <Text style={styles.formLabel}>Role</Text>
                     <View style={styles.roleToggleRow}>
-                      {ROLE_OPTIONS.map((role) => (
+                      {CREATE_ROLE_OPTIONS.map((role) => (
                         <TouchableOpacity
                           key={role}
-                          style={[styles.roleToggle, value === role && styles.roleToggleActive]}
+                          style={[
+                            styles.roleToggle,
+                            styles.roleToggleOneLine,
+                            value === role && styles.roleToggleActive,
+                          ]}
                           onPress={() => onChange(role)}
                         >
                           <Text style={[styles.roleToggleText, value === role && styles.roleToggleTextActive]}>
@@ -761,7 +783,11 @@ export default function UserManagementScreen() {
                       {(['Active', 'Invited', 'Inactive'] as Status[]).map((status) => (
                         <TouchableOpacity
                           key={status}
-                          style={[styles.roleToggle, value === status && styles.roleToggleActive]}
+                          style={[
+                            styles.roleToggle,
+                            styles.roleToggleOneLine,
+                            value === status && styles.roleToggleActive,
+                          ]}
                           onPress={() => onChange(status)}
                         >
                           <Text
@@ -1033,7 +1059,21 @@ const styles = StyleSheet.create({
     padding: 24,
     paddingBottom: 40,
   },
-  modalTitle: { fontSize: 18, fontWeight: 'bold', color: Colors.text, marginBottom: 16 },
+  modalHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 16,
+  },
+  modalTitle: { fontSize: 18, fontWeight: 'bold', color: Colors.text },
+  modalCloseBtn: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#F3F4F6',
+  },
   formLabel: { fontSize: 13, fontWeight: '600', color: Colors.text, marginBottom: 6, marginTop: 12 },
   inputBox: {
     height: 46,
