@@ -1,7 +1,6 @@
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useFocusEffect } from '@react-navigation/native';
-import { useRouter } from 'expo-router';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
@@ -18,6 +17,7 @@ import { z } from 'zod';
 
 import { Colors } from '@/constants/Colors';
 import { Layout } from '@/constants/Layout';
+import { TopAppBar } from '@/components/ui/TopAppBar';
 import { useAuth } from '@/context/AuthContext';
 import {
   showRequestErrorToast,
@@ -98,7 +98,6 @@ function batchLabel(batch: ApiBatch) {
 }
 
 export default function SettlementScreen() {
-  const router = useRouter();
   const { accessToken, user, hasPermission } = useAuth();
   const [batches, setBatches] = useState<ApiBatch[]>([]);
   const [selectedBatchId, setSelectedBatchId] = useState('');
@@ -244,16 +243,12 @@ export default function SettlementScreen() {
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-          <Ionicons name="arrow-back" size={24} color="#FFF" />
-        </TouchableOpacity>
-        <View style={styles.headerCopy}>
-          <Text style={styles.headerTitle}>Farmer Settlement</Text>
-          <Text style={styles.headerSub}>{user?.role ?? 'User'} payout entry</Text>
-        </View>
-        {loading || loadingSettlement ? <ActivityIndicator color="#FFF" /> : null}
-      </View>
+      <TopAppBar
+        title="Farmer Settlement"
+        subtitle={`${user?.role ?? 'User'} payout entry`}
+        showBack
+        right={loading || loadingSettlement ? <ActivityIndicator color="#FFF" /> : null}
+      />
 
       <ScrollView
         contentContainerStyle={styles.scroll}
@@ -533,17 +528,6 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#F6F8F7',
   },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: Colors.primary,
-    paddingHorizontal: Layout.screenPadding,
-    paddingVertical: 15,
-  },
-  backBtn: { marginRight: 14 },
-  headerCopy: { flex: 1 },
-  headerTitle: { fontSize: 19, fontWeight: '900', color: '#FFF' },
-  headerSub: { marginTop: 2, fontSize: 12, color: 'rgba(255,255,255,0.82)', fontWeight: '700' },
   scroll: {
     padding: Layout.screenPadding,
     paddingBottom: 110,

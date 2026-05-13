@@ -1,4 +1,5 @@
 import { DatePickerField } from '@/components/ui/DatePickerField';
+import { TopAppBar } from '@/components/ui/TopAppBar';
 import { Colors } from '@/constants/Colors';
 import { Layout } from '@/constants/Layout';
 import { useAuth } from '@/context/AuthContext';
@@ -13,10 +14,9 @@ import {
   type ApiPaymentDirection,
   type ApiPaymentEntryType,
 } from '@/services/managementApi';
-import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useFocusEffect } from '@react-navigation/native';
-import { useRouter } from 'expo-router';
 import React, { useCallback, useMemo, useState } from 'react';
 import { ActivityIndicator, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -61,7 +61,6 @@ function formatINR(value?: number | null) {
 }
 
 export default function PaymentEntryScreen() {
-  const router = useRouter();
   const { accessToken } = useAuth();
   const [batches, setBatches] = useState<ApiBatch[]>([]);
   const [payments, setPayments] = useState<ApiFinancePayment[]>([]);
@@ -140,16 +139,12 @@ export default function PaymentEntryScreen() {
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-          <Ionicons name="arrow-back" size={23} color="#FFF" />
-        </TouchableOpacity>
-        <View style={styles.headerCopy}>
-          <Text style={styles.headerTitle}>Payment Entry</Text>
-          <Text style={styles.headerSub}>Track paid and received amounts</Text>
-        </View>
-        {loading ? <ActivityIndicator color="#FFF" /> : null}
-      </View>
+      <TopAppBar
+        title="Payment Entry"
+        subtitle="Track paid and received amounts"
+        showBack
+        right={loading ? <ActivityIndicator color="#FFF" /> : null}
+      />
 
       <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
         {error ? <Text style={styles.errorText}>{error}</Text> : null}
@@ -286,11 +281,6 @@ export default function PaymentEntryScreen() {
 
 const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: '#F6F8F7' },
-  header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: Layout.screenPadding, paddingVertical: 15, backgroundColor: Colors.primary },
-  backBtn: { marginRight: 14 },
-  headerCopy: { flex: 1 },
-  headerTitle: { fontSize: 19, fontWeight: '900', color: '#FFF' },
-  headerSub: { color: 'rgba(255,255,255,0.82)', fontSize: 12, fontWeight: '700', marginTop: 2 },
   container: { padding: Layout.screenPadding, paddingBottom: 90 },
   errorText: { color: Colors.tertiary, backgroundColor: '#FFF4F4', borderRadius: 8, padding: 10, marginBottom: 12 },
   card: { backgroundColor: '#FFF', borderRadius: 8, borderWidth: 1, borderColor: Colors.border, padding: 16, marginBottom: 14 },

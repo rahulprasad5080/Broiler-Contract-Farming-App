@@ -11,6 +11,7 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
+import { TopAppBar } from "@/components/ui/TopAppBar";
 import { Colors } from "@/constants/Colors";
 import { Layout } from "@/constants/Layout";
 import { useAuth } from "@/context/AuthContext";
@@ -213,18 +214,16 @@ export function NotificationsScreen() {
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <View style={styles.header}>
-        <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>
-          <Ionicons name="arrow-back" size={24} color="#FFF" />
-        </TouchableOpacity>
-        <View style={styles.headerCopy}>
-          <Text style={styles.headerTitle}>Notifications</Text>
-          <Text style={styles.headerSub}>Central alert management</Text>
-        </View>
-        <View style={styles.unreadBadge}>
-          <Text style={styles.unreadBadgeText}>{unreadCount}</Text>
-        </View>
-      </View>
+      <TopAppBar
+        title="Notifications"
+        subtitle="Central alert management"
+        showBack
+        right={
+          <View style={styles.unreadBadge}>
+            <Text style={styles.unreadBadgeText}>{unreadCount}</Text>
+          </View>
+        }
+      />
 
       <View style={styles.summaryCard}>
         <View style={styles.summaryIcon}>
@@ -339,30 +338,6 @@ const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
     backgroundColor: "#F6F8F7",
-  },
-  header: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: Layout.screenPadding,
-    paddingVertical: 15,
-    backgroundColor: Colors.primary,
-  },
-  backBtn: {
-    marginRight: 14,
-  },
-  headerCopy: {
-    flex: 1,
-  },
-  headerTitle: {
-    color: "#FFF",
-    fontSize: 19,
-    fontWeight: "900",
-  },
-  headerSub: {
-    color: "rgba(255,255,255,0.8)",
-    fontSize: 12,
-    fontWeight: "600",
-    marginTop: 2,
   },
   unreadBadge: {
     minWidth: 34,

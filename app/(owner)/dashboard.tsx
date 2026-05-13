@@ -33,6 +33,7 @@ import { Colors } from "../../constants/Colors";
 import { Layout } from "../../constants/Layout";
 import { useAuth, type Permission } from "../../context/AuthContext";
 import { HeaderNotificationButton } from "../../components/ui/HeaderNotificationButton";
+import { TopAppBar } from "../../components/ui/TopAppBar";
 import {
   fetchDashboard,
   fetchFinancialDashboard,
@@ -319,12 +320,11 @@ export default function OwnerDashboard() {
 
   return (
     <SafeAreaView style={styles.safeArea} edges={["top", "left", "right"]}>
-      <View style={styles.topBar}>
-        <Text style={styles.topBarTitle}>Broiler Manager</Text>
-        <View style={styles.topBarRight}>
-          <HeaderNotificationButton />
-        </View>
-      </View>
+      <TopAppBar
+        title="PoultryFlow"
+        subtitle={`Hello, ${user?.name?.split(" ")[0] ?? "Admin"}`}
+        right={<HeaderNotificationButton tone="onPrimary" />}
+      />
 
       <ScrollView contentContainerStyle={styles.scrollContent}>
         <View style={styles.welcomeSection}>
@@ -589,24 +589,6 @@ const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
     backgroundColor: "#F6F8F7",
-  },
-  topBar: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingHorizontal: Layout.spacing.lg,
-    paddingTop: Layout.spacing.md,
-    paddingBottom: Layout.spacing.md,
-    backgroundColor: Colors.primary,
-  },
-  topBarTitle: {
-    fontSize: 20,
-    fontWeight: "900",
-    color: "#FFF",
-  },
-  topBarRight: {
-    flexDirection: "row",
-    alignItems: "center",
   },
   scrollContent: {
     padding: Layout.screenPadding,

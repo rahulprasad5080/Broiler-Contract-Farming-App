@@ -1,6 +1,5 @@
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
-import { useRouter } from 'expo-router';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
@@ -37,6 +36,7 @@ import { getLocalDateValue } from '@/services/dateUtils';
 import { useFormPersistence } from '@/hooks/useFormPersistence';
 import { HeaderNotificationButton } from '@/components/ui/HeaderNotificationButton';
 import { DatePickerField } from '@/components/ui/DatePickerField';
+import { TopAppBar } from '@/components/ui/TopAppBar';
 
 type SalesEntryScreenProps = {
   title?: string;
@@ -131,7 +131,6 @@ const PAYMENT_STATUSES = [
 export function SalesEntryScreen({
   title = 'Sales Entry',
 }: SalesEntryScreenProps) {
-  const router = useRouter();
   const { user, accessToken } = useAuth();
   const [batches, setBatches] = useState<ApiBatch[]>([]);
   const [traders, setTraders] = useState<ApiTrader[]>([]);
@@ -318,16 +317,12 @@ export function SalesEntryScreen({
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-          <Ionicons name="arrow-back" size={24} color="#FFF" />
-        </TouchableOpacity>
-        <View style={styles.headerCopy}>
-          <Text style={styles.headerTitle}>{title}</Text>
-          <Text style={styles.headerSub}>{user?.role ?? 'User'}</Text>
-        </View>
-        <HeaderNotificationButton />
-      </View>
+      <TopAppBar
+        title={title ?? 'Sales Entry'}
+        subtitle={user?.role ?? 'User'}
+        showBack
+        right={<HeaderNotificationButton tone="onPrimary" />}
+      />
 
       <ScrollView
         contentContainerStyle={styles.container}
@@ -928,30 +923,6 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '700',
     color: Colors.primary,
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: Layout.screenPadding,
-    paddingVertical: 15,
-    backgroundColor: Colors.primary,
-  },
-  backBtn: {
-    marginRight: 14,
-  },
-  headerCopy: {
-    flex: 1,
-  },
-  headerTitle: {
-    fontSize: 19,
-    fontWeight: '900',
-    color: '#FFF',
-  },
-  headerSub: {
-    marginTop: 2,
-    fontSize: 12,
-    color: 'rgba(255,255,255,0.82)',
-    fontWeight: '700',
   },
   container: {
     paddingHorizontal: Layout.screenPadding,

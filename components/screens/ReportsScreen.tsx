@@ -22,6 +22,7 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
+import { TopAppBar } from "@/components/ui/TopAppBar";
 import { Colors } from "@/constants/Colors";
 import { Layout } from "@/constants/Layout";
 import { useAuth } from "@/context/AuthContext";
@@ -589,17 +590,15 @@ export default function ReportsScreen() {
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <View style={styles.header}>
-        <View>
-          <Text style={styles.headerEyebrow}>
-            {canViewOverview ? "Live backend data" : "Batch and farm reports"}
-          </Text>
-          <Text style={styles.headerTitle}>Reports</Text>
-        </View>
-        <View style={styles.headerIcon}>
-          <MaterialCommunityIcons name="chart-box-outline" size={22} color="#FFF" />
-        </View>
-      </View>
+      <TopAppBar
+        title="Reports"
+        eyebrow={canViewOverview ? "Live backend data" : "Batch and farm reports"}
+        right={
+          <View style={styles.headerIcon}>
+            <MaterialCommunityIcons name="chart-box-outline" size={22} color="#FFF" />
+          </View>
+        }
+      />
 
       <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
         <ReportHero
@@ -1278,26 +1277,6 @@ const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
     backgroundColor: "#F6F8F7",
-  },
-  header: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingHorizontal: Layout.spacing.lg,
-    paddingVertical: 15,
-    backgroundColor: Colors.primary,
-  },
-  headerEyebrow: {
-    fontSize: 11,
-    color: "rgba(255,255,255,0.78)",
-    textTransform: "uppercase",
-    letterSpacing: 0.8,
-  },
-  headerTitle: {
-    fontSize: 19,
-    fontWeight: "800",
-    color: "#FFF",
-    marginTop: 2,
   },
   headerIcon: {
     width: 42,

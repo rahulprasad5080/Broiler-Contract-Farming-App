@@ -1,10 +1,11 @@
 import { HeaderNotificationButton } from '@/components/ui/HeaderNotificationButton';
+import { TopAppBar } from '@/components/ui/TopAppBar';
 import { Colors } from '@/constants/Colors';
 import { Layout } from '@/constants/Layout';
 import { useAuth } from '@/context/AuthContext';
 import { fetchFinancialDashboard, type ApiFinancialDashboard } from '@/services/dashboardApi';
 import { showRequestErrorToast } from '@/services/apiFeedback';
-import { FontAwesome5, Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import { FontAwesome5, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import { useRouter } from 'expo-router';
 import React, { useCallback, useState } from 'react';
@@ -65,16 +66,12 @@ export default function FinancialDashboardScreen() {
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-          <Ionicons name="arrow-back" size={23} color="#FFF" />
-        </TouchableOpacity>
-        <View style={styles.headerCopy}>
-          <Text style={styles.headerTitle}>Financials</Text>
-          <Text style={styles.headerSub}>Company money movement</Text>
-        </View>
-        <HeaderNotificationButton />
-      </View>
+      <TopAppBar
+        title="Financials"
+        subtitle="Company money movement"
+        showBack
+        right={<HeaderNotificationButton tone="onPrimary" />}
+      />
 
       <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
         {error ? <Text style={styles.errorText}>{error}</Text> : null}
@@ -140,11 +137,6 @@ function FinanceCard({ label, value, color, icon }: { label: string; value: stri
 
 const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: '#F6F8F7' },
-  header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: Layout.screenPadding, paddingVertical: 15, backgroundColor: Colors.primary },
-  backBtn: { marginRight: 14 },
-  headerCopy: { flex: 1 },
-  headerTitle: { fontSize: 19, fontWeight: '900', color: '#FFF' },
-  headerSub: { color: 'rgba(255,255,255,0.82)', fontSize: 12, fontWeight: '700', marginTop: 2 },
   container: { padding: Layout.screenPadding, paddingBottom: 90 },
   errorText: { color: Colors.tertiary, backgroundColor: '#FFF4F4', borderRadius: 8, padding: 10, marginBottom: 12 },
   sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 },

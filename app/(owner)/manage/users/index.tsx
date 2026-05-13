@@ -1,5 +1,6 @@
 import { Colors } from '@/constants/Colors';
 import { Layout } from '@/constants/Layout';
+import { TopAppBar } from '@/components/ui/TopAppBar';
 import { useAuth } from '@/context/AuthContext';
 import {
   showRequestErrorToast,
@@ -24,7 +25,6 @@ import {
 } from '@/services/managementApi';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import {
@@ -216,7 +216,6 @@ const editUserSchema = z.object({
 type EditUserFormData = z.infer<typeof editUserSchema>;
 
 export default function UserManagementScreen() {
-  const router = useRouter();
   const { accessToken } = useAuth();
 
   const [users, setUsers] = useState<UserCard[]>([]);
@@ -488,18 +487,16 @@ export default function UserManagementScreen() {
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-          <Ionicons name="arrow-back" size={24} color="#FFF" />
-        </TouchableOpacity>
-        <View style={styles.headerCopy}>
-          <Text style={styles.headerTitle}>User Management</Text>
-          <Text style={styles.headerSub}>Users, roles and permissions</Text>
-        </View>
-        <TouchableOpacity style={styles.headerAddBtn} onPress={() => { setError(null); resetAddForm(); setShowAddModal(true); }}>
-          <Ionicons name="add" size={22} color="#FFF" />
-        </TouchableOpacity>
-      </View>
+      <TopAppBar
+        title="User Management"
+        subtitle="Users, roles and permissions"
+        showBack
+        right={
+          <TouchableOpacity style={styles.headerAddBtn} onPress={() => { setError(null); resetAddForm(); setShowAddModal(true); }}>
+            <Ionicons name="add" size={22} color="#FFF" />
+          </TouchableOpacity>
+        }
+      />
 
       <ScrollView
         contentContainerStyle={styles.container}
@@ -1105,17 +1102,6 @@ export default function UserManagementScreen() {
 
 const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: '#F6F8F7' },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: Layout.spacing.lg,
-    paddingVertical: 15,
-    backgroundColor: Colors.primary,
-  },
-  backBtn: { marginRight: 14 },
-  headerCopy: { flex: 1 },
-  headerTitle: { fontSize: 19, fontWeight: '900', color: '#FFF' },
-  headerSub: { color: 'rgba(255,255,255,0.82)', fontSize: 12, fontWeight: '700', marginTop: 2 },
   headerAddBtn: {
     width: 38,
     height: 38,

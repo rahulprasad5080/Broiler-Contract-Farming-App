@@ -1,7 +1,6 @@
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useFocusEffect } from "@react-navigation/native";
-import { useRouter } from "expo-router";
 import React, { useCallback, useMemo, useState } from "react";
 import {
   ActivityIndicator,
@@ -17,6 +16,7 @@ import { Controller, useForm } from "react-hook-form";
 import { z } from "zod";
 
 import { DatePickerField } from "@/components/ui/DatePickerField";
+import { TopAppBar } from "@/components/ui/TopAppBar";
 import { Colors } from "@/constants/Colors";
 import { Layout } from "@/constants/Layout";
 import { useAuth } from "@/context/AuthContext";
@@ -123,7 +123,6 @@ export function ExpenseEntryScreen({
   title = "Expense Entry",
   subtitle = "Record company and farmer expenses separately against a batch.",
 }: ExpenseEntryScreenProps) {
-  const router = useRouter();
   const { accessToken, user, hasPermission } = useAuth();
   const [batches, setBatches] = useState<ApiBatch[]>([]);
   const [expenses, setExpenses] = useState<ApiBatchExpense[]>([]);
@@ -286,15 +285,7 @@ export function ExpenseEntryScreen({
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-          <Ionicons name="arrow-back" size={23} color="#FFF" />
-        </TouchableOpacity>
-        <View style={styles.headerCopy}>
-          <Text style={styles.headerTitle}>{title}</Text>
-          <Text style={styles.headerSub}>{subtitle}</Text>
-        </View>
-      </View>
+      <TopAppBar title={title ?? "Expense Entry"} subtitle={subtitle} showBack />
 
       <ScrollView
         contentContainerStyle={styles.container}
@@ -533,17 +524,6 @@ export function ExpenseEntryScreen({
 
 const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: "#F6F8F7" },
-  header: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: Layout.screenPadding,
-    paddingVertical: 15,
-    backgroundColor: Colors.primary,
-  },
-  backBtn: { marginRight: 12 },
-  headerCopy: { flex: 1 },
-  headerTitle: { fontSize: 19, fontWeight: "900", color: "#FFF" },
-  headerSub: { marginTop: 2, fontSize: 12, color: "rgba(255,255,255,0.82)", fontWeight: "700" },
   container: {
     padding: Layout.screenPadding,
     paddingBottom: 96,

@@ -12,6 +12,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 
 import { Colors } from "@/constants/Colors";
 import { Layout } from "@/constants/Layout";
+import { TopAppBar } from "@/components/ui/TopAppBar";
 
 export type RouteMenuItem = {
   title: string;
@@ -45,10 +46,7 @@ export function RouteMenuScreen({
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <View style={styles.header}>
-        <Text style={styles.headerEyebrow}>Entries</Text>
-        <Text style={styles.headerTitle}>{title}</Text>
-      </View>
+      <TopAppBar title={title} eyebrow="Entries" />
 
       <ScrollView contentContainerStyle={styles.container}>
         {infoBanner ? (
@@ -97,23 +95,6 @@ const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
     backgroundColor: "#F6F8F7",
-  },
-  header: {
-    paddingHorizontal: Layout.screenPadding,
-    paddingVertical: 15,
-    backgroundColor: Colors.primary,
-  },
-  headerEyebrow: {
-    color: "rgba(255,255,255,0.78)",
-    fontSize: 11,
-    fontWeight: "900",
-    textTransform: "uppercase",
-  },
-  headerTitle: {
-    marginTop: 2,
-    fontSize: 19,
-    fontWeight: "900",
-    color: "#FFF",
   },
   container: {
     padding: Layout.screenPadding,

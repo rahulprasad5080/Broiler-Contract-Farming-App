@@ -1,5 +1,6 @@
 import { Colors } from '@/constants/Colors';
 import { Layout } from '@/constants/Layout';
+import { TopAppBar } from '@/components/ui/TopAppBar';
 import { useAuth } from '@/context/AuthContext';
 import {
   fetchBatch,
@@ -134,18 +135,16 @@ export default function BatchDetailsScreen() {
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-          <Ionicons name="arrow-back" size={24} color="#FFF" />
-        </TouchableOpacity>
-        <View style={styles.headerCopy}>
-          <Text style={styles.headerTitle}>Batch Details</Text>
-          <Text style={styles.headerSub}>{batch?.farmName ?? 'Overview, entries, expenses, sales, settlement and P&L'}</Text>
-        </View>
-        <TouchableOpacity onPress={() => void loadBatchDetails()} style={styles.refreshButton}>
-          <Ionicons name="refresh-outline" size={21} color="#FFF" />
-        </TouchableOpacity>
-      </View>
+      <TopAppBar
+        title="Batch Details"
+        subtitle={batch?.farmName ?? 'Overview, entries, expenses, sales, settlement and P&L'}
+        showBack
+        right={
+          <TouchableOpacity onPress={() => void loadBatchDetails()} style={styles.refreshButton}>
+            <Ionicons name="refresh-outline" size={21} color="#FFF" />
+          </TouchableOpacity>
+        }
+      />
 
       {loading ? (
         <View style={styles.centerBox}>
@@ -331,17 +330,6 @@ function ExpenseSection({ title, total, rows }: { title: string; total: number; 
 
 const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: '#F6F8F7' },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: Layout.screenPadding,
-    paddingVertical: 15,
-    backgroundColor: Colors.primary,
-  },
-  backButton: { marginRight: 12 },
-  headerCopy: { flex: 1 },
-  headerTitle: { fontSize: 19, fontWeight: '900', color: '#FFF' },
-  headerSub: { marginTop: 2, fontSize: 12, color: 'rgba(255,255,255,0.82)', fontWeight: '700' },
   refreshButton: {
     width: 38,
     height: 38,

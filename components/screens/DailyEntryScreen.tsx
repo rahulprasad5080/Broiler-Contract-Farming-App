@@ -32,6 +32,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { useFormPersistence } from "@/hooks/useFormPersistence";
 import { HeaderNotificationButton } from "@/components/ui/HeaderNotificationButton";
 import { DatePickerField } from "@/components/ui/DatePickerField";
+import { TopAppBar } from "@/components/ui/TopAppBar";
 import {
   showRequestErrorToast,
   showSuccessToast,
@@ -322,16 +323,12 @@ export function DailyEntryScreen({
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-          <Ionicons name="arrow-back" size={24} color="#FFF" />
-        </TouchableOpacity>
-        <View style={styles.headerCopy}>
-          <Text style={styles.headerTitle}>{title}</Text>
-          <Text style={styles.headerSub}>{user?.role ?? "User"}</Text>
-        </View>
-        <HeaderNotificationButton />
-      </View>
+      <TopAppBar
+        title={title ?? "Daily Entry"}
+        subtitle={user?.role ?? "User"}
+        showBack
+        right={<HeaderNotificationButton tone="onPrimary" />}
+      />
 
       <ScrollView
         contentContainerStyle={styles.container}
@@ -858,30 +855,6 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: "700",
     color: Colors.primary,
-  },
-  header: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: Layout.screenPadding,
-    paddingVertical: 15,
-    backgroundColor: Colors.primary,
-  },
-  backBtn: {
-    marginRight: 14,
-  },
-  headerCopy: {
-    flex: 1,
-  },
-  headerTitle: {
-    fontSize: 19,
-    fontWeight: "900",
-    color: "#FFF",
-  },
-  headerSub: {
-    marginTop: 2,
-    fontSize: 12,
-    color: "rgba(255,255,255,0.82)",
-    fontWeight: "700",
   },
   container: {
     paddingHorizontal: Layout.screenPadding,

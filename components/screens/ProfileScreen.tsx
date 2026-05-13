@@ -21,6 +21,7 @@ import { z } from 'zod';
 
 import { Colors } from '@/constants/Colors';
 import { Layout } from '@/constants/Layout';
+import { TopAppBar } from '@/components/ui/TopAppBar';
 import { useAuth, type Permission } from '@/context/AuthContext';
 import { showRequestErrorToast, showSuccessToast } from '@/services/apiFeedback';
 import { changePassword } from '@/services/authApi';
@@ -427,18 +428,17 @@ export default function ProfileScreen() {
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
-        <View style={styles.topHeader}>
-          <View>
-            <Text style={styles.topEyebrow}>Account</Text>
-            <Text style={styles.topTitle}>Profile Settings</Text>
-          </View>
+      <TopAppBar
+        title="Profile Settings"
+        eyebrow="Account"
+        right={
           <View style={styles.statusPill}>
             <View style={styles.statusDot} />
             <Text style={styles.statusText}>Active</Text>
           </View>
-        </View>
-
+        }
+      />
+      <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
         <View style={styles.heroBanner}>
           <View style={styles.profileMainRow}>
             <View style={styles.avatarRing}>
@@ -737,27 +737,6 @@ const styles = StyleSheet.create({
   },
   container: {
     paddingBottom: 20,
-  },
-  topHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: Layout.screenPadding,
-    paddingTop: 14,
-    paddingBottom: 12,
-    backgroundColor: Colors.primary,
-  },
-  topEyebrow: {
-    color: 'rgba(255,255,255,0.78)',
-    fontSize: 12,
-    fontWeight: '900',
-    textTransform: 'uppercase',
-  },
-  topTitle: {
-    color: '#FFF',
-    fontSize: 19,
-    fontWeight: '900',
-    marginTop: 2,
   },
   statusPill: {
     minHeight: 32,

@@ -19,6 +19,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 
 import { DatePickerField } from '@/components/ui/DatePickerField';
+import { TopAppBar } from '@/components/ui/TopAppBar';
 import { Colors } from '@/constants/Colors';
 import { Layout } from '@/constants/Layout';
 import { useAuth } from '@/context/AuthContext';
@@ -312,15 +313,7 @@ export default function CreateBatchScreen() {
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-          <Ionicons name="arrow-back" size={24} color="#FFF" />
-        </TouchableOpacity>
-        <View style={styles.headerCopy}>
-          <Text style={styles.headerTitle}>Create New Batch</Text>
-          <Text style={styles.headerSub}>Placement, chicks and schedule</Text>
-        </View>
-      </View>
+      <TopAppBar title="Create New Batch" subtitle="Placement, chicks and schedule" showBack />
 
       <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
         {showDraftBanner ? (
@@ -705,30 +698,6 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '700',
     color: Colors.primary,
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: Layout.screenPadding,
-    paddingVertical: 15,
-    backgroundColor: Colors.primary,
-  },
-  backButton: {
-    marginRight: 14,
-  },
-  headerCopy: {
-    flex: 1,
-  },
-  headerTitle: {
-    fontSize: 19,
-    fontWeight: '900',
-    color: '#FFF',
-  },
-  headerSub: {
-    marginTop: 2,
-    fontSize: 12,
-    color: 'rgba(255,255,255,0.82)',
-    fontWeight: '700',
   },
   container: {
     width: '100%',

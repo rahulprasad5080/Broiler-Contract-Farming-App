@@ -1,7 +1,6 @@
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useFocusEffect } from "@react-navigation/native";
-import { useRouter } from "expo-router";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
@@ -19,6 +18,7 @@ import { z } from "zod";
 import { Colors } from "@/constants/Colors";
 import { Layout } from "@/constants/Layout";
 import { DatePickerField } from "@/components/ui/DatePickerField";
+import { TopAppBar } from "@/components/ui/TopAppBar";
 import { useAuth } from "@/context/AuthContext";
 import { useFormPersistence } from "@/hooks/useFormPersistence";
 import {
@@ -123,7 +123,6 @@ function batchLabel(batch: ApiBatch) {
 }
 
 export default function PurchaseEntryScreen() {
-  const router = useRouter();
   const { accessToken } = useAuth();
   const [catalogItems, setCatalogItems] = useState<ApiCatalogItem[]>([]);
   const [batches, setBatches] = useState<ApiBatch[]>([]);
@@ -276,16 +275,12 @@ export default function PurchaseEntryScreen() {
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-          <Ionicons name="arrow-back" size={22} color="#FFF" />
-        </TouchableOpacity>
-        <View style={styles.headerCopy}>
-          <Text style={styles.headerTitle}>Purchase Entry</Text>
-          <Text style={styles.headerSub}>Finance purchase and stock inward</Text>
-        </View>
-        {loading ? <ActivityIndicator color="#FFF" /> : null}
-      </View>
+      <TopAppBar
+        title="Purchase Entry"
+        subtitle="Finance purchase and stock inward"
+        showBack
+        right={loading ? <ActivityIndicator color="#FFF" /> : null}
+      />
 
       <ScrollView
         contentContainerStyle={styles.container}
@@ -688,38 +683,6 @@ const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
     backgroundColor: "#F6F8F7",
-  },
-  header: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: Layout.screenPadding,
-    paddingVertical: 15,
-    backgroundColor: Colors.primary,
-  },
-  backButton: {
-    width: 38,
-    height: 38,
-    borderRadius: 10,
-    alignItems: "center",
-    justifyContent: "center",
-    marginRight: 10,
-    backgroundColor: "rgba(255,255,255,0.16)",
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.24)",
-  },
-  headerCopy: {
-    flex: 1,
-  },
-  headerTitle: {
-    fontSize: 19,
-    fontWeight: "900",
-    color: "#FFF",
-  },
-  headerSub: {
-    marginTop: 2,
-    fontSize: 12,
-    color: "rgba(255,255,255,0.82)",
-    fontWeight: "700",
   },
   container: {
     padding: Layout.screenPadding,

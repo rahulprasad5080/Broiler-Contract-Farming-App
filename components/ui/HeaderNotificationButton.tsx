@@ -9,11 +9,13 @@ import { useAuth } from "@/context/AuthContext";
 type HeaderNotificationButtonProps = {
   unread?: boolean;
   unreadCount?: number;
+  tone?: "default" | "onPrimary";
 };
 
 export function HeaderNotificationButton({
   unread = true,
   unreadCount = 4,
+  tone = "default",
 }: HeaderNotificationButtonProps) {
   const router = useRouter();
   const { hasPermission, user } = useAuth();
@@ -31,15 +33,19 @@ export function HeaderNotificationButton({
 
   return (
     <TouchableOpacity
-      style={styles.button}
+      style={[styles.button, tone === "onPrimary" && styles.buttonOnPrimary]}
       onPress={() => router.push(route)}
       activeOpacity={0.82}
       accessibilityRole="button"
       accessibilityLabel="Notifications"
     >
-      <Ionicons name="notifications-outline" size={22} color={Colors.text} />
+      <Ionicons
+        name="notifications-outline"
+        size={22}
+        color={tone === "onPrimary" ? "#FFFFFF" : Colors.text}
+      />
       {unread ? (
-        <View style={styles.badge}>
+        <View style={[styles.badge, tone === "onPrimary" && styles.badgeOnPrimary]}>
           <Text style={styles.badgeText}>
             {unreadCount > 9 ? "9+" : unreadCount}
           </Text>
@@ -53,12 +59,16 @@ const styles = StyleSheet.create({
   button: {
     width: 40,
     height: 40,
-    borderRadius: 20,
+    borderRadius: 12,
     alignItems: "center",
     justifyContent: "center",
     backgroundColor: "#F6FBF7",
     borderWidth: 1,
     borderColor: "#DDEBE3",
+  },
+  buttonOnPrimary: {
+    backgroundColor: "rgba(255,255,255,0.14)",
+    borderColor: "rgba(255,255,255,0.22)",
   },
   badge: {
     position: "absolute",
@@ -72,6 +82,9 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.tertiary,
     borderWidth: 1,
     borderColor: Colors.surface,
+  },
+  badgeOnPrimary: {
+    borderColor: Colors.primary,
   },
   badgeText: {
     color: "#FFFFFF",
