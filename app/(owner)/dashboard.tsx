@@ -208,7 +208,13 @@ export default function OwnerDashboard() {
             </View>
           </View>
           <TouchableOpacity style={styles.dateBtn}>
-            <Text style={styles.dateBtnText}>20 May 2024</Text>
+            <Text style={styles.dateBtnText}>
+              {new Date().toLocaleDateString("en-GB", {
+                day: "2-digit",
+                month: "short",
+                year: "numeric",
+              })}
+            </Text>
           </TouchableOpacity>
         </View>
 
