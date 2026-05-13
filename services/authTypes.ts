@@ -22,11 +22,9 @@ export type ApiUser = {
   phone?: string;
   role: ApiRole;
   status?: string;
-  farmId?: string;
   mustChangePassword?: boolean;
   biometricEnabled?: boolean;
   permissions?: ApiPermissionMatrix;
-  assignedFarmIds?: string[];
 };
 
 export type AuthTokens = {

@@ -137,6 +137,13 @@ export default function OwnerDashboard() {
       requiredPermission: "create:daily-entry",
     },
     {
+      label: "Expense Entry",
+      icon: "receipt",
+      provider: FontAwesome5,
+      route: "/(owner)/manage/expenses/index",
+      requiredPermission: "create:expenses",
+    },
+    {
       label: "Sales",
       icon: "rupee-sign",
       provider: FontAwesome5,

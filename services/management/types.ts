@@ -384,6 +384,8 @@ export type ApiBatchSettlement = {
   otherDeductions?: number | null;
   farmerExpenseTotal?: number | null;
   netPayable?: number | null;
+  paidAmount?: number | null;
+  pendingAmount?: number | null;
   paymentStatus?: ApiTransactionPaymentStatus | null;
   status: ApiSettlementStatus;
   remarks?: string | null;
@@ -412,6 +414,7 @@ export type ApiBatchPnl = {
 export type ApiComment = {
   id: string;
   organizationId: string;
+  farmId?: string | null;
   batchId?: string | null;
   targetType: ApiCommentTargetType;
   targetId: string;
@@ -419,18 +422,17 @@ export type ApiComment = {
   correctionNote?: string | null;
   createdById?: string | null;
   createdAt: string;
-  updatedAt: string;
 };
 
 export type CreateUserRequest = {
   name: string;
-  email: string;
+  email?: string;
   phone: string;
   password: string;
   role: ApiRole;
-  assignedFarmIds: string[];
-  permissions: ApiPermissionMatrix;
-  mustChangePassword: boolean;
+  assignedFarmIds?: string[];
+  permissions?: Partial<ApiPermissionMatrix>;
+  mustChangePassword?: boolean;
 };
 
 export type UpdateUserRequest = {
@@ -439,7 +441,7 @@ export type UpdateUserRequest = {
   role?: ApiRole;
   email?: string;
   phone?: string;
-  permissions?: ApiPermissionMatrix;
+  permissions?: Partial<ApiPermissionMatrix>;
   assignedFarmIds?: string[];
   biometricEnabled?: boolean;
   mustChangePassword?: boolean;
@@ -489,6 +491,7 @@ export type CreateBatchRequest = {
   placementMortality?: number;
   chickCostTotal?: number;
   chickRatePerBird?: number;
+  ratePerChick?: number;
   chickTransportCharge?: number;
   sourceHatchery?: string;
   vendorName?: string;
@@ -506,6 +509,7 @@ export type UpdateBatchRequest = Partial<
 export type UpdateBatchStatusRequest = {
   status: ApiBatchStatus;
   actualCloseDate?: string | null;
+  lockedAt?: string | null;
 };
 
 export type CreateDailyLogRequest = {

@@ -173,6 +173,7 @@ export function SalesEntryScreen({
   const traderId = watch('traderId');
   const totalWeightKg = watch('totalWeightKg');
   const ratePerKg = watch('ratePerKg');
+  const canViewSaleFinancials = user?.role === 'OWNER' || user?.role === 'ACCOUNTS';
 
   const activeBatches = useMemo(
     () =>
@@ -252,6 +253,19 @@ export function SalesEntryScreen({
     setMessage(null);
 
     try {
+      const financialPayload = canViewSaleFinancials
+        ? {
+            ratePerKg: toOptionalNumber(data.ratePerKg),
+            grossAmount: toOptionalNumber(data.grossAmount),
+            transportCharge: toOptionalNumber(data.transportCharge),
+            commissionCharge: toOptionalNumber(data.commissionCharge),
+            otherDeduction: toOptionalNumber(data.otherDeduction),
+            netAmount: toOptionalNumber(data.netAmount),
+            paymentReceivedAmount: toOptionalNumber(data.paymentReceivedAmount),
+            paymentStatus: data.paymentStatus,
+          }
+        : {};
+
       const created = await createSale(accessToken, data.batchId, {
         traderId: data.traderId,
         saleDate: data.saleDate,
@@ -260,15 +274,8 @@ export function SalesEntryScreen({
         totalWeightKg: toOptionalNumber(data.totalWeightKg),
         averageWeightKg: toOptionalNumber(data.averageWeightKg),
         loadingMortalityCount: toOptionalNumber(data.loadingMortalityCount),
-        ratePerKg: toOptionalNumber(data.ratePerKg),
-        grossAmount: toOptionalNumber(data.grossAmount),
-        transportCharge: toOptionalNumber(data.transportCharge),
-        commissionCharge: toOptionalNumber(data.commissionCharge),
-        otherDeduction: toOptionalNumber(data.otherDeduction),
-        netAmount: toOptionalNumber(data.netAmount),
-        paymentReceivedAmount: toOptionalNumber(data.paymentReceivedAmount),
-        paymentStatus: data.paymentStatus,
-        status,
+        ...financialPayload,
+        status: canViewSaleFinancials ? status : 'DRAFT',
         notes: data.notes?.trim() || undefined,
         clientReferenceId: `sale-${Date.now()}`,
       });
@@ -696,144 +703,148 @@ export function SalesEntryScreen({
             />
           </View>
 
-          <Controller
-            control={control}
-            name="ratePerKg"
-            render={({ field: { onChange, value } }) => (
-              <View style={styles.inputGroup}>
-                <Text style={styles.label}>Rate / Kg</Text>
-                <View style={[styles.inputBox, formErrors.ratePerKg && { borderColor: Colors.tertiary }]}>
-                  <TextInput
-                    style={styles.input}
-                    value={value}
-                    onChangeText={onChange}
-                    placeholder="0"
-                    placeholderTextColor={Colors.textSecondary}
-                    keyboardType="decimal-pad"
-                  />
-                  <MaterialCommunityIcons name="currency-inr" size={18} color={Colors.primary} />
-                </View>
-                {formErrors.ratePerKg && <Text style={styles.fieldErrorText}>{formErrors.ratePerKg.message}</Text>}
-              </View>
-            )}
-          />
+          {canViewSaleFinancials ? (
+            <>
+              <Controller
+                control={control}
+                name="ratePerKg"
+                render={({ field: { onChange, value } }) => (
+                  <View style={styles.inputGroup}>
+                    <Text style={styles.label}>Rate / Kg</Text>
+                    <View style={[styles.inputBox, formErrors.ratePerKg && { borderColor: Colors.tertiary }]}>
+                      <TextInput
+                        style={styles.input}
+                        value={value}
+                        onChangeText={onChange}
+                        placeholder="0"
+                        placeholderTextColor={Colors.textSecondary}
+                        keyboardType="decimal-pad"
+                      />
+                      <MaterialCommunityIcons name="currency-inr" size={18} color={Colors.primary} />
+                    </View>
+                    {formErrors.ratePerKg && <Text style={styles.fieldErrorText}>{formErrors.ratePerKg.message}</Text>}
+                  </View>
+                )}
+              />
 
-          <View style={styles.summaryGrid}>
-            <View style={styles.summaryBox}>
-              <Text style={styles.summaryLabel}>Total Amount</Text>
-              <Text style={styles.summaryValue}>Rs {grossAmount.toLocaleString('en-IN')}</Text>
-            </View>
-          </View>
-
-          <View style={styles.row}>
-            <Controller
-              control={control}
-              name="grossAmount"
-              render={({ field: { onChange, value } }) => (
-                <View style={[styles.inputGroup, styles.half]}>
-                  <Text style={styles.label}>Gross Amount</Text>
-                  <View style={[styles.inputBox, formErrors.grossAmount && { borderColor: Colors.tertiary }]}>
-                    <TextInput style={styles.input} value={value} onChangeText={onChange} placeholder="Auto/optional" placeholderTextColor={Colors.textSecondary} keyboardType="decimal-pad" />
-                  </View>
-                  {formErrors.grossAmount && <Text style={styles.fieldErrorText}>{formErrors.grossAmount.message}</Text>}
-                </View>
-              )}
-            />
-            <Controller
-              control={control}
-              name="netAmount"
-              render={({ field: { onChange, value } }) => (
-                <View style={[styles.inputGroup, styles.half]}>
-                  <Text style={styles.label}>Net Amount</Text>
-                  <View style={[styles.inputBox, formErrors.netAmount && { borderColor: Colors.tertiary }]}>
-                    <TextInput style={styles.input} value={value} onChangeText={onChange} placeholder="Optional" placeholderTextColor={Colors.textSecondary} keyboardType="decimal-pad" />
-                  </View>
-                  {formErrors.netAmount && <Text style={styles.fieldErrorText}>{formErrors.netAmount.message}</Text>}
-                </View>
-              )}
-            />
-          </View>
-
-          <View style={styles.row}>
-            <Controller
-              control={control}
-              name="transportCharge"
-              render={({ field: { onChange, value } }) => (
-                <View style={[styles.inputGroup, styles.half]}>
-                  <Text style={styles.label}>Transport Charge</Text>
-                  <View style={[styles.inputBox, formErrors.transportCharge && { borderColor: Colors.tertiary }]}>
-                    <TextInput style={styles.input} value={value} onChangeText={onChange} placeholder="Optional" placeholderTextColor={Colors.textSecondary} keyboardType="decimal-pad" />
-                  </View>
-                  {formErrors.transportCharge && <Text style={styles.fieldErrorText}>{formErrors.transportCharge.message}</Text>}
-                </View>
-              )}
-            />
-            <Controller
-              control={control}
-              name="commissionCharge"
-              render={({ field: { onChange, value } }) => (
-                <View style={[styles.inputGroup, styles.half]}>
-                  <Text style={styles.label}>Commission Charge</Text>
-                  <View style={[styles.inputBox, formErrors.commissionCharge && { borderColor: Colors.tertiary }]}>
-                    <TextInput style={styles.input} value={value} onChangeText={onChange} placeholder="Optional" placeholderTextColor={Colors.textSecondary} keyboardType="decimal-pad" />
-                  </View>
-                  {formErrors.commissionCharge && <Text style={styles.fieldErrorText}>{formErrors.commissionCharge.message}</Text>}
-                </View>
-              )}
-            />
-          </View>
-
-          <View style={styles.row}>
-            <Controller
-              control={control}
-              name="otherDeduction"
-              render={({ field: { onChange, value } }) => (
-                <View style={[styles.inputGroup, styles.half]}>
-                  <Text style={styles.label}>Other Deduction</Text>
-                  <View style={[styles.inputBox, formErrors.otherDeduction && { borderColor: Colors.tertiary }]}>
-                    <TextInput style={styles.input} value={value} onChangeText={onChange} placeholder="Optional" placeholderTextColor={Colors.textSecondary} keyboardType="decimal-pad" />
-                  </View>
-                  {formErrors.otherDeduction && <Text style={styles.fieldErrorText}>{formErrors.otherDeduction.message}</Text>}
-                </View>
-              )}
-            />
-            <Controller
-              control={control}
-              name="paymentReceivedAmount"
-              render={({ field: { onChange, value } }) => (
-                <View style={[styles.inputGroup, styles.half]}>
-                  <Text style={styles.label}>Payment Received</Text>
-                  <View style={[styles.inputBox, formErrors.paymentReceivedAmount && { borderColor: Colors.tertiary }]}>
-                    <TextInput style={styles.input} value={value} onChangeText={onChange} placeholder="Optional" placeholderTextColor={Colors.textSecondary} keyboardType="decimal-pad" />
-                  </View>
-                  {formErrors.paymentReceivedAmount && <Text style={styles.fieldErrorText}>{formErrors.paymentReceivedAmount.message}</Text>}
-                </View>
-              )}
-            />
-          </View>
-
-          <Controller
-            control={control}
-            name="paymentStatus"
-            render={({ field: { onChange, value } }) => (
-              <View style={styles.inputGroup}>
-                <Text style={styles.label}>Payment Status</Text>
-                <View style={styles.statusChipRow}>
-                  {PAYMENT_STATUSES.map((status) => (
-                    <TouchableOpacity
-                      key={status}
-                      style={[styles.statusChip, value === status && styles.statusChipActive]}
-                      onPress={() => onChange(status)}
-                    >
-                      <Text style={[styles.statusChipText, value === status && styles.statusChipTextActive]}>
-                        {status.replace(/_/g, ' ')}
-                      </Text>
-                    </TouchableOpacity>
-                  ))}
+              <View style={styles.summaryGrid}>
+                <View style={styles.summaryBox}>
+                  <Text style={styles.summaryLabel}>Total Amount</Text>
+                  <Text style={styles.summaryValue}>Rs {grossAmount.toLocaleString('en-IN')}</Text>
                 </View>
               </View>
-            )}
-          />
+
+              <View style={styles.row}>
+                <Controller
+                  control={control}
+                  name="grossAmount"
+                  render={({ field: { onChange, value } }) => (
+                    <View style={[styles.inputGroup, styles.half]}>
+                      <Text style={styles.label}>Gross Amount</Text>
+                      <View style={[styles.inputBox, formErrors.grossAmount && { borderColor: Colors.tertiary }]}>
+                        <TextInput style={styles.input} value={value} onChangeText={onChange} placeholder="Auto/optional" placeholderTextColor={Colors.textSecondary} keyboardType="decimal-pad" />
+                      </View>
+                      {formErrors.grossAmount && <Text style={styles.fieldErrorText}>{formErrors.grossAmount.message}</Text>}
+                    </View>
+                  )}
+                />
+                <Controller
+                  control={control}
+                  name="netAmount"
+                  render={({ field: { onChange, value } }) => (
+                    <View style={[styles.inputGroup, styles.half]}>
+                      <Text style={styles.label}>Net Amount</Text>
+                      <View style={[styles.inputBox, formErrors.netAmount && { borderColor: Colors.tertiary }]}>
+                        <TextInput style={styles.input} value={value} onChangeText={onChange} placeholder="Optional" placeholderTextColor={Colors.textSecondary} keyboardType="decimal-pad" />
+                      </View>
+                      {formErrors.netAmount && <Text style={styles.fieldErrorText}>{formErrors.netAmount.message}</Text>}
+                    </View>
+                  )}
+                />
+              </View>
+
+              <View style={styles.row}>
+                <Controller
+                  control={control}
+                  name="transportCharge"
+                  render={({ field: { onChange, value } }) => (
+                    <View style={[styles.inputGroup, styles.half]}>
+                      <Text style={styles.label}>Transport Charge</Text>
+                      <View style={[styles.inputBox, formErrors.transportCharge && { borderColor: Colors.tertiary }]}>
+                        <TextInput style={styles.input} value={value} onChangeText={onChange} placeholder="Optional" placeholderTextColor={Colors.textSecondary} keyboardType="decimal-pad" />
+                      </View>
+                      {formErrors.transportCharge && <Text style={styles.fieldErrorText}>{formErrors.transportCharge.message}</Text>}
+                    </View>
+                  )}
+                />
+                <Controller
+                  control={control}
+                  name="commissionCharge"
+                  render={({ field: { onChange, value } }) => (
+                    <View style={[styles.inputGroup, styles.half]}>
+                      <Text style={styles.label}>Commission Charge</Text>
+                      <View style={[styles.inputBox, formErrors.commissionCharge && { borderColor: Colors.tertiary }]}>
+                        <TextInput style={styles.input} value={value} onChangeText={onChange} placeholder="Optional" placeholderTextColor={Colors.textSecondary} keyboardType="decimal-pad" />
+                      </View>
+                      {formErrors.commissionCharge && <Text style={styles.fieldErrorText}>{formErrors.commissionCharge.message}</Text>}
+                    </View>
+                  )}
+                />
+              </View>
+
+              <View style={styles.row}>
+                <Controller
+                  control={control}
+                  name="otherDeduction"
+                  render={({ field: { onChange, value } }) => (
+                    <View style={[styles.inputGroup, styles.half]}>
+                      <Text style={styles.label}>Other Deduction</Text>
+                      <View style={[styles.inputBox, formErrors.otherDeduction && { borderColor: Colors.tertiary }]}>
+                        <TextInput style={styles.input} value={value} onChangeText={onChange} placeholder="Optional" placeholderTextColor={Colors.textSecondary} keyboardType="decimal-pad" />
+                      </View>
+                      {formErrors.otherDeduction && <Text style={styles.fieldErrorText}>{formErrors.otherDeduction.message}</Text>}
+                    </View>
+                  )}
+                />
+                <Controller
+                  control={control}
+                  name="paymentReceivedAmount"
+                  render={({ field: { onChange, value } }) => (
+                    <View style={[styles.inputGroup, styles.half]}>
+                      <Text style={styles.label}>Payment Received</Text>
+                      <View style={[styles.inputBox, formErrors.paymentReceivedAmount && { borderColor: Colors.tertiary }]}>
+                        <TextInput style={styles.input} value={value} onChangeText={onChange} placeholder="Optional" placeholderTextColor={Colors.textSecondary} keyboardType="decimal-pad" />
+                      </View>
+                      {formErrors.paymentReceivedAmount && <Text style={styles.fieldErrorText}>{formErrors.paymentReceivedAmount.message}</Text>}
+                    </View>
+                  )}
+                />
+              </View>
+
+              <Controller
+                control={control}
+                name="paymentStatus"
+                render={({ field: { onChange, value } }) => (
+                  <View style={styles.inputGroup}>
+                    <Text style={styles.label}>Payment Status</Text>
+                    <View style={styles.statusChipRow}>
+                      {PAYMENT_STATUSES.map((status) => (
+                        <TouchableOpacity
+                          key={status}
+                          style={[styles.statusChip, value === status && styles.statusChipActive]}
+                          onPress={() => onChange(status)}
+                        >
+                          <Text style={[styles.statusChipText, value === status && styles.statusChipTextActive]}>
+                            {status.replace(/_/g, ' ')}
+                          </Text>
+                        </TouchableOpacity>
+                      ))}
+                    </View>
+                  </View>
+                )}
+              />
+            </>
+          ) : null}
 
           <Controller
             control={control}
@@ -880,7 +891,7 @@ export function SalesEntryScreen({
           )}
         </TouchableOpacity>
 
-        {user?.role === 'OWNER' || user?.role === 'ACCOUNTS' ? (
+        {canViewSaleFinancials ? (
           <TouchableOpacity
             style={[styles.finalizeBtn, submitting && styles.finalizeDisabled]}
             disabled={submitting}

@@ -177,6 +177,16 @@ export default function FarmerFarmDetailScreen() {
                     <Text style={styles.actionBtnText}>Treatments</Text>
                   </TouchableOpacity>
                 ) : null}
+
+                {hasPermission('create:expenses') ? (
+                  <TouchableOpacity
+                    style={styles.actionBtn}
+                    onPress={() => router.push('/(farmer)/tasks/expenses')}
+                  >
+                    <Ionicons name="receipt-outline" size={16} color={Colors.primary} />
+                    <Text style={styles.actionBtnText}>Expenses</Text>
+                  </TouchableOpacity>
+                ) : null}
               </View>
             </View>
           ))

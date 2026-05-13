@@ -25,6 +25,9 @@ export type ApiOrganizationSettings = {
 };
 
 export type UpdateOrganizationSettingsRequest = Partial<{
+  currency: string;
+  mobileFirst: boolean;
+  expenseCategories: Partial<ApiOrganizationSettings["expenseCategories"]>;
   payoutRules: Partial<ApiOrganizationSettings["payoutRules"]>;
   alertThresholds: Partial<ApiOrganizationSettings["alertThresholds"]>;
   financialConfig: Partial<ApiOrganizationSettings["financialConfig"]>;

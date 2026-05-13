@@ -67,6 +67,20 @@ const formatPercent = (value?: number | null) => `${formatDecimal(value)}%`;
 
 const formatKg = (value?: number | null) => `${formatNumber(value)} kg`;
 
+const asFiniteNumber = (value?: number | null) => {
+  if (value === null || value === undefined) return null;
+  const numericValue = Number(value);
+  return Number.isFinite(numericValue) ? numericValue : null;
+};
+
+const sumAvailable = (...values: Array<number | null | undefined>) => {
+  const numericValues = values
+    .map((value) => asFiniteNumber(value))
+    .filter((value): value is number => value !== null);
+  if (numericValues.length === 0) return null;
+  return numericValues.reduce((total, value) => total + value, 0);
+};
+
 type MetricCard = {
   label: string;
   value: string;
@@ -75,36 +89,54 @@ type MetricCard = {
   soft: string;
 };
 
-const metricCards = (overview: ApiOverviewReport | null): MetricCard[] => [
-  {
-    label: "Total Farms",
-    value: formatNumber(overview?.totalFarms),
-    icon: "home-outline",
-    accent: Colors.primary,
-    soft: "#EEF8F2",
-  },
-  {
-    label: "Active Batches",
-    value: formatNumber(overview?.activeBatches),
-    icon: "water-outline",
-    accent: "#2563EB",
-    soft: "#EFF6FF",
-  },
-  {
-    label: "Users",
-    value: formatNumber(overview?.totalUsers),
-    icon: "people-outline",
-    accent: "#7C3AED",
-    soft: "#F5F3FF",
-  },
-  {
-    label: "Profit / Loss",
-    value: formatINR(overview?.profitOrLoss),
-    icon: "cash-outline",
-    accent: Number(overview?.profitOrLoss ?? 0) >= 0 ? Colors.primary : Colors.tertiary,
-    soft: Number(overview?.profitOrLoss ?? 0) >= 0 ? "#EEF8F2" : "#FFF4F4",
-  },
-];
+const metricCards = (
+  overview: ApiOverviewReport | null,
+  canViewCompanyFinancial: boolean,
+): MetricCard[] => {
+  const cards: MetricCard[] = [
+    {
+      label: "Total Farms",
+      value: formatNumber(overview?.totalFarms),
+      icon: "home-outline",
+      accent: Colors.primary,
+      soft: "#EEF8F2",
+    },
+    {
+      label: "Active Batches",
+      value: formatNumber(overview?.activeBatches),
+      icon: "water-outline",
+      accent: "#2563EB",
+      soft: "#EFF6FF",
+    },
+    {
+      label: "Live Birds",
+      value: formatNumber(overview?.liveBirds),
+      icon: "leaf-outline",
+      accent: "#7C3AED",
+      soft: "#F5F3FF",
+    },
+  ];
+
+  if (canViewCompanyFinancial) {
+    cards.push({
+      label: "Company P/L",
+      value: formatINR(overview?.companyProfitOrLoss),
+      icon: "cash-outline",
+      accent: Number(overview?.companyProfitOrLoss ?? 0) >= 0 ? Colors.primary : Colors.tertiary,
+      soft: Number(overview?.companyProfitOrLoss ?? 0) >= 0 ? "#EEF8F2" : "#FFF4F4",
+    });
+  } else {
+    cards.push({
+      label: "Pending Entries",
+      value: formatNumber(overview?.pendingEntries),
+      icon: "time-outline",
+      accent: Colors.tertiary,
+      soft: "#FFF4F4",
+    });
+  }
+
+  return cards;
+};
 
 function normalizedText(value: string) {
   return value.trim().toLowerCase();
@@ -319,8 +351,10 @@ function SkeletonLine({
 
 export default function ReportsScreen() {
   const { accessToken, user } = useAuth();
-  const canViewOverview = user?.role === "OWNER" || user?.role === "SUPERVISOR";
-  const canExport = canViewOverview;
+  const canViewOverview = user?.role === "OWNER" || user?.role === "ACCOUNTS" || user?.role === "SUPERVISOR";
+  const canViewCompanyFinancial = user?.role === "OWNER" || user?.role === "ACCOUNTS";
+  const canViewFarmerFinancial = canViewCompanyFinancial || user?.role === "FARMER";
+  const canExport = canViewCompanyFinancial;
 
   const [overview, setOverview] = useState<ApiOverviewReport | null>(null);
   const [batches, setBatches] = useState<ApiBatch[]>([]);
@@ -337,6 +371,10 @@ export default function ReportsScreen() {
   const [batchPickerOpen, setBatchPickerOpen] = useState(false);
   const [farmPickerOpen, setFarmPickerOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const overviewTotalExpenses = canViewCompanyFinancial ? sumAvailable(
+    overview?.totalCompanyExpenses,
+    overview?.totalFarmerExpenses,
+  ) : null;
 
   const selectedBatch = useMemo(
     () => batches.find((batch) => batch.id === batchId) ?? null,
@@ -576,7 +614,7 @@ export default function ReportsScreen() {
         {canViewOverview ? (
           <>
             <View style={styles.summaryGrid}>
-              {metricCards(overview).map((item) => (
+              {metricCards(overview, canViewCompanyFinancial).map((item) => (
                 <PressableScale key={item.label} style={styles.summaryCard}>
                   <View style={[styles.summaryIcon, { backgroundColor: item.soft }]}>
                     <Ionicons name={item.icon} size={18} color={item.accent} />
@@ -604,17 +642,32 @@ export default function ReportsScreen() {
                 <Text style={styles.kpiValue}>{formatNumber(overview?.closedBatches)}</Text>
               </View>
               <View style={styles.kpiRow}>
-                <Text style={styles.kpiLabel}>Total Placement</Text>
-                <Text style={styles.kpiValue}>{formatNumber(overview?.totalPlacementCount)}</Text>
+                <Text style={styles.kpiLabel}>Live Birds</Text>
+                <Text style={styles.kpiValue}>{formatNumber(overview?.liveBirds)}</Text>
               </View>
-              <View style={styles.kpiRow}>
-                <Text style={styles.kpiLabel}>Total Cost</Text>
-                <Text style={styles.kpiValue}>{formatINR(overview?.totalCost)}</Text>
-              </View>
-              <View style={[styles.kpiRow, styles.lastRow]}>
-                <Text style={styles.kpiLabel}>Average FCR</Text>
-                <Text style={styles.kpiValue}>{formatDecimal(overview?.averageFcr)}</Text>
-              </View>
+              {canViewCompanyFinancial ? (
+                <>
+                  <View style={styles.kpiRow}>
+                    <Text style={styles.kpiLabel}>Total Expenses</Text>
+                    <Text style={styles.kpiValue}>{formatINR(overviewTotalExpenses)}</Text>
+                  </View>
+                  <View style={[styles.kpiRow, styles.lastRow]}>
+                    <Text style={styles.kpiLabel}>Pending Payments</Text>
+                    <Text style={styles.kpiValue}>{formatINR(overview?.pendingPayments)}</Text>
+                  </View>
+                </>
+              ) : (
+                <>
+                  <View style={styles.kpiRow}>
+                    <Text style={styles.kpiLabel}>Mortality Today</Text>
+                    <Text style={styles.kpiValue}>{formatNumber(overview?.mortalityToday)}</Text>
+                  </View>
+                  <View style={[styles.kpiRow, styles.lastRow]}>
+                    <Text style={styles.kpiLabel}>Pending Entries</Text>
+                    <Text style={styles.kpiValue}>{formatNumber(overview?.pendingEntries)}</Text>
+                  </View>
+                </>
+              )}
             </View>
           </>
         ) : (
@@ -657,7 +710,14 @@ export default function ReportsScreen() {
             )}
           </PressableScale>
 
-          {batchSummary ? <BatchSummaryCard summary={batchSummary} selectedBatch={selectedBatch} /> : null}
+          {batchSummary ? (
+            <BatchSummaryCard
+              summary={batchSummary}
+              selectedBatch={selectedBatch}
+              canViewCompanyFinancial={canViewCompanyFinancial}
+              canViewFarmerFinancial={canViewFarmerFinancial}
+            />
+          ) : null}
 
           {canExport ? (
             <View style={styles.exportRow}>
@@ -718,7 +778,14 @@ export default function ReportsScreen() {
             )}
           </PressableScale>
 
-          {farmSummary ? <FarmSummaryCard summary={farmSummary} selectedFarm={selectedFarm} /> : null}
+          {farmSummary ? (
+            <FarmSummaryCard
+              summary={farmSummary}
+              selectedFarm={selectedFarm}
+              canViewCompanyFinancial={canViewCompanyFinancial}
+              canViewFarmerFinancial={canViewFarmerFinancial}
+            />
+          ) : null}
         </View>
 
         <View style={{ height: 30 }} />
@@ -900,12 +967,28 @@ function SelectionCard({
 function BatchSummaryCard({
   summary,
   selectedBatch,
+  canViewCompanyFinancial,
+  canViewFarmerFinancial,
 }: {
   summary: ApiBatchSummary;
   selectedBatch: ApiBatch | null;
+  canViewCompanyFinancial: boolean;
+  canViewFarmerFinancial: boolean;
 }) {
   const title = summary.batchCode || selectedBatch?.code || "Selected Batch";
   const farmName = summary.farmName || selectedBatch?.farmName || "Farm";
+  const liveBirds = summary.liveBirds;
+  const totalCompanyExpenses = summary.totalCompanyExpenses;
+  const totalFarmerExpenses = summary.totalFarmerExpenses;
+  const totalExpenses = canViewCompanyFinancial ? sumAvailable(
+    summary.totalCompanyExpenses,
+    summary.totalFarmerExpenses,
+  ) : null;
+  const companyProfitOrLoss = summary.companyProfitOrLoss;
+  const totalSales = asFiniteNumber(summary.totalSales);
+  const totalWeightSoldKg = asFiniteNumber(summary.totalWeightSoldKg);
+  const averageSaleRatePerKg =
+    totalSales === null || !totalWeightSoldKg ? null : totalSales / totalWeightSoldKg;
 
   return (
     <View style={styles.resultCard}>
@@ -916,26 +999,43 @@ function BatchSummaryCard({
           <Text style={styles.resultSubtitle}>{farmName}</Text>
         </View>
         <View style={styles.resultBadge}>
-          <Text style={styles.resultBadgeText}>{formatNumber(summary.balanceBirdCount)} birds</Text>
+          <Text style={styles.resultBadgeText}>{formatNumber(liveBirds)} live birds</Text>
         </View>
       </View>
 
       <View style={styles.metricGrid}>
         <MetricBox label="Mortality" value={formatPercent(summary.mortalityRate)} />
         <MetricBox label="FCR" value={formatDecimal(summary.fcr)} />
-        <MetricBox label="Sales" value={formatINR(summary.totalSales)} />
-        <MetricBox label="P/L" value={formatINR(summary.profitOrLoss)} tone={Number(summary.profitOrLoss ?? 0) >= 0 ? "good" : "bad"} />
+        {canViewCompanyFinancial ? <MetricBox label="Sales" value={formatINR(summary.totalSales)} /> : null}
+        {canViewCompanyFinancial ? (
+          <MetricBox
+            label="Company P/L"
+            value={formatINR(companyProfitOrLoss)}
+            tone={Number(companyProfitOrLoss ?? 0) >= 0 ? "good" : "bad"}
+          />
+        ) : null}
+        {!canViewCompanyFinancial && canViewFarmerFinancial ? (
+          <MetricBox label="Farmer Earnings" value={formatINR(summary.farmerNetEarnings)} />
+        ) : null}
       </View>
 
       <View style={styles.detailCard}>
         <DetailRow label="Placement" value={formatNumber(summary.placementCount)} />
+        <DetailRow label="Live Birds" value={formatNumber(liveBirds)} />
         <DetailRow label="Mortality Count" value={formatNumber(summary.mortalityCount)} />
         <DetailRow label="Cull Count" value={formatNumber(summary.cullCount)} />
+        <DetailRow label="Loading Mortality" value={formatNumber(summary.loadingMortalityCount)} />
         <DetailRow label="Sold Birds" value={formatNumber(summary.soldBirdCount)} />
         <DetailRow label="Feed Consumed" value={formatKg(summary.totalFeedConsumedKg)} />
         <DetailRow label="Weight Sold" value={formatKg(summary.totalWeightSoldKg)} />
-        <DetailRow label="Average Sale Rate" value={formatINR(summary.averageSaleRatePerKg)} />
-        <DetailRow label="Total Cost" value={formatINR(summary.totalCost)} />
+        <DetailRow label="Average Weight" value={`${formatNumber(summary.averageWeightGrams)} g`} />
+        {canViewCompanyFinancial ? <DetailRow label="Average Sale Rate" value={`${formatINR(averageSaleRatePerKg)} / kg`} /> : null}
+        {canViewCompanyFinancial ? <DetailRow label="Company Expenses" value={formatINR(totalCompanyExpenses)} /> : null}
+        {canViewFarmerFinancial ? <DetailRow label="Farmer Expenses" value={formatINR(totalFarmerExpenses)} /> : null}
+        {canViewCompanyFinancial ? <DetailRow label="Total Expenses" value={formatINR(totalExpenses)} /> : null}
+        {canViewFarmerFinancial ? <DetailRow label="Farmer Growing Income" value={formatINR(summary.farmerGrowingIncome)} /> : null}
+        {canViewFarmerFinancial ? <DetailRow label="Farmer Net Earnings" value={formatINR(summary.farmerNetEarnings)} /> : null}
+        <DetailRow label="Settlement" value={summary.settlementStatus?.replace(/_/g, " ") || "Pending"} />
       </View>
     </View>
   );
@@ -944,11 +1044,20 @@ function BatchSummaryCard({
 function FarmSummaryCard({
   summary,
   selectedFarm,
+  canViewCompanyFinancial,
+  canViewFarmerFinancial,
 }: {
   summary: ApiFarmSummary;
   selectedFarm: ApiFarm | null;
+  canViewCompanyFinancial: boolean;
+  canViewFarmerFinancial: boolean;
 }) {
   const title = summary.farmName || selectedFarm?.name || "Selected Farm";
+  const totalExpenses = canViewCompanyFinancial ? sumAvailable(
+    summary.totalCompanyExpenses,
+    summary.totalFarmerExpenses,
+  ) : null;
+  const companyProfitOrLoss = summary.companyProfitOrLoss;
 
   return (
     <View style={styles.resultCard}>
@@ -967,14 +1076,26 @@ function FarmSummaryCard({
         <MetricBox label="Active" value={formatNumber(summary.activeBatches)} />
         <MetricBox label="Closed" value={formatNumber(summary.closedBatches)} />
         <MetricBox label="Avg FCR" value={formatDecimal(summary.averageFcr)} />
-        <MetricBox label="P/L" value={formatINR(summary.profitOrLoss)} tone={Number(summary.profitOrLoss ?? 0) >= 0 ? "good" : "bad"} />
+        {canViewCompanyFinancial ? (
+          <MetricBox
+            label="Company P/L"
+            value={formatINR(companyProfitOrLoss)}
+            tone={Number(companyProfitOrLoss ?? 0) >= 0 ? "good" : "bad"}
+          />
+        ) : null}
+        {!canViewCompanyFinancial && canViewFarmerFinancial ? (
+          <MetricBox label="Farmer Earnings" value={formatINR(summary.farmerNetEarnings)} />
+        ) : null}
       </View>
 
       <View style={styles.detailCard}>
         <DetailRow label="Total Placement" value={formatNumber(summary.totalPlacementCount)} />
-        <DetailRow label="Total Sales" value={formatINR(summary.totalSales)} />
-        <DetailRow label="Total Cost" value={formatINR(summary.totalCost)} />
-        <DetailRow label="Profit / Loss" value={formatINR(summary.profitOrLoss)} />
+        {canViewCompanyFinancial ? <DetailRow label="Total Sales" value={formatINR(summary.totalSales)} /> : null}
+        {canViewCompanyFinancial ? <DetailRow label="Company Expenses" value={formatINR(summary.totalCompanyExpenses)} /> : null}
+        {canViewFarmerFinancial ? <DetailRow label="Farmer Expenses" value={formatINR(summary.totalFarmerExpenses)} /> : null}
+        {canViewCompanyFinancial ? <DetailRow label="Total Expenses" value={formatINR(totalExpenses)} /> : null}
+        {canViewCompanyFinancial ? <DetailRow label="Company Profit / Loss" value={formatINR(companyProfitOrLoss)} /> : null}
+        {canViewFarmerFinancial ? <DetailRow label="Farmer Net Earnings" value={formatINR(summary.farmerNetEarnings)} /> : null}
       </View>
     </View>
   );

@@ -48,12 +48,12 @@ export type ApiSubscription = {
   status: ApiSubscriptionStatus;
   startsAt?: string | null;
   endsAt?: string | null;
-  amountInr?: number | null;
+  amountInr: number;
   upiDeepLink?: string | null;
   notes?: string | null;
   createdAt: string;
   updatedAt: string;
-  payments?: ApiSubscriptionPayment[];
+  payments: ApiSubscriptionPayment[];
 };
 
 export type CreateSubscriptionRequest = {
@@ -62,10 +62,10 @@ export type CreateSubscriptionRequest = {
 
 export type SubmitSubscriptionPaymentRequest = {
   subscriptionId: string;
-  referenceNumber: string;
-  payerName: string;
+  referenceNumber?: string;
+  payerName?: string;
   payerPhone?: string;
-  proofUrl: string;
+  proofUrl?: string;
 };
 
 export async function listSubscriptionPlans(token: string) {

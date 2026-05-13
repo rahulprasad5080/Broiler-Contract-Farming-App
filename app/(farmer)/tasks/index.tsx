@@ -24,6 +24,13 @@ const menuItemsByPermission: PermissionMenuItem[] = [
     requiredPermission: "create:treatments",
   },
   {
+    title: "Expense Entry",
+    desc: "Add electricity, labour, diesel, repairs and other farmer expenses",
+    icon: "receipt-outline",
+    route: "/(farmer)/tasks/expenses",
+    requiredPermission: "create:expenses",
+  },
+  {
     title: "Comments & Notes",
     desc: "View supervisor feedback and notes",
     icon: "chatbubbles-outline",

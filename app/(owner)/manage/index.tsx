@@ -39,6 +39,13 @@ const menuItemsByPermission: PermissionMenuItem[] = [
     requiredPermission: "manage:inventory",
   },
   {
+    title: "Expense Entry",
+    desc: "Separate company and farmer batch expenses",
+    icon: "receipt-outline",
+    route: "/(owner)/manage/expenses/index",
+    requiredPermission: "create:expenses",
+  },
+  {
     title: "Sales",
     desc: "Entry and owner rate finalization",
     icon: "cash-outline",

@@ -24,6 +24,13 @@ const menuItemsByPermission: PermissionMenuItem[] = [
     requiredPermission: "create:treatments",
   },
   {
+    title: "Expense Entry",
+    desc: "Add permitted farmer or company expenses",
+    icon: "receipt-outline",
+    route: "/(supervisor)/tasks/expenses",
+    requiredPermission: "create:expenses",
+  },
+  {
     title: "Comments & Notes",
     desc: "View batch feedback and notes",
     icon: "chatbubbles-outline",

@@ -178,8 +178,6 @@ function getPermissionsForRole(role: UserRole): Permission[] {
       "create:daily-entry",
       "create:sales",
       "create:expenses",
-      "create:company-expense",
-      "create:purchase",
       "view:reports",
       "view:notifications",
       "view:farms",

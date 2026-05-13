@@ -4,6 +4,7 @@ import type {
   ApiExpenseCategoryCode,
   ApiExpenseLedger,
   ApiSettlementStatus,
+  ApiTransactionPaymentStatus,
 } from "./management/types";
 
 export type ApiBatchSummary = {
@@ -16,21 +17,18 @@ export type ApiBatchSummary = {
   liveBirds?: number | null;
   mortalityCount?: number | null;
   cullCount?: number | null;
+  loadingMortalityCount?: number | null;
   soldBirdCount?: number | null;
-  balanceBirdCount?: number | null;
   mortalityRate?: number | null;
   totalFeedConsumedKg?: number | null;
   totalWeightSoldKg?: number | null;
   fcr?: number | null;
-  totalCost?: number | null;
   totalCompanyExpenses?: number | null;
   totalFarmerExpenses?: number | null;
   totalSales?: number | null;
-  profitOrLoss?: number | null;
   companyProfitOrLoss?: number | null;
   farmerGrowingIncome?: number | null;
   farmerNetEarnings?: number | null;
-  averageSaleRatePerKg?: number | null;
   averageWeightGrams?: number | null;
   settlementStatus?: string | null;
   status?: ApiBatchStatus | string | null;
@@ -44,10 +42,8 @@ export type ApiFarmSummary = {
   closedBatches?: number | null;
   totalPlacementCount?: number | null;
   totalSales?: number | null;
-  totalCost?: number | null;
   totalCompanyExpenses?: number | null;
   totalFarmerExpenses?: number | null;
-  profitOrLoss?: number | null;
   companyProfitOrLoss?: number | null;
   farmerNetEarnings?: number | null;
   averageFcr?: number | null;
@@ -59,18 +55,14 @@ export type ApiOverviewReport = {
   activeBatches?: number | null;
   closedBatches?: number | null;
   totalUsers?: number | null;
-  totalPlacementCount?: number | null;
   liveBirds?: number | null;
   mortalityToday?: number | null;
   pendingEntries?: number | null;
   totalSales?: number | null;
-  totalCost?: number | null;
   totalCompanyExpenses?: number | null;
   totalFarmerExpenses?: number | null;
-  profitOrLoss?: number | null;
   companyProfitOrLoss?: number | null;
   farmerNetEarnings?: number | null;
-  averageFcr?: number | null;
   investmentTotal?: number | null;
   pendingPayments?: number | null;
   unreadNotifications?: number | null;
@@ -117,6 +109,9 @@ export type ApiSettlementReportRow = {
   farmerExpenses?: number | null;
   deductions?: number | null;
   netPayable?: number | null;
+  paidAmount?: number | null;
+  pendingAmount?: number | null;
+  paymentStatus: ApiTransactionPaymentStatus | string;
   status: ApiSettlementStatus | string;
 };
 

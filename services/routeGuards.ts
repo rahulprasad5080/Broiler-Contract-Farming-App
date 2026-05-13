@@ -16,6 +16,7 @@ const OWNER_MANAGE_INDEX_PERMISSIONS = [
   "manage:farms",
   "manage:batches",
   "manage:inventory",
+  "create:expenses",
   "create:sales",
   "manage:settlements",
   "manage:users",
@@ -26,6 +27,7 @@ const OWNER_MANAGE_ROUTE_PERMISSIONS: Record<string, string> = {
   farms: "manage:farms",
   batches: "manage:batches",
   inventory: "manage:inventory",
+  expenses: "create:expenses",
   "daily-entry": "create:daily-entry",
   sales: "create:sales",
   settlement: "manage:settlements",
@@ -37,6 +39,7 @@ const TASK_INDEX_PERMISSIONS = [
   "create:daily-entry",
   "create:treatments",
   "view:comments",
+  "create:expenses",
   "create:sales",
 ];
 
@@ -44,6 +47,7 @@ const TASK_ROUTE_PERMISSIONS: Record<string, string> = {
   daily: "create:daily-entry",
   treatments: "create:treatments",
   comments: "view:comments",
+  expenses: "create:expenses",
   sales: "create:sales",
 };
 
