@@ -7,10 +7,12 @@ import {
   login,
   loginWithPin,
   logout,
+  registerOwner,
   refreshAuth,
   setServerPin,
   updateServerBiometric,
   type ApiRole,
+  type RegisterOwnerRequest,
 } from "../services/authApi";
 import { ApiError } from "../services/api";
 import {
@@ -102,6 +104,7 @@ interface AuthContextType {
   isReady: boolean;
   isAppUnlocked: boolean;
   signIn: (phone: string, password: string) => Promise<string | null>;
+  registerOwnerAccount: (payload: RegisterOwnerRequest) => Promise<string | null>;
   signOut: () => Promise<void>;
   unlockApp: () => void;
   unlockWithPassword: (password: string) => Promise<string | null>;
@@ -551,6 +554,38 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     [persistSession, router, user],
   );
 
+  const registerOwnerAccount = React.useCallback(
+    async (payload: RegisterOwnerRequest) => {
+      setIsLoading(true);
+
+      try {
+        const response = await registerOwner({
+          ...payload,
+          ownerPhone: normalizeMobileNumber(payload.ownerPhone),
+          organizationPhone: payload.organizationPhone
+            ? normalizeMobileNumber(payload.organizationPhone)
+            : undefined,
+        });
+        const hydratedUser = await hydrateServerUser(response.tokens, response.user);
+        const nextSession = {
+          user: hydratedUser,
+          tokens: response.tokens,
+        };
+
+        await persistSession(nextSession);
+        backgroundedAtRef.current = null;
+        setIsAppUnlocked(true);
+        router.replace("/(auth)/login-success2");
+        return null;
+      } catch (error) {
+        return getAuthErrorMessage(error, "Registration failed. Please check the details.");
+      } finally {
+        setIsLoading(false);
+      }
+    },
+    [persistSession, router],
+  );
+
   const unlockWithPin = React.useCallback(
     async (pin: string) => {
       if (!user?.phone) {
@@ -691,6 +726,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         isReady,
         isAppUnlocked,
         signIn,
+        registerOwnerAccount,
         signOut,
         unlockApp,
         unlockWithPassword,

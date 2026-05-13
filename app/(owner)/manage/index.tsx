@@ -3,6 +3,7 @@ import {
   type RouteMenuItem,
 } from "@/components/navigation/RouteMenuScreen";
 import { useAuth, type Permission } from "@/context/AuthContext";
+import type { Href } from "expo-router";
 
 type PermissionMenuItem = RouteMenuItem & {
   requiredPermission: Permission;
@@ -56,6 +57,13 @@ const menuItemsByPermission: PermissionMenuItem[] = [
     desc: "Manage system users",
     icon: "people-outline",
     route: "/(owner)/manage/users",
+    requiredPermission: "manage:users",
+  },
+  {
+    title: "API Operations",
+    desc: "Finance, reports, billing, settings and diagnostics",
+    icon: "terminal-outline",
+    route: "/(owner)/manage/api" as Href,
     requiredPermission: "manage:users",
   },
 ];

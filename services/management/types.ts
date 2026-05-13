@@ -624,6 +624,7 @@ export type CreateFinancePurchaseRequest = {
   totalAmount: number;
   invoiceNumber?: string;
   paymentStatus?: ApiTransactionPaymentStatus;
+  paidAmount?: number;
   purchaseDate: string;
   attachmentUrl?: string;
   remarks?: string;

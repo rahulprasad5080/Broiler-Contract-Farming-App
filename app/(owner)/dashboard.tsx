@@ -33,6 +33,12 @@ import { Colors } from "../../constants/Colors";
 import { Layout } from "../../constants/Layout";
 import { useAuth, type Permission } from "../../context/AuthContext";
 import { HeaderNotificationButton } from "../../components/ui/HeaderNotificationButton";
+import {
+  fetchDashboard,
+  fetchFinancialDashboard,
+  type ApiDashboardSummary,
+  type ApiFinancialDashboard,
+} from "../../services/dashboardApi";
 
 type PortalItem = {
   label: string;
@@ -89,6 +95,10 @@ export default function OwnerDashboard() {
   const [loadingUsers, setLoadingUsers] = useState(false);
   const [savingUserId, setSavingUserId] = useState<string | null>(null);
   const [settingsError, setSettingsError] = useState<string | null>(null);
+  const [dashboard, setDashboard] = useState<ApiDashboardSummary | null>(null);
+  const [financialDashboard, setFinancialDashboard] =
+    useState<ApiFinancialDashboard | null>(null);
+  const [loadingDashboard, setLoadingDashboard] = useState(false);
 
   const allPortalItems: PortalItem[] = [
     {
@@ -166,6 +176,34 @@ export default function OwnerDashboard() {
   const portalItems = allPortalItems.filter(
     (item) => !item.requiredPermission || hasPermission(item.requiredPermission),
   );
+
+  const loadDashboard = async () => {
+    if (!accessToken) return;
+
+    setLoadingDashboard(true);
+    try {
+      const [dashboardResponse, financialResponse] = await Promise.all([
+        fetchDashboard(accessToken),
+        hasPermission("view:financial-dashboard")
+          ? fetchFinancialDashboard(accessToken)
+          : Promise.resolve(null),
+      ]);
+      setDashboard(dashboardResponse);
+      setFinancialDashboard(financialResponse);
+    } catch (err) {
+      showRequestErrorToast(err, {
+        title: "Dashboard load failed",
+        fallbackMessage: "Failed to load dashboard data.",
+      });
+    } finally {
+      setLoadingDashboard(false);
+    }
+  };
+
+  useEffect(() => {
+    void loadDashboard();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [accessToken]);
 
   const loadUsers = async () => {
     if (!accessToken) {
@@ -284,7 +322,9 @@ export default function OwnerDashboard() {
               </View>
             </View>
             <Text style={styles.cardLabel}>Total Farms</Text>
-            <Text style={styles.cardValue}>12</Text>
+            <Text style={styles.cardValue}>
+              {loadingDashboard ? "..." : dashboard?.farmCount ?? 0}
+            </Text>
           </View>
 
           <View style={styles.overviewCard}>
@@ -297,7 +337,9 @@ export default function OwnerDashboard() {
               </View>
             </View>
             <Text style={styles.cardLabel}>Active Batches</Text>
-            <Text style={styles.cardValue}>48</Text>
+            <Text style={styles.cardValue}>
+              {loadingDashboard ? "..." : dashboard?.today.activeBatches ?? 0}
+            </Text>
           </View>
         </View>
 
@@ -311,11 +353,17 @@ export default function OwnerDashboard() {
           </View>
           <View style={styles.birdsInfo}>
             <Text style={styles.birdsLabel}>Total Live Birds</Text>
-            <Text style={styles.birdsValue}>242,500</Text>
+            <Text style={styles.birdsValue}>
+              {Number(dashboard?.today.liveBirds ?? 0).toLocaleString("en-IN")}
+            </Text>
           </View>
           <View style={styles.mortalityInfo}>
-            <Text style={styles.mortalityValue}>Mortality: 1.2%</Text>
-            <Text style={styles.mortalityTarget}>Target: {"<"} 2.0%</Text>
+            <Text style={styles.mortalityValue}>
+              Mortality: {Number(dashboard?.today.mortalityTotal ?? 0).toLocaleString("en-IN")}
+            </Text>
+            <Text style={styles.mortalityTarget}>
+              Net: {Number(financialDashboard?.summary.netProfitOrLoss ?? 0).toLocaleString("en-IN")}
+            </Text>
           </View>
         </View>
 
@@ -350,7 +398,8 @@ export default function OwnerDashboard() {
             <Text style={styles.alertTitle}>Inventory Alert</Text>
           </View>
           <Text style={styles.alertText}>
-            Feed stock at Farm #4 is below 15%. Order required within 24 hours.
+            {dashboard?.alerts[0]?.message ??
+              "No live dashboard alerts at the moment."}
           </Text>
           <TouchableOpacity style={styles.alertBtn}>
             <Text style={styles.alertBtnText}>Order Feed</Text>

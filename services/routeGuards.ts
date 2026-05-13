@@ -30,6 +30,7 @@ const OWNER_MANAGE_ROUTE_PERMISSIONS: Record<string, string> = {
   sales: "create:sales",
   settlement: "manage:settlements",
   users: "manage:users",
+  api: "manage:users",
 };
 
 const TASK_INDEX_PERMISSIONS = [

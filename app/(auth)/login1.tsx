@@ -5,6 +5,7 @@ import { Controller, useForm } from "react-hook-form";
 import {
   Image,
   KeyboardAvoidingView,
+  Modal,
   Platform,
   ScrollView,
   StyleSheet,
@@ -43,8 +44,19 @@ const loginSchema = z.object({
 type LoginForm = z.input<typeof loginSchema>;
 
 export default function LoginScreen() {
-  const { signIn, isLoading } = useAuth();
+  const { signIn, registerOwnerAccount, isLoading } = useAuth();
   const [showPassword, setShowPassword] = React.useState(false);
+  const [showRegister, setShowRegister] = React.useState(false);
+  const [registerError, setRegisterError] = React.useState<string | null>(null);
+  const [registerForm, setRegisterForm] = React.useState({
+    organizationName: "",
+    organizationPhone: "",
+    organizationEmail: "",
+    ownerName: "",
+    ownerEmail: "",
+    ownerPhone: "",
+    password: "",
+  });
 
   const { control, handleSubmit } = useForm<LoginForm>({
     resolver: zodResolver(loginSchema),
@@ -61,6 +73,46 @@ export default function LoginScreen() {
       Toast.show({type: "error",
         text1: "Login failed",
         text2: errorMessage, position: 'bottom'});
+    }
+  };
+
+  const submitRegistration = async () => {
+    setRegisterError(null);
+
+    if (
+      !registerForm.organizationName.trim() ||
+      !registerForm.ownerName.trim() ||
+      !registerForm.ownerPhone.trim() ||
+      !registerForm.password.trim()
+    ) {
+      setRegisterError("Organization, owner name, mobile number and password are required.");
+      return;
+    }
+
+    const phoneError = getMobileValidationError(registerForm.ownerPhone);
+    if (phoneError) {
+      setRegisterError(phoneError);
+      return;
+    }
+
+    const responseError = await registerOwnerAccount({
+      organizationName: registerForm.organizationName.trim(),
+      organizationPhone: registerForm.organizationPhone.trim() || undefined,
+      organizationEmail: registerForm.organizationEmail.trim() || undefined,
+      ownerName: registerForm.ownerName.trim(),
+      ownerEmail: registerForm.ownerEmail.trim() || undefined,
+      ownerPhone: registerForm.ownerPhone.trim(),
+      password: registerForm.password,
+    });
+
+    if (responseError) {
+      setRegisterError(responseError);
+      Toast.show({
+        type: "error",
+        text1: "Registration failed",
+        text2: responseError,
+        position: "bottom",
+      });
     }
   };
 
@@ -207,10 +259,149 @@ export default function LoginScreen() {
                 Access is protected. Contact your farm admin if your mobile number is not working.
               </Text>
             </View>
+
+            <TouchableOpacity
+              style={styles.registerButton}
+              onPress={() => setShowRegister(true)}
+              disabled={isLoading}
+              activeOpacity={0.85}
+            >
+              <Ionicons name="business-outline" size={18} color={Colors.primary} />
+              <Text style={styles.registerButtonText}>Register Organization</Text>
+            </TouchableOpacity>
           </View>
         </KeyboardAvoidingView>
       </ScrollView>
+
+      <Modal
+        visible={showRegister}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowRegister(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.registerSheet}>
+            <View style={styles.sheetHeader}>
+              <View>
+                <Text style={styles.sheetTitle}>Owner Onboarding</Text>
+                <Text style={styles.sheetSubtitle}>
+                  Create organization and owner account.
+                </Text>
+              </View>
+              <TouchableOpacity
+                style={styles.closeBtn}
+                onPress={() => setShowRegister(false)}
+                disabled={isLoading}
+              >
+                <Ionicons name="close" size={20} color={Colors.text} />
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+              <RegisterField
+                label="Organization Name"
+                value={registerForm.organizationName}
+                onChangeText={(organizationName) =>
+                  setRegisterForm((current) => ({ ...current, organizationName }))
+                }
+              />
+              <RegisterField
+                label="Organization Phone"
+                value={registerForm.organizationPhone}
+                onChangeText={(organizationPhone) =>
+                  setRegisterForm((current) => ({ ...current, organizationPhone }))
+                }
+                keyboardType="number-pad"
+              />
+              <RegisterField
+                label="Organization Email"
+                value={registerForm.organizationEmail}
+                onChangeText={(organizationEmail) =>
+                  setRegisterForm((current) => ({ ...current, organizationEmail }))
+                }
+                keyboardType="email-address"
+              />
+              <RegisterField
+                label="Owner Name"
+                value={registerForm.ownerName}
+                onChangeText={(ownerName) =>
+                  setRegisterForm((current) => ({ ...current, ownerName }))
+                }
+              />
+              <RegisterField
+                label="Owner Mobile"
+                value={registerForm.ownerPhone}
+                onChangeText={(ownerPhone) =>
+                  setRegisterForm((current) => ({ ...current, ownerPhone }))
+                }
+                keyboardType="number-pad"
+              />
+              <RegisterField
+                label="Owner Email"
+                value={registerForm.ownerEmail}
+                onChangeText={(ownerEmail) =>
+                  setRegisterForm((current) => ({ ...current, ownerEmail }))
+                }
+                keyboardType="email-address"
+              />
+              <RegisterField
+                label="Password"
+                value={registerForm.password}
+                onChangeText={(password) =>
+                  setRegisterForm((current) => ({ ...current, password }))
+                }
+                secureTextEntry
+              />
+
+              {registerError ? <Text style={styles.registerError}>{registerError}</Text> : null}
+
+              <TouchableOpacity
+                style={[styles.createAccountButton, isLoading && styles.buttonDisabled]}
+                onPress={submitRegistration}
+                disabled={isLoading}
+                activeOpacity={0.85}
+              >
+                <Text style={styles.createAccountText}>
+                  {isLoading ? "CREATING..." : "CREATE OWNER ACCOUNT"}
+                </Text>
+              </TouchableOpacity>
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
+  );
+}
+
+function RegisterField({
+  label,
+  value,
+  onChangeText,
+  keyboardType = "default",
+  secureTextEntry = false,
+}: {
+  label: string;
+  value: string;
+  onChangeText: (value: string) => void;
+  keyboardType?: "default" | "number-pad" | "email-address";
+  secureTextEntry?: boolean;
+}) {
+  return (
+    <View style={styles.registerField}>
+      <Text style={styles.label}>{label}</Text>
+      <View style={styles.inputWrap}>
+        <TextInput
+          style={styles.input}
+          value={value}
+          onChangeText={onChangeText}
+          placeholder={label}
+          placeholderTextColor="#99A2AD"
+          keyboardType={keyboardType}
+          secureTextEntry={secureTextEntry}
+          autoCapitalize="none"
+        />
+      </View>
+    </View>
   );
 }
 
@@ -361,5 +552,87 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: Colors.textSecondary,
     lineHeight: 18,
+  },
+  registerButton: {
+    minHeight: 46,
+    marginTop: 18,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: Colors.primary,
+    alignItems: "center",
+    justifyContent: "center",
+    flexDirection: "row",
+    gap: 8,
+    backgroundColor: "#FFFFFF",
+  },
+  registerButtonText: {
+    color: Colors.primary,
+    fontSize: 14,
+    fontWeight: "800",
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.45)",
+    justifyContent: "flex-end",
+  },
+  registerSheet: {
+    maxHeight: "88%",
+    backgroundColor: "#FFFFFF",
+    borderTopLeftRadius: 22,
+    borderTopRightRadius: 22,
+    padding: 20,
+    paddingBottom: 28,
+  },
+  sheetHeader: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    justifyContent: "space-between",
+    marginBottom: 12,
+  },
+  sheetTitle: {
+    fontSize: 18,
+    color: Colors.text,
+    fontWeight: "900",
+  },
+  sheetSubtitle: {
+    marginTop: 3,
+    color: Colors.textSecondary,
+    fontSize: 12,
+    fontWeight: "600",
+  },
+  closeBtn: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#F3F4F6",
+  },
+  registerField: {
+    marginBottom: 12,
+  },
+  registerError: {
+    color: Colors.error,
+    backgroundColor: "#FFF4F4",
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: "#FECACA",
+    padding: 10,
+    fontSize: 12,
+    fontWeight: "700",
+    marginTop: 4,
+  },
+  createAccountButton: {
+    minHeight: 52,
+    borderRadius: 8,
+    backgroundColor: Colors.primary,
+    alignItems: "center",
+    justifyContent: "center",
+    marginTop: 14,
+  },
+  createAccountText: {
+    color: "#FFFFFF",
+    fontSize: 14,
+    fontWeight: "900",
   },
 });
