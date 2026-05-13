@@ -324,7 +324,7 @@ export function DailyEntryScreen({
     <SafeAreaView style={styles.safeArea}>
       <View style={styles.header}>
         <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-          <Ionicons name="arrow-back" size={24} color={Colors.primary} />
+          <Ionicons name="arrow-back" size={24} color="#FFF" />
         </TouchableOpacity>
         <View style={styles.headerCopy}>
           <Text style={styles.headerTitle}>{title}</Text>
@@ -840,7 +840,7 @@ export function DailyEntryScreen({
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: Colors.background,
+    backgroundColor: "#F6F8F7",
   },
   draftBanner: {
     flexDirection: "row",
@@ -863,10 +863,8 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     paddingHorizontal: Layout.screenPadding,
-    paddingVertical: 14,
-    backgroundColor: Colors.surface,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.border,
+    paddingVertical: 15,
+    backgroundColor: Colors.primary,
   },
   backBtn: {
     marginRight: 14,
@@ -875,14 +873,15 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   headerTitle: {
-    fontSize: 18,
-    fontWeight: "800",
-    color: Colors.text,
+    fontSize: 19,
+    fontWeight: "900",
+    color: "#FFF",
   },
   headerSub: {
     marginTop: 2,
     fontSize: 12,
-    color: Colors.textSecondary,
+    color: "rgba(255,255,255,0.82)",
+    fontWeight: "700",
   },
   container: {
     paddingHorizontal: Layout.screenPadding,
@@ -894,16 +893,11 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: 10,
     backgroundColor: "#FFFFFF",
-    borderRadius: 12,
+    borderRadius: 8,
     borderWidth: 1,
     borderColor: "#DDEBE3",
     padding: 12,
     marginBottom: 10,
-    shadowColor: "#101828",
-    shadowOffset: { width: 0, height: 5 },
-    shadowOpacity: 0.06,
-    shadowRadius: 12,
-    elevation: 2,
   },
   dailyHeroIcon: {
     width: 38,
@@ -973,16 +967,11 @@ const styles = StyleSheet.create({
   },
   card: {
     backgroundColor: Colors.surface,
-    borderRadius: 12,
+    borderRadius: 8,
     padding: 14,
     marginBottom: 10,
     borderWidth: 1,
     borderColor: "#E2E8E5",
-    shadowColor: "#101828",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.05,
-    shadowRadius: 10,
-    elevation: 2,
   },
   sectionTitle: {
     fontSize: 15,
@@ -1018,7 +1007,7 @@ const styles = StyleSheet.create({
     gap: 12,
     borderWidth: 1,
     borderColor: Colors.border,
-    borderRadius: 10,
+    borderRadius: 8,
     paddingHorizontal: 12,
     backgroundColor: "#FFFFFF",
     shadowColor: "#101828",

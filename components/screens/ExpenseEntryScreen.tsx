@@ -288,7 +288,7 @@ export function ExpenseEntryScreen({
     <SafeAreaView style={styles.safeArea}>
       <View style={styles.header}>
         <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-          <Ionicons name="arrow-back" size={23} color={Colors.primary} />
+          <Ionicons name="arrow-back" size={23} color="#FFF" />
         </TouchableOpacity>
         <View style={styles.headerCopy}>
           <Text style={styles.headerTitle}>{title}</Text>
@@ -532,20 +532,18 @@ export function ExpenseEntryScreen({
 }
 
 const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: Colors.background },
+  safeArea: { flex: 1, backgroundColor: "#F6F8F7" },
   header: {
     flexDirection: "row",
     alignItems: "center",
     paddingHorizontal: Layout.screenPadding,
-    paddingVertical: 14,
-    backgroundColor: Colors.surface,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.border,
+    paddingVertical: 15,
+    backgroundColor: Colors.primary,
   },
   backBtn: { marginRight: 12 },
   headerCopy: { flex: 1 },
-  headerTitle: { fontSize: 18, fontWeight: "800", color: Colors.text },
-  headerSub: { marginTop: 2, fontSize: 12, color: Colors.textSecondary },
+  headerTitle: { fontSize: 19, fontWeight: "900", color: "#FFF" },
+  headerSub: { marginTop: 2, fontSize: 12, color: "rgba(255,255,255,0.82)", fontWeight: "700" },
   container: {
     padding: Layout.screenPadding,
     paddingBottom: 96,
@@ -582,7 +580,6 @@ const styles = StyleSheet.create({
     borderColor: Colors.border,
     padding: 16,
     marginBottom: 14,
-    ...Layout.cardShadow,
   },
   sectionTitle: { fontSize: 16, fontWeight: "800", color: Colors.text, marginBottom: 10 },
   ledgerTabs: {
@@ -598,7 +595,7 @@ const styles = StyleSheet.create({
   chipRow: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
   chip: {
     minHeight: 34,
-    borderRadius: 999,
+    borderRadius: 8,
     borderWidth: 1,
     borderColor: Colors.border,
     paddingHorizontal: 12,

@@ -588,7 +588,7 @@ export default function OwnerDashboard() {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: "#FFF",
+    backgroundColor: "#F6F8F7",
   },
   topBar: {
     flexDirection: "row",
@@ -597,14 +597,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: Layout.spacing.lg,
     paddingTop: Layout.spacing.md,
     paddingBottom: Layout.spacing.md,
-    backgroundColor: "#FFF",
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.border,
+    backgroundColor: Colors.primary,
   },
   topBarTitle: {
-    fontSize: 18,
-    fontWeight: "bold",
-    color: Colors.primary,
+    fontSize: 20,
+    fontWeight: "900",
+    color: "#FFF",
   },
   topBarRight: {
     flexDirection: "row",
@@ -638,11 +636,10 @@ const styles = StyleSheet.create({
   overviewCard: {
     width: "48%",
     backgroundColor: "#FFF",
-    borderRadius: 12,
+    borderRadius: 8,
     padding: 16,
     borderWidth: 1,
     borderColor: Colors.border,
-    ...Layout.cardShadow,
   },
   cardHeader: {
     flexDirection: "row",
@@ -654,7 +651,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#E8F5E9",
     paddingHorizontal: 8,
     paddingVertical: 2,
-    borderRadius: 12,
+    borderRadius: 8,
   },
   badgeText: {
     fontSize: 10,
@@ -680,7 +677,6 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: Colors.border,
     marginBottom: Layout.spacing.xl,
-    ...Layout.cardShadow,
   },
   birdsIconBox: {
     width: 44,
@@ -725,13 +721,12 @@ const styles = StyleSheet.create({
   portalCard: {
     width: "31%",
     backgroundColor: "#FFF",
-    borderRadius: 12,
+    borderRadius: 8,
     padding: 16,
     alignItems: "center",
     borderWidth: 1,
     borderColor: Colors.border,
     marginBottom: 12,
-    ...Layout.cardShadow,
   },
   portalIconBox: {
     width: 40,

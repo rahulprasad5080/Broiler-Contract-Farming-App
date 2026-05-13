@@ -251,13 +251,13 @@ export default function AllocateStockScreen() {
     <SafeAreaView style={styles.safeArea}>
       <View style={styles.header}>
         <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-          <Ionicons name="arrow-back" size={22} color={Colors.text} />
+          <Ionicons name="arrow-back" size={22} color="#FFF" />
         </TouchableOpacity>
         <View style={styles.headerCopy}>
-          <Text style={styles.headerTitle}>Allocate Stock</Text>
+          <Text style={styles.headerTitle}>Inventory Allocation</Text>
           <Text style={styles.headerSub}>Issue central stock to an active batch</Text>
         </View>
-        {loading ? <ActivityIndicator color={Colors.primary} /> : null}
+        {loading ? <ActivityIndicator color="#FFF" /> : null}
       </View>
 
       <ScrollView
@@ -466,38 +466,39 @@ export default function AllocateStockScreen() {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: Colors.background,
+    backgroundColor: "#F6F8F7",
   },
   header: {
     flexDirection: "row",
     alignItems: "center",
     paddingHorizontal: Layout.screenPadding,
-    paddingVertical: 14,
-    backgroundColor: Colors.surface,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.border,
+    paddingVertical: 15,
+    backgroundColor: Colors.primary,
   },
   backButton: {
     width: 38,
     height: 38,
-    borderRadius: 19,
+    borderRadius: 10,
     alignItems: "center",
     justifyContent: "center",
     marginRight: 10,
-    backgroundColor: "#F3F4F6",
+    backgroundColor: "rgba(255,255,255,0.16)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.24)",
   },
   headerCopy: {
     flex: 1,
   },
   headerTitle: {
-    fontSize: 18,
-    fontWeight: "800",
-    color: Colors.text,
+    fontSize: 19,
+    fontWeight: "900",
+    color: "#FFF",
   },
   headerSub: {
     marginTop: 2,
     fontSize: 12,
-    color: Colors.textSecondary,
+    color: "rgba(255,255,255,0.82)",
+    fontWeight: "700",
   },
   container: {
     padding: Layout.screenPadding,
@@ -537,7 +538,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     backgroundColor: "#E8F5E9",
     padding: 14,
-    borderRadius: 12,
+    borderRadius: 8,
     marginBottom: Layout.spacing.md,
     borderWidth: 1,
     borderColor: "#C8E6C9",
@@ -552,12 +553,11 @@ const styles = StyleSheet.create({
   },
   card: {
     backgroundColor: Colors.surface,
-    borderRadius: 12,
+    borderRadius: 8,
     padding: 16,
     marginBottom: Layout.spacing.md,
     borderWidth: 1,
     borderColor: Colors.border,
-    ...Layout.cardShadow,
   },
   cardHeader: {
     flexDirection: "row",
@@ -588,7 +588,7 @@ const styles = StyleSheet.create({
     minHeight: 48,
     borderWidth: 1,
     borderColor: Colors.border,
-    borderRadius: 10,
+    borderRadius: 8,
     paddingHorizontal: 12,
     justifyContent: "center",
     backgroundColor: "#F9FAFB",
@@ -618,7 +618,7 @@ const styles = StyleSheet.create({
     minHeight: 34,
     paddingHorizontal: 12,
     paddingVertical: 8,
-    borderRadius: 999,
+    borderRadius: 8,
     backgroundColor: "#F3F4F6",
     borderWidth: 1,
     borderColor: "transparent",
@@ -641,7 +641,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     marginTop: 12,
     padding: 12,
-    borderRadius: 10,
+    borderRadius: 8,
     borderWidth: 1,
     borderColor: Colors.border,
     backgroundColor: "#F9FAFB",
@@ -650,7 +650,7 @@ const styles = StyleSheet.create({
   stockIcon: {
     width: 36,
     height: 36,
-    borderRadius: 10,
+    borderRadius: 8,
     alignItems: "center",
     justifyContent: "center",
     backgroundColor: "#E8F5E9",
@@ -678,7 +678,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: 8,
     backgroundColor: "#F9FAFB",
-    borderRadius: 10,
+    borderRadius: 8,
     borderWidth: 1,
     borderColor: Colors.border,
     padding: 12,

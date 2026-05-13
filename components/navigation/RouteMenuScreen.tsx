@@ -46,6 +46,7 @@ export function RouteMenuScreen({
   return (
     <SafeAreaView style={styles.safeArea}>
       <View style={styles.header}>
+        <Text style={styles.headerEyebrow}>Entries</Text>
         <Text style={styles.headerTitle}>{title}</Text>
       </View>
 
@@ -82,15 +83,8 @@ export function RouteMenuScreen({
               >
                 <Ionicons name={item.icon} size={28} color={Colors.primary} />
               </View>
-              <View style={styles.cardContent}>
-                <Text style={styles.cardTitle}>{item.title}</Text>
-                <Text style={styles.cardDesc}>{item.desc}</Text>
-              </View>
-              <Ionicons
-                name="chevron-forward"
-                size={20}
-                color={Colors.textSecondary}
-              />
+              <Text style={styles.cardTitle}>{item.title}</Text>
+              <Text style={styles.cardDesc}>{item.desc}</Text>
             </TouchableOpacity>
           ))}
         </View>
@@ -102,18 +96,24 @@ export function RouteMenuScreen({
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: "#F9FAFB",
+    backgroundColor: "#F6F8F7",
   },
   header: {
-    padding: Layout.spacing.lg,
-    backgroundColor: "#FFF",
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.border,
+    paddingHorizontal: Layout.screenPadding,
+    paddingVertical: 15,
+    backgroundColor: Colors.primary,
+  },
+  headerEyebrow: {
+    color: "rgba(255,255,255,0.78)",
+    fontSize: 11,
+    fontWeight: "900",
+    textTransform: "uppercase",
   },
   headerTitle: {
-    fontSize: 24,
-    fontWeight: "bold",
-    color: Colors.text,
+    marginTop: 2,
+    fontSize: 19,
+    fontWeight: "900",
+    color: "#FFF",
   },
   container: {
     padding: Layout.screenPadding,
@@ -137,37 +137,39 @@ const styles = StyleSheet.create({
     fontWeight: "600",
   },
   grid: {
-    gap: Layout.spacing.md,
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 10,
   },
   card: {
-    flexDirection: "row",
+    width: Layout.isSmallDevice ? "100%" : "48%",
+    minHeight: 164,
     alignItems: "center",
     backgroundColor: "#FFF",
-    padding: Layout.spacing.md,
-    borderRadius: 12,
+    padding: 16,
+    borderRadius: 8,
     borderWidth: 1,
     borderColor: Colors.border,
-    ...Layout.cardShadow,
   },
   iconBox: {
-    width: 48,
-    height: 48,
-    borderRadius: 12,
+    width: 58,
+    height: 58,
+    borderRadius: 29,
     justifyContent: "center",
     alignItems: "center",
-    marginRight: 16,
-  },
-  cardContent: {
-    flex: 1,
+    marginBottom: 14,
   },
   cardTitle: {
-    fontSize: 16,
-    fontWeight: "bold",
+    fontSize: 15,
+    fontWeight: "900",
     color: Colors.text,
-    marginBottom: 4,
+    marginBottom: 8,
+    textAlign: "center",
   },
   cardDesc: {
-    fontSize: 13,
+    fontSize: 12,
     color: Colors.textSecondary,
+    lineHeight: 17,
+    textAlign: "center",
   },
 });
