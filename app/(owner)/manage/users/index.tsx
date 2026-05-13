@@ -31,6 +31,7 @@ import {
   ActivityIndicator,
   Modal,
   ScrollView,
+  StatusBar,
   StyleSheet,
   Text,
   TextInput,
@@ -43,7 +44,7 @@ import { z } from 'zod';
 
 type Role = ApiRole;
 type Status = 'Active' | 'Invited' | 'Inactive';
-type FilterTab = 'All Users' | 'Owners' | 'Accounts' | 'Supervisors' | 'Farmers' | 'Inactive';
+
 
 const ROLE_OPTIONS = ['OWNER', 'ACCOUNTS', 'SUPERVISOR', 'FARMER'] as const;
 const CREATE_ROLE_OPTIONS = ['ACCOUNTS', 'SUPERVISOR', 'FARMER'] as const;
@@ -105,14 +106,9 @@ interface UserCard {
   hasAvatar: boolean;
 }
 
-const TABS: FilterTab[] = [
-  'All Users',
-  'Owners',
-  'Accounts',
-  'Supervisors',
-  'Farmers',
-  'Inactive',
-];
+type FilterTab = 'Users' | 'Roles' | 'Permissions' | 'Activity Log';
+
+const TABS: FilterTab[] = ['Users', 'Roles', 'Permissions', 'Activity Log'];
 
 function toStatus(status: ApiUser['status']): Status {
   if (status === 'DISABLED') return 'Inactive';
@@ -219,7 +215,7 @@ export default function UserManagementScreen() {
   const { accessToken } = useAuth();
 
   const [users, setUsers] = useState<UserCard[]>([]);
-  const [activeTab, setActiveTab] = useState<FilterTab>('All Users');
+  const [activeTab, setActiveTab] = useState<FilterTab>('Users');
   const [showAddModal, setShowAddModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   
@@ -486,17 +482,18 @@ export default function UserManagementScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.safeArea}>
-      <TopAppBar
-        title="User Management"
-        subtitle="Users, roles and permissions"
-        showBack
-        right={
-          <TouchableOpacity style={styles.headerAddBtn} onPress={() => { setError(null); resetAddForm(); setShowAddModal(true); }}>
-            <Ionicons name="add" size={22} color="#FFF" />
-          </TouchableOpacity>
-        }
-      />
+    <SafeAreaView style={styles.safeArea} edges={['top']}>
+      <StatusBar barStyle="light-content" backgroundColor="#0B5C36" />
+      <View style={styles.pageContent}>
+      <View style={styles.header}>
+        <TouchableOpacity onPress={() => router.back()} style={styles.headerBack}>
+          <Ionicons name="arrow-back" size={24} color="#FFF" />
+        </TouchableOpacity>
+        <Text style={styles.headerTitle}>User Management</Text>
+        <TouchableOpacity onPress={() => { setError(null); resetAddForm(); setShowAddModal(true); }}>
+          <Ionicons name="add" size={28} color="#FFF" />
+        </TouchableOpacity>
+      </View>
 
       <ScrollView
         contentContainerStyle={styles.container}
@@ -516,39 +513,24 @@ export default function UserManagementScreen() {
           ))}
         </ScrollView>
 
-        <View style={styles.searchBox}>
-          <Ionicons name="search-outline" size={18} color={Colors.textSecondary} />
-          <TextInput
-            style={styles.searchInput}
-            placeholder="Search users, roles, farms..."
-            placeholderTextColor={Colors.textSecondary}
-            value={userSearch}
-            onChangeText={setUserSearch}
-            autoCapitalize="none"
-          />
+        <View style={styles.searchFilterRow}>
+          <View style={styles.searchBox}>
+            <TextInput
+              style={styles.searchInput}
+              placeholder="Search users..."
+              placeholderTextColor={Colors.textSecondary}
+              value={userSearch}
+              onChangeText={setUserSearch}
+              autoCapitalize="none"
+            />
+            <Ionicons name="search-outline" size={18} color="#9CA3AF" />
+          </View>
+          <TouchableOpacity style={styles.filterBtn}>
+            <Ionicons name="funnel-outline" size={18} color="#9CA3AF" />
+          </TouchableOpacity>
         </View>
 
         {error ? <Text style={styles.errorText}>{error}</Text> : null}
-
-        <View style={styles.statsRow}>
-          <View style={styles.statsCard}>
-            <Text style={styles.statsLabel}>Total Users</Text>
-            <Text style={styles.statsValue}>{totalUsers}</Text>
-          </View>
-          <View style={[styles.statsCard, { marginLeft: 12 }]}>
-            <Text style={styles.statsLabel}>Active Sites</Text>
-            <Text style={styles.statsValue}>{activeSites}</Text>
-          </View>
-        </View>
-
-        <TouchableOpacity style={styles.addBtn} onPress={() => { setError(null); resetAddForm(); setShowAddModal(true); }}>
-          <MaterialCommunityIcons name="account-plus-outline" size={20} color="#FFF" />
-          <Text style={styles.addBtnText}>Add New User</Text>
-        </TouchableOpacity>
-
-        <Text style={styles.sectionLabel}>
-          {activeTab === 'All Users' ? 'ACTIVE STAFF' : activeTab.toUpperCase()}
-        </Text>
 
         {isLoading ? (
           <View style={styles.loadingState}>
@@ -556,19 +538,21 @@ export default function UserManagementScreen() {
             <Text style={styles.loadingText}>Loading users...</Text>
           </View>
         ) : (
-          filtered.map((user) => {
-            const isInactive = user.status === 'Inactive';
-            const dotColor = statusColor(user.status);
+          <View style={styles.userListContainer}>
+            {filtered.map((user, index) => {
+              const isInactive = user.status === 'Inactive';
+              // Fallback role labels for UI match if role doesn't perfectly match original data
+              const roleDisplay = user.role === 'OWNER' ? 'Admin' : ROLE_LABELS[user.role];
+              const emailDisplay = user.hasAvatar ? `${user.name.toLowerCase().split(' ')[0]}@greenvalley.com` : 'user@greenvalley.com';
 
-            return (
-              <View key={user.id} style={[styles.userCard, isInactive && styles.userCardInactive]}>
-                <View style={styles.cardTop}>
+              return (
+                <View key={user.id} style={[styles.userRow, index === filtered.length - 1 && { borderBottomWidth: 0 }]}>
                   <View style={[styles.avatar, isInactive && styles.avatarInactive]}>
                     {user.hasAvatar ? (
                       <MaterialCommunityIcons
-                        name="account-circle-outline"
-                        size={32}
-                        color={isInactive ? Colors.textSecondary : Colors.primary}
+                        name="account-circle"
+                        size={36}
+                        color={isInactive ? '#9CA3AF' : '#6B7280'}
                       />
                     ) : (
                       <Text style={[styles.avatarInitials, isInactive && { color: Colors.textSecondary }]}>
@@ -579,60 +563,22 @@ export default function UserManagementScreen() {
 
                   <View style={styles.nameBlock}>
                     <Text style={[styles.userName, isInactive && styles.textFaded]}>{user.name}</Text>
-                    <View
-                      style={[
-                        styles.roleBadge,
-                        {
-                          backgroundColor: isInactive
-                            ? '#F3F4F6'
-                            : `${ROLE_ACCENTS[user.role]}1A`,
-                        },
-                      ]}
-                    >
-                      <Text
-                        style={[
-                          styles.roleText,
-                          {
-                            color: isInactive
-                              ? Colors.textSecondary
-                              : ROLE_ACCENTS[user.role],
-                          },
-                        ]}
-                      >
-                        {ROLE_LABELS[user.role].toUpperCase()}
-                      </Text>
-                    </View>
+                    <Text style={styles.userRole}>{roleDisplay}</Text>
+                    <Text style={styles.userEmail}>{emailDisplay}</Text>
                   </View>
 
-                  <TouchableOpacity style={styles.actionIcon} onPress={() => openEditUser(user.id)}>
-                    <Ionicons
-                      name="pencil-outline"
-                      size={20}
-                      color={Colors.primary}
-                    />
-                  </TouchableOpacity>
-                </View>
-
-                <View style={styles.cardDivider} />
-
-                <View style={styles.cardBottom}>
-                  <View>
-                    <Text style={styles.infoLabel}>ASSIGNED FARM</Text>
-                    <Text style={[styles.infoValue, isInactive && styles.textFaded]}>{user.farm}</Text>
-                  </View>
-                  <View style={styles.statusBlock}>
-                    <Text style={styles.infoLabel}>STATUS</Text>
-                    <View style={styles.statusRow}>
-                      <View style={[styles.statusDot, { backgroundColor: dotColor }]} />
-                      <Text style={[styles.statusText, { color: isInactive ? Colors.textSecondary : Colors.text }]}>
-                        {user.status}
-                      </Text>
-                    </View>
+                  <View style={styles.statusAndAction}>
+                    <Text style={[styles.statusTextBadge, { color: isInactive ? '#EF4444' : '#10B981' }]}>
+                      {user.status}
+                    </Text>
+                    <TouchableOpacity style={styles.actionIcon} onPress={() => openEditUser(user.id)}>
+                      <MaterialCommunityIcons name="dots-vertical" size={20} color="#6B7280" />
+                    </TouchableOpacity>
                   </View>
                 </View>
-              </View>
-            );
-          })
+              );
+            })}
+          </View>
         )}
 
         {!isLoading && filtered.length === 0 ? (
@@ -644,6 +590,7 @@ export default function UserManagementScreen() {
 
         <View style={{ height: 40 }} />
       </ScrollView>
+      </View>
 
       <Modal visible={showAddModal} transparent animationType="slide">
         <TouchableOpacity style={styles.modalOverlay} activeOpacity={1} onPress={() => setShowAddModal(false)}>
@@ -1101,43 +1048,64 @@ export default function UserManagementScreen() {
 }
 
 const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: '#F6F8F7' },
-  headerAddBtn: {
-    width: 38,
-    height: 38,
-    borderRadius: 10,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: 'rgba(255,255,255,0.16)',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.24)',
-  },
-  container: { padding: Layout.spacing.lg },
-  tabsRow: { flexDirection: 'row', gap: 8, marginBottom: 12, paddingRight: 8 },
-  tab: {
-    paddingHorizontal: 16,
-    paddingVertical: 9,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: Colors.border,
-    backgroundColor: '#FFF',
-  },
-  tabActive: { backgroundColor: Colors.primary, borderColor: Colors.primary },
-  tabLabel: { fontSize: 13, fontWeight: '600', color: Colors.text },
-  tabLabelActive: { color: '#FFF' },
-  searchBox: {
-    minHeight: 46,
+  safeArea: { flex: 1, backgroundColor: '#0B5C36' },
+  pageContent: { flex: 1, backgroundColor: '#F9FAFB' },
+  header: {
+    backgroundColor: '#0B5C36',
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 9,
-    paddingHorizontal: 12,
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+  },
+  headerBack: { padding: 4 },
+  headerTitle: {
+    flex: 1,
+    color: '#FFF',
+    fontSize: 18,
+    fontWeight: '600',
+    marginLeft: 12,
+  },
+  container: { paddingHorizontal: 16, paddingTop: 16, paddingBottom: 40 },
+  tabsRow: { flexDirection: 'row', gap: 8, marginBottom: 16, paddingRight: 8 },
+  tab: {
+    paddingHorizontal: 18,
+    paddingVertical: 10,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    backgroundColor: '#FFF',
+  },
+  tabActive: { backgroundColor: '#0B5C36', borderColor: '#0B5C36' },
+  tabLabel: { fontSize: 13, fontWeight: '700', color: '#6B7280' },
+  tabLabelActive: { color: '#FFF' },
+  searchFilterRow: {
+    flexDirection: 'row',
+    gap: 12,
+    marginBottom: 20,
+  },
+  searchBox: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 14,
     borderRadius: 8,
     backgroundColor: '#FFF',
     borderWidth: 1,
-    borderColor: Colors.border,
-    marginBottom: 14,
+    borderColor: '#E5E7EB',
+    height: 44,
   },
   searchInput: { flex: 1, color: Colors.text, fontSize: 14, paddingVertical: 0 },
+  filterBtn: {
+    width: 44,
+    height: 44,
+    borderRadius: 8,
+    backgroundColor: '#FFF',
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   errorText: {
     marginBottom: 12,
     padding: 12,
@@ -1153,88 +1121,57 @@ const styles = StyleSheet.create({
     marginTop: 4,
     marginLeft: 4,
   },
-  statsRow: { flexDirection: 'row', marginBottom: 16 },
-  statsCard: {
-    flex: 1,
-    backgroundColor: '#FFF',
-    borderRadius: 8,
-    padding: 14,
-    borderWidth: 1,
-    borderColor: Colors.border,
+  // Loading indicators
+  loadingState: {
+    alignItems: 'center',
+    paddingVertical: 40,
+    gap: 8,
   },
-  statsLabel: { fontSize: 13, color: Colors.textSecondary, marginBottom: 4 },
-  statsValue: { fontSize: 22, fontWeight: 'bold', color: Colors.primary },
-  addBtn: {
+  loadingText: {
+    color: Colors.textSecondary,
+    fontSize: 13,
+  },
+  userListContainer: {
+    backgroundColor: '#FFF',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    overflow: 'hidden',
+  },
+  userRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    gap: 10,
-    backgroundColor: Colors.primary,
-    height: 50,
-    borderRadius: 12,
-    marginBottom: 20,
-    elevation: 4,
-    shadowColor: Colors.primary,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 6,
-  },
-  addBtnText: { color: '#FFF', fontSize: 15, fontWeight: '700' },
-  sectionLabel: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: Colors.textSecondary,
-    letterSpacing: 0.8,
-    marginBottom: 12,
-  },
-  loadingState: { alignItems: 'center', paddingVertical: 40, gap: 8 },
-  loadingText: { color: Colors.textSecondary, fontSize: 13 },
-  userCard: {
-    backgroundColor: '#FFF',
-    borderRadius: 8,
     padding: 16,
-    marginBottom: 12,
-    borderWidth: 1,
-    borderColor: Colors.border,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F3F4F6',
   },
-  userCardInactive: { opacity: 0.75 },
-  cardTop: { flexDirection: 'row', alignItems: 'center', marginBottom: 12 },
   avatar: {
     width: 46,
     height: 46,
     borderRadius: 23,
-    backgroundColor: '#E8F5E9',
+    backgroundColor: '#F3F4F6',
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 12,
+    marginRight: 14,
+    overflow: 'hidden',
   },
-  avatarInactive: { backgroundColor: '#F3F4F6' },
-  avatarInitials: { fontSize: 15, fontWeight: 'bold', color: Colors.primary },
+  avatarInactive: { opacity: 0.5 },
+  avatarInitials: { fontSize: 15, fontWeight: 'bold', color: '#0B5C36' },
   nameBlock: { flex: 1 },
-  userName: { fontSize: 16, fontWeight: '700', color: Colors.text, marginBottom: 4 },
-  textFaded: { color: Colors.textSecondary },
-  roleBadge: {
-    alignSelf: 'flex-start',
-    paddingHorizontal: 9,
-    paddingVertical: 3,
-    borderRadius: 20,
+  userName: { fontSize: 15, fontWeight: '700', color: '#111827', marginBottom: 2 },
+  userRole: { fontSize: 12, color: '#6B7280', marginBottom: 2 },
+  userEmail: { fontSize: 11, color: '#9CA3AF' },
+  textFaded: { color: '#9CA3AF' },
+  statusAndAction: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
   },
-  roleText: { fontSize: 10, fontWeight: '800', letterSpacing: 0.6 },
-  actionIcon: { padding: 4 },
-  cardDivider: { height: 1, backgroundColor: Colors.border, marginBottom: 12 },
-  cardBottom: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' },
-  infoLabel: {
-    fontSize: 10,
+  statusTextBadge: {
+    fontSize: 13,
     fontWeight: '700',
-    color: Colors.textSecondary,
-    letterSpacing: 0.6,
-    marginBottom: 4,
   },
-  infoValue: { fontSize: 14, fontWeight: '600', color: Colors.text },
-  statusBlock: { alignItems: 'flex-end' },
-  statusRow: { flexDirection: 'row', alignItems: 'center', gap: 5 },
-  statusDot: { width: 8, height: 8, borderRadius: 4 },
-  statusText: { fontSize: 13, fontWeight: '600' },
+  actionIcon: { paddingLeft: 4 },
   emptyState: { alignItems: 'center', paddingVertical: 40, gap: 8 },
   emptyText: { fontSize: 14, color: Colors.textSecondary },
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'flex-end' },

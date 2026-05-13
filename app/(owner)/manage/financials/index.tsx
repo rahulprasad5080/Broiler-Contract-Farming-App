@@ -59,7 +59,7 @@ export default function FinancialDashboardScreen() {
   const summary = dashboard?.summary;
   const quickActions = [
     { label: 'Purchase Entry', icon: 'cart-plus', route: '/(owner)/manage/inventory/purchase' as const },
-    { label: 'Payment Entry', icon: 'wallet', route: '/(owner)/manage/payments/index' as const },
+    { label: 'Payment Entry', icon: 'wallet', route: '/(owner)/manage/payments' as const },
     { label: 'Settlement', icon: 'file-invoice-dollar', route: '/(owner)/manage/settlement' as const },
     { label: 'Reports', icon: 'chart-bar', route: '/(owner)/reports' as const },
   ];
