@@ -182,8 +182,6 @@ function getDefaultPermissionMatrix(role: Role): Required<ApiPermissionMatrix> {
       expenseEntry: true,
       inventoryView: true,
       reportAccess: true,
-      companyExpenseEntry: true,
-      purchaseEntry: true,
     };
   }
 
@@ -271,6 +269,7 @@ export default function UserManagementScreen() {
   const [farms, setFarms] = useState<ApiFarm[]>([]);
   const [showPassword, setShowPassword] = useState(false);
   const [showResetPasswordFields, setShowResetPasswordFields] = useState(false);
+  const [userSearch, setUserSearch] = useState('');
 
   const loadUsers = async () => {
     if (!accessToken) {
@@ -336,12 +335,26 @@ export default function UserManagementScreen() {
   const activeSites = farms.filter((farm) => farm.status === 'ACTIVE').length;
 
   const filtered = users.filter((user) => {
-    if (activeTab === 'Owners') return user.role === 'OWNER';
-    if (activeTab === 'Accounts') return user.role === 'ACCOUNTS';
-    if (activeTab === 'Supervisors') return user.role === 'SUPERVISOR';
-    if (activeTab === 'Farmers') return user.role === 'FARMER';
-    if (activeTab === 'Inactive') return user.status === 'Inactive';
-    return true;
+    const matchesTab =
+      activeTab === 'Owners'
+        ? user.role === 'OWNER'
+        : activeTab === 'Accounts'
+          ? user.role === 'ACCOUNTS'
+          : activeTab === 'Supervisors'
+            ? user.role === 'SUPERVISOR'
+            : activeTab === 'Farmers'
+              ? user.role === 'FARMER'
+              : activeTab === 'Inactive'
+                ? user.status === 'Inactive'
+                : true;
+    const query = userSearch.trim().toLowerCase();
+    const matchesSearch =
+      !query ||
+      user.name.toLowerCase().includes(query) ||
+      ROLE_LABELS[user.role].toLowerCase().includes(query) ||
+      user.farm.toLowerCase().includes(query);
+
+    return matchesTab && matchesSearch;
   });
 
   const onAddSubmit = async (data: AddUserFormData) => {
@@ -477,9 +490,15 @@ export default function UserManagementScreen() {
     <SafeAreaView style={styles.safeArea}>
       <View style={styles.header}>
         <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-          <Ionicons name="arrow-back" size={24} color={Colors.primary} />
+          <Ionicons name="arrow-back" size={24} color="#FFF" />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>User Management</Text>
+        <View style={styles.headerCopy}>
+          <Text style={styles.headerTitle}>User Management</Text>
+          <Text style={styles.headerSub}>Users, roles and permissions</Text>
+        </View>
+        <TouchableOpacity style={styles.headerAddBtn} onPress={() => { setError(null); resetAddForm(); setShowAddModal(true); }}>
+          <Ionicons name="add" size={22} color="#FFF" />
+        </TouchableOpacity>
       </View>
 
       <ScrollView
@@ -499,6 +518,18 @@ export default function UserManagementScreen() {
             </TouchableOpacity>
           ))}
         </ScrollView>
+
+        <View style={styles.searchBox}>
+          <Ionicons name="search-outline" size={18} color={Colors.textSecondary} />
+          <TextInput
+            style={styles.searchInput}
+            placeholder="Search users, roles, farms..."
+            placeholderTextColor={Colors.textSecondary}
+            value={userSearch}
+            onChangeText={setUserSearch}
+            autoCapitalize="none"
+          />
+        </View>
 
         {error ? <Text style={styles.errorText}>{error}</Text> : null}
 
@@ -1073,24 +1104,34 @@ export default function UserManagementScreen() {
 }
 
 const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: '#F4F5F7' },
+  safeArea: { flex: 1, backgroundColor: '#F6F8F7' },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: Layout.spacing.lg,
-    paddingVertical: 14,
-    backgroundColor: '#FFF',
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.border,
+    paddingVertical: 15,
+    backgroundColor: Colors.primary,
   },
   backBtn: { marginRight: 14 },
-  headerTitle: { fontSize: 18, fontWeight: 'bold', color: Colors.text },
+  headerCopy: { flex: 1 },
+  headerTitle: { fontSize: 19, fontWeight: '900', color: '#FFF' },
+  headerSub: { color: 'rgba(255,255,255,0.82)', fontSize: 12, fontWeight: '700', marginTop: 2 },
+  headerAddBtn: {
+    width: 38,
+    height: 38,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(255,255,255,0.16)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.24)',
+  },
   container: { padding: Layout.spacing.lg },
-  tabsRow: { flexDirection: 'row', gap: 10, marginBottom: 18, paddingRight: 8 },
+  tabsRow: { flexDirection: 'row', gap: 8, marginBottom: 12, paddingRight: 8 },
   tab: {
-    paddingHorizontal: 18,
+    paddingHorizontal: 16,
     paddingVertical: 9,
-    borderRadius: 24,
+    borderRadius: 8,
     borderWidth: 1,
     borderColor: Colors.border,
     backgroundColor: '#FFF',
@@ -1098,6 +1139,19 @@ const styles = StyleSheet.create({
   tabActive: { backgroundColor: Colors.primary, borderColor: Colors.primary },
   tabLabel: { fontSize: 13, fontWeight: '600', color: Colors.text },
   tabLabelActive: { color: '#FFF' },
+  searchBox: {
+    minHeight: 46,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 9,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+    backgroundColor: '#FFF',
+    borderWidth: 1,
+    borderColor: Colors.border,
+    marginBottom: 14,
+  },
+  searchInput: { flex: 1, color: Colors.text, fontSize: 14, paddingVertical: 0 },
   errorText: {
     marginBottom: 12,
     padding: 12,
@@ -1117,11 +1171,10 @@ const styles = StyleSheet.create({
   statsCard: {
     flex: 1,
     backgroundColor: '#FFF',
-    borderRadius: 12,
+    borderRadius: 8,
     padding: 14,
     borderWidth: 1,
     borderColor: Colors.border,
-    ...Layout.cardShadow,
   },
   statsLabel: { fontSize: 13, color: Colors.textSecondary, marginBottom: 4 },
   statsValue: { fontSize: 22, fontWeight: 'bold', color: Colors.primary },
@@ -1152,12 +1205,11 @@ const styles = StyleSheet.create({
   loadingText: { color: Colors.textSecondary, fontSize: 13 },
   userCard: {
     backgroundColor: '#FFF',
-    borderRadius: 14,
+    borderRadius: 8,
     padding: 16,
     marginBottom: 12,
     borderWidth: 1,
     borderColor: Colors.border,
-    ...Layout.cardShadow,
   },
   userCardInactive: { opacity: 0.75 },
   cardTop: { flexDirection: 'row', alignItems: 'center', marginBottom: 12 },

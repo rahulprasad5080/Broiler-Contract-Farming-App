@@ -597,7 +597,7 @@ export default function ReportsScreen() {
           <Text style={styles.headerTitle}>Reports</Text>
         </View>
         <View style={styles.headerIcon}>
-          <MaterialCommunityIcons name="chart-box-outline" size={22} color={Colors.primary} />
+          <MaterialCommunityIcons name="chart-box-outline" size={22} color="#FFF" />
         </View>
       </View>
 
@@ -1284,28 +1284,28 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "space-between",
     paddingHorizontal: Layout.spacing.lg,
-    paddingVertical: 12,
-    backgroundColor: "#FFF",
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.border,
+    paddingVertical: 15,
+    backgroundColor: Colors.primary,
   },
   headerEyebrow: {
     fontSize: 11,
-    color: Colors.textSecondary,
+    color: "rgba(255,255,255,0.78)",
     textTransform: "uppercase",
     letterSpacing: 0.8,
   },
   headerTitle: {
-    fontSize: 22,
+    fontSize: 19,
     fontWeight: "800",
-    color: Colors.text,
+    color: "#FFF",
     marginTop: 2,
   },
   headerIcon: {
     width: 42,
     height: 42,
     borderRadius: 8,
-    backgroundColor: "#EEF8F2",
+    backgroundColor: "rgba(255,255,255,0.16)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.24)",
     alignItems: "center",
     justifyContent: "center",
   },

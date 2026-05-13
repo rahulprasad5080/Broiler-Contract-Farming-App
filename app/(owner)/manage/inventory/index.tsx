@@ -453,14 +453,14 @@ export default function InventoryScreen() {
               style={styles.iconButton}
               onPress={() => router.push("/(owner)/manage/inventory/purchase")}
             >
-              <MaterialCommunityIcons name="cart-plus" size={19} color={Colors.primary} />
+              <MaterialCommunityIcons name="cart-plus" size={19} color="#FFF" />
             </TouchableOpacity>
           ) : null}
           <TouchableOpacity
             style={styles.iconButton}
             onPress={() => router.push("/(owner)/manage/inventory/allocate")}
           >
-            <MaterialCommunityIcons name="truck-delivery-outline" size={19} color={Colors.primary} />
+            <MaterialCommunityIcons name="truck-delivery-outline" size={19} color="#FFF" />
           </TouchableOpacity>
         </View>
       </View>
@@ -1277,27 +1277,26 @@ export default function InventoryScreen() {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: Colors.background,
+    backgroundColor: "#F6F8F7",
   },
   header: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
     paddingHorizontal: Layout.spacing.lg,
-    paddingVertical: 14,
-    backgroundColor: Colors.surface,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.border,
+    paddingVertical: 15,
+    backgroundColor: Colors.primary,
   },
   headerEyebrow: {
     fontSize: 11,
-    color: Colors.textSecondary,
+    color: "rgba(255,255,255,0.78)",
     textTransform: "uppercase",
+    fontWeight: "800",
   },
   headerTitle: {
-    fontSize: 20,
-    fontWeight: "800",
-    color: Colors.text,
+    fontSize: 19,
+    fontWeight: "900",
+    color: "#FFF",
     marginTop: 2,
   },
   headerActions: {
@@ -1308,7 +1307,9 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 10,
-    backgroundColor: "#E8F5E9",
+    backgroundColor: "rgba(255,255,255,0.16)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.24)",
     alignItems: "center",
     justifyContent: "center",
   },
@@ -1336,11 +1337,10 @@ const styles = StyleSheet.create({
   statCard: {
     flex: 1,
     backgroundColor: Colors.surface,
-    borderRadius: 12,
+    borderRadius: 8,
     borderWidth: 1,
     borderColor: Colors.border,
     padding: 12,
-    ...Layout.cardShadow,
   },
   statLabel: {
     fontSize: 11,
@@ -1383,12 +1383,11 @@ const styles = StyleSheet.create({
   tabBar: {
     flexDirection: "row",
     backgroundColor: Colors.surface,
-    borderRadius: 10,
+    borderRadius: 8,
     borderWidth: 1,
     borderColor: Colors.border,
     padding: 4,
     marginBottom: 16,
-    ...Layout.cardShadow,
   },
   tab: {
     flex: 1,

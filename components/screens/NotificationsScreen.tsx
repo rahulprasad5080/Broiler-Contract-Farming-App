@@ -215,7 +215,7 @@ export function NotificationsScreen() {
     <SafeAreaView style={styles.safeArea}>
       <View style={styles.header}>
         <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>
-          <Ionicons name="arrow-back" size={24} color={Colors.primary} />
+          <Ionicons name="arrow-back" size={24} color="#FFF" />
         </TouchableOpacity>
         <View style={styles.headerCopy}>
           <Text style={styles.headerTitle}>Notifications</Text>
@@ -338,16 +338,14 @@ export function NotificationsScreen() {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: Colors.background,
+    backgroundColor: "#F6F8F7",
   },
   header: {
     flexDirection: "row",
     alignItems: "center",
     paddingHorizontal: Layout.screenPadding,
-    paddingVertical: 14,
-    backgroundColor: Colors.surface,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.border,
+    paddingVertical: 15,
+    backgroundColor: Colors.primary,
   },
   backBtn: {
     marginRight: 14,
@@ -356,12 +354,12 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   headerTitle: {
-    color: Colors.text,
-    fontSize: 18,
+    color: "#FFF",
+    fontSize: 19,
     fontWeight: "900",
   },
   headerSub: {
-    color: Colors.textSecondary,
+    color: "rgba(255,255,255,0.8)",
     fontSize: 12,
     fontWeight: "600",
     marginTop: 2,
@@ -372,12 +370,12 @@ const styles = StyleSheet.create({
     borderRadius: 17,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "#E8F5E9",
+    backgroundColor: "rgba(255,255,255,0.16)",
     borderWidth: 1,
-    borderColor: "#CBE6D5",
+    borderColor: "rgba(255,255,255,0.24)",
   },
   unreadBadgeText: {
-    color: Colors.primary,
+    color: "#FFF",
     fontSize: 13,
     fontWeight: "900",
   },
@@ -388,20 +386,15 @@ const styles = StyleSheet.create({
     marginHorizontal: Layout.screenPadding,
     marginTop: 12,
     padding: 14,
-    borderRadius: 12,
+    borderRadius: 8,
     backgroundColor: Colors.surface,
     borderWidth: 1,
     borderColor: "#DDEBE3",
-    shadowColor: "#101828",
-    shadowOffset: { width: 0, height: 5 },
-    shadowOpacity: 0.06,
-    shadowRadius: 12,
-    elevation: 2,
   },
   summaryIcon: {
     width: 42,
     height: 42,
-    borderRadius: 12,
+    borderRadius: 8,
     alignItems: "center",
     justifyContent: "center",
     backgroundColor: "#E8F5E9",
