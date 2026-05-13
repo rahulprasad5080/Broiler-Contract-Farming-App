@@ -1,0 +1,884 @@
+
+
+--- Page 1 ---
+PoultryFlow – Screen-by-Screen UI Specifications
+(MVP)
+1. SPLASH SCREEN
+Purpose: App launch branding screen.
+UI Elements:
+PoultryFlow Logo
+App Name
+Loading Indicator
+Version Number (small)
+Behavior:
+Auto redirect after session check
+Logged-in user → Dashboard
+Logged-out user → Login
+Design Rules:
+Clean background
+Minimal animation
+Fast load
+2. LOGIN SCREEN
+Purpose: User authentication.
+Fields:
+Mobile Number
+Password
+Buttons:
+Login
+Login with PIN
+Login with Biometrics
+• 
+• 
+• 
+• 
+• 
+• 
+• 
+• 
+• 
+• 
+• 
+• 
+• 
+• 
+• 
+1
+
+
+--- Page 2 ---
+Options:
+Remember Login
+Forgot Password
+Rules:
+Temporary password forced change after first login
+PIN setup after first login
+No OTP system
+Admin resets password
+UI Rules:
+Large touch-friendly inputs
+Numeric keypad for mobile number
+Password visibility toggle
+Bottom-fixed login button
+3. DASHBOARD SCREEN
+Purpose: Operational overview.
+Sections: 1. Header 2. Today at a Glance 3. Active Batch Slider 4. Quick Actions FAB 5. Payment Status 6.
+Alerts
+Header: Left:
+Greeting
+Farm count
+Right:
+Notification Icon
+Profile Icon
+Today at a Glance Cards:
+Active Batches
+Live Birds
+Mortality Today
+Mortality Total
+Sales Ready
+Pending Entries
+Feed Alert
+FCR Alert
+• 
+• 
+• 
+• 
+• 
+• 
+• 
+• 
+• 
+• 
+• 
+• 
+• 
+• 
+• 
+• 
+• 
+• 
+• 
+• 
+• 
+• 
+2
+
+
+--- Page 3 ---
+Card Rules:
+Large cards
+Rounded corners
+Max 2 cards per row
+Tap opens relevant module
+Active Batch Slider: Displays:
+Farm Name
+Batch Code
+Current Age
+Live Birds
+Mortality %
+Rules:
+Horizontal scroll
+Highest age first
+Tap opens batch details
+Floating Action Button: Actions:
+Daily Entry
+Expense Entry
+Sales Entry
+Purchase
+Add Batch
+Dashboard Visibility: Admin:
+Financials visible
+Profitability visible
+Supervisor:
+Operational data only
+Farmer:
+Own farm data only
+Farmer expenses visible
+Farmer P&L visible
+4. ENTRIES HOME SCREEN
+Purpose: Central entry point for operational entries.
+• 
+• 
+• 
+• 
+• 
+• 
+• 
+• 
+• 
+• 
+• 
+• 
+• 
+• 
+• 
+• 
+• 
+• 
+• 
+• 
+• 
+• 
+• 
+3
+
+
+--- Page 4 ---
+Cards:
+Daily Entry
+Inventory Allocation
+Expense Entry
+Sales Entry
+Rules:
+Equal card size
+Role-based visibility
+Large tap areas
+5. DAILY ENTRY SCREEN
+Purpose: Daily operational batch update.
+Fields:
+Date
+Farm
+Batch
+Mortality
+Feed Consumption
+Water Consumption
+Average Weight
+Remarks
+Buttons:
+Save Entry
+Validation:
+No future date
+No duplicate entry
+Locked batch restriction
+System Updates:
+Live bird count
+Mortality %
+FCR
+Dashboard metrics
+• 
+• 
+• 
+• 
+• 
+• 
+• 
+• 
+• 
+• 
+• 
+• 
+• 
+• 
+• 
+• 
+• 
+• 
+• 
+• 
+• 
+• 
+• 
+4
+
+
+--- Page 5 ---
+UI Rules:
+Sticky save button
+Numeric keypad where required
+Auto focus next field
+6. INVENTORY ALLOCATION SCREEN
+Purpose: Allocate feed/medicine/vaccine.
+Allocation Type Selector:
+Feed
+Medicine
+Vaccine
+Fields:
+Batch
+Item
+Quantity
+Unit
+Remarks
+Displays:
+Current Stock
+Recent Allocations
+Rules:
+Prevent over allocation
+Deduct stock automatically
+Update inventory ledger automatically
+UI Rules:
+Dropdown search
+Sticky save button
+Recently used items first
+7. EXPENSE ENTRY SCREEN
+Purpose: Record expenses.
+• 
+• 
+• 
+• 
+• 
+• 
+• 
+• 
+• 
+• 
+• 
+• 
+• 
+• 
+• 
+• 
+• 
+• 
+• 
+5
+
+
+--- Page 6 ---
+Tabs: 1. Company 2. Farmer
+Company Tab: Expense Types:
+Feed
+Medicine
+Chicks
+Transport
+Office Expenses
+Other Company Expenses
+Affects:
+Company P&L
+Batch profitability
+Farmer Tab: Expense Types:
+Electricity
+Coco Pith
+Labour
+Diesel
+Water
+Repairs
+Other
+Affects:
+Farmer P&L only
+Farmer net earnings only
+Does NOT affect:
+Company P&L
+Batch profitability
+Fields:
+Expense Type
+Amount
+Date
+Notes
+Upload Bill
+Payment Status
+Buttons:
+Save Expense
+• 
+• 
+• 
+• 
+• 
+• 
+• 
+• 
+• 
+• 
+• 
+• 
+• 
+• 
+• 
+• 
+• 
+• 
+• 
+• 
+• 
+• 
+• 
+• 
+• 
+• 
+6
+
+
+--- Page 7 ---
+Visibility Rules: Farmer:
+Can add farmer expenses only
+Cannot see company profitability
+Admin:
+Can see both tabs
+UI Rules:
+Camera upload shortcut
+Quick expense chips
+Minimal typing
+8. SALES ENTRY SCREEN
+Purpose: Record bird lifting/sales.
+Fields:
+Trader
+Vehicle Number
+Birds Sold
+Total Weight
+Average Weight
+Loading Mortality
+Remarks
+Buttons:
+Save Sale
+Visibility Rules: Supervisor/Farmer:
+Cannot see rates
+Cannot see revenue
+Admin:
+Can finalize sales
+Can enter rate per KG
+UI Rules:
+Weight auto-calculation support
+• 
+• 
+• 
+• 
+• 
+• 
+• 
+• 
+• 
+• 
+• 
+• 
+• 
+• 
+• 
+• 
+• 
+• 
+• 
+7
+
+
+--- Page 8 ---
+Quick trader selection
+9. FINANCIAL DASHBOARD SCREEN
+Purpose: Company financial overview.
+Sections:
+Financial Summary
+Quick Actions
+Recent Transactions
+Payment Status
+Financial Summary:
+Investment
+Expenses
+Sales
+Net Profit/Loss
+Quick Actions:
+Add Purchase
+Add Investment
+Add Expense
+Finalize Sale
+Add Settlement
+Rules:
+Admin only
+Profit green
+Loss red
+10. PURCHASE ENTRY SCREEN
+Purpose: Record purchases.
+Purchase Types:
+Feed
+Medicine
+Vaccine
+• 
+• 
+• 
+• 
+• 
+• 
+• 
+• 
+• 
+• 
+• 
+• 
+• 
+• 
+• 
+• 
+• 
+• 
+• 
+• 
+8
+
+
+--- Page 9 ---
+Equipment
+Chicks
+Others
+Fields:
+Vendor
+Item
+Quantity
+Unit
+Cost
+Invoice Number
+Payment Status
+Date
+Remarks
+Attachment Upload
+Buttons:
+Save Purchase
+System Logic:
+Inventory increases automatically
+Payment tracking enabled
+11. PAYMENT ENTRY SCREEN
+Purpose: Track payments.
+Fields:
+Party Name
+Payment Type
+Amount Paid
+Payment Date
+Notes
+System Updates:
+Pending amount
+Paid amount
+Payment status
+• 
+• 
+• 
+• 
+• 
+• 
+• 
+• 
+• 
+• 
+• 
+• 
+• 
+• 
+• 
+• 
+• 
+• 
+• 
+• 
+• 
+• 
+• 
+• 
+9
+
+
+--- Page 10 ---
+Statuses:
+Pending
+Partial
+Paid
+12. BATCH LIST SCREEN
+Purpose: View all batches.
+Displays:
+Batch Code
+Farm Name
+Placement Date
+Current Age
+Live Birds
+Status
+Filters:
+Active
+Sales Running
+Settlement Pending
+Closed
+UI Rules:
+Expandable cards
+Search bar
+Sticky filters
+13. BATCH CREATION SCREEN
+Purpose: Create new batch.
+Fields:
+Batch Code
+Farm
+Placement Date
+Vendor
+Total Chicks Purchased
+• 
+• 
+• 
+• 
+• 
+• 
+• 
+• 
+• 
+• 
+• 
+• 
+• 
+• 
+• 
+• 
+• 
+• 
+• 
+• 
+• 
+10
+
+
+--- Page 11 ---
+Free Chicks
+Chargeable Chicks
+Rate Per Chick
+Transport Charges
+Placement Mortality
+Remarks
+Buttons:
+Create Batch
+System Logic: Chargeable Chicks = Total Purchased - Free Chicks
+14. BATCH DETAILS SCREEN
+Purpose: Complete batch operational view.
+Tabs: 1. Overview 2. Daily Entries 3. Expenses 4. Sales 5. Settlement 6. P&L
+Overview Tab: Displays:
+Farm Name
+Batch Code
+Placement Date
+Current Age
+Live Birds
+Mortality %
+Avg Weight
+FCR
+Status
+Daily Entries Tab: Displays:
+Date-wise entries
+Mortality
+Feed
+Avg Weight
+Expenses Tab: Sub Tabs: 1. Company 2. Farmer
+Company:
+Company-paid expenses only
+• 
+• 
+• 
+• 
+• 
+• 
+• 
+• 
+• 
+• 
+• 
+• 
+• 
+• 
+• 
+• 
+• 
+• 
+• 
+• 
+• 
+11
+
+
+--- Page 12 ---
+Farmer:
+Farmer-paid expenses only
+Rules:
+Farmer expenses do not affect company profitability
+Sales Tab: Displays:
+Trader
+Weight
+Birds sold
+Status
+Settlement Tab: Displays:
+Payout
+Deductions
+Final Payable
+Payment Status
+P&L Tab: Company View:
+Company profitability only
+Farmer View:
+Farmer earnings only
+15. FARMER SETTLEMENT SCREEN
+Purpose: Finalize farmer settlement.
+Displays:
+Farmer
+Batch
+FCR
+Avg Weight
+Mortality
+Revenue
+Expenses
+Net Payable
+• 
+• 
+• 
+• 
+• 
+• 
+• 
+• 
+• 
+• 
+• 
+• 
+• 
+• 
+• 
+• 
+• 
+• 
+• 
+• 
+12
+
+
+--- Page 13 ---
+Fields:
+Payout Rate
+Bonus
+Deductions
+Remarks
+Buttons:
+Finalize Settlement
+16. INVENTORY SCREEN
+Purpose: Inventory management.
+Categories:
+Feed
+Medicine
+Vaccine
+Equipment
+Others
+Displays:
+Current Stock
+Reorder Level
+Stock Alerts
+Buttons:
+Add Item
+Edit Item
+17. INVENTORY LEDGER SCREEN
+Purpose: Track inventory movement.
+Displays:
+Date
+Item
+Movement Type
+• 
+• 
+• 
+• 
+• 
+• 
+• 
+• 
+• 
+• 
+• 
+• 
+• 
+• 
+• 
+• 
+• 
+• 
+13
+
+
+--- Page 14 ---
+Quantity In
+Quantity Out
+Balance
+Batch
+Reference
+Rules:
+Read-only ledger
+18. REPORTS SCREEN
+Purpose: Access operational and financial reports.
+Report Types:
+Farm Reports
+Batch Reports
+Expense Reports
+Inventory Reports
+Settlement Reports
+Profitability Reports
+Filters:
+Date Range
+Farm
+Batch
+Farmer
+Supervisor
+Export:
+PDF
+Excel
+Farmer Restrictions:
+Can view only own reports
+Cannot view company profitability
+19. USER MANAGEMENT SCREEN
+Purpose: Manage app users.
+• 
+• 
+• 
+• 
+• 
+• 
+• 
+• 
+• 
+• 
+• 
+• 
+• 
+• 
+• 
+• 
+• 
+• 
+• 
+• 
+• 
+14
+
+
+--- Page 15 ---
+Fields:
+Name
+Mobile Number
+Temporary Password
+Role
+Assigned Farms
+Status
+Permission Toggles:
+Daily Entry
+Sales Entry
+Expense Entry
+Inventory View
+Cost Visibility
+Report Access
+Buttons:
+Create User
+Reset Password
+Disable User
+20. NOTIFICATIONS SCREEN
+Purpose: Central alert management.
+Notification Types:
+Mortality Alerts
+Feed Alerts
+Vaccine Due
+FCR Alerts
+Pending Entries
+Sales Ready
+Rules:
+Latest first
+Tap opens related screen
+Unread badge support
+• 
+• 
+• 
+• 
+• 
+• 
+• 
+• 
+• 
+• 
+• 
+• 
+• 
+• 
+• 
+• 
+• 
+• 
+• 
+• 
+• 
+• 
+• 
+• 
+15
+
+
+--- Page 16 ---
+21. PROFILE & SETTINGS SCREEN
+Purpose: User preferences and account.
+Sections:
+Profile Details
+Change Password
+Set PIN
+Biometrics
+Logout
+Admin Additional Settings:
+Financial Configurations
+Expense Categories
+Payout Rules
+22. GLOBAL MOBILE UX RULES
+UI Philosophy:
+Simple
+Fast
+Mobile-first
+Low training needed
+Rules:
+Avoid ERP clutter
+Large touch targets
+Thumb-friendly design
+Use bottom sheets
+Avoid large tables
+Use expandable cards
+Low-end Android optimized
+Max 2–3 taps for critical workflows
+Minimal typing
+Large save buttons
+Fast loading screens
+• 
+• 
+• 
+• 
+• 
+• 
+• 
+• 
+• 
+• 
+• 
+• 
+• 
+• 
+• 
+• 
+• 
+• 
+• 
+• 
+• 
+• 
+• 
+16

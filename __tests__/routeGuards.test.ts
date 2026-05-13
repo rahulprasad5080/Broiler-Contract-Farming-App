@@ -3,6 +3,7 @@ import test from "node:test";
 
 import {
   getDashboardRoute,
+  getRouteRequiredPermission,
   getRoleRouteGroup,
   isRouteAllowedForRole,
 } from "../services/routeGuards";
@@ -40,4 +41,34 @@ test("getDashboardRoute returns the role dashboard fallback", () => {
   assert.equal(getDashboardRoute("SUPERVISOR"), "/(supervisor)/dashboard");
   assert.equal(getDashboardRoute("FARMER"), "/(farmer)/dashboard");
   assert.equal(getDashboardRoute(null), "/(farmer)/dashboard");
+});
+
+test("getRouteRequiredPermission gates core admin screens", () => {
+  assert.equal(
+    getRouteRequiredPermission(["(owner)", "manage", "farms"]),
+    "manage:farms",
+  );
+  assert.equal(
+    getRouteRequiredPermission(["(owner)", "manage", "batches"]),
+    "manage:batches",
+  );
+  assert.equal(
+    getRouteRequiredPermission(["(owner)", "manage", "users"]),
+    "manage:users",
+  );
+});
+
+test("getRouteRequiredPermission gates role task screens", () => {
+  assert.equal(
+    getRouteRequiredPermission(["(farmer)", "tasks", "daily"]),
+    "create:daily-entry",
+  );
+  assert.equal(
+    getRouteRequiredPermission(["(supervisor)", "tasks", "expenses"]),
+    "create:expenses",
+  );
+  assert.equal(
+    getRouteRequiredPermission(["(supervisor)", "review"]),
+    "review:entries",
+  );
 });

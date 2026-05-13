@@ -1,4 +1,5 @@
 import { Ionicons } from "@expo/vector-icons";
+import { useRouter } from "expo-router";
 import { zodResolver } from "@hookform/resolvers/zod";
 import React from "react";
 import { Controller, useForm } from "react-hook-form";
@@ -44,9 +45,15 @@ const loginSchema = z.object({
 type LoginForm = z.input<typeof loginSchema>;
 
 export default function LoginScreen() {
-  const { signIn, registerOwnerAccount, isLoading } = useAuth();
+  const router = useRouter();
+  const { signIn, signInWithPin, registerOwnerAccount, isLoading } = useAuth();
   const [showPassword, setShowPassword] = React.useState(false);
   const [showRegister, setShowRegister] = React.useState(false);
+  const [showPinLogin, setShowPinLogin] = React.useState(false);
+  const [showResetHelp, setShowResetHelp] = React.useState(false);
+  const [pinPhone, setPinPhone] = React.useState("");
+  const [pinCode, setPinCode] = React.useState("");
+  const [pinLoginError, setPinLoginError] = React.useState<string | null>(null);
   const [registerError, setRegisterError] = React.useState<string | null>(null);
   const [registerForm, setRegisterForm] = React.useState({
     organizationName: "",
@@ -58,7 +65,7 @@ export default function LoginScreen() {
     password: "",
   });
 
-  const { control, handleSubmit } = useForm<LoginForm>({
+  const { control, handleSubmit, watch } = useForm<LoginForm>({
     resolver: zodResolver(loginSchema),
     defaultValues: {
       phone: "",
@@ -73,6 +80,39 @@ export default function LoginScreen() {
       Toast.show({type: "error",
         text1: "Login failed",
         text2: errorMessage, position: 'bottom'});
+    }
+  };
+
+  const openPinLogin = () => {
+    setPinPhone(watch("phone"));
+    setPinCode("");
+    setPinLoginError(null);
+    setShowPinLogin(true);
+  };
+
+  const submitPinLogin = async () => {
+    setPinLoginError(null);
+
+    const phoneError = getMobileValidationError(pinPhone);
+    if (phoneError) {
+      setPinLoginError(phoneError);
+      return;
+    }
+
+    if (!/^\d{4}$/.test(pinCode)) {
+      setPinLoginError("Enter a 4-digit PIN.");
+      return;
+    }
+
+    const errorMessage = await signInWithPin(pinPhone, pinCode);
+    if (errorMessage) {
+      setPinLoginError(errorMessage);
+      Toast.show({
+        type: "error",
+        text1: "PIN login failed",
+        text2: errorMessage,
+        position: "bottom",
+      });
     }
   };
 
@@ -249,6 +289,37 @@ export default function LoginScreen() {
               ) : null}
             </TouchableOpacity>
 
+            <View style={styles.quickLoginRow}>
+              <TouchableOpacity
+                style={styles.quickLoginButton}
+                onPress={openPinLogin}
+                disabled={isLoading}
+                activeOpacity={0.85}
+              >
+                <Ionicons name="keypad-outline" size={18} color={Colors.primary} />
+                <Text style={styles.quickLoginText}>Login with PIN</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.quickLoginButton}
+                onPress={() => router.push("/(auth)/quick-login-biometric")}
+                disabled={isLoading}
+                activeOpacity={0.85}
+              >
+                <Ionicons name="finger-print-outline" size={18} color={Colors.primary} />
+                <Text style={styles.quickLoginText}>Biometric</Text>
+              </TouchableOpacity>
+            </View>
+
+            <TouchableOpacity
+              style={styles.forgotPasswordButton}
+              onPress={() => setShowResetHelp(true)}
+              disabled={isLoading}
+              activeOpacity={0.7}
+            >
+              <Text style={styles.forgotPasswordText}>Forgot Password?</Text>
+            </TouchableOpacity>
+
             <View style={styles.helpContainer}>
               <Ionicons
                 name="shield-checkmark-outline"
@@ -368,6 +439,126 @@ export default function LoginScreen() {
             </ScrollView>
           </View>
         </View>
+      </Modal>
+
+      <Modal
+        visible={showPinLogin}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowPinLogin(false)}
+      >
+        <TouchableOpacity
+          style={styles.modalOverlay}
+          activeOpacity={1}
+          onPress={() => setShowPinLogin(false)}
+        >
+          <View
+            style={styles.pinLoginSheet}
+            onStartShouldSetResponder={() => true}
+          >
+            <View style={styles.sheetHeader}>
+              <View>
+                <Text style={styles.sheetTitle}>Login with PIN</Text>
+                <Text style={styles.sheetSubtitle}>
+                  Use the 4-digit PIN set for your account.
+                </Text>
+              </View>
+              <TouchableOpacity
+                style={styles.closeBtn}
+                onPress={() => setShowPinLogin(false)}
+                disabled={isLoading}
+              >
+                <Ionicons name="close" size={20} color={Colors.text} />
+              </TouchableOpacity>
+            </View>
+
+            <Text style={styles.label}>Mobile Number</Text>
+            <View style={styles.mobileInputWrap}>
+              <View style={styles.countryCode}>
+                <Text style={styles.countryCodeText}>+91</Text>
+              </View>
+              <TextInput
+                style={styles.input}
+                value={pinPhone}
+                onChangeText={(nextValue) => setPinPhone(normalizeMobileNumber(nextValue))}
+                placeholder="Enter 10-digit mobile number"
+                placeholderTextColor="#99A2AD"
+                keyboardType="number-pad"
+                maxLength={10}
+              />
+              <Ionicons name="call-outline" size={22} color={Colors.primary} />
+            </View>
+
+            <Text style={styles.label}>PIN</Text>
+            <View style={styles.inputWrap}>
+              <Ionicons name="keypad-outline" size={20} color={Colors.textSecondary} />
+              <TextInput
+                style={styles.input}
+                value={pinCode}
+                onChangeText={(nextValue) =>
+                  setPinCode(nextValue.replace(/\D/g, "").slice(0, 4))
+                }
+                placeholder="4-digit PIN"
+                placeholderTextColor="#99A2AD"
+                keyboardType="number-pad"
+                maxLength={4}
+                secureTextEntry
+              />
+            </View>
+
+            {pinLoginError ? (
+              <Text style={styles.registerError}>{pinLoginError}</Text>
+            ) : (
+              <Text style={styles.helperText}>
+                PIN login is available after admin/password login and PIN setup.
+              </Text>
+            )}
+
+            <TouchableOpacity
+              style={[styles.createAccountButton, isLoading && styles.buttonDisabled]}
+              onPress={submitPinLogin}
+              disabled={isLoading}
+              activeOpacity={0.85}
+            >
+              <Text style={styles.createAccountText}>
+                {isLoading ? "VERIFYING..." : "LOGIN WITH PIN"}
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </TouchableOpacity>
+      </Modal>
+
+      <Modal
+        visible={showResetHelp}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowResetHelp(false)}
+      >
+        <TouchableOpacity
+          style={styles.resetHelpOverlay}
+          activeOpacity={1}
+          onPress={() => setShowResetHelp(false)}
+        >
+          <View
+            style={styles.resetHelpCard}
+            onStartShouldSetResponder={() => true}
+          >
+            <View style={styles.resetHelpIcon}>
+              <Ionicons name="lock-open-outline" size={24} color={Colors.primary} />
+            </View>
+            <Text style={styles.resetHelpTitle}>Password Reset</Text>
+            <Text style={styles.resetHelpText}>
+              Contact your admin or owner to reset your password. PoultryFlow does not use OTP-based password reset.
+            </Text>
+            <TouchableOpacity
+              style={styles.resetHelpButton}
+              onPress={() => setShowResetHelp(false)}
+              activeOpacity={0.85}
+            >
+              <Text style={styles.resetHelpButtonText}>OK</Text>
+            </TouchableOpacity>
+          </View>
+        </TouchableOpacity>
       </Modal>
     </SafeAreaView>
   );
@@ -540,6 +731,41 @@ const styles = StyleSheet.create({
   buttonDisabled: {
     opacity: 0.7,
   },
+  quickLoginRow: {
+    flexDirection: "row",
+    gap: 10,
+    marginTop: 12,
+  },
+  quickLoginButton: {
+    flex: 1,
+    minHeight: 46,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: "#CBE6D5",
+    backgroundColor: "#F6FBF7",
+    alignItems: "center",
+    justifyContent: "center",
+    flexDirection: "row",
+    gap: 7,
+    paddingHorizontal: 10,
+  },
+  quickLoginText: {
+    color: Colors.primary,
+    fontSize: 12,
+    fontWeight: "800",
+  },
+  forgotPasswordButton: {
+    alignSelf: "center",
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    marginTop: 6,
+  },
+  forgotPasswordText: {
+    color: Colors.primary,
+    fontSize: 13,
+    fontWeight: "800",
+    textDecorationLine: "underline",
+  },
   helpContainer: {
     flexDirection: "row",
     alignItems: "flex-start",
@@ -577,6 +803,13 @@ const styles = StyleSheet.create({
   },
   registerSheet: {
     maxHeight: "88%",
+    backgroundColor: "#FFFFFF",
+    borderTopLeftRadius: 22,
+    borderTopRightRadius: 22,
+    padding: 20,
+    paddingBottom: 28,
+  },
+  pinLoginSheet: {
     backgroundColor: "#FFFFFF",
     borderTopLeftRadius: 22,
     borderTopRightRadius: 22,
@@ -631,6 +864,56 @@ const styles = StyleSheet.create({
     marginTop: 14,
   },
   createAccountText: {
+    color: "#FFFFFF",
+    fontSize: 14,
+    fontWeight: "900",
+  },
+  resetHelpOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.42)",
+    alignItems: "center",
+    justifyContent: "center",
+    padding: 24,
+  },
+  resetHelpCard: {
+    width: "100%",
+    maxWidth: 360,
+    borderRadius: 14,
+    backgroundColor: "#FFFFFF",
+    padding: 20,
+    alignItems: "center",
+  },
+  resetHelpIcon: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#E8F5E9",
+    marginBottom: 12,
+  },
+  resetHelpTitle: {
+    color: Colors.text,
+    fontSize: 18,
+    fontWeight: "900",
+  },
+  resetHelpText: {
+    color: Colors.textSecondary,
+    fontSize: 13,
+    lineHeight: 19,
+    textAlign: "center",
+    marginTop: 8,
+  },
+  resetHelpButton: {
+    minHeight: 44,
+    alignSelf: "stretch",
+    borderRadius: 8,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: Colors.primary,
+    marginTop: 18,
+  },
+  resetHelpButtonText: {
     color: "#FFFFFF",
     fontSize: 14,
     fontWeight: "900",

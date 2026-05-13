@@ -104,6 +104,7 @@ interface AuthContextType {
   isReady: boolean;
   isAppUnlocked: boolean;
   signIn: (phone: string, password: string) => Promise<string | null>;
+  signInWithPin: (phone: string, pin: string) => Promise<string | null>;
   registerOwnerAccount: (payload: RegisterOwnerRequest) => Promise<string | null>;
   signOut: () => Promise<void>;
   unlockApp: () => void;
@@ -584,6 +585,39 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     [persistSession, router],
   );
 
+  const signInWithPin = React.useCallback(
+    async (phone: string, pin: string) => {
+      if (!QUICK_PIN_PATTERN.test(pin)) {
+        return "Enter a 4-digit PIN.";
+      }
+
+      setIsLoading(true);
+
+      try {
+        const response = await loginWithPin({
+          phone: normalizeMobileNumber(phone),
+          pin,
+        });
+        const hydratedUser = await hydrateServerUser(response.tokens, response.user);
+        const nextSession = {
+          user: hydratedUser,
+          tokens: response.tokens,
+        };
+
+        await persistSession(nextSession);
+        backgroundedAtRef.current = null;
+        setIsAppUnlocked(true);
+        router.replace(getDashboardRoute(normalizeUser(hydratedUser).role));
+        return null;
+      } catch (error) {
+        return getAuthErrorMessage(error, "Incorrect PIN. Try again.");
+      } finally {
+        setIsLoading(false);
+      }
+    },
+    [persistSession, router],
+  );
+
   const unlockWithPin = React.useCallback(
     async (pin: string) => {
       if (!user?.phone) {
@@ -724,6 +758,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         isReady,
         isAppUnlocked,
         signIn,
+        signInWithPin,
         registerOwnerAccount,
         signOut,
         unlockApp,
