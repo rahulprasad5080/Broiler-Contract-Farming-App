@@ -1,6 +1,19 @@
+import { Colors } from '@/constants/Colors';
+import { Layout } from '@/constants/Layout';
+import { useAuth } from '@/context/AuthContext';
+import {
+  showRequestErrorToast,
+  showSuccessToast,
+} from '@/services/apiFeedback';
+import { getLocalDateValue } from '@/services/dateUtils';
+import {
+  ApiBatch,
+  listAllBatches,
+  updateBatchStatus,
+} from '@/services/managementApi';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
 import { useFocusEffect } from '@react-navigation/native';
+import { useRouter } from 'expo-router';
 import React, { useCallback, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
@@ -12,19 +25,24 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Colors } from '@/constants/Colors';
-import { Layout } from '@/constants/Layout';
-import { useAuth } from '@/context/AuthContext';
-import { getLocalDateValue } from '@/services/dateUtils';
-import {
-  ApiBatch,
-  listAllBatches,
-  updateBatchStatus,
-} from '@/services/managementApi';
-import {
-  showRequestErrorToast,
-  showSuccessToast,
-} from '@/services/apiFeedback';
+
+function formatReadableDate(value?: string | null) {
+  if (!value) return 'Not set';
+
+  const datePart = value.split('T')[0];
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(datePart);
+
+  if (!match) return value;
+
+  const [, year, month, day] = match;
+  const date = new Date(Number(year), Number(month) - 1, Number(day));
+
+  return date.toLocaleDateString('en-IN', {
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+  });
+}
 
 export default function BatchManagementScreen() {
   const router = useRouter();
@@ -112,11 +130,6 @@ export default function BatchManagementScreen() {
       </View>
 
       <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
-        <Text style={styles.pageTitle}>Batch Management</Text>
-        <Text style={styles.pageSubtitle}>
-          Monitor live batches and create new cycles directly against the backend.
-        </Text>
-
         <View style={styles.createCard}>
           <TouchableOpacity style={styles.createButton} onPress={() => router.push('/(owner)/manage/batches/create')}>
             <View style={styles.createIconCircle}>
@@ -171,7 +184,7 @@ export default function BatchManagementScreen() {
               <View style={styles.batchDetailsRow}>
                 <View style={styles.batchDetailItem}>
                   <Text style={styles.batchDetailLabel}>Placement</Text>
-                  <Text style={styles.batchDetailValue}>{batch.placementDate}</Text>
+                  <Text style={styles.batchDetailValue}>{formatReadableDate(batch.placementDate)}</Text>
                 </View>
                 <View style={styles.batchDetailItem}>
                   <Text style={styles.batchDetailLabel}>Current Pop.</Text>
@@ -209,7 +222,9 @@ export default function BatchManagementScreen() {
               </View>
               <View style={styles.closedBatchInfo}>
                 <Text style={styles.closedBatchNo}>Batch #{batch.code}</Text>
-                <Text style={styles.closedBatchDate}>Closed: {batch.actualCloseDate ?? batch.updatedAt.slice(0, 10)}</Text>
+                <Text style={styles.closedBatchDate}>
+                  Closed: {formatReadableDate(batch.actualCloseDate ?? batch.updatedAt)}
+                </Text>
               </View>
               <Ionicons name="chevron-forward" size={20} color={Colors.textSecondary} />
             </TouchableOpacity>

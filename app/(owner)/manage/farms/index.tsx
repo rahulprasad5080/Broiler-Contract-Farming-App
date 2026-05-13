@@ -188,7 +188,7 @@ export default function FarmListScreen() {
     resolver: zodResolver(quickFarmSchema),
     defaultValues: {
       name: '',
-      capacity: '5000',
+      capacity: '',
       farmType: 'Broiler',
       primaryFarmerId: '',
       supervisorId: '',
@@ -773,7 +773,7 @@ export default function FarmListScreen() {
                         <View style={[styles.inputBox, quickErrors.capacity && { borderColor: Colors.tertiary }]}>
                           <TextInput
                             style={styles.textInput}
-                            placeholder="5000"
+                            placeholder="Enter capacity"
                             placeholderTextColor={Colors.textSecondary}
                             value={value}
                             onChangeText={onChange}
@@ -1007,7 +1007,7 @@ export default function FarmListScreen() {
                       <View style={[styles.inputBox, editErrors.capacity && { borderColor: Colors.tertiary }]}>
                         <TextInput
                           style={styles.textInput}
-                          placeholder="5000"
+                          placeholder="Enter capacity"
                           placeholderTextColor={Colors.textSecondary}
                           value={value}
                           onChangeText={onChange}

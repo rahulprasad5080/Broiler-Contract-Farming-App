@@ -69,17 +69,6 @@ function getRoleAccent(role: ApiUser['role']) {
   return Colors.primary;
 }
 
-function generateFarmCode(name: string) {
-  const slug = name
-    .trim()
-    .toUpperCase()
-    .replace(/[^A-Z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '')
-    .slice(0, 10);
-
-  return `FARM-${slug || 'NEW'}-${Date.now().toString().slice(-4)}`;
-}
-
 const farmSchema = z.object({
   name: z.string().min(1, 'Farm name is required'),
   code: z.string().min(1, 'Farm code is required'),
@@ -100,12 +89,12 @@ type FarmFormData = z.infer<typeof farmSchema>;
 
 const FARM_FORM_DEFAULTS: FarmFormData = {
   name: '',
-  code: generateFarmCode(''),
+  code: '',
   location: '',
   village: '',
   district: '',
   state: '',
-  capacity: '5000',
+  capacity: '',
   notes: '',
   primaryFarmerId: '',
   supervisorId: '',
@@ -124,6 +113,7 @@ export default function AddFarmScreen() {
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [showDraftBanner, setShowDraftBanner] = useState(false);
 
   // Animated opacity for the "Draft restored" banner
   const draftBannerOpacity = useRef(new Animated.Value(0)).current;
@@ -143,11 +133,21 @@ export default function AddFarmScreen() {
   // Show and fade out the draft-restored banner
   useEffect(() => {
     if (!isRestored) return;
-    Animated.sequence([
+    setShowDraftBanner(true);
+    draftBannerOpacity.setValue(0);
+    const animation = Animated.sequence([
       Animated.timing(draftBannerOpacity, { toValue: 1, duration: 300, useNativeDriver: true }),
       Animated.delay(2500),
       Animated.timing(draftBannerOpacity, { toValue: 0, duration: 400, useNativeDriver: true }),
-    ]).start();
+    ]);
+
+    animation.start(({ finished }) => {
+      if (finished) {
+        setShowDraftBanner(false);
+      }
+    });
+
+    return () => animation.stop();
   }, [isRestored, draftBannerOpacity]);
 
   const primaryFarmerId = watch('primaryFarmerId');
@@ -304,11 +304,12 @@ export default function AddFarmScreen() {
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
       >
-        {/* Draft restored banner */}
-        <Animated.View style={[styles.draftBanner, { opacity: draftBannerOpacity }]} pointerEvents="none">
-          <Ionicons name="cloud-done-outline" size={16} color={Colors.primary} />
-          <Text style={styles.draftBannerText}>Draft restored</Text>
-        </Animated.View>
+        {showDraftBanner ? (
+          <Animated.View style={[styles.draftBanner, { opacity: draftBannerOpacity }]} pointerEvents="none">
+            <Ionicons name="cloud-done-outline" size={16} color={Colors.primary} />
+            <Text style={styles.draftBannerText}>Draft restored</Text>
+          </Animated.View>
+        ) : null}
 
         <Text style={styles.pageTitle}>Create Farm</Text>
         <Text style={styles.pageSubtitle}>Set up farm details and assign staff in one place.</Text>
@@ -327,7 +328,7 @@ export default function AddFarmScreen() {
                 <View style={[styles.inputBox, formErrors.name && { borderColor: Colors.tertiary }]}>
                   <TextInput
                     style={styles.textInput}
-                    placeholder="e.g., Green Valley Farm"
+                    placeholder="Enter farm name"
                     placeholderTextColor={Colors.textSecondary}
                     value={value}
                     onChangeText={onChange}
@@ -347,7 +348,7 @@ export default function AddFarmScreen() {
                 <View style={[styles.inputBox, formErrors.code && { borderColor: Colors.tertiary }]}>
                   <TextInput
                     style={styles.textInput}
-                    placeholder="e.g. BL-HILL-001"
+                    placeholder="Enter farm code"
                     placeholderTextColor={Colors.textSecondary}
                     value={value}
                     onChangeText={onChange}
@@ -370,7 +371,7 @@ export default function AddFarmScreen() {
                     <View style={[styles.inputBox, formErrors.capacity && { borderColor: Colors.tertiary }]}>
                       <TextInput
                         style={styles.textInput}
-                        placeholder="5000"
+                        placeholder="Enter capacity"
                         placeholderTextColor={Colors.textSecondary}
                         value={value}
                         onChangeText={onChange}
@@ -392,7 +393,7 @@ export default function AddFarmScreen() {
                     <View style={[styles.inputBox, formErrors.state && { borderColor: Colors.tertiary }]}>
                       <TextInput
                         style={styles.textInput}
-                        placeholder="Madhya Pradesh"
+                        placeholder="Enter state"
                         placeholderTextColor={Colors.textSecondary}
                         value={value}
                         onChangeText={onChange}
@@ -414,7 +415,7 @@ export default function AddFarmScreen() {
                 <View style={[styles.inputBox, formErrors.location && { borderColor: Colors.tertiary }]}>
                   <TextInput
                     style={styles.textInput}
-                    placeholder="Near Main Road"
+                    placeholder="Enter location"
                     placeholderTextColor={Colors.textSecondary}
                     value={value}
                     onChangeText={onChange}
@@ -436,7 +437,7 @@ export default function AddFarmScreen() {
                     <View style={[styles.inputBox, formErrors.village && { borderColor: Colors.tertiary }]}>
                       <TextInput
                         style={styles.textInput}
-                        placeholder="Rampura"
+                        placeholder="Enter village"
                         placeholderTextColor={Colors.textSecondary}
                         value={value}
                         onChangeText={onChange}
@@ -457,7 +458,7 @@ export default function AddFarmScreen() {
                     <View style={[styles.inputBox, formErrors.district && { borderColor: Colors.tertiary }]}>
                       <TextInput
                         style={styles.textInput}
-                        placeholder="Indore"
+                        placeholder="Enter district"
                         placeholderTextColor={Colors.textSecondary}
                         value={value}
                         onChangeText={onChange}
@@ -479,7 +480,7 @@ export default function AddFarmScreen() {
                 <View style={[styles.inputBox, styles.textAreaBox, formErrors.notes && { borderColor: Colors.tertiary }]}>
                   <TextInput
                     style={[styles.textInput, styles.textArea]}
-                    placeholder="Optional notes"
+                    placeholder="Add farm notes"
                     placeholderTextColor={Colors.textSecondary}
                     value={value}
                     onChangeText={onChange}
@@ -717,7 +718,8 @@ const styles = StyleSheet.create({
   backButton: { marginRight: 14 },
   headerTitle: { fontSize: 18, fontWeight: 'bold', color: Colors.primary },
   container: {
-    padding: Layout.screenPadding,
+    paddingHorizontal: Layout.screenPadding,
+    paddingTop: Layout.spacing.md,
     alignSelf: 'center',
     width: '100%',
     maxWidth: Layout.contentMaxWidth,
