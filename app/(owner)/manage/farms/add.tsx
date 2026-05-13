@@ -224,6 +224,9 @@ export default function AddFarmScreen() {
 
   const getUserOption = (userId: string) => users.find((user) => user.id === userId) ?? null;
 
+  const primaryFarmerOption = primaryFarmerId ? getUserOption(primaryFarmerId) : null;
+  const supervisorOption = supervisorId ? getUserOption(supervisorId) : null;
+
   const handlePickUser = (userId: string) => {
     if (!assignmentField) return;
 
@@ -310,6 +313,7 @@ export default function AddFarmScreen() {
             <Text style={styles.draftBannerText}>Draft restored</Text>
           </Animated.View>
         ) : null}
+        {error ? <Text style={styles.errorText}>{error}</Text> : null}
         <View style={styles.card}>
           <Text style={styles.sectionTitle}>Farm Details</Text>
 
@@ -487,76 +491,98 @@ export default function AddFarmScreen() {
           />
         </View>
 
-        <View style={styles.card}>
-          <Text style={styles.sectionTitle}>Assignments</Text>
+        <View style={[styles.card, styles.assignmentPanel]}>
+          <View style={styles.assignmentPanelTitleRow}>
+            <View style={styles.assignmentAccent} />
+            <Text style={styles.assignmentPanelTitle}>Assignment & Staffing</Text>
+          </View>
 
-          <TouchableOpacity style={styles.selectorRow} onPress={() => openAssignmentPicker('primaryFarmerId')}>
-            <View style={styles.selectorTextWrap}>
-              <Text style={styles.selectorLabel}>Primary Farmer</Text>
-              <Text style={[styles.selectorValue, !primaryFarmerId && styles.selectorPlaceholder]}>
-                {primaryFarmerId ? getUserLabel(primaryFarmerId) : 'Search and select a primary farmer'}
-              </Text>
-            </View>
-            <Ionicons name="search-outline" size={18} color={Colors.textSecondary} />
+          <Text style={styles.assignmentFieldLabel}>Primary Farmer</Text>
+          <TouchableOpacity
+            style={styles.assignmentMemberCard}
+            onPress={() => openAssignmentPicker('primaryFarmerId')}
+            activeOpacity={0.84}
+          >
+            {primaryFarmerId ? (
+              <>
+                <View style={styles.assignmentAvatar}>
+                  <Text style={styles.assignmentAvatarText}>{getUserInitials(getUserLabel(primaryFarmerId))}</Text>
+                </View>
+                <View style={styles.assignmentMemberCopy}>
+                  <Text style={styles.assignmentMemberName}>{getUserLabel(primaryFarmerId)}</Text>
+                  <Text style={styles.assignmentMemberRole}>
+                    {primaryFarmerOption ? getRoleLabel(primaryFarmerOption.role) : 'Senior Poultry Farmer'}
+                  </Text>
+                </View>
+              </>
+            ) : (
+              <View style={styles.assignmentEmptyCopy}>
+                <Text style={styles.assignmentEmptyText}>Assign Primary Farmer</Text>
+              </View>
+            )}
+            <Ionicons name="add" size={22} color={Colors.text} />
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.selectorRow} onPress={() => openAssignmentPicker('supervisorId')}>
-            <View style={styles.selectorTextWrap}>
-              <Text style={styles.selectorLabel}>Supervisor</Text>
-              <Text style={[styles.selectorValue, !supervisorId && styles.selectorPlaceholder]}>
-                {supervisorId ? getUserLabel(supervisorId) : 'Search and select a supervisor'}
-              </Text>
-            </View>
-            <Ionicons name="search-outline" size={18} color={Colors.textSecondary} />
+          <Text style={styles.assignmentFieldLabel}>Farm Supervisor</Text>
+          <TouchableOpacity
+            style={styles.assignmentMemberCard}
+            onPress={() => openAssignmentPicker('supervisorId')}
+            activeOpacity={0.84}
+          >
+            {supervisorId ? (
+              <>
+                <View style={styles.assignmentAvatar}>
+                  <Text style={styles.assignmentAvatarText}>{getUserInitials(getUserLabel(supervisorId))}</Text>
+                </View>
+                <View style={styles.assignmentMemberCopy}>
+                  <Text style={styles.assignmentMemberName}>{getUserLabel(supervisorId)}</Text>
+                  <Text style={styles.assignmentMemberRole}>
+                    {supervisorOption ? getRoleLabel(supervisorOption.role) : 'Regional Operations Lead'}
+                  </Text>
+                </View>
+              </>
+            ) : (
+              <View style={styles.assignmentEmptyCopy}>
+                <Text style={styles.assignmentEmptyText}>Assign Farm Supervisor</Text>
+              </View>
+            )}
+            <Ionicons name="add" size={22} color={Colors.text} />
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.selectorRow} onPress={() => openAssignmentPicker('assignmentUserIds')}>
-            <View style={styles.selectorTextWrap}>
-              <Text style={styles.selectorLabel}>Assigned Staff</Text>
-              <Text
-                style={[
-                  styles.selectorValue,
-                  !assignmentUserIds.length && styles.selectorPlaceholder,
-                ]}
-              >
-                {assignmentUserIds.length
-                  ? `${assignmentUserIds.length} user(s) selected`
-                  : 'Search and select staff members'}
-              </Text>
-            </View>
-            <Ionicons name="people-outline" size={18} color={Colors.textSecondary} />
-          </TouchableOpacity>
+          <View style={styles.staffHeaderRow}>
+            <Text style={styles.assignmentFieldLabel}>Assigned Staff</Text>
+            <TouchableOpacity
+              style={styles.addMoreButton}
+              onPress={() => openAssignmentPicker('assignmentUserIds')}
+              activeOpacity={0.82}
+            >
+              <Ionicons name="add" size={13} color={Colors.text} />
+              <Text style={styles.addMoreText}>Add More</Text>
+            </TouchableOpacity>
+          </View>
 
-          {assignmentUserIds.length ? (
-            <View style={styles.chipWrap}>
-              {assignmentUserIds.map((userId) => {
-                const option = getUserOption(userId);
-                return (
-                  <View key={userId} style={styles.chip}>
-                    <View style={styles.avatarMini}>
-                      <Text style={styles.avatarMiniText}>{getUserInitials(getUserLabel(userId))}</Text>
-                    </View>
-                    <View style={styles.chipBody}>
-                      <Text style={styles.chipText}>{getUserLabel(userId)}</Text>
-                      {option ? (
-                        <View style={[styles.rolePill, { backgroundColor: `${getRoleAccent(option.role)}1A` }]}>
-                          <Text style={[styles.rolePillText, { color: getRoleAccent(option.role) }]}>
-                            {getRoleLabel(option.role)}
-                          </Text>
-                        </View>
-                      ) : null}
-                    </View>
-                    <TouchableOpacity
-                      style={styles.chipRemoveBtn}
-                      onPress={() => setValue('assignmentUserIds', assignmentUserIds.filter((id) => id !== userId))}
-                    >
-                      <Ionicons name="close" size={14} color={Colors.primary} />
-                    </TouchableOpacity>
-                  </View>
-                );
-              })}
-            </View>
-          ) : null}
+          <View style={styles.staffGrid}>
+            {assignmentUserIds.map((userId) => (
+              <View key={userId} style={styles.staffDarkPill}>
+                <View style={styles.staffDarkAvatar}>
+                  <Text style={styles.staffDarkAvatarText}>{getUserInitials(getUserLabel(userId))}</Text>
+                </View>
+                <TouchableOpacity
+                  style={styles.staffDarkRemove}
+                  onPress={() => setValue('assignmentUserIds', assignmentUserIds.filter((id) => id !== userId))}
+                >
+                  <Ionicons name="close" size={10} color="#FFFFFF" />
+                </TouchableOpacity>
+              </View>
+            ))}
+            <TouchableOpacity
+              style={styles.staffAddCircle}
+              onPress={() => openAssignmentPicker('assignmentUserIds')}
+              activeOpacity={0.82}
+            >
+              <Ionicons name="add" size={18} color={Colors.textSecondary} />
+            </TouchableOpacity>
+          </View>
         </View>
 
         <TouchableOpacity
@@ -740,6 +766,161 @@ const styles = StyleSheet.create({
     ...Layout.cardShadow,
   },
   sectionTitle: { fontSize: 16, fontWeight: 'bold', color: Colors.primary, marginBottom: 14 },
+  assignmentPanel: {
+    borderRadius: 18,
+    padding: 18,
+    backgroundColor: '#FFFFFF',
+    borderColor: '#EDF0EE',
+    shadowColor: '#0B2318',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.08,
+    shadowRadius: 18,
+    elevation: 5,
+  },
+  assignmentPanelTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 9,
+    marginBottom: 18,
+  },
+  assignmentAccent: {
+    width: 5,
+    height: 22,
+    borderRadius: 3,
+    backgroundColor: Colors.text,
+  },
+  assignmentPanelTitle: {
+    fontSize: 16,
+    fontWeight: '900',
+    color: Colors.text,
+  },
+  assignmentFieldLabel: {
+    marginTop: 12,
+    marginBottom: 8,
+    fontSize: 12,
+    fontWeight: '900',
+    color: Colors.text,
+  },
+  assignmentMemberCard: {
+    minHeight: 64,
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#DDE5E0',
+    borderRadius: 18,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    backgroundColor: '#FFFFFF',
+  },
+  assignmentAvatar: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 12,
+    backgroundColor: '#D8C8AE',
+    borderWidth: 2,
+    borderColor: '#F2EEE7',
+  },
+  assignmentAvatarText: {
+    fontSize: 11,
+    fontWeight: '900',
+    color: Colors.text,
+  },
+  assignmentMemberCopy: { flex: 1 },
+  assignmentMemberName: {
+    fontSize: 14,
+    fontWeight: '900',
+    color: Colors.text,
+  },
+  assignmentMemberRole: {
+    marginTop: 2,
+    fontSize: 11,
+    fontWeight: '700',
+    color: Colors.textSecondary,
+  },
+  assignmentEmptyCopy: { flex: 1, alignItems: 'center' },
+  assignmentEmptyText: {
+    fontSize: 13,
+    fontWeight: '800',
+    color: Colors.textSecondary,
+  },
+  staffHeaderRow: {
+    marginTop: 14,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  addMoreButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    paddingHorizontal: 4,
+    paddingVertical: 4,
+  },
+  addMoreText: {
+    fontSize: 11,
+    fontWeight: '900',
+    color: Colors.text,
+  },
+  staffGrid: {
+    minHeight: 88,
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    alignItems: 'flex-start',
+    gap: 9,
+    padding: 10,
+    borderWidth: 1,
+    borderStyle: 'dashed',
+    borderColor: '#DDE5E0',
+    borderRadius: 14,
+    backgroundColor: '#FCFDFD',
+  },
+  staffDarkPill: {
+    width: '43%',
+    minWidth: 92,
+    height: 34,
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderRadius: 18,
+    paddingHorizontal: 8,
+    backgroundColor: '#111113',
+  },
+  staffDarkAvatar: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#EFE7DD',
+    borderWidth: 2,
+    borderColor: '#252525',
+  },
+  staffDarkAvatarText: {
+    fontSize: 8,
+    fontWeight: '900',
+    color: Colors.text,
+  },
+  staffDarkRemove: {
+    marginLeft: 'auto',
+    width: 18,
+    height: 18,
+    borderRadius: 9,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  staffAddCircle: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderStyle: 'dashed',
+    borderColor: '#B9C4BE',
+    backgroundColor: '#FFFFFF',
+  },
   label: { fontSize: 13, fontWeight: '600', color: Colors.text, marginBottom: 6, marginTop: 12 },
   inputBox: {
     height: 46,
