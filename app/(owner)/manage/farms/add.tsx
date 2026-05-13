@@ -314,275 +314,287 @@ export default function AddFarmScreen() {
           </Animated.View>
         ) : null}
         {error ? <Text style={styles.errorText}>{error}</Text> : null}
-        <View style={styles.card}>
-          <Text style={styles.sectionTitle}>Farm Details</Text>
-
-          <Controller
-            control={control}
-            name="name"
-            render={({ field: { onChange, value } }) => (
-              <>
-                <Text style={styles.label}>Farm Name *</Text>
-                <View style={[styles.inputBox, formErrors.name && { borderColor: Colors.tertiary }]}>
-                  <TextInput
-                    style={styles.textInput}
-                    placeholder="Enter farm name"
-                    placeholderTextColor={Colors.textSecondary}
-                    value={value}
-                    onChangeText={onChange}
-                  />
-                </View>
-                {formErrors.name && <Text style={styles.fieldErrorText}>{formErrors.name.message}</Text>}
-              </>
-            )}
-          />
-
-          <Controller
-            control={control}
-            name="code"
-            render={({ field: { onChange, value } }) => (
-              <>
-                <Text style={styles.label}>Farm Code *</Text>
-                <View style={[styles.inputBox, formErrors.code && { borderColor: Colors.tertiary }]}>
-                  <TextInput
-                    style={styles.textInput}
-                    placeholder="Enter farm code"
-                    placeholderTextColor={Colors.textSecondary}
-                    value={value}
-                    onChangeText={onChange}
-                  />
-                </View>
-                {formErrors.code && <Text style={styles.fieldErrorText}>{formErrors.code.message}</Text>}
-              </>
-            )}
-          />
-          <Text style={styles.helperText}>Enter a unique identifier for this farm.</Text>
-
-          <View style={styles.formRow}>
-            <View style={styles.formHalf}>
-              <Controller
-                control={control}
-                name="capacity"
-                render={({ field: { onChange, value } }) => (
-                  <>
-                    <Text style={styles.label}>Capacity</Text>
-                    <View style={[styles.inputBox, formErrors.capacity && { borderColor: Colors.tertiary }]}>
-                      <TextInput
-                        style={styles.textInput}
-                        placeholder="Enter capacity"
-                        placeholderTextColor={Colors.textSecondary}
-                        value={value}
-                        onChangeText={onChange}
-                        keyboardType="numeric"
-                      />
-                    </View>
-                    {formErrors.capacity && <Text style={styles.fieldErrorText}>{formErrors.capacity.message}</Text>}
-                  </>
-                )}
-              />
+        <View style={[styles.card, styles.referenceCard]}>
+          <View style={styles.referenceHeader}>
+            <View style={styles.referenceIconBox}>
+              <Ionicons name="home-outline" size={18} color="#FFFFFF" />
             </View>
-            <View style={[styles.formHalf, !Layout.isSmallDevice && { marginLeft: 12 }]}>
-              <Controller
-                control={control}
-                name="state"
-                render={({ field: { onChange, value } }) => (
-                  <>
-                    <Text style={styles.label}>State</Text>
-                    <View style={[styles.inputBox, formErrors.state && { borderColor: Colors.tertiary }]}>
-                      <TextInput
-                        style={styles.textInput}
-                        placeholder="Enter state"
-                        placeholderTextColor={Colors.textSecondary}
-                        value={value}
-                        onChangeText={onChange}
-                      />
-                    </View>
-                    {formErrors.state && <Text style={styles.fieldErrorText}>{formErrors.state.message}</Text>}
-                  </>
-                )}
-              />
+            <View>
+              <Text style={styles.referenceTitle}>Farm Details</Text>
+              <Text style={styles.referenceSubtitle}>Basic information about your farm</Text>
             </View>
           </View>
 
           <Controller
             control={control}
-            name="location"
+            name="name"
             render={({ field: { onChange, value } }) => (
-              <>
-                <Text style={styles.label}>Location</Text>
-                <View style={[styles.inputBox, formErrors.location && { borderColor: Colors.tertiary }]}>
+              <View style={styles.referenceField}>
+                <Text style={styles.referenceLabel}>Farm Name *</Text>
+                <View style={[styles.referenceInput, formErrors.name && styles.referenceInputError]}>
+                  <Ionicons name="business-outline" size={16} color={Colors.primary} />
                   <TextInput
-                    style={styles.textInput}
-                    placeholder="Enter location"
-                    placeholderTextColor={Colors.textSecondary}
+                    style={styles.referenceTextInput}
+                    placeholder="Enter farm name"
+                    placeholderTextColor="#A3AAA6"
                     value={value}
                     onChangeText={onChange}
                   />
                 </View>
-                {formErrors.location && <Text style={styles.fieldErrorText}>{formErrors.location.message}</Text>}
-              </>
+                {formErrors.name && <Text style={styles.fieldErrorText}>{formErrors.name.message}</Text>}
+              </View>
             )}
           />
 
-          <View style={styles.formRow}>
-            <View style={styles.formHalf}>
-              <Controller
-                control={control}
-                name="village"
-                render={({ field: { onChange, value } }) => (
-                  <>
-                    <Text style={styles.label}>Village</Text>
-                    <View style={[styles.inputBox, formErrors.village && { borderColor: Colors.tertiary }]}>
-                      <TextInput
-                        style={styles.textInput}
-                        placeholder="Enter village"
-                        placeholderTextColor={Colors.textSecondary}
-                        value={value}
-                        onChangeText={onChange}
-                      />
-                    </View>
-                    {formErrors.village && <Text style={styles.fieldErrorText}>{formErrors.village.message}</Text>}
-                  </>
-                )}
-              />
-            </View>
-            <View style={[styles.formHalf, !Layout.isSmallDevice && { marginLeft: 12 }]}>
-              <Controller
-                control={control}
-                name="district"
-                render={({ field: { onChange, value } }) => (
-                  <>
-                    <Text style={styles.label}>District</Text>
-                    <View style={[styles.inputBox, formErrors.district && { borderColor: Colors.tertiary }]}>
-                      <TextInput
-                        style={styles.textInput}
-                        placeholder="Enter district"
-                        placeholderTextColor={Colors.textSecondary}
-                        value={value}
-                        onChangeText={onChange}
-                      />
-                    </View>
-                    {formErrors.district && <Text style={styles.fieldErrorText}>{formErrors.district.message}</Text>}
-                  </>
-                )}
-              />
-            </View>
+          <View style={styles.referenceRow}>
+            <Controller
+              control={control}
+              name="code"
+              render={({ field: { onChange, value } }) => (
+                <View style={styles.referenceHalf}>
+                  <Text style={styles.referenceLabel}>Farm Code *</Text>
+                  <View style={[styles.referenceInput, formErrors.code && styles.referenceInputError]}>
+                    <Ionicons name="barcode-outline" size={16} color={Colors.primary} />
+                    <TextInput
+                      style={styles.referenceTextInput}
+                      placeholder="Enter farm code"
+                      placeholderTextColor="#A3AAA6"
+                      value={value}
+                      onChangeText={onChange}
+                    />
+                  </View>
+                  {formErrors.code && <Text style={styles.fieldErrorText}>{formErrors.code.message}</Text>}
+                </View>
+              )}
+            />
+            <Controller
+              control={control}
+              name="capacity"
+              render={({ field: { onChange, value } }) => (
+                <View style={[styles.referenceHalf, !Layout.isSmallDevice && styles.referenceHalfRight]}>
+                  <Text style={styles.referenceLabel}>Total Birds Capacity *</Text>
+                  <View style={[styles.referenceInput, formErrors.capacity && styles.referenceInputError]}>
+                    <Ionicons name="speedometer-outline" size={16} color={Colors.primary} />
+                    <TextInput
+                      style={styles.referenceTextInput}
+                      placeholder="Enter capacity"
+                      placeholderTextColor="#A3AAA6"
+                      value={value}
+                      onChangeText={onChange}
+                      keyboardType="numeric"
+                    />
+                  </View>
+                  {formErrors.capacity && <Text style={styles.fieldErrorText}>{formErrors.capacity.message}</Text>}
+                </View>
+              )}
+            />
+          </View>
+
+          <View style={styles.referenceRow}>
+            <Controller
+              control={control}
+              name="location"
+              render={({ field: { onChange, value } }) => (
+                <View style={styles.referenceHalf}>
+                  <Text style={styles.referenceLabel}>Location *</Text>
+                  <View style={[styles.referenceInput, formErrors.location && styles.referenceInputError]}>
+                    <Ionicons name="location-outline" size={16} color={Colors.primary} />
+                    <TextInput
+                      style={styles.referenceTextInput}
+                      placeholder="Enter farm location"
+                      placeholderTextColor="#A3AAA6"
+                      value={value}
+                      onChangeText={onChange}
+                    />
+                  </View>
+                  {formErrors.location && <Text style={styles.fieldErrorText}>{formErrors.location.message}</Text>}
+                </View>
+              )}
+            />
+            <Controller
+              control={control}
+              name="state"
+              render={({ field: { onChange, value } }) => (
+                <View style={[styles.referenceHalf, !Layout.isSmallDevice && styles.referenceHalfRight]}>
+                  <Text style={styles.referenceLabel}>State</Text>
+                  <View style={[styles.referenceInput, formErrors.state && styles.referenceInputError]}>
+                    <Ionicons name="map-outline" size={16} color={Colors.primary} />
+                    <TextInput
+                      style={styles.referenceTextInput}
+                      placeholder="Enter state"
+                      placeholderTextColor="#A3AAA6"
+                      value={value}
+                      onChangeText={onChange}
+                    />
+                  </View>
+                  {formErrors.state && <Text style={styles.fieldErrorText}>{formErrors.state.message}</Text>}
+                </View>
+              )}
+            />
+          </View>
+
+          <View style={styles.referenceRow}>
+            <Controller
+              control={control}
+              name="village"
+              render={({ field: { onChange, value } }) => (
+                <View style={styles.referenceHalf}>
+                  <Text style={styles.referenceLabel}>Village</Text>
+                  <View style={[styles.referenceInput, formErrors.village && styles.referenceInputError]}>
+                    <Ionicons name="leaf-outline" size={16} color={Colors.primary} />
+                    <TextInput
+                      style={styles.referenceTextInput}
+                      placeholder="Enter village"
+                      placeholderTextColor="#A3AAA6"
+                      value={value}
+                      onChangeText={onChange}
+                    />
+                  </View>
+                  {formErrors.village && <Text style={styles.fieldErrorText}>{formErrors.village.message}</Text>}
+                </View>
+              )}
+            />
+            <Controller
+              control={control}
+              name="district"
+              render={({ field: { onChange, value } }) => (
+                <View style={[styles.referenceHalf, !Layout.isSmallDevice && styles.referenceHalfRight]}>
+                  <Text style={styles.referenceLabel}>District</Text>
+                  <View style={[styles.referenceInput, formErrors.district && styles.referenceInputError]}>
+                    <Ionicons name="navigate-outline" size={16} color={Colors.primary} />
+                    <TextInput
+                      style={styles.referenceTextInput}
+                      placeholder="Enter district"
+                      placeholderTextColor="#A3AAA6"
+                      value={value}
+                      onChangeText={onChange}
+                    />
+                  </View>
+                  {formErrors.district && <Text style={styles.fieldErrorText}>{formErrors.district.message}</Text>}
+                </View>
+              )}
+            />
           </View>
 
           <Controller
             control={control}
             name="notes"
             render={({ field: { onChange, value } }) => (
-              <>
-                <Text style={styles.label}>Notes</Text>
-                <View style={[styles.inputBox, styles.textAreaBox, formErrors.notes && { borderColor: Colors.tertiary }]}>
+              <View style={styles.referenceField}>
+                <Text style={styles.referenceLabel}>Notes (Optional)</Text>
+                <View style={[styles.referenceInput, styles.referenceTextAreaBox, formErrors.notes && styles.referenceInputError]}>
+                  <Ionicons name="document-text-outline" size={16} color={Colors.primary} />
                   <TextInput
-                    style={[styles.textInput, styles.textArea]}
-                    placeholder="Add farm notes"
-                    placeholderTextColor={Colors.textSecondary}
+                    style={[styles.referenceTextInput, styles.referenceTextArea]}
+                    placeholder="Add any additional notes about your farm..."
+                    placeholderTextColor="#A3AAA6"
                     value={value}
                     onChangeText={onChange}
                     multiline
                   />
                 </View>
+                <Text style={styles.referenceCounter}>{value?.length ?? 0}/500</Text>
                 {formErrors.notes && <Text style={styles.fieldErrorText}>{formErrors.notes.message}</Text>}
-              </>
+              </View>
             )}
           />
         </View>
 
-        <View style={[styles.card, styles.assignmentPanel]}>
-          <View style={styles.assignmentPanelTitleRow}>
-            <View style={styles.assignmentAccent} />
-            <Text style={styles.assignmentPanelTitle}>Assignment & Staffing</Text>
+        <View style={[styles.card, styles.referenceCard]}>
+          <View style={styles.referenceHeader}>
+            <View style={styles.referenceIconBox}>
+              <Ionicons name="people-outline" size={18} color="#FFFFFF" />
+            </View>
+            <View>
+              <Text style={styles.referenceTitle}>Assignments</Text>
+              <Text style={styles.referenceSubtitle}>Assign staff and managers to this farm</Text>
+            </View>
           </View>
 
-          <Text style={styles.assignmentFieldLabel}>Primary Farmer</Text>
-          <TouchableOpacity
-            style={styles.assignmentMemberCard}
-            onPress={() => openAssignmentPicker('primaryFarmerId')}
-            activeOpacity={0.84}
-          >
-            {primaryFarmerId ? (
-              <>
-                <View style={styles.assignmentAvatar}>
-                  <Text style={styles.assignmentAvatarText}>{getUserInitials(getUserLabel(primaryFarmerId))}</Text>
+          <View style={styles.assignmentTwoCol}>
+            <View style={styles.assignmentPickerBlock}>
+              <Text style={styles.referenceLabel}>Farm Manager *</Text>
+              <TouchableOpacity
+                style={styles.referenceSelectCard}
+                onPress={() => openAssignmentPicker('primaryFarmerId')}
+                activeOpacity={0.84}
+              >
+                <View style={styles.referenceSelectIcon}>
+                  <Ionicons name="person-outline" size={17} color={Colors.primary} />
                 </View>
-                <View style={styles.assignmentMemberCopy}>
-                  <Text style={styles.assignmentMemberName}>{getUserLabel(primaryFarmerId)}</Text>
-                  <Text style={styles.assignmentMemberRole}>
-                    {primaryFarmerOption ? getRoleLabel(primaryFarmerOption.role) : 'Senior Poultry Farmer'}
+                <View style={styles.referenceSelectCopy}>
+                  <Text style={styles.referenceSelectTitle}>
+                    {primaryFarmerId ? getUserLabel(primaryFarmerId) : 'Select Manager'}
+                  </Text>
+                  <Text style={styles.referenceSelectSubtitle}>
+                    {primaryFarmerOption ? getRoleLabel(primaryFarmerOption.role) : 'Choose farm manager'}
                   </Text>
                 </View>
-              </>
-            ) : (
-              <View style={styles.assignmentEmptyCopy}>
-                <Text style={styles.assignmentEmptyText}>Assign Primary Farmer</Text>
-              </View>
-            )}
-            <Ionicons name="add" size={22} color={Colors.text} />
-          </TouchableOpacity>
+                <Ionicons name="chevron-forward" size={16} color={Colors.textSecondary} />
+              </TouchableOpacity>
+            </View>
 
-          <Text style={styles.assignmentFieldLabel}>Farm Supervisor</Text>
-          <TouchableOpacity
-            style={styles.assignmentMemberCard}
-            onPress={() => openAssignmentPicker('supervisorId')}
-            activeOpacity={0.84}
-          >
-            {supervisorId ? (
-              <>
-                <View style={styles.assignmentAvatar}>
-                  <Text style={styles.assignmentAvatarText}>{getUserInitials(getUserLabel(supervisorId))}</Text>
+            <View style={[styles.assignmentPickerBlock, !Layout.isSmallDevice && styles.referenceHalfRight]}>
+              <Text style={styles.referenceLabel}>Supervisor *</Text>
+              <TouchableOpacity
+                style={styles.referenceSelectCard}
+                onPress={() => openAssignmentPicker('supervisorId')}
+                activeOpacity={0.84}
+              >
+                <View style={styles.referenceSelectIcon}>
+                  <Ionicons name="person-outline" size={17} color={Colors.primary} />
                 </View>
-                <View style={styles.assignmentMemberCopy}>
-                  <Text style={styles.assignmentMemberName}>{getUserLabel(supervisorId)}</Text>
-                  <Text style={styles.assignmentMemberRole}>
-                    {supervisorOption ? getRoleLabel(supervisorOption.role) : 'Regional Operations Lead'}
+                <View style={styles.referenceSelectCopy}>
+                  <Text style={styles.referenceSelectTitle}>
+                    {supervisorId ? getUserLabel(supervisorId) : 'Select Supervisor'}
+                  </Text>
+                  <Text style={styles.referenceSelectSubtitle}>
+                    {supervisorOption ? getRoleLabel(supervisorOption.role) : 'Choose supervisor'}
                   </Text>
                 </View>
-              </>
-            ) : (
-              <View style={styles.assignmentEmptyCopy}>
-                <Text style={styles.assignmentEmptyText}>Assign Farm Supervisor</Text>
-              </View>
-            )}
-            <Ionicons name="add" size={22} color={Colors.text} />
+                <Ionicons name="chevron-forward" size={16} color={Colors.textSecondary} />
+              </TouchableOpacity>
+            </View>
+          </View>
+
+          <Text style={styles.referenceLabel}>Assigned Staff</Text>
+          <TouchableOpacity
+            style={styles.staffSelectSummary}
+            onPress={() => openAssignmentPicker('assignmentUserIds')}
+            activeOpacity={0.84}
+          >
+            <View style={styles.referenceSelectIcon}>
+              <Ionicons name="people-outline" size={17} color={Colors.primary} />
+            </View>
+            <View style={styles.referenceSelectCopy}>
+              <Text style={styles.referenceSelectTitle}>Select Staff Members</Text>
+              <Text style={styles.referenceSelectSubtitle}>
+                {assignmentUserIds.length ? `${assignmentUserIds.length} staff selected` : 'Choose one or more staff'}
+              </Text>
+            </View>
+            <Ionicons name="chevron-forward" size={16} color={Colors.textSecondary} />
           </TouchableOpacity>
 
-          <View style={styles.staffHeaderRow}>
-            <Text style={styles.assignmentFieldLabel}>Assigned Staff</Text>
-            <TouchableOpacity
-              style={styles.addMoreButton}
-              onPress={() => openAssignmentPicker('assignmentUserIds')}
-              activeOpacity={0.82}
-            >
-              <Ionicons name="add" size={13} color={Colors.text} />
-              <Text style={styles.addMoreText}>Add More</Text>
-            </TouchableOpacity>
-          </View>
-
-          <View style={styles.staffGrid}>
-            {assignmentUserIds.map((userId) => (
-              <View key={userId} style={styles.staffDarkPill}>
-                <View style={styles.staffDarkAvatar}>
-                  <Text style={styles.staffDarkAvatarText}>{getUserInitials(getUserLabel(userId))}</Text>
+          {assignmentUserIds.length ? (
+            <View style={styles.referenceStaffChips}>
+              {assignmentUserIds.map((userId) => (
+                <View key={userId} style={styles.referenceStaffChip}>
+                  <View style={styles.referenceStaffDot}>
+                    <Text style={styles.referenceStaffInitial}>{getUserInitials(getUserLabel(userId)).slice(0, 1)}</Text>
+                  </View>
+                  <Text style={styles.referenceStaffName} numberOfLines={1}>
+                    {getUserLabel(userId)}
+                  </Text>
+                  <TouchableOpacity
+                    style={styles.referenceStaffRemove}
+                    onPress={() => setValue('assignmentUserIds', assignmentUserIds.filter((id) => id !== userId))}
+                  >
+                    <Ionicons name="close" size={11} color={Colors.primary} />
+                  </TouchableOpacity>
                 </View>
-                <TouchableOpacity
-                  style={styles.staffDarkRemove}
-                  onPress={() => setValue('assignmentUserIds', assignmentUserIds.filter((id) => id !== userId))}
-                >
-                  <Ionicons name="close" size={10} color="#FFFFFF" />
-                </TouchableOpacity>
-              </View>
-            ))}
-            <TouchableOpacity
-              style={styles.staffAddCircle}
-              onPress={() => openAssignmentPicker('assignmentUserIds')}
-              activeOpacity={0.82}
-            >
-              <Ionicons name="add" size={18} color={Colors.textSecondary} />
-            </TouchableOpacity>
-          </View>
+              ))}
+            </View>
+          ) : null}
         </View>
 
         <TouchableOpacity
@@ -766,6 +778,190 @@ const styles = StyleSheet.create({
     ...Layout.cardShadow,
   },
   sectionTitle: { fontSize: 16, fontWeight: 'bold', color: Colors.primary, marginBottom: 14 },
+  referenceCard: {
+    borderRadius: 14,
+    padding: 16,
+    backgroundColor: '#FFFFFF',
+    borderColor: '#E7ECE8',
+    shadowColor: '#102418',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.06,
+    shadowRadius: 18,
+    elevation: 4,
+  },
+  referenceHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    marginBottom: 16,
+  },
+  referenceIconBox: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: Colors.primary,
+  },
+  referenceTitle: {
+    fontSize: 15,
+    fontWeight: '900',
+    color: Colors.text,
+  },
+  referenceSubtitle: {
+    marginTop: 2,
+    fontSize: 10,
+    fontWeight: '600',
+    color: Colors.textSecondary,
+  },
+  referenceField: { marginTop: 10 },
+  referenceRow: {
+    flexDirection: Layout.isSmallDevice ? 'column' : 'row',
+    marginTop: 10,
+  },
+  referenceHalf: { flex: 1 },
+  referenceHalfRight: { marginLeft: 12 },
+  referenceLabel: {
+    marginBottom: 6,
+    fontSize: 11,
+    fontWeight: '900',
+    color: Colors.text,
+  },
+  referenceInput: {
+    minHeight: 44,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    borderWidth: 1,
+    borderColor: '#DDE6E0',
+    borderRadius: 8,
+    paddingHorizontal: 11,
+    backgroundColor: '#FFFFFF',
+  },
+  referenceInputError: {
+    borderColor: Colors.tertiary,
+    backgroundColor: '#FFF9F9',
+  },
+  referenceTextInput: {
+    flex: 1,
+    color: Colors.text,
+    fontSize: 12,
+    fontWeight: '700',
+    paddingVertical: 0,
+  },
+  referenceTextAreaBox: {
+    minHeight: 78,
+    alignItems: 'flex-start',
+    paddingVertical: 10,
+  },
+  referenceTextArea: {
+    minHeight: 58,
+    lineHeight: 17,
+    textAlignVertical: 'top',
+  },
+  referenceCounter: {
+    alignSelf: 'flex-end',
+    marginTop: 4,
+    fontSize: 9,
+    fontWeight: '700',
+    color: Colors.textSecondary,
+  },
+  assignmentTwoCol: {
+    flexDirection: Layout.isSmallDevice ? 'column' : 'row',
+    marginTop: 6,
+  },
+  assignmentPickerBlock: {
+    flex: 1,
+    marginTop: 8,
+  },
+  referenceSelectCard: {
+    minHeight: 58,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 9,
+    borderWidth: 1,
+    borderColor: '#DDE6E0',
+    borderRadius: 12,
+    paddingHorizontal: 11,
+    paddingVertical: 10,
+    backgroundColor: '#FFFFFF',
+  },
+  staffSelectSummary: {
+    minHeight: 58,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 9,
+    borderWidth: 1,
+    borderColor: '#DDE6E0',
+    borderRadius: 12,
+    paddingHorizontal: 11,
+    paddingVertical: 10,
+    backgroundColor: '#FFFFFF',
+  },
+  referenceSelectIcon: {
+    width: 32,
+    height: 32,
+    borderRadius: 9,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#E8F5E9',
+  },
+  referenceSelectCopy: { flex: 1 },
+  referenceSelectTitle: {
+    fontSize: 12,
+    fontWeight: '900',
+    color: Colors.text,
+  },
+  referenceSelectSubtitle: {
+    marginTop: 2,
+    fontSize: 10,
+    fontWeight: '600',
+    color: Colors.textSecondary,
+  },
+  referenceStaffChips: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginTop: 10,
+  },
+  referenceStaffChip: {
+    maxWidth: '48%',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 8,
+    paddingVertical: 6,
+    borderRadius: 999,
+    backgroundColor: '#EAF6EC',
+    borderWidth: 1,
+    borderColor: '#CFE8D3',
+  },
+  referenceStaffDot: {
+    width: 18,
+    height: 18,
+    borderRadius: 9,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#D5E8D6',
+  },
+  referenceStaffInitial: {
+    fontSize: 8,
+    fontWeight: '900',
+    color: Colors.text,
+  },
+  referenceStaffName: {
+    flexShrink: 1,
+    fontSize: 10,
+    fontWeight: '800',
+    color: Colors.primary,
+  },
+  referenceStaffRemove: {
+    width: 16,
+    height: 16,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   assignmentPanel: {
     borderRadius: 18,
     padding: 18,
