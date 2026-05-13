@@ -1,4 +1,6 @@
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
+import * as FileSystem from "expo-file-system/legacy";
+import * as Sharing from "expo-sharing";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
@@ -118,6 +120,10 @@ function safeFileName(value: string) {
   return value.replace(/[^a-z0-9_-]+/gi, "-").replace(/^-+|-+$/g, "").toLowerCase();
 }
 
+function sanitizeDownloadFileName(value: string) {
+  return value.replace(/[\\/:*?"<>|]+/g, "-").replace(/\s+/g, " ").trim();
+}
+
 function getExportFilename(headerValue: string | null, fallbackFileName: string) {
   if (!headerValue) {
     return fallbackFileName;
@@ -139,6 +145,37 @@ function getExportFilename(headerValue: string | null, fallbackFileName: string)
   }
 
   return fallbackFileName;
+}
+
+const base64Alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+
+function arrayBufferToBase64(buffer: ArrayBuffer) {
+  const bytes = new Uint8Array(buffer);
+  let output = "";
+  let index = 0;
+
+  for (; index + 2 < bytes.length; index += 3) {
+    const block = (bytes[index] << 16) | (bytes[index + 1] << 8) | bytes[index + 2];
+    output +=
+      base64Alphabet[(block >> 18) & 63] +
+      base64Alphabet[(block >> 12) & 63] +
+      base64Alphabet[(block >> 6) & 63] +
+      base64Alphabet[block & 63];
+  }
+
+  if (index < bytes.length) {
+    const byte1 = bytes[index];
+    const byte2 = index + 1 < bytes.length ? bytes[index + 1] : 0;
+    const block = (byte1 << 16) | (byte2 << 8);
+
+    output +=
+      base64Alphabet[(block >> 18) & 63] +
+      base64Alphabet[(block >> 12) & 63] +
+      (index + 1 < bytes.length ? base64Alphabet[(block >> 6) & 63] : "=") +
+      "=";
+  }
+
+  return output;
 }
 
 async function triggerWebDownload(response: Response, fallbackFileName: string) {
@@ -163,6 +200,44 @@ async function triggerWebDownload(response: Response, fallbackFileName: string) 
   setTimeout(() => {
     globalThis.URL.revokeObjectURL(objectUrl);
   }, 0);
+
+  return true;
+}
+
+async function triggerNativeShare(
+  response: Response,
+  fallbackFileName: string,
+  mimeType: string,
+  uti: string,
+) {
+  if (Platform.OS === "web") {
+    return false;
+  }
+
+  if (!FileSystem.cacheDirectory) {
+    throw new Error("File cache is not available on this device.");
+  }
+
+  const canShare = await Sharing.isAvailableAsync();
+  if (!canShare) {
+    throw new Error("File sharing is not available on this device.");
+  }
+
+  const fileName =
+    sanitizeDownloadFileName(
+      getExportFilename(response.headers.get("content-disposition"), fallbackFileName),
+    ) || fallbackFileName;
+  const fileUri = `${FileSystem.cacheDirectory}${fileName}`;
+  const base64 = arrayBufferToBase64(await response.arrayBuffer());
+
+  await FileSystem.writeAsStringAsync(fileUri, base64, {
+    encoding: FileSystem.EncodingType.Base64,
+  });
+  await Sharing.shareAsync(fileUri, {
+    dialogTitle: fileName,
+    mimeType,
+    UTI: uti,
+  });
 
   return true;
 }
@@ -441,16 +516,25 @@ export default function ReportsScreen() {
           ? await downloadBatchExcelReport(accessToken, batchId)
           : await downloadBatchPdfReport(accessToken, batchId);
       const selectedName = selectedBatch ? safeFileName(selectedBatch.code) : "batch";
-      const downloaded = await triggerWebDownload(
-        response,
-        `${selectedName}-report.${format === "excel" ? "xlsx" : "pdf"}`,
-      );
+      const extension = format === "excel" ? "xlsx" : "pdf";
+      const fallbackFileName = `${selectedName}-report.${extension}`;
+      const downloaded =
+        Platform.OS === "web"
+          ? await triggerWebDownload(response, fallbackFileName)
+          : await triggerNativeShare(
+              response,
+              fallbackFileName,
+              format === "excel"
+                ? "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                : "application/pdf",
+              format === "excel"
+                ? "org.openxmlformats.spreadsheetml.sheet"
+                : "com.adobe.pdf",
+            );
 
       if (downloaded) {
-        showSuccessToast("Report download started.", "Export ready");
-      } else {
         showSuccessToast(
-          "Backend export is working, but native file save/share is not wired on this client yet.",
+          Platform.OS === "web" ? "Report download started." : "Report is ready to share or save.",
           "Export ready",
         );
       }
