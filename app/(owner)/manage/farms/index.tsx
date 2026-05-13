@@ -17,7 +17,6 @@ import { Layout } from '@/constants/Layout';
 import { useAuth } from '@/context/AuthContext';
 import Toast from 'react-native-toast-message';
 import {
-  createFarm,
   fetchFarm,
   listAllFarms,
   listAllUsers,
@@ -43,19 +42,6 @@ type FarmCard = {
   needsSupervisor?: boolean;
 };
 
-const FARM_TYPES = ['Broiler', 'Layer', 'Breeder', 'Mixed'];
-
-const quickFarmSchema = z.object({
-  name: z.string().min(1, 'Farm name is required'),
-  capacity: z.string().optional().refine((val) => !val || !isNaN(Number(val)), {
-    message: 'Must be a number',
-  }),
-  farmType: z.string(),
-  primaryFarmerId: z.string().optional(),
-  supervisorId: z.string().optional(),
-  assignmentUserIds: z.array(z.string()).optional(),
-});
-
 const editFarmSchema = z.object({
   name: z.string().min(1, 'Farm name is required'),
   code: z.string().min(1, 'Farm code is required'),
@@ -73,11 +59,10 @@ const editFarmSchema = z.object({
   assignmentUserIds: z.array(z.string()).optional(),
 });
 
-type QuickFarmFormData = z.infer<typeof quickFarmSchema>;
 type EditFarmFormData = z.infer<typeof editFarmSchema>;
 
 type AssignmentField = 'primaryFarmerId' | 'supervisorId' | 'assignmentUserIds';
-type AssignmentTarget = 'create' | 'edit' | 'quick';
+type AssignmentTarget = 'edit' | 'quick';
 type PickerRoleFilter = 'all' | 'farmers' | 'supervisors' | 'staff';
 
 type FarmUserOption = {
@@ -149,26 +134,12 @@ function toFarmCard(farm: ApiFarm): FarmCard {
   };
 }
 
-function generateFarmCode(name: string, farmType: string) {
-  const prefix = farmType.slice(0, 3).toUpperCase();
-  const slug = name
-    .trim()
-    .toUpperCase()
-    .replace(/[^A-Z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '')
-    .slice(0, 10);
-
-  return `${prefix}-${slug || 'FARM'}-${Date.now().toString().slice(-4)}`;
-}
-
 export default function FarmListScreen() {
   const router = useRouter();
   const { accessToken } = useAuth();
 
   const [farms, setFarms] = useState<FarmCard[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
-  const [showQuickAdd, setShowQuickAdd] = useState(false);
-  const [showTypePicker, setShowTypePicker] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [showAssignmentPicker, setShowAssignmentPicker] = useState(false);
   
@@ -179,22 +150,9 @@ export default function FarmListScreen() {
   const [assignmentSearch, setAssignmentSearch] = useState('');
   const [assignmentRoleFilter, setAssignmentRoleFilter] = useState<PickerRoleFilter>('all');
   const [isLoading, setIsLoading] = useState(true);
-  const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSavingEdit, setIsSavingEdit] = useState(false);
   const [isSavingAssignment, setIsSavingAssignment] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
-  const { control: quickControl, handleSubmit: handleQuickSubmit, setValue: setQuickValue, watch: watchQuick, reset: resetQuick, formState: { errors: quickErrors } } = useForm<QuickFarmFormData>({
-    resolver: zodResolver(quickFarmSchema),
-    defaultValues: {
-      name: '',
-      capacity: '',
-      farmType: 'Broiler',
-      primaryFarmerId: '',
-      supervisorId: '',
-      assignmentUserIds: [],
-    },
-  });
 
   const { control: editControl, handleSubmit: handleEditSubmit, setValue: setEditValue, watch: watchEdit, reset: resetEdit, formState: { errors: editErrors } } = useForm<EditFarmFormData>({
     resolver: zodResolver(editFarmSchema),
@@ -213,11 +171,6 @@ export default function FarmListScreen() {
       assignmentUserIds: [],
     },
   });
-
-  const quickPrimaryFarmerId = watchQuick('primaryFarmerId');
-  const quickSupervisorId = watchQuick('supervisorId');
-  const quickAssignmentUserIds = watchQuick('assignmentUserIds') || [];
-  const quickFarmType = watchQuick('farmType');
 
   const editPrimaryFarmerId = watchEdit('primaryFarmerId');
   const editSupervisorId = watchEdit('supervisorId');
@@ -400,8 +353,7 @@ export default function FarmListScreen() {
     setAssignmentRoleFilter('all');
   };
 
-  const selectedUserIds =
-    assignmentTarget === 'create' ? quickAssignmentUserIds : editAssignmentUserIds;
+  const selectedUserIds = editAssignmentUserIds;
 
   const filteredUsers = users.filter((user) => {
     const query = assignmentSearch.trim().toLowerCase();
@@ -437,31 +389,19 @@ export default function FarmListScreen() {
   const getUserOption = (userId: string) => users.find((user) => user.id === userId) ?? null;
 
   const currentSelectedId =
-    assignmentTarget === 'create'
-      ? assignmentField === 'primaryFarmerId'
-        ? quickPrimaryFarmerId
-        : assignmentField === 'supervisorId'
-          ? quickSupervisorId
-          : null
-      : assignmentField === 'primaryFarmerId'
-        ? editPrimaryFarmerId
-        : assignmentField === 'supervisorId'
-          ? editSupervisorId
-          : null;
+    assignmentField === 'primaryFarmerId'
+      ? editPrimaryFarmerId
+      : assignmentField === 'supervisorId'
+        ? editSupervisorId
+        : null;
 
   const handlePickUser = (userId: string) => {
     if (!assignmentField) return;
 
     if (assignmentField === 'assignmentUserIds') {
-      if (assignmentTarget === 'create') {
-        const current = quickAssignmentUserIds;
-        const next = current.includes(userId) ? current.filter((id) => id !== userId) : [...current, userId];
-        setQuickValue('assignmentUserIds', next);
-      } else {
-        const current = editAssignmentUserIds;
-        const next = current.includes(userId) ? current.filter((id) => id !== userId) : [...current, userId];
-        setEditValue('assignmentUserIds', next);
-      }
+      const current = editAssignmentUserIds;
+      const next = current.includes(userId) ? current.filter((id) => id !== userId) : [...current, userId];
+      setEditValue('assignmentUserIds', next);
       return;
     }
 
@@ -470,18 +410,10 @@ export default function FarmListScreen() {
       return;
     }
 
-    if (assignmentTarget === 'create') {
-      if (assignmentField === 'primaryFarmerId') {
-        setQuickValue('primaryFarmerId', userId);
-      } else if (assignmentField === 'supervisorId') {
-        setQuickValue('supervisorId', userId);
-      }
-    } else {
-      if (assignmentField === 'primaryFarmerId') {
-        setEditValue('primaryFarmerId', userId);
-      } else if (assignmentField === 'supervisorId') {
-        setEditValue('supervisorId', userId);
-      }
+    if (assignmentField === 'primaryFarmerId') {
+      setEditValue('primaryFarmerId', userId);
+    } else if (assignmentField === 'supervisorId') {
+      setEditValue('supervisorId', userId);
     }
     closeAssignmentPicker();
   };
@@ -501,38 +433,6 @@ export default function FarmListScreen() {
         return { bg: '#E8F5E9', text: Colors.primary };
       case 'Inactive':
         return { bg: '#FFEBEE', text: Colors.tertiary };
-    }
-  };
-
-  const handleCreateFarm = async (data: QuickFarmFormData) => {
-    if (!accessToken) {
-      return;
-    }
-
-    setIsSubmitting(true);
-    setError(null);
-
-    try {
-      const created = await createFarm(accessToken, {
-        name: data.name.trim(),
-        code: generateFarmCode(data.name, data.farmType),
-        capacity: Number(data.capacity) || undefined,
-        primaryFarmerId: data.primaryFarmerId || undefined,
-        supervisorId: data.supervisorId || undefined,
-        assignmentUserIds: data.assignmentUserIds?.length ? data.assignmentUserIds : undefined,
-      });
-      setFarms((prev) => [toFarmCard(created), ...prev]);
-      resetQuick();
-      setShowQuickAdd(false);
-      Toast.show({type: 'success', text1: 'Success', text2: 'Farm created successfully.',
-  position: 'bottom'});
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : 'Failed to create farm.';
-      setError(msg);
-      Toast.show({type: 'error', text1: 'Error', text2: msg,
-  position: 'bottom'});
-    } finally {
-      setIsSubmitting(false);
     }
   };
 
@@ -726,225 +626,12 @@ export default function FarmListScreen() {
           </View>
         ) : null}
 
-        <View style={styles.quickAddCard}>
-          <TouchableOpacity
-            style={styles.quickAddHeader}
-            onPress={() => setShowQuickAdd((value) => !value)}
-            activeOpacity={0.8}
-          >
-            <Text style={styles.quickAddTitle}>Quick Add Farm</Text>
-            <Ionicons
-              name={showQuickAdd ? 'chevron-up' : 'chevron-down'}
-              size={20}
-              color={Colors.textSecondary}
-            />
-          </TouchableOpacity>
-
-          {showQuickAdd ? (
-            <>
-              <Controller
-                control={quickControl}
-                name="name"
-                render={({ field: { onChange, value } }) => (
-                  <>
-                    <Text style={styles.formLabel}>Farm Name</Text>
-                    <View style={[styles.inputBox, quickErrors.name && { borderColor: Colors.tertiary }]}>
-                      <TextInput
-                        style={styles.textInput}
-                        placeholder="e.g. Hilltop Farm"
-                        placeholderTextColor={Colors.textSecondary}
-                        value={value}
-                        onChangeText={onChange}
-                      />
-                    </View>
-                    {quickErrors.name && <Text style={styles.fieldErrorText}>{quickErrors.name.message}</Text>}
-                  </>
-                )}
-              />
-
-              <View style={styles.formRow}>
-                <View style={styles.formHalf}>
-                  <Controller
-                    control={quickControl}
-                    name="capacity"
-                    render={({ field: { onChange, value } }) => (
-                      <>
-                        <Text style={styles.formLabel}>Capacity</Text>
-                        <View style={[styles.inputBox, quickErrors.capacity && { borderColor: Colors.tertiary }]}>
-                          <TextInput
-                            style={styles.textInput}
-                            placeholder="Enter capacity"
-                            placeholderTextColor={Colors.textSecondary}
-                            value={value}
-                            onChangeText={onChange}
-                            keyboardType="numeric"
-                          />
-                        </View>
-                        {quickErrors.capacity && <Text style={styles.fieldErrorText}>{quickErrors.capacity.message}</Text>}
-                      </>
-                    )}
-                  />
-                </View>
-                <View style={[styles.formHalf, !Layout.isSmallDevice && { marginLeft: 12 }]}>
-                  <Controller
-                    control={quickControl}
-                    name="farmType"
-                    render={({ field: { value } }) => (
-                      <>
-                        <Text style={styles.formLabel}>Type</Text>
-                        <TouchableOpacity
-                          style={[styles.inputBox, styles.dropdownRow, quickErrors.farmType && { borderColor: Colors.tertiary }]}
-                          onPress={() => setShowTypePicker(true)}
-                        >
-                          <Text style={styles.textInput}>{value}</Text>
-                          <Ionicons name="chevron-down" size={16} color={Colors.textSecondary} />
-                        </TouchableOpacity>
-                        {quickErrors.farmType && <Text style={styles.fieldErrorText}>{quickErrors.farmType.message}</Text>}
-                      </>
-                    )}
-                  />
-                </View>
-              </View>
-
-            <Text style={styles.formLabel}>Primary Farmer</Text>
-            <TouchableOpacity
-              style={styles.selectorBox}
-              onPress={() => openAssignmentPicker('primaryFarmerId', 'create')}
-            >
-              <Text
-                style={[
-                  styles.selectorText,
-                  !quickPrimaryFarmerId && styles.selectorPlaceholder,
-                ]}
-              >
-                {quickPrimaryFarmerId
-                  ? getUserLabel(quickPrimaryFarmerId)
-                  : 'Search and select a primary farmer'}
-              </Text>
-              <Ionicons name="search-outline" size={18} color={Colors.textSecondary} />
-            </TouchableOpacity>
-
-            <Text style={styles.formLabel}>Supervisor</Text>
-            <TouchableOpacity
-              style={styles.selectorBox}
-              onPress={() => openAssignmentPicker('supervisorId', 'create')}
-            >
-              <Text
-                style={[styles.selectorText, !quickSupervisorId && styles.selectorPlaceholder]}
-              >
-                {quickSupervisorId
-                  ? getUserLabel(quickSupervisorId)
-                  : 'Search and select a supervisor'}
-              </Text>
-              <Ionicons name="search-outline" size={18} color={Colors.textSecondary} />
-            </TouchableOpacity>
-
-            <Text style={styles.formLabel}>Assigned Staff</Text>
-            <TouchableOpacity
-              style={styles.selectorBox}
-              onPress={() => openAssignmentPicker('assignmentUserIds', 'create')}
-            >
-              <Text
-                style={[
-                  styles.selectorText,
-                  !quickAssignmentUserIds.length && styles.selectorPlaceholder,
-                ]}
-              >
-                {quickAssignmentUserIds.length
-                  ? `${quickAssignmentUserIds.length} user(s) selected`
-                  : 'Search and select staff members'}
-              </Text>
-              <Ionicons name="people-outline" size={18} color={Colors.textSecondary} />
-            </TouchableOpacity>
-
-            {quickAssignmentUserIds.length ? (
-              <View style={styles.chipWrap}>
-                {quickAssignmentUserIds.map((userId) => (
-                  <View key={userId} style={styles.chip}>
-                    <View style={styles.avatarMini}>
-                      <Text style={styles.avatarMiniText}>{getUserInitials(getUserLabel(userId))}</Text>
-                    </View>
-                    <View style={styles.chipBody}>
-                      <Text style={styles.chipText}>{getUserLabel(userId)}</Text>
-                      {getUserOption(userId) ? (
-                        <View style={[styles.rolePill, { backgroundColor: `${getRoleAccent(getUserOption(userId)!.role)}1A` }]}>
-                          <Text style={[styles.rolePillText, { color: getRoleAccent(getUserOption(userId)!.role) }]}>
-                            {getRoleLabel(getUserOption(userId)!.role)}
-                          </Text>
-                        </View>
-                      ) : null}
-                    </View>
-                    <TouchableOpacity
-                      style={styles.chipRemoveBtn}
-                      onPress={() =>
-                        setQuickValue('assignmentUserIds', quickAssignmentUserIds.filter((id) => id !== userId))
-                      }
-                    >
-                      <Ionicons name="close" size={14} color={Colors.primary} />
-                    </TouchableOpacity>
-                  </View>
-                ))}
-              </View>
-            ) : null}
-
-              <TouchableOpacity
-              style={[styles.createButton, isSubmitting && styles.buttonDisabled]}
-              onPress={handleQuickSubmit(handleCreateFarm)}
-              disabled={isSubmitting}
-            >
-                {isSubmitting ? (
-                  <ActivityIndicator color="#FFF" />
-                ) : (
-                  <>
-                    <Ionicons name="add" size={18} color="#FFF" />
-                    <Text style={styles.createButtonText}>Create Farm Record</Text>
-                  </>
-                )}
-              </TouchableOpacity>
-            </>
-          ) : null}
-        </View>
-
         <View style={{ height: 100 }} />
       </ScrollView>
 
-      <TouchableOpacity style={styles.fab} onPress={() => setShowQuickAdd(true)}>
+      <TouchableOpacity style={styles.fab} onPress={() => router.push('/(owner)/manage/farms/add')}>
         <Ionicons name="add" size={28} color="#FFF" />
       </TouchableOpacity>
-
-      <Modal visible={showTypePicker} transparent animationType="slide">
-        <TouchableOpacity
-          style={styles.modalOverlay}
-          onPress={() => setShowTypePicker(false)}
-          activeOpacity={1}
-        >
-          <View style={styles.pickerSheet}>
-            <Text style={styles.pickerTitle}>Farm Type</Text>
-            {FARM_TYPES.map((type) => (
-              <TouchableOpacity
-                key={type}
-                style={styles.pickerOption}
-                onPress={() => {
-                  setQuickValue('farmType', type);
-                  setShowTypePicker(false);
-                }}
-              >
-                <Text
-                  style={[
-                    styles.pickerOptionText,
-                    quickFarmType === type && styles.pickerOptionTextActive,
-                  ]}
-                >
-                  {type}
-                </Text>
-                {quickFarmType === type ? (
-                  <Ionicons name="checkmark" size={18} color={Colors.primary} />
-                ) : null}
-              </TouchableOpacity>
-            ))}
-          </View>
-        </TouchableOpacity>
-      </Modal>
 
       <Modal visible={showEditModal} transparent animationType="slide">
         <TouchableOpacity
@@ -1561,16 +1248,6 @@ const styles = StyleSheet.create({
   capText: { fontSize: 12, color: Colors.textSecondary },
   emptyState: { alignItems: 'center', paddingVertical: 40, gap: 8 },
   emptyText: { fontSize: 14, color: Colors.textSecondary },
-  quickAddCard: {
-    backgroundColor: '#FFF',
-    borderRadius: 14,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: Colors.border,
-    ...Layout.cardShadow,
-  },
-  quickAddHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  quickAddTitle: { fontSize: 15, fontWeight: '700', color: Colors.text },
   modalTitle: { fontSize: 18, fontWeight: 'bold', color: Colors.text, marginBottom: 16 },
   formLabel: {
     fontSize: 13,
@@ -1607,20 +1284,6 @@ const styles = StyleSheet.create({
   roleToggleActive: { backgroundColor: Colors.primary, borderColor: Colors.primary },
   roleToggleText: { fontSize: 14, fontWeight: '600', color: Colors.text },
   roleToggleTextActive: { color: '#FFF' },
-  selectorBox: {
-    minHeight: 46,
-    borderWidth: 1,
-    borderColor: Colors.border,
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    flexDirection: 'row',
-    backgroundColor: '#F9FAFB',
-    gap: 10,
-  },
-  selectorText: { flex: 1, fontSize: 14, color: Colors.text },
   selectorPlaceholder: { color: Colors.textSecondary },
   assignmentCard: {
     marginTop: 6,
@@ -1721,7 +1384,6 @@ const styles = StyleSheet.create({
     paddingBottom: 24,
     maxHeight: '88%',
   },
-  pickerTitle: { fontSize: 16, fontWeight: 'bold', color: Colors.text, marginBottom: 16 },
   filterRow: { gap: 8, paddingBottom: 12 },
   filterChip: {
     borderWidth: 1,
@@ -1798,14 +1460,4 @@ const styles = StyleSheet.create({
     marginTop: 2,
     fontWeight: '600',
   },
-  pickerOption: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: 14,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.border,
-  },
-  pickerOptionText: { fontSize: 14, color: Colors.text },
-  pickerOptionTextActive: { color: Colors.primary, fontWeight: '700' },
 });

@@ -252,7 +252,7 @@ export default function AddFarmScreen() {
     setError(null);
 
     try {
-      const parsedCapacity = Number(data.capacity);
+      const normalizedCapacity = data.capacity?.trim();
 
       await createFarm(accessToken, {
         name: data.name.trim(),
@@ -261,7 +261,7 @@ export default function AddFarmScreen() {
         village: data.village?.trim() || undefined,
         district: data.district?.trim() || undefined,
         state: data.state?.trim() || undefined,
-        capacity: Number.isFinite(parsedCapacity) && parsedCapacity > 0 ? parsedCapacity : undefined,
+        capacity: normalizedCapacity ? Number(normalizedCapacity) : undefined,
         notes: data.notes?.trim() || undefined,
         primaryFarmerId: data.primaryFarmerId || undefined,
         supervisorId: data.supervisorId || undefined,
