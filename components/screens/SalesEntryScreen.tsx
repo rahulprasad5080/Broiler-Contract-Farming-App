@@ -74,7 +74,7 @@ const salesEntrySchema = z.object({
   loadingMortalityCount: z.string().optional().refine((val) => !val || !isNaN(Number(val)), {
     message: 'Must be a number',
   }),
-  ratePerKg: z.string().min(1, 'Rate is required').refine((val) => !isNaN(Number(val)), {
+  ratePerKg: z.string().optional().refine((val) => !val || !isNaN(Number(val)), {
     message: 'Must be a number',
   }),
   grossAmount: z.string().optional().refine((val) => !val || !isNaN(Number(val)), {
@@ -177,7 +177,7 @@ export function SalesEntryScreen({
   const activeBatches = useMemo(
     () =>
       batches.filter(
-        (batch) => batch.status === 'ACTIVE' || batch.status === 'READY_FOR_SALE',
+        (batch) => batch.status === 'ACTIVE' || batch.status === 'SALES_RUNNING',
       ),
     [batches],
   );
@@ -214,7 +214,9 @@ export function SalesEntryScreen({
       setBatches(batchResponse.data);
       setTraders(traderResponse.data);
       
-      const firstActiveId = batchResponse.data.find(b => b.status === 'ACTIVE' || b.status === 'READY_FOR_SALE')?.id;
+      const firstActiveId = batchResponse.data.find(
+        (b) => b.status === 'ACTIVE' || b.status === 'SALES_RUNNING',
+      )?.id;
       if (firstActiveId && !selectedBatchId) {
         setValue('batchId', firstActiveId);
       }
@@ -243,11 +245,6 @@ export function SalesEntryScreen({
   const onSubmitSale = async (data: SalesEntryFormData, status: 'DRAFT' | 'CONFIRMED') => {
     if (!accessToken || !data.batchId || !data.traderId) {
       setMessage('Select batch and trader before saving.');
-      return;
-    }
-
-    if (user?.role !== 'OWNER' && user?.role !== 'SUPERVISOR') {
-      setMessage('Sale creation is currently allowed for owner and supervisor accounts only.');
       return;
     }
 
@@ -344,11 +341,13 @@ export function SalesEntryScreen({
           <View style={styles.saleHeroCopy}>
             <Text style={styles.saleHeroTitle}>Sale Record</Text>
             <Text style={styles.saleHeroMeta} numberOfLines={1}>
-              {selectedBatch?.code ?? 'Select batch'} • {selectedTrader?.name ?? 'Select trader'}
+              {selectedBatch?.code ?? 'Select batch'} | {selectedTrader?.name ?? 'Select trader'}
             </Text>
           </View>
           <View style={styles.saleModePill}>
-            <Text style={styles.saleModeText}>{user?.role === 'OWNER' ? 'Confirm' : 'Draft'}</Text>
+            <Text style={styles.saleModeText}>
+              {user?.role === 'OWNER' || user?.role === 'ACCOUNTS' ? 'Confirm' : 'Draft'}
+            </Text>
           </View>
         </View>
 
@@ -365,7 +364,7 @@ export function SalesEntryScreen({
                     <Text style={styles.loadingText}>Loading batches and traders...</Text>
                   </View>
                 ) : activeBatches.length === 0 ? (
-                  <Text style={styles.emptyText}>No active or ready-for-sale batches found.</Text>
+                  <Text style={styles.emptyText}>No active or sales-running batches found.</Text>
                 ) : (
                   <>
                     <TouchableOpacity
@@ -386,7 +385,7 @@ export function SalesEntryScreen({
                         </Text>
                         <Text style={styles.batchTriggerMeta} numberOfLines={1}>
                           {selectedBatch
-                            ? `${selectedBatch.farmName ?? 'Farm'} • ${selectedBatch.placementCount.toLocaleString()} birds`
+                            ? `${selectedBatch.farmName ?? 'Farm'} | ${selectedBatch.placementCount.toLocaleString()} birds`
                             : `${activeBatches.length} available`}
                         </Text>
                       </View>
@@ -429,7 +428,7 @@ export function SalesEntryScreen({
                                     {batch.code}
                                   </Text>
                                   <Text style={styles.batchOptionMeta} numberOfLines={1}>
-                                    {batch.farmName ?? 'Farm'} • {batch.placementCount.toLocaleString()} birds
+                                    {batch.farmName ?? 'Farm'} | {batch.placementCount.toLocaleString()} birds
                                   </Text>
                                 </View>
                                 {active ? (
@@ -454,7 +453,7 @@ export function SalesEntryScreen({
               <View style={styles.summaryCopy}>
                 <Text style={styles.summaryTitle}>{selectedBatch.code}</Text>
                 <Text style={styles.summarySub}>
-                  {selectedBatch.farmName ?? 'Farm'} • {selectedBatch.placementCount.toLocaleString()} birds
+                  {selectedBatch.farmName ?? 'Farm'} | {selectedBatch.placementCount.toLocaleString()} birds
                 </Text>
               </View>
             </View>
@@ -702,7 +701,7 @@ export function SalesEntryScreen({
             name="ratePerKg"
             render={({ field: { onChange, value } }) => (
               <View style={styles.inputGroup}>
-                <Text style={styles.label}>Rate / Kg *</Text>
+                <Text style={styles.label}>Rate / Kg</Text>
                 <View style={[styles.inputBox, formErrors.ratePerKg && { borderColor: Colors.tertiary }]}>
                   <TextInput
                     style={styles.input}
@@ -866,8 +865,8 @@ export function SalesEntryScreen({
         ) : null}
 
         <TouchableOpacity
-          style={[styles.primaryBtn, (submitting || user?.role === 'FARMER') && styles.disabledBtn]}
-          disabled={submitting || user?.role === 'FARMER'}
+          style={[styles.primaryBtn, submitting && styles.disabledBtn]}
+          disabled={submitting}
           onPress={handleSubmit((data) => onSubmitSale(data, 'DRAFT'))}
           activeOpacity={0.85}
         >
@@ -881,7 +880,7 @@ export function SalesEntryScreen({
           )}
         </TouchableOpacity>
 
-        {user?.role === 'OWNER' ? (
+        {user?.role === 'OWNER' || user?.role === 'ACCOUNTS' ? (
           <TouchableOpacity
             style={[styles.finalizeBtn, submitting && styles.finalizeDisabled]}
             disabled={submitting}

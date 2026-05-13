@@ -76,7 +76,7 @@ export default function BatchManagementScreen() {
   const activeBatches = useMemo(
     () =>
       batches.filter(
-        (batch) => batch.status === 'ACTIVE' || batch.status === 'READY_FOR_SALE',
+        (batch) => batch.status !== 'CLOSED' && batch.status !== 'CANCELLED',
       ),
     [batches],
   );

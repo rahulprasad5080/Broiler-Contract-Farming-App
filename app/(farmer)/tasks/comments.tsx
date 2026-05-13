@@ -21,7 +21,9 @@ export default function FarmerCommentsScreen() {
   const [loadingComments, setLoadingComments] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
 
-  const activeBatches = batches.filter(b => b.status === 'ACTIVE' || b.status === 'READY_FOR_SALE');
+  const activeBatches = batches.filter(
+    (b) => b.status !== 'CLOSED' && b.status !== 'CANCELLED',
+  );
 
   const fetchBatches = useCallback(async () => {
     if (!accessToken) return;

@@ -49,7 +49,9 @@ export default function FarmerFarmDetailScreen() {
     loadData();
   };
 
-  const activeBatches = batches.filter(b => b.status === 'ACTIVE' || b.status === 'READY_FOR_SALE');
+  const activeBatches = batches.filter(
+    (b) => b.status !== 'CLOSED' && b.status !== 'CANCELLED',
+  );
   const pastBatches = batches.filter(b => b.status === 'CLOSED');
 
   if (loading && !refreshing) {
@@ -137,8 +139,8 @@ export default function FarmerFarmDetailScreen() {
             <View key={batch.id} style={styles.batchCard}>
               <View style={styles.batchHeader}>
                 <Text style={styles.batchCode}>{batch.code}</Text>
-                <View style={[styles.batchBadge, batch.status === 'READY_FOR_SALE' && styles.badgeReady]}>
-                  <Text style={[styles.badgeText, batch.status === 'READY_FOR_SALE' && styles.badgeTextReady]}>
+                <View style={[styles.batchBadge, batch.status === 'SALES_RUNNING' && styles.badgeReady]}>
+                  <Text style={[styles.badgeText, batch.status === 'SALES_RUNNING' && styles.badgeTextReady]}>
                     {batch.status.replace(/_/g, ' ')}
                   </Text>
                 </View>

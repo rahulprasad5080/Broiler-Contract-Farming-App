@@ -47,7 +47,7 @@ function todayValue() {
 }
 
 function batchLabel(batch: ApiBatch) {
-  const farm = batch.farmName ? ` • ${batch.farmName}` : '';
+  const farm = batch.farmName ? ` | ${batch.farmName}` : '';
   return `${batch.code}${farm}`;
 }
 
@@ -58,9 +58,7 @@ const treatmentSchema = z.object({
   kind: z.enum(['MEDICATION', 'VACCINATION', 'OTHER']),
   catalogItemId: z.string().optional(),
   treatmentName: z.string().optional(),
-  quantity: z.string().optional().refine((val) => !val || !isNaN(Number(val)), {
-    message: 'Quantity must be a number',
-  }),
+  dosage: z.string().optional(),
   birdCount: z.string().optional().refine((val) => !val || !isNaN(Number(val)), {
     message: 'Bird count must be a number',
   }),
@@ -76,7 +74,7 @@ const TREATMENT_DEFAULTS = {
   kind: 'MEDICATION' as const,
   catalogItemId: '',
   treatmentName: '',
-  quantity: '',
+  dosage: '',
   birdCount: '',
   notes: '',
 } satisfies TreatmentFormData;
@@ -123,7 +121,7 @@ export function TreatmentEntryScreen({
   const catalogItemId = watch('catalogItemId');
 
   const activeBatches = useMemo(
-    () => batches.filter((batch) => batch.status === 'ACTIVE' || batch.status === 'READY_FOR_SALE'),
+    () => batches.filter((batch) => batch.status === 'ACTIVE'),
     [batches],
   );
 
@@ -144,7 +142,7 @@ export function TreatmentEntryScreen({
       setBatches(batchesRes.data);
       setCatalogItems(catalogRes.data.filter(item => item.isActive !== false));
       
-      const firstActiveId = batchesRes.data.find(b => b.status === 'ACTIVE' || b.status === 'READY_FOR_SALE')?.id;
+      const firstActiveId = batchesRes.data.find((b) => b.status === 'ACTIVE')?.id;
       if (firstActiveId && !selectedBatchId) {
         setValue('batchId', firstActiveId);
       }
@@ -196,7 +194,7 @@ export function TreatmentEntryScreen({
           data.treatmentName?.trim() ||
           selectedCatalogItem?.name ||
           `${data.kind.charAt(0)}${data.kind.slice(1).toLowerCase()}`,
-        dosage: data.quantity?.trim() || undefined,
+        dosage: data.dosage?.trim() || undefined,
         birdCount: data.birdCount ? Number(data.birdCount) : undefined,
         notes: data.notes?.trim() || undefined,
         clientReferenceId: `tx-${Date.now()}`,
@@ -205,7 +203,7 @@ export function TreatmentEntryScreen({
       setMessage('Treatment logged successfully.');
       const nextValues = {
         ...data,
-        quantity: '',
+        dosage: '',
         birdCount: '',
         notes: '',
         catalogItemId: '',
@@ -410,22 +408,21 @@ export function TreatmentEntryScreen({
 
           <Controller
             control={control}
-            name="quantity"
+            name="dosage"
             render={({ field: { onChange, value } }) => (
               <View style={styles.inputGroup}>
-                <Text style={styles.label}>Quantity/Dosage</Text>
-                <View style={[styles.inputMock, formErrors.quantity && { borderColor: Colors.tertiary }]}>
+                <Text style={styles.label}>Dosage</Text>
+                <View style={[styles.inputMock, formErrors.dosage && { borderColor: Colors.tertiary }]}>
                   <TextInput
                     style={styles.textInput}
                     value={value}
                     onChangeText={onChange}
-                    placeholder="e.g. 50"
+                    placeholder="1 ml / 10 birds"
                     placeholderTextColor={Colors.textSecondary}
-                    keyboardType="decimal-pad"
                   />
                   <MaterialCommunityIcons name="beaker-outline" size={20} color={Colors.textSecondary} />
                 </View>
-                {formErrors.quantity && <Text style={styles.fieldErrorText}>{formErrors.quantity.message}</Text>}
+                {formErrors.dosage && <Text style={styles.fieldErrorText}>{formErrors.dosage.message}</Text>}
               </View>
             )}
           />

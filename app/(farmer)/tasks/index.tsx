@@ -51,7 +51,7 @@ export default function FarmerTasksIndexScreen() {
       items={menuItems}
       infoBanner={{
         icon: "leaf-outline",
-        text: "You are assigned to: Green Valley Farm",
+        text: "Your farms and batches are filtered by your server-side assignments.",
         backgroundColor: "#E8F5E9",
         borderColor: "#C8E6C9",
         textColor: "#2E7D32",

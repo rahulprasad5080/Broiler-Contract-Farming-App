@@ -20,8 +20,9 @@ export default function SupervisorReviewScreen() {
     if (!accessToken) return;
     try {
       const response = await listAllBatches(accessToken);
-      // Supervisor reviews active and ready for sale batches
-      setBatches(response.data.filter(b => b.status === 'ACTIVE' || b.status === 'READY_FOR_SALE'));
+      setBatches(
+        response.data.filter((b) => b.status !== 'CLOSED' && b.status !== 'CANCELLED'),
+      );
     } catch (error) {
       console.warn('Failed to load batches for review:', error);
     } finally {

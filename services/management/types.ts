@@ -7,7 +7,6 @@ export type ApiBatchStatus =
   | "PLANNED"
   | "SALES_RUNNING"
   | "SETTLEMENT_PENDING"
-  | "READY_FOR_SALE"
   | "CLOSED";
 export type ApiSaleStatus = "CANCELLED" | "DRAFT" | "CONFIRMED";
 export type ApiTreatmentKind = "OTHER" | "VACCINATION" | "MEDICATION";

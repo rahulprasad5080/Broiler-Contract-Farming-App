@@ -37,8 +37,6 @@ import {
 const ACTIVE_BATCH_STATUSES = new Set([
   "ACTIVE",
   "SALES_RUNNING",
-  "SETTLEMENT_PENDING",
-  "READY_FOR_SALE",
 ]);
 
 const allocationSchema = z.object({

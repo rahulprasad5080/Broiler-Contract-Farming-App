@@ -225,10 +225,7 @@ export function DailyEntryScreen({
 
   const activeBatches = useMemo(
     () =>
-      batches.filter(
-        (batch) =>
-          batch.status === "ACTIVE" || batch.status === "READY_FOR_SALE",
-      ),
+      batches.filter((batch) => batch.status === "ACTIVE"),
     [batches],
   );
 
@@ -242,9 +239,7 @@ export function DailyEntryScreen({
       const response = await listAllBatches(accessToken);
       setBatches(response.data);
 
-      const firstActiveId = response.data.find(
-        (b) => b.status === "ACTIVE" || b.status === "READY_FOR_SALE",
-      )?.id;
+      const firstActiveId = response.data.find((b) => b.status === "ACTIVE")?.id;
       if (firstActiveId && !selectedBatchId) {
         setValue("batchId", firstActiveId);
       }

@@ -100,6 +100,7 @@ const expenseSchema = z
     quantity: z.string().optional().refine((value) => !value || !Number.isNaN(Number(value)), {
       message: "Must be a number",
     }),
+    unit: z.string().optional(),
     rate: z.string().optional().refine((value) => !value || !Number.isNaN(Number(value)), {
       message: "Must be a number",
     }),
@@ -146,6 +147,7 @@ const EXPENSE_DEFAULTS = {
   expenseDate: getLocalDateValue(),
   description: "",
   quantity: "",
+  unit: "kg",
   rate: "",
   totalAmount: "",
   vendorName: "",
@@ -245,6 +247,7 @@ export default function InventoryScreen() {
       if (firstItem) {
         setLedgerCatalogItemId((current) => current || firstItem.id);
         setExpenseValue("catalogItemId", selectedExpenseItemId || firstItem.id);
+        setExpenseValue("unit", firstItem.unit);
       }
     } catch (err) {
       setError(
@@ -404,7 +407,7 @@ export default function InventoryScreen() {
           selectedItem?.name ||
           `${labelize(data.category)} expense`,
         quantity: toOptionalNumber(data.quantity),
-        unit: selectedItem?.unit || undefined,
+        unit: data.unit?.trim() || selectedItem?.unit || undefined,
         rate: toOptionalNumber(data.rate),
         totalAmount: toOptionalNumber(data.totalAmount),
         vendorName: data.vendorName?.trim() || undefined,
@@ -417,6 +420,7 @@ export default function InventoryScreen() {
       setExpenses((prev) => [created, ...prev]);
       setExpenseValue("description", "");
       setExpenseValue("quantity", "");
+      setExpenseValue("unit", selectedItem?.unit || "kg");
       setExpenseValue("rate", "");
       setExpenseValue("totalAmount", "");
       setExpenseValue("vendorName", "");
@@ -780,6 +784,7 @@ export default function InventoryScreen() {
                         ]}
                         onPress={() => {
                           setExpenseValue("catalogItemId", item.id);
+                          setExpenseValue("unit", item.unit);
                           setLedgerCatalogItemId(item.id);
                         }}
                       >
@@ -988,11 +993,12 @@ export default function InventoryScreen() {
                         <TouchableOpacity
                           key={item.id}
                           style={[styles.chip, value === item.id && styles.chipActive]}
-                          onPress={() => {
-                            onChange(item.id);
-                            setExpenseValue("category", catalogTypeToExpenseCategory(item.type));
-                            setExpenseValue("rate", item.defaultRate ? String(item.defaultRate) : "");
-                          }}
+                        onPress={() => {
+                          onChange(item.id);
+                          setExpenseValue("category", catalogTypeToExpenseCategory(item.type));
+                          setExpenseValue("unit", item.unit);
+                          setExpenseValue("rate", item.defaultRate ? String(item.defaultRate) : "");
+                        }}
                         >
                           <Text style={[styles.chipText, value === item.id && styles.chipTextActive]}>
                             {item.name}
@@ -1096,6 +1102,25 @@ export default function InventoryScreen() {
                   />
                 </View>
               </View>
+
+              <Controller
+                control={expenseControl}
+                name="unit"
+                render={({ field: { onChange, value } }) => (
+                  <>
+                    <Text style={styles.fieldLabel}>Unit</Text>
+                    <View style={styles.inputBox}>
+                      <TextInput
+                        style={styles.input}
+                        value={value}
+                        onChangeText={onChange}
+                        placeholder="kg / bag / ml"
+                        placeholderTextColor={Colors.textSecondary}
+                      />
+                    </View>
+                  </>
+                )}
+              />
 
               <Controller
                 control={expenseControl}
