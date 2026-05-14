@@ -1,16 +1,19 @@
-import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import { Feather, Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
+import { useRouter, type Href } from 'expo-router';
 import React, { useCallback, useMemo, useState } from 'react';
-import { ActivityIndicator, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { ActivityIndicator, Image, ScrollView, StatusBar, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { HeaderNotificationButton } from '../../components/ui/HeaderNotificationButton';
 import { DashboardSidebar } from '../../components/navigation/DashboardSidebar';
 import { Colors } from '../../constants/Colors';
 import { Layout } from '../../constants/Layout';
 import { useAuth } from '../../context/AuthContext';
 import { fetchDashboard, type ApiDashboardBatch, type ApiDashboardSummary } from '../../services/dashboardApi';
 import { showRequestErrorToast } from '../../services/apiFeedback';
+
+// Using a custom deeper green based on the owner dashboard
+const THEME_GREEN = '#0B5C36';
 
 function formatNumber(value?: number | null) {
   return Number(value ?? 0).toLocaleString('en-IN');
@@ -21,7 +24,9 @@ function formatStatus(value: string) {
 }
 
 export default function SupervisorDashboard() {
-  const { accessToken } = useAuth();
+  const { accessToken, user } = useAuth();
+  const insets = useSafeAreaInsets();
+  const router = useRouter();
   const [dashboard, setDashboard] = useState<ApiDashboardSummary | null>(null);
   const [showSidebar, setShowSidebar] = useState(false);
   const [search, setSearch] = useState('');
@@ -66,23 +71,65 @@ export default function SupervisorDashboard() {
     );
   }, [dashboard?.activeBatches, search]);
 
+  const alertCount = dashboard?.alerts?.length ?? 0;
+
   return (
-    <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
-      <View style={styles.topBar}>
+    <View style={styles.safeArea}>
+      <StatusBar barStyle="light-content" backgroundColor={THEME_GREEN} />
+
+      {/* Top Header */}
+      <View style={[styles.header, { paddingTop: insets.top + 10 }]}>
         <TouchableOpacity
-          style={styles.menuButton}
+          style={styles.headerIconBtn}
           onPress={() => setShowSidebar(true)}
-          activeOpacity={0.82}
           accessibilityRole="button"
           accessibilityLabel="Open dashboard menu"
         >
-          <Ionicons name="menu" size={21} color={Colors.primary} />
+          <Ionicons name="menu" size={22} color="#FFF" />
         </TouchableOpacity>
-        <Text style={styles.topBarTitle}>Broiler Manager</Text>
-        <HeaderNotificationButton />
+        <Text style={styles.headerLogoText}>
+          Poultry<Text style={styles.headerLogoLight}>Flow</Text>
+        </Text>
+        <TouchableOpacity
+          style={styles.bellIconBtn}
+          onPress={() => router.navigate('/(supervisor)/notifications' as Href)}
+          accessibilityRole="button"
+          accessibilityLabel="Notifications"
+        >
+          <Feather name="bell" size={24} color="#FFF" />
+          {alertCount > 0 ? (
+            <View style={styles.bellBadge}>
+              <Text style={styles.bellBadgeText}>{alertCount > 9 ? '9+' : alertCount}</Text>
+            </View>
+          ) : null}
+        </TouchableOpacity>
       </View>
 
       <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
+        {/* Profile Section Added to match style */}
+        <View style={styles.profileSection}>
+          <View style={styles.profileLeft}>
+            <Image
+              source={{ uri: 'https://i.pravatar.cc/100?img=11' }}
+              style={styles.avatar}
+            />
+            <View>
+              <Text style={styles.greetingText}>Hello, {user?.name ?? 'Supervisor'}</Text>
+              <View style={styles.farmSelector}>
+                <Text style={styles.farmName}>Supervisor Dashboard</Text>
+              </View>
+            </View>
+          </View>
+          <View style={styles.dateBtn}>
+            <Text style={styles.dateBtnText}>
+              {new Date().toLocaleDateString('en-GB', {
+                day: '2-digit',
+                month: 'short',
+                year: 'numeric',
+              })}
+            </Text>
+          </View>
+        </View>
         {message ? (
           <View style={styles.messageBox}>
             <Ionicons name="information-circle-outline" size={18} color={Colors.primary} />
@@ -136,9 +183,9 @@ export default function SupervisorDashboard() {
       <DashboardSidebar
         visible={showSidebar}
         onClose={() => setShowSidebar(false)}
-        themeColor={Colors.primary}
+        themeColor={THEME_GREEN}
       />
-    </SafeAreaView>
+    </View>
   );
 }
 
@@ -156,7 +203,7 @@ function BatchCard({ batch }: { batch: ApiDashboardBatch }) {
     <View style={styles.farmCard}>
       <View style={styles.cardHeader}>
         <View style={styles.cardTitleCopy}>
-          <Text style={styles.farmName}>{batch.farmName ?? 'Farm'}</Text>
+          <Text style={styles.batchFarmName}>{batch.farmName ?? 'Farm'}</Text>
           <Text style={styles.farmUnit}>
             {batch.batchCode} | Day {formatNumber(batch.currentAgeDays)}
           </Text>
@@ -190,38 +237,112 @@ function BatchCard({ batch }: { batch: ApiDashboardBatch }) {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#F9FAFB',
+    backgroundColor: '#F9FAF9',
   },
-  topBar: {
+  header: {
+    backgroundColor: THEME_GREEN,
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: Layout.spacing.lg,
-    paddingTop: Layout.spacing.md,
-    paddingBottom: Layout.spacing.md,
-    backgroundColor: '#FFF',
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.border,
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    paddingBottom: 16,
   },
-  menuButton: {
+  headerLogoText: {
+    fontSize: 20,
+    color: '#FFF',
+    fontWeight: 'bold',
+  },
+  headerLogoLight: {
+    fontWeight: '400',
+    opacity: 0.8,
+  },
+  headerIconBtn: {
     width: 40,
     height: 40,
     borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: 10,
-    backgroundColor: '#F6FBF7',
+    backgroundColor: 'rgba(255,255,255,0.12)',
     borderWidth: 1,
-    borderColor: '#DDEBE3',
+    borderColor: 'rgba(255,255,255,0.2)',
   },
-  topBarTitle: {
-    fontSize: 18,
+  bellIconBtn: {
+    position: 'relative',
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(255,255,255,0.12)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.2)',
+  },
+  bellBadge: {
+    position: 'absolute',
+    top: 2,
+    right: 2,
+    backgroundColor: '#D32F2F',
+    minWidth: 16,
+    height: 16,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1.5,
+    borderColor: '#FFF',
+  },
+  bellBadgeText: {
+    color: '#FFF',
+    fontSize: 9,
     fontWeight: 'bold',
-    color: Colors.primary,
-    flex: 1,
   },
   scrollContent: {
-    padding: Layout.spacing.lg,
-    paddingBottom: 100,
+    paddingBottom: 40,
+  },
+  profileSection: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    backgroundColor: '#F9FAF9',
+  },
+  profileLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  avatar: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    marginRight: 12,
+  },
+  greetingText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: Colors.text,
+    marginBottom: 2,
+  },
+  farmSelector: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  farmName: {
+    fontSize: 13,
+    color: Colors.textSecondary,
+    marginRight: 4,
+  },
+  dateBtn: {
+    borderWidth: 1,
+    borderColor: '#E0E0E0',
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    backgroundColor: '#FFF',
+  },
+  dateBtnText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: Colors.text,
   },
   messageBox: {
     flexDirection: 'row',
@@ -336,7 +457,7 @@ const styles = StyleSheet.create({
   cardTitleCopy: {
     flex: 1,
   },
-  farmName: {
+  batchFarmName: {
     fontSize: 17,
     fontWeight: 'bold',
     color: Colors.text,
