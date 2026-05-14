@@ -1,14 +1,14 @@
-import React, { useCallback, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, ActivityIndicator, TouchableOpacity, RefreshControl } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { Colors } from '@/constants/Colors';
 import { Layout } from '@/constants/Layout';
-import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
-import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useAuth } from '@/context/AuthContext';
 import { ApiBatch, ApiFarm, fetchFarm, listBatches } from '@/services/managementApi';
+import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import { format } from 'date-fns';
+import { useLocalSearchParams, useRouter } from 'expo-router';
+import React, { useCallback, useState } from 'react';
+import { ActivityIndicator, RefreshControl, ScrollView, StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 export default function FarmerFarmDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -87,15 +87,18 @@ export default function FarmerFarmDetailScreen() {
   }
 
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <SafeAreaView style={styles.safeArea} edges={['top']}>
+      <StatusBar barStyle="light-content" backgroundColor="#0B5C36" />
+
+      {/* Green Top App Bar */}
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-          <Ionicons name="arrow-back" size={24} color={Colors.text} />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>{farm.name}</Text>
+
+        <Text style={styles.headerTitle} numberOfLines={1}>{farm.name}</Text>
+        <View style={{ width: 40 }} />
       </View>
 
       <ScrollView 
+        style={styles.scrollView}
         contentContainerStyle={styles.container}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[Colors.primary]} />}
         showsVerticalScrollIndicator={false}
@@ -200,23 +203,28 @@ export default function FarmerFarmDetailScreen() {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#F9FAFB',
+    backgroundColor: '#0B5C36',
   },
   header: {
+    backgroundColor: '#0B5C36',
     flexDirection: 'row',
     alignItems: 'center',
-    padding: Layout.spacing.lg,
-    backgroundColor: '#FFF',
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.border,
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingVertical: 14,
   },
   backBtn: {
-    marginRight: 16,
+    width: 40,
+    height: 40,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   headerTitle: {
+    flex: 1,
+    color: '#FFFFFF',
     fontSize: 20,
-    fontWeight: 'bold',
-    color: Colors.text,
+    fontWeight: '700',
+    textAlign: 'left',
   },
   container: {
     padding: Layout.screenPadding,
@@ -224,6 +232,10 @@ const styles = StyleSheet.create({
     width: '100%',
     maxWidth: Layout.contentMaxWidth,
     alignSelf: 'center',
+  },
+  scrollView: {
+    flex: 1,
+    backgroundColor: '#F9FAFB',
   },
   centerBox: {
     flex: 1,
