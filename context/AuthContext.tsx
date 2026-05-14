@@ -18,6 +18,10 @@ import { ApiError } from "../services/api";
 import { subscribeToApiAuthFailures } from "../services/api";
 import { showRequestErrorToast } from "../services/apiFeedback";
 import {
+  assertUserCanKeepSession,
+  isRevokedUserError,
+} from "../services/authRevocation";
+import {
   clearStoredSession,
   loadStoredSession,
   persistStoredSession,
@@ -295,7 +299,10 @@ function normalizeUser(user: UserLike): User {
 }
 
 function shouldClearSessionForError(error: unknown) {
-  return error instanceof ApiError && (error.status === 401 || error.status === 403);
+  return (
+    isRevokedUserError(error) ||
+    (error instanceof ApiError && (error.status === 401 || error.status === 403))
+  );
 }
 
 function getAuthErrorMessage(
@@ -326,9 +333,13 @@ function getAuthErrorMessage(
 
 async function hydrateServerUser(tokens: AuthTokens, fallbackUser: ApiUser) {
   try {
-    return await fetchMe(tokens.accessToken);
-  } catch {
-    return fallbackUser;
+    return assertUserCanKeepSession(await fetchMe(tokens.accessToken));
+  } catch (error) {
+    if (shouldClearSessionForError(error)) {
+      throw error;
+    }
+
+    return assertUserCanKeepSession(fallbackUser);
   }
 }
 

@@ -3,6 +3,7 @@ import {
   getStoredSession,
   persistStoredSession,
 } from "./authSession";
+import { isRevokedAuthFailure } from "./authRevocation";
 import type { AuthSession } from "./authTypes";
 import axios, {
   type AxiosInstance,
@@ -352,9 +353,12 @@ async function performRequest(
         await clearStoredSession();
       }
 
-      if (apiError.status === 401 && !isAuthRoute(path)) {
+      if (
+        (apiError.status === 401 || isRevokedAuthFailure(apiError)) &&
+        !isAuthRoute(path)
+      ) {
         emitApiAuthFailure({
-          status: apiError.status,
+          status: apiError.status as 401 | 403,
           message: apiError.message,
           path,
         });
