@@ -74,6 +74,12 @@ export default function SupervisorDashboard() {
   const alertCount = dashboard?.alerts?.length ?? 0;
   const canCreateDailyEntry = hasPermission('create:daily-entry');
   const canViewNotifications = hasPermission('view:notifications');
+  const canReviewEntries = hasPermission('review:entries');
+  const canViewReports = hasPermission('view:reports');
+  const canCreateSales = hasPermission('create:sales');
+  const hasGlanceCards = canReviewEntries || canViewReports || canCreateDailyEntry;
+  const hasAlertPills =
+    canCreateSales || canCreateDailyEntry || canReviewEntries || canViewReports;
 
   const mortalityTodayPercent =
     dashboard?.today?.liveBirds && dashboard.today.liveBirds > 0
@@ -155,63 +161,85 @@ export default function SupervisorDashboard() {
         ) : null}
 
         {/* Today at a Glance - Grid Style from Admin */}
-        <Text style={styles.sectionTitle}>Today at a Glance</Text>
-        <View style={styles.glanceGrid}>
-          <TouchableOpacity style={styles.glanceCard} onPress={() => router.navigate('/(supervisor)/review' as Href)} activeOpacity={0.82}>
-            <Text style={styles.glanceValue}>{formatNumber(dashboard?.today?.activeBatches)}</Text>
-            <Text style={styles.glanceLabel}>Active Batches</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.glanceCard} onPress={() => router.navigate('/(supervisor)/reports' as Href)} activeOpacity={0.82}>
-            <Text style={styles.glanceValue}>{formatNumber(dashboard?.today?.liveBirds)}</Text>
-            <Text style={styles.glanceLabel}>Total Live Birds</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.glanceCard} onPress={() => router.navigate('/(supervisor)/tasks/daily' as Href)} activeOpacity={0.82}>
-            <View style={styles.glanceRow}>
-              <Text style={styles.glanceValueSmall}>{formatNumber(dashboard?.today?.mortalityToday)}</Text>
-              <Text style={styles.glancePercentBold}>{mortalityTodayPercent.toFixed(2)}%</Text>
+        {hasGlanceCards ? (
+          <>
+            <Text style={styles.sectionTitle}>Today at a Glance</Text>
+            <View style={styles.glanceGrid}>
+          {canReviewEntries ? (
+            <TouchableOpacity style={styles.glanceCard} onPress={() => router.navigate('/(supervisor)/review' as Href)} activeOpacity={0.82}>
+              <Text style={styles.glanceValue}>{formatNumber(dashboard?.today?.activeBatches)}</Text>
+              <Text style={styles.glanceLabel}>Active Batches</Text>
+            </TouchableOpacity>
+          ) : null}
+          {canViewReports ? (
+            <TouchableOpacity style={styles.glanceCard} onPress={() => router.navigate('/(supervisor)/reports' as Href)} activeOpacity={0.82}>
+              <Text style={styles.glanceValue}>{formatNumber(dashboard?.today?.liveBirds)}</Text>
+              <Text style={styles.glanceLabel}>Total Live Birds</Text>
+            </TouchableOpacity>
+          ) : null}
+          {canCreateDailyEntry ? (
+            <TouchableOpacity style={styles.glanceCard} onPress={() => router.navigate('/(supervisor)/tasks/daily' as Href)} activeOpacity={0.82}>
+              <View style={styles.glanceRow}>
+                <Text style={styles.glanceValueSmall}>{formatNumber(dashboard?.today?.mortalityToday)}</Text>
+                <Text style={styles.glancePercentBold}>{mortalityTodayPercent.toFixed(2)}%</Text>
+              </View>
+              <Text style={styles.glanceLabel}>Mortality (Today)</Text>
+            </TouchableOpacity>
+          ) : null}
+          {canViewReports ? (
+            <TouchableOpacity style={styles.glanceCard} onPress={() => router.navigate('/(supervisor)/reports' as Href)} activeOpacity={0.82}>
+              <View style={styles.glanceRow}>
+                <Text style={styles.glanceValueSmall}>{formatNumber(dashboard?.today?.mortalityTotal)}</Text>
+                <Text style={styles.glancePercentBold}>{mortalityTotalPercent.toFixed(2)}%</Text>
+              </View>
+              <Text style={styles.glanceLabel}>Mortality (Total)</Text>
+            </TouchableOpacity>
+          ) : null}
             </View>
-            <Text style={styles.glanceLabel}>Mortality (Today)</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.glanceCard} onPress={() => router.navigate('/(supervisor)/reports' as Href)} activeOpacity={0.82}>
-            <View style={styles.glanceRow}>
-              <Text style={styles.glanceValueSmall}>{formatNumber(dashboard?.today?.mortalityTotal)}</Text>
-              <Text style={styles.glancePercentBold}>{mortalityTotalPercent.toFixed(2)}%</Text>
-            </View>
-            <Text style={styles.glanceLabel}>Mortality (Total)</Text>
-          </TouchableOpacity>
-        </View>
+          </>
+        ) : null}
 
         {/* Alert Pills - Horizontal Scroll from Admin */}
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.alertPillsContainer}
-        >
-          <TouchableOpacity style={styles.alertPill} onPress={() => router.navigate('/(supervisor)/tasks/sales' as Href)} activeOpacity={0.82}>
-            <Text style={[styles.alertPillValue, { color: THEME_GREEN }]}>
-              {formatNumber(dashboard?.today?.salesReady)}
-            </Text>
-            <Text style={styles.alertPillLabel}>Sales Ready</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.alertPill} onPress={() => router.navigate('/(supervisor)/tasks/daily' as Href)} activeOpacity={0.82}>
-            <Text style={[styles.alertPillValue, { color: "#1976D2" }]}>
-              {formatNumber(dashboard?.today?.pendingEntries)}
-            </Text>
-            <Text style={styles.alertPillLabel}>Pending{"\n"}Entries</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.alertPill} onPress={() => router.navigate('/(supervisor)/review' as Href)} activeOpacity={0.82}>
-            <Text style={[styles.alertPillValue, { color: "#F57C00" }]}>
-              {formatNumber(dashboard?.today?.feedAlert)}
-            </Text>
-            <Text style={styles.alertPillLabel}>Feed Alert</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.alertPill} onPress={() => router.navigate('/(supervisor)/reports' as Href)} activeOpacity={0.82}>
-            <Text style={[styles.alertPillValue, { color: "#D32F2F" }]}>
-              {formatNumber(dashboard?.today?.fcrAlert)}
-            </Text>
-            <Text style={styles.alertPillLabel}>FCR Alert</Text>
-          </TouchableOpacity>
-        </ScrollView>
+        {hasAlertPills ? (
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.alertPillsContainer}
+          >
+          {canCreateSales ? (
+            <TouchableOpacity style={styles.alertPill} onPress={() => router.navigate('/(supervisor)/tasks/sales' as Href)} activeOpacity={0.82}>
+              <Text style={[styles.alertPillValue, { color: THEME_GREEN }]}>
+                {formatNumber(dashboard?.today?.salesReady)}
+              </Text>
+              <Text style={styles.alertPillLabel}>Sales Ready</Text>
+            </TouchableOpacity>
+          ) : null}
+          {canCreateDailyEntry ? (
+            <TouchableOpacity style={styles.alertPill} onPress={() => router.navigate('/(supervisor)/tasks/daily' as Href)} activeOpacity={0.82}>
+              <Text style={[styles.alertPillValue, { color: "#1976D2" }]}>
+                {formatNumber(dashboard?.today?.pendingEntries)}
+              </Text>
+              <Text style={styles.alertPillLabel}>Pending{"\n"}Entries</Text>
+            </TouchableOpacity>
+          ) : null}
+          {canReviewEntries ? (
+            <TouchableOpacity style={styles.alertPill} onPress={() => router.navigate('/(supervisor)/review' as Href)} activeOpacity={0.82}>
+              <Text style={[styles.alertPillValue, { color: "#F57C00" }]}>
+                {formatNumber(dashboard?.today?.feedAlert)}
+              </Text>
+              <Text style={styles.alertPillLabel}>Feed Alert</Text>
+            </TouchableOpacity>
+          ) : null}
+          {canViewReports ? (
+            <TouchableOpacity style={styles.alertPill} onPress={() => router.navigate('/(supervisor)/reports' as Href)} activeOpacity={0.82}>
+              <Text style={[styles.alertPillValue, { color: "#D32F2F" }]}>
+                {formatNumber(dashboard?.today?.fcrAlert)}
+              </Text>
+              <Text style={styles.alertPillLabel}>FCR Alert</Text>
+            </TouchableOpacity>
+          ) : null}
+          </ScrollView>
+        ) : null}
 
         <View style={styles.searchRow}>
           <View style={styles.searchWrapper}>
@@ -242,7 +270,12 @@ export default function SupervisorDashboard() {
             </View>
           ) : visibleBatches.length ? (
             visibleBatches.map((batch) => (
-              <BatchCard key={batch.batchId} batch={batch} canOpenDailyEntry={canCreateDailyEntry} />
+              <BatchCard
+                key={batch.batchId}
+                batch={batch}
+                canOpenDailyEntry={canCreateDailyEntry}
+                canOpenReview={canReviewEntries}
+              />
             ))
           ) : (
             <Text style={styles.emptyText}>No active batches found.</Text>
@@ -267,20 +300,25 @@ export default function SupervisorDashboard() {
 function BatchCard({
   batch,
   canOpenDailyEntry,
+  canOpenReview,
 }: {
   batch: ApiDashboardBatch;
   canOpenDailyEntry: boolean;
+  canOpenReview: boolean;
 }) {
   const router = useRouter();
   return (
     <TouchableOpacity
       style={styles.farmCard}
       onPress={() =>
-        router.navigate({
-          pathname: '/(supervisor)/review/[batchId]',
-          params: { batchId: batch.batchId },
-        } as any)
+        canOpenReview
+          ? router.navigate({
+              pathname: '/(supervisor)/review/[batchId]',
+              params: { batchId: batch.batchId },
+            } as any)
+          : undefined
       }
+      disabled={!canOpenReview}
       activeOpacity={0.82}
     >
       <View style={styles.cardHeader}>

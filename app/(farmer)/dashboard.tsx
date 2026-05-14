@@ -137,7 +137,7 @@ export default function FarmerDashboard() {
         })),
         alerts,
       });
-    } catch (error) {
+    } catch {
       setWeather({ temperature: null, humidity: null, status: 'Unavailable', forecast: [], alerts: [] });
     }
   }, []);
@@ -150,6 +150,8 @@ export default function FarmerDashboard() {
   );
 
   const activeBatch = dashboard?.activeBatches?.[0] ?? null;
+  const canViewNotifications = hasPermission('view:notifications');
+  const canViewFarms = hasPermission('view:farms');
   const pendingTaskCandidates: ({
     id: string;
     title: string;
@@ -206,21 +208,25 @@ export default function FarmerDashboard() {
         <Text style={styles.headerLogoText}>
           Broiler<Text style={styles.headerLogoLight}>Manager</Text>
         </Text>
-        <TouchableOpacity
-          style={styles.bellIconBtn}
-          onPress={() => router.navigate('/(farmer)/notifications')}
-          accessibilityRole="button"
-          accessibilityLabel="Notifications"
-        >
-          <Ionicons name="notifications-outline" size={22} color="#FFF" />
-        </TouchableOpacity>
+        {canViewNotifications ? (
+          <TouchableOpacity
+            style={styles.bellIconBtn}
+            onPress={() => router.navigate('/(farmer)/notifications')}
+            accessibilityRole="button"
+            accessibilityLabel="Notifications"
+          >
+            <Ionicons name="notifications-outline" size={22} color="#FFF" />
+          </TouchableOpacity>
+        ) : (
+          <View style={styles.headerIconBtn} />
+        )}
       </View>
 
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
         <View style={styles.welcomeSection}>
           <View>
             <Text style={styles.greetingText}>Namaste, {user?.name ?? 'Farmer'}</Text>
-            <Text style={styles.subGreeting}>Today's farm activity summary</Text>
+            <Text style={styles.subGreeting}>{"Today's farm activity summary"}</Text>
           </View>
           <View style={styles.dateBadge}>
             <Text style={styles.dateText}>
@@ -245,9 +251,9 @@ export default function FarmerDashboard() {
         <TouchableOpacity
           style={styles.batchCard}
           activeOpacity={0.82}
-          disabled={!activeBatch?.farmId}
+          disabled={!activeBatch?.farmId || !canViewFarms}
           onPress={() =>
-            activeBatch?.farmId
+            activeBatch?.farmId && canViewFarms
               ? router.navigate({ pathname: '/(farmer)/farms/[id]', params: { id: activeBatch.farmId } } as any)
               : undefined
           }

@@ -46,6 +46,8 @@ const SettingItem = ({ icon, label, value, onPress, isLast, color = "#4B5563" }:
 export default function ProfileScreen() {
   const { hasPermission, signOut, user } = useAuth();
   const router = useRouter();
+  const canManageUsers = hasPermission('manage:users');
+  const canManageFarms = hasPermission('manage:farms');
   const initials =
     user?.name
       ?.split(' ')
@@ -89,13 +91,15 @@ export default function ProfileScreen() {
         <Text style={styles.sectionTitle}>Account Settings</Text>
         <SurfaceCard padded={false} style={styles.settingsGroup}>
           <SettingItem icon="person-outline" label="Personal Information" />
-          <SettingItem icon="language-outline" label="Language" value="English" />
-          <SettingItem
-            icon="settings-outline"
-            label="App Settings"
-            onPress={hasPermission('manage:users') ? () => router.navigate('/(owner)/manage/settings' as any) : undefined}
-            isLast
-          />
+          <SettingItem icon="language-outline" label="Language" value="English" isLast={!canManageUsers} />
+          {canManageUsers ? (
+            <SettingItem
+              icon="settings-outline"
+              label="App Settings"
+              onPress={() => router.navigate('/(owner)/manage/settings' as any)}
+              isLast
+            />
+          ) : null}
         </SurfaceCard>
 
         {/* Security */}
@@ -113,11 +117,13 @@ export default function ProfileScreen() {
         {/* Business Settings */}
         <Text style={styles.sectionTitle}>Business Settings</Text>
         <SurfaceCard padded={false} style={styles.settingsGroup}>
-          <SettingItem
-            icon="business-outline"
-            label="Farm Details"
-            onPress={hasPermission('manage:farms') ? () => router.navigate('/(owner)/manage/farms') : undefined}
-          />
+          {canManageFarms ? (
+            <SettingItem
+              icon="business-outline"
+              label="Farm Details"
+              onPress={() => router.navigate('/(owner)/manage/farms')}
+            />
+          ) : null}
           <SettingItem icon="options-outline" label="Units & Measurements" />
           <SettingItem icon="calendar-outline" label="Financial Year" value="2024-25" isLast />
         </SurfaceCard>
