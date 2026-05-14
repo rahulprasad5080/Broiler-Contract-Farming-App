@@ -5,6 +5,9 @@ import * as Device from 'expo-device';
 import * as Notifications from 'expo-notifications';
 import Constants from 'expo-constants';
 
+import { useAuth } from '@/context/AuthContext';
+import { updateFcmToken } from '@/services/authApi';
+
 export interface PushNotificationState {
   expoPushToken?: Notifications.ExpoPushToken;
   notification?: Notifications.Notification;
@@ -21,11 +24,13 @@ Notifications.setNotificationHandler({
 });
 
 export const usePushNotifications = (): PushNotificationState => {
+  const { accessToken, user } = useAuth();
   const [expoPushToken, setExpoPushToken] = useState<Notifications.ExpoPushToken | undefined>();
   const [notification, setNotification] = useState<Notifications.Notification | undefined>();
 
   const notificationListener = useRef<any>(null);
   const responseListener = useRef<any>(null);
+  const syncedTokenRef = useRef<string | null>(null);
 
   async function registerForPushNotificationsAsync() {
     let token;
@@ -117,6 +122,35 @@ export const usePushNotifications = (): PushNotificationState => {
       }
     };
   }, []);
+
+  useEffect(() => {
+    const tokenValue = expoPushToken?.data;
+
+    if (!accessToken || !user?.id || !tokenValue) {
+      return;
+    }
+
+    const syncKey = `${user.id}:${tokenValue}`;
+    if (syncedTokenRef.current === syncKey) {
+      return;
+    }
+
+    let cancelled = false;
+
+    updateFcmToken(accessToken, { fcmToken: tokenValue })
+      .then(() => {
+        if (!cancelled) {
+          syncedTokenRef.current = syncKey;
+        }
+      })
+      .catch((error) => {
+        console.warn('Failed to sync push token with server:', error);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [accessToken, expoPushToken?.data, user?.id]);
 
   return {
     expoPushToken,

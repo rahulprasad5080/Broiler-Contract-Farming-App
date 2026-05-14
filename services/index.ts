@@ -59,6 +59,7 @@ export {
   changePassword,
   setServerPin,
   updateServerBiometric,
+  updateFcmToken,
 } from "./authApi";
 export type {
   LoginResponse,
@@ -68,6 +69,7 @@ export type {
   LoginPinRequest,
   SetPinRequest,
   UpdateBiometricRequest,
+  UpdateFcmTokenRequest,
 } from "./authApi";
 
 // ── Auth session helpers (SecureStore persistence) ──

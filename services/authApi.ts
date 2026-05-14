@@ -39,6 +39,10 @@ export type UpdateBiometricRequest = {
   enabled: boolean;
 };
 
+export type UpdateFcmTokenRequest = {
+  fcmToken: string | null;
+};
+
 export async function login(phone: string, password: string) {
   return apiRequest<LoginResponse>("/auth/login", {
     method: "POST",
@@ -103,6 +107,17 @@ export async function updateServerBiometric(
 ) {
   return apiRequest<ApiUser>("/auth/biometric", {
     method: "POST",
+    token,
+    body: payload,
+  });
+}
+
+export async function updateFcmToken(
+  token: string,
+  payload: UpdateFcmTokenRequest,
+) {
+  return apiRequest<{ message: string }>("/auth/fcm-token", {
+    method: "PATCH",
     token,
     body: payload,
   });
