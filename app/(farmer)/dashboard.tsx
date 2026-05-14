@@ -1,388 +1,465 @@
 import React from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, StatusBar } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../../context/AuthContext';
 import { Colors } from '../../constants/Colors';
 import { Layout } from '../../constants/Layout';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import { HeaderNotificationButton } from '../../components/ui/HeaderNotificationButton';
 import { DashboardSidebar } from '../../components/navigation/DashboardSidebar';
 
+const THEME_GREEN = "#0B5C36";
+
 export default function FarmerDashboard() {
-  const { hasPermission } = useAuth();
+  const { hasPermission, user } = useAuth();
   const router = useRouter();
   const [showSidebar, setShowSidebar] = React.useState(false);
+  const insets = useSafeAreaInsets();
 
   return (
-    <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
-      <View style={styles.topBar}>
+    <View style={styles.container}>
+      <StatusBar barStyle="light-content" backgroundColor={THEME_GREEN} />
+      
+      {/* Top Header */}
+      <View style={[styles.header, { paddingTop: insets.top + 10 }]}>
         <TouchableOpacity
-          style={styles.menuButton}
+          style={styles.headerIconBtn}
           onPress={() => setShowSidebar(true)}
-          activeOpacity={0.82}
           accessibilityRole="button"
           accessibilityLabel="Open dashboard menu"
         >
-          <Ionicons name="menu" size={21} color={Colors.primary} />
+          <Ionicons name="menu" size={22} color="#FFF" />
         </TouchableOpacity>
-        <Text style={styles.topBarTitle}>Broiler Manager</Text>
-        <HeaderNotificationButton />
+        <Text style={styles.headerLogoText}>
+          Broiler<Text style={styles.headerLogoLight}>Manager</Text>
+        </Text>
+        <TouchableOpacity
+          style={styles.bellIconBtn}
+          onPress={() => router.navigate("/(farmer)/notifications")}
+          accessibilityRole="button"
+          accessibilityLabel="Notifications"
+        >
+          <Ionicons name="notifications-outline" size={22} color="#FFF" />
+        </TouchableOpacity>
       </View>
 
-      <ScrollView contentContainerStyle={styles.scrollContent}>
-        <View style={styles.headerBanner}>
-          <View style={styles.bannerOverlay}>
-            <Text style={styles.bannerLabel}>Active Batch</Text>
-            <Text style={styles.bannerTitle}>House #04 • Ross 308</Text>
+      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+        <View style={styles.welcomeSection}>
+          <View>
+            <Text style={styles.greetingText}>नमस्ते, {user?.name ?? 'Farmer'}</Text>
+            <Text style={styles.subGreeting}>Here's what's happening today</Text>
+          </View>
+          <View style={styles.dateBadge}>
+            <Text style={styles.dateText}>{new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'short' })}</Text>
           </View>
         </View>
 
-        <View style={styles.metricsBar}>
-          <View style={styles.metricItem}>
-            <Text style={styles.metricLabel}>Age (Days)</Text>
-            <Text style={[styles.metricValue, { color: Colors.primary }]}>24</Text>
+        <View style={styles.batchCard}>
+          <View style={styles.batchHeader}>
+            <View>
+              <Text style={styles.batchLabel}>Active Batch</Text>
+              <Text style={styles.batchTitle}>House #04 • Ross 308</Text>
+            </View>
+            <View style={styles.ageBadge}>
+              <Text style={styles.ageValue}>24</Text>
+              <Text style={styles.ageLabelSmall}>Days</Text>
+            </View>
           </View>
-          <View style={styles.metricDivider} />
-          <View style={styles.metricItem}>
-            <Text style={styles.metricLabel}>Mortality</Text>
-            <Text style={[styles.metricValue, { color: Colors.tertiary }]}>1.2%</Text>
-          </View>
-          <View style={styles.metricDivider} />
-          <View style={styles.metricItem}>
-            <Text style={styles.metricLabel}>Feed</Text>
-            <Text style={styles.metricValue}>450 <Text style={styles.metricUnit}>kg</Text></Text>
+          
+          <View style={styles.batchStats}>
+            <View style={styles.batchStatItem}>
+              <Text style={styles.statLabel}>Mortality</Text>
+              <Text style={[styles.statValue, { color: '#DC2626' }]}>1.2%</Text>
+            </View>
+            <View style={styles.statDivider} />
+            <View style={styles.batchStatItem}>
+              <Text style={styles.statLabel}>Total Feed</Text>
+              <Text style={styles.statValue}>450 <Text style={styles.unitText}>kg</Text></Text>
+            </View>
+            <View style={styles.statDivider} />
+            <View style={styles.batchStatItem}>
+              <Text style={styles.statLabel}>Birds</Text>
+              <Text style={styles.statValue}>2,400</Text>
+            </View>
           </View>
         </View>
 
         {hasPermission('create:daily-entry') ? (
-          <TouchableOpacity style={styles.entryButton} onPress={() => router.navigate('/(farmer)/tasks/daily')}>
-            <MaterialCommunityIcons name="playlist-edit" size={24} color="#FFF" />
-            <Text style={styles.entryButtonText}>Daily Entry</Text>
+          <TouchableOpacity 
+            style={styles.mainActionBtn} 
+            onPress={() => router.navigate('/(farmer)/tasks/daily')}
+            activeOpacity={0.8}
+          >
+            <View style={styles.actionBtnIcon}>
+              <MaterialCommunityIcons name="clipboard-edit-outline" size={24} color="#FFF" />
+            </View>
+            <View style={styles.actionBtnTextWrap}>
+              <Text style={styles.actionBtnTitle}>Daily Entry</Text>
+              <Text style={styles.actionBtnSub}>Record mortality, feed & work</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={20} color="rgba(255,255,255,0.7)" />
           </TouchableOpacity>
         ) : null}
 
-        <View style={styles.envRow}>
+        <View style={styles.sectionHeader}>
+          <Text style={styles.sectionTitle}>Environment Status</Text>
+        </View>
+
+        <View style={styles.envGrid}>
           <View style={styles.envCard}>
-            <View style={styles.envHeader}>
-              <MaterialCommunityIcons name="thermometer" size={20} color={Colors.textSecondary} />
-              <Text style={styles.envLabel}>Temp</Text>
+            <View style={styles.envIconBox}>
+              <MaterialCommunityIcons name="thermometer" size={24} color="#0B5C36" />
             </View>
-            <Text style={styles.envValue}>28.5°C</Text>
-            <View style={styles.envBadge}>
-              <Text style={styles.envBadgeText}>Optimal</Text>
+            <Text style={styles.envVal}>28.5°C</Text>
+            <Text style={styles.envName}>Temperature</Text>
+            <View style={styles.statusPill}>
+              <Text style={styles.statusPillText}>Optimal</Text>
             </View>
           </View>
 
           <View style={styles.envCard}>
-            <View style={styles.envHeader}>
-              <MaterialCommunityIcons name="water-percent" size={20} color={Colors.textSecondary} />
-              <Text style={styles.envLabel}>Humidity</Text>
+            <View style={[styles.envIconBox, { backgroundColor: '#E0F2F1' }]}>
+              <MaterialCommunityIcons name="water-percent" size={24} color="#00695C" />
             </View>
-            <Text style={styles.envValue}>62%</Text>
-            <View style={[styles.envBadge, { backgroundColor: '#E0F2F1' }]}>
-              <Text style={[styles.envBadgeText, { color: '#00695C' }]}>Normal</Text>
+            <Text style={styles.envVal}>62%</Text>
+            <Text style={styles.envName}>Humidity</Text>
+            <View style={[styles.statusPill, { backgroundColor: '#E0F2F1' }]}>
+              <Text style={[styles.statusPillText, { color: '#00695C' }]}>Normal</Text>
             </View>
           </View>
         </View>
 
-        <View style={styles.tasksSection}>
-          <View style={styles.tasksHeader}>
-            <Text style={styles.tasksTitle}>Daily Tasks</Text>
-            <Text style={styles.tasksProgress}>2 of 5 done</Text>
-          </View>
-
-          <View style={styles.taskItem}>
-            <Ionicons name="checkmark-circle" size={24} color={Colors.primary} />
-            <Text style={[styles.taskText, styles.taskDone]}>Early Morning Check</Text>
-          </View>
-
-          <View style={styles.taskItem}>
-            <Ionicons name="checkmark-circle" size={24} color={Colors.primary} />
-            <Text style={[styles.taskText, styles.taskDone]}>Water Tank Refill</Text>
-          </View>
-
-          <View style={[styles.taskItem, styles.taskItemPending]}>
-            <Ionicons name="ellipse-outline" size={24} color={Colors.textSecondary} />
-            <Text style={styles.taskText}>Noon Feed Distribution</Text>
-          </View>
-
-          <View style={[styles.taskItem, styles.taskItemPending]}>
-            <Ionicons name="ellipse-outline" size={24} color={Colors.textSecondary} />
-            <Text style={styles.taskText}>Litter Condition Check</Text>
-          </View>
+        <View style={styles.sectionHeader}>
+          <Text style={styles.sectionTitle}>Pending Tasks</Text>
+          <Text style={styles.progressText}>2 of 5</Text>
         </View>
 
-        <View style={styles.alertCard}>
-          <View style={styles.alertIconBox}>
-            <Ionicons name="notifications-outline" size={24} color={Colors.primary} />
-          </View>
-          <View style={styles.alertContent}>
-            <Text style={styles.alertTitle}>System Alert</Text>
-            <Text style={styles.alertSub}>Vitamins due in 2 days</Text>
-          </View>
+        <View style={styles.tasksBox}>
+          {[
+            { id: 1, title: 'Noon Feed Distribution', time: '12:00 PM', done: false },
+            { id: 2, title: 'Litter Condition Check', time: '02:30 PM', done: false },
+          ].map((task) => (
+            <TouchableOpacity key={task.id} style={styles.taskCard}>
+              <View style={styles.taskCheck}>
+                <Ionicons name="ellipse-outline" size={22} color="#9CA3AF" />
+              </View>
+              <View style={styles.taskInfo}>
+                <Text style={styles.taskName}>{task.title}</Text>
+                <Text style={styles.taskTime}>{task.time}</Text>
+              </View>
+              <Ionicons name="chevron-forward" size={16} color="#D1D5DB" />
+            </TouchableOpacity>
+          ))}
         </View>
+
+        <View style={{ height: 40 }} />
       </ScrollView>
+
       <DashboardSidebar
         visible={showSidebar}
         onClose={() => setShowSidebar(false)}
-        themeColor={Colors.primary}
+        themeColor={THEME_GREEN}
       />
-
-    </SafeAreaView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  safeArea: {
+  container: {
     flex: 1,
-    backgroundColor: '#FFF',
+    backgroundColor: "#F9FAF9",
   },
-  topBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: Layout.spacing.lg,
-    paddingTop: Layout.spacing.md,
-    paddingBottom: Layout.spacing.md,
-    backgroundColor: '#FFF',
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.border,
+  header: {
+    backgroundColor: THEME_GREEN,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 20,
+    paddingBottom: 16,
   },
-  menuButton: {
+  headerLogoText: {
+    fontSize: 20,
+    color: "#FFF",
+    fontWeight: "bold",
+  },
+  headerLogoLight: {
+    fontWeight: "400",
+    opacity: 0.8,
+  },
+  headerIconBtn: {
     width: 40,
     height: 40,
     borderRadius: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#F6FBF7',
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "rgba(255,255,255,0.12)",
     borderWidth: 1,
-    borderColor: '#DDEBE3',
+    borderColor: "rgba(255,255,255,0.2)",
   },
-  topBarTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: Colors.text,
-    marginLeft: 15,
-    flex: 1,
+  bellIconBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "rgba(255,255,255,0.12)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.2)",
   },
   scrollContent: {
-    padding: Layout.spacing.lg,
-    paddingBottom: 80,
+    paddingBottom: 40,
   },
-  headerBanner: {
-    height: 140,
-    backgroundColor: Colors.primary,
-    borderRadius: 12,
-    overflow: 'hidden',
-    justifyContent: 'flex-end',
-    padding: 20,
-    marginBottom: Layout.spacing.md,
+  welcomeSection: {
+    paddingHorizontal: 20,
+    paddingTop: 24,
+    paddingBottom: 16,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
   },
-  bannerOverlay: {
-    backgroundColor: 'transparent',
-  },
-  bannerLabel: {
-    color: 'rgba(255,255,255,0.8)',
-    fontSize: 12,
-  },
-  bannerTitle: {
-    color: '#FFF',
+  greetingText: {
     fontSize: 22,
-    fontWeight: 'bold',
+    fontWeight: '800',
+    color: '#111827',
+  },
+  subGreeting: {
+    fontSize: 14,
+    color: '#6B7280',
     marginTop: 4,
   },
-  metricsBar: {
-    flexDirection: 'row',
-    backgroundColor: '#FFF',
+  dateBadge: {
+    backgroundColor: '#E7F5ED',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
     borderRadius: 12,
-    padding: 16,
     borderWidth: 1,
-    borderColor: Colors.border,
-    alignItems: 'center',
-    marginBottom: Layout.spacing.lg,
-    ...Layout.cardShadow,
+    borderColor: '#B7E0C2',
   },
-  metricItem: {
+  dateText: {
+    color: '#0B5C36',
+    fontWeight: '700',
+    fontSize: 13,
+  },
+  batchCard: {
+    marginHorizontal: 20,
+    backgroundColor: '#FFF',
+    borderRadius: 20,
+    padding: 20,
+    marginBottom: 20,
+    borderWidth: 1,
+    borderColor: '#F3F4F6',
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.05,
+    shadowRadius: 10,
+    elevation: 2,
+  },
+  batchHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: 20,
+  },
+  batchLabel: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#0B5C36',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    marginBottom: 4,
+  },
+  batchTitle: {
+    fontSize: 18,
+    fontWeight: '800',
+    color: '#111827',
+  },
+  ageBadge: {
+    backgroundColor: '#0B5C36',
+    width: 52,
+    height: 52,
+    borderRadius: 16,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  ageValue: {
+    color: '#FFF',
+    fontSize: 20,
+    fontWeight: '800',
+  },
+  ageLabelSmall: {
+    color: 'rgba(255,255,255,0.7)',
+    fontSize: 10,
+    fontWeight: '600',
+  },
+  batchStats: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingTop: 16,
+    borderTopWidth: 1,
+    borderTopColor: '#F3F4F6',
+  },
+  batchStatItem: {
     flex: 1,
     alignItems: 'center',
   },
-  metricLabel: {
-    fontSize: 12,
-    color: Colors.textSecondary,
-    marginBottom: 4,
+  statLabel: {
+    fontSize: 11,
+    color: '#6B7280',
+    marginBottom: 6,
+    fontWeight: '600',
   },
-  metricValue: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: Colors.text,
+  statValue: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#111827',
   },
-  metricUnit: {
-    fontSize: 12,
-    fontWeight: 'normal',
+  unitText: {
+    fontSize: 11,
+    color: '#9CA3AF',
   },
-  metricDivider: {
+  statDivider: {
     width: 1,
-    height: 30,
-    backgroundColor: Colors.border,
+    height: 24,
+    backgroundColor: '#F3F4F6',
   },
-  entryButton: {
-    backgroundColor: Colors.primary,
+  mainActionBtn: {
+    marginHorizontal: 20,
+    backgroundColor: '#0B5C36',
+    borderRadius: 20,
+    padding: 16,
     flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 24,
+    shadowColor: "#0B5C36",
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.15,
+    shadowRadius: 12,
+    elevation: 4,
+  },
+  actionBtnIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: 14,
+    backgroundColor: 'rgba(255,255,255,0.15)',
     justifyContent: 'center',
     alignItems: 'center',
-    height: 54,
-    borderRadius: 12,
-    marginBottom: Layout.spacing.lg,
+    marginRight: 16,
   },
-  entryButtonText: {
-    color: '#FFF',
+  actionBtnTextWrap: {
+    flex: 1,
+  },
+  actionBtnTitle: {
     fontSize: 18,
-    fontWeight: 'bold',
-    marginLeft: 10,
+    fontWeight: '800',
+    color: '#FFF',
   },
-  envRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: Layout.spacing.lg,
-  },
-  envCard: {
-    width: '48%',
-    backgroundColor: '#FFF',
-    borderRadius: 12,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: Colors.border,
-    ...Layout.cardShadow,
-  },
-  envHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 8,
-  },
-  envLabel: {
+  actionBtnSub: {
     fontSize: 13,
-    color: Colors.textSecondary,
-    marginLeft: 4,
+    color: 'rgba(255,255,255,0.8)',
+    marginTop: 2,
   },
-  envValue: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: Colors.text,
-    marginBottom: 8,
-  },
-  envBadge: {
-    backgroundColor: '#E8F5E9',
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 12,
-    alignSelf: 'flex-start',
-  },
-  envBadgeText: {
-    fontSize: 11,
-    fontWeight: '600',
-    color: Colors.primary,
-  },
-  tasksSection: {
-    backgroundColor: '#FFF',
-    borderRadius: 12,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: Colors.border,
-    marginBottom: Layout.spacing.lg,
-    ...Layout.cardShadow,
-  },
-  tasksHeader: {
+  sectionHeader: {
+    paddingHorizontal: 20,
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: 16,
   },
-  tasksTitle: {
+  sectionTitle: {
     fontSize: 18,
-    fontWeight: 'bold',
-    color: Colors.text,
+    fontWeight: '800',
+    color: '#111827',
   },
-  tasksProgress: {
-    fontSize: 13,
-    color: Colors.primary,
-    fontWeight: '600',
-  },
-  taskItem: {
+  envGrid: {
     flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 12,
-    backgroundColor: '#F3F4F6',
-    paddingHorizontal: 12,
-    borderRadius: 8,
-    marginBottom: 8,
+    paddingHorizontal: 20,
+    gap: 16,
+    marginBottom: 24,
   },
-  taskItemPending: {
+  envCard: {
+    flex: 1,
     backgroundColor: '#FFF',
-    borderWidth: 1,
-    borderColor: Colors.border,
-  },
-  taskText: {
-    fontSize: 14,
-    color: Colors.text,
-    marginLeft: 12,
-    fontWeight: '500',
-  },
-  taskDone: {
-    textDecorationLine: 'line-through',
-    color: Colors.textSecondary,
-  },
-  alertCard: {
-    backgroundColor: '#FFF',
-    borderRadius: 12,
+    borderRadius: 20,
     padding: 16,
-    flexDirection: 'row',
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: Colors.border,
-    ...Layout.cardShadow,
+    borderColor: '#F3F4F6',
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.03,
+    shadowRadius: 8,
+    elevation: 1,
   },
-  alertIconBox: {
+  envIconBox: {
     width: 44,
     height: 44,
-    backgroundColor: '#C8E6C9',
-    borderRadius: 8,
+    borderRadius: 12,
+    backgroundColor: '#E7F5ED',
     justifyContent: 'center',
     alignItems: 'center',
+    marginBottom: 12,
+  },
+  envVal: {
+    fontSize: 18,
+    fontWeight: '800',
+    color: '#111827',
+    marginBottom: 4,
+  },
+  envName: {
+    fontSize: 12,
+    color: '#6B7280',
+    marginBottom: 12,
+    fontWeight: '600',
+  },
+  statusPill: {
+    backgroundColor: '#E7F5ED',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 8,
+  },
+  statusPillText: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: '#0B5C36',
+    textTransform: 'uppercase',
+  },
+  progressText: {
+    fontSize: 13,
+    color: '#0B5C36',
+    fontWeight: '700',
+    backgroundColor: '#E7F5ED',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
+  },
+  tasksBox: {
+    marginHorizontal: 20,
+    backgroundColor: '#FFF',
+    borderRadius: 20,
+    padding: 8,
+    borderWidth: 1,
+    borderColor: '#F3F4F6',
+  },
+  taskCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 12,
+    borderRadius: 16,
+  },
+  taskCheck: {
     marginRight: 12,
   },
-  alertContent: {
+  taskInfo: {
     flex: 1,
   },
-  alertTitle: {
-    fontSize: 14,
-    fontWeight: 'bold',
-    color: Colors.text,
+  taskName: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#374151',
   },
-  alertSub: {
-    fontSize: 13,
-    color: Colors.textSecondary,
+  taskTime: {
+    fontSize: 12,
+    color: '#9CA3AF',
     marginTop: 2,
   },
-  tabBar: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    height: 65,
-    backgroundColor: '#F9FAFB',
-    flexDirection: 'row',
-    borderTopWidth: 1,
-    borderTopColor: Colors.border,
-    paddingBottom: 10,
-  },
-  tabItem: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  tabLabel: {
-    fontSize: 10,
-    color: Colors.textSecondary,
-    marginTop: 4,
-  }
 });

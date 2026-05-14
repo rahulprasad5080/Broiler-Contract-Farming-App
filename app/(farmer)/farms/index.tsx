@@ -1,5 +1,5 @@
 import React, { useCallback, useState } from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, ActivityIndicator, RefreshControl } from 'react-native';
+import { View, Text, StyleSheet, FlatList, TouchableOpacity, ActivityIndicator, RefreshControl, StatusBar } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Colors } from '@/constants/Colors';
 import { Layout } from '@/constants/Layout';
@@ -75,7 +75,9 @@ export default function FarmerFarmsScreen() {
   );
 
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <SafeAreaView style={styles.safeArea} edges={['top']}>
+      <StatusBar barStyle="light-content" backgroundColor="#0B5C36" />
+      
       <View style={styles.header}>
         <Text style={styles.headerTitle}>My Assigned Farms</Text>
       </View>
@@ -112,24 +114,26 @@ export default function FarmerFarmsScreen() {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#F9FAFB',
+    backgroundColor: '#0B5C36',
   },
   header: {
-    padding: Layout.spacing.lg,
-    backgroundColor: '#FFF',
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.border,
+    backgroundColor: "#0B5C36",
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 16,
+    paddingVertical: 14,
   },
   headerTitle: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: Colors.text,
+    color: "#FFF",
+    fontSize: 20,
+    fontWeight: "700",
   },
   container: {
     flex: 1,
     width: '100%',
     maxWidth: Layout.contentMaxWidth,
     alignSelf: 'center',
+    backgroundColor: '#F9FAFB',
   },
   listContent: {
     padding: Layout.screenPadding,
