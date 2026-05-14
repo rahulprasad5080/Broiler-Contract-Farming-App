@@ -345,7 +345,7 @@ export default function QuickUnlockScreen() {
       <View style={styles.container}>
         <Image source={require("../../assets/logo.jpeg")} style={styles.logo} resizeMode="cover" />
         <Text style={styles.title}>Welcome Back{user?.name ? `, ${user.name.split(' ')[0]}` : ''}</Text>
-        <Text style={styles.subtitle}>Continue as {maskMobileNumber(user?.phone)}</Text>
+        <Text style={styles.subtitle}>Continue as {maskMobileNumber(user?.phone ?? undefined)}</Text>
 
         {renderUnlockBody()}
 

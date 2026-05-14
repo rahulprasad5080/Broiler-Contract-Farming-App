@@ -71,14 +71,14 @@ interface User {
   id: string;
   organizationId?: string;
   name: string;
-  email?: string;
-  phone?: string;
-  status?: string;
+  email?: string | null;
+  phone?: string | null;
+  status?: string | null;
   role: UserRole;
   farmId?: string;
-  mustChangePassword?: boolean;
-  biometricEnabled?: boolean;
-  assignedFarmIds?: string[];
+  mustChangePassword?: boolean | null;
+  biometricEnabled?: boolean | null;
+  assignedFarmIds?: string[] | null;
   permissions: Permission[];
 }
 
@@ -86,15 +86,15 @@ type UserLike = {
   id: string;
   organizationId?: string;
   name: string;
-  email?: string;
-  phone?: string;
-  status?: string;
+  email?: string | null;
+  phone?: string | null;
+  status?: string | null;
   role?: string | null;
   farmId?: string;
-  mustChangePassword?: boolean;
-  biometricEnabled?: boolean;
-  assignedFarmIds?: string[];
-  permissions?: ApiPermissionMatrix;
+  mustChangePassword?: boolean | null;
+  biometricEnabled?: boolean | null;
+  assignedFarmIds?: string[] | null;
+  permissions?: ApiPermissionMatrix | null;
 };
 
 interface AuthContextType {
@@ -241,7 +241,7 @@ function normalizeUser(user: UserLike): User {
   const permissions = Array.from(
     new Set([
       ...getPermissionsForRole(role),
-      ...getPermissionsFromApi(user.permissions),
+      ...getPermissionsFromApi(user.permissions ?? undefined),
     ]),
   );
 
@@ -733,6 +733,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const nextSession: AuthSession = {
         user: {
           ...apiUser,
+          organizationId: apiUser.organizationId ?? "",
+          status: (apiUser.status ?? "ACTIVE") as import("../services/authTypes").ApiUserStatus,
           role: user.role,
           name: trimmedName,
         },
