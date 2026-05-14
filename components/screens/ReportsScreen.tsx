@@ -15,12 +15,16 @@ import { SafeAreaView } from "react-native-safe-area-context";
 
 import { useAuth } from "@/context/AuthContext";
 import {
+  fetchBatchSummary,
   fetchExpenseReport,
+  fetchFarmSummary,
   fetchInventoryReport,
   fetchOverviewReport,
   fetchProfitabilityReport,
   fetchSettlementReport,
+  type ApiBatchSummary,
   type ApiExpenseReportRow,
+  type ApiFarmSummary,
   type ApiInventoryReportRow,
   type ApiOverviewReport,
   type ApiProfitabilityReportRow,
@@ -38,6 +42,8 @@ export default function ReportsScreen() {
   const [inventory, setInventory] = useState<ApiInventoryReportRow[]>([]);
   const [profitability, setProfitability] = useState<ApiProfitabilityReportRow[]>([]);
   const [settlements, setSettlements] = useState<ApiSettlementReportRow[]>([]);
+  const [farmSummary, setFarmSummary] = useState<ApiFarmSummary | null>(null);
+  const [batchSummary, setBatchSummary] = useState<ApiBatchSummary | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -67,6 +73,17 @@ export default function ReportsScreen() {
       setInventory(inventoryRes);
       setProfitability(profitabilityRes);
       setSettlements(settlementRes);
+
+      const firstFarmId = expenseRes[0]?.farmId;
+      const firstBatchId =
+        profitabilityRes[0]?.batchId ?? settlementRes[0]?.batchId ?? expenseRes[0]?.batchId;
+      const [farmSummaryRes, batchSummaryRes] = await Promise.all([
+        firstFarmId ? fetchFarmSummary(accessToken, firstFarmId) : Promise.resolve(null),
+        firstBatchId ? fetchBatchSummary(accessToken, firstBatchId) : Promise.resolve(null),
+      ]);
+
+      setFarmSummary(farmSummaryRes);
+      setBatchSummary(batchSummaryRes);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unable to load reports.");
     } finally {
@@ -212,6 +229,28 @@ export default function ReportsScreen() {
         {/* API Data Section */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Latest API Data</Text>
+          <ExportRow
+            title="Farm Summary"
+            subtitle={
+              farmSummary
+                ? `${farmSummary.farmName ?? "Farm"} | ${farmSummary.totalBatches ?? 0} batches | Avg FCR ${Number(farmSummary.averageFcr ?? 0).toLocaleString("en-IN")}`
+                : "No farm summary available yet"
+            }
+            icon="home-analytics"
+            iconColor="#2563EB"
+            bgColor="#EFF6FF"
+          />
+          <ExportRow
+            title="Batch Summary"
+            subtitle={
+              batchSummary
+                ? `${batchSummary.batchCode ?? "Batch"} | Live ${Number(batchSummary.liveBirds ?? 0).toLocaleString("en-IN")} | FCR ${Number(batchSummary.fcr ?? 0).toLocaleString("en-IN")}`
+                : "No batch summary available yet"
+            }
+            icon="chart-timeline-variant"
+            iconColor="#7C3AED"
+            bgColor="#F3E8FF"
+          />
           <ExportRow
             title="Inventory Stock"
             subtitle={`${reportStats.lowStock} low-stock item(s) from inventory report`}

@@ -40,10 +40,15 @@ import {
   listLegacyBatchCosts,
   listSales,
   listTreatments,
+  updateBatch,
+  updateBatchStatus,
   updateBatchExpense,
   updateBatchExpenseApproval,
+  updateCatalogItem,
   updateFinancePurchase,
+  updateTrader,
   type ApiBatch,
+  type ApiBatchStatus,
   type ApiExpenseApprovalStatus,
   type ApiExpenseCategoryCode,
   type ApiExpenseLedger,
@@ -54,6 +59,9 @@ import {
   type ApiTransactionPaymentStatus,
 } from "@/services/managementApi";
 import {
+  downloadBatchExcelReport,
+  downloadBatchPdfReport,
+  fetchBatchSummary,
   fetchExpenseReport,
   fetchInventoryReport,
   fetchProfitabilityReport,
@@ -75,6 +83,7 @@ type TabKey =
   | "dashboards"
   | "batch"
   | "finance"
+  | "master"
   | "reports"
   | "settings"
   | "billing"
@@ -90,6 +99,7 @@ const TABS: { key: TabKey; label: string }[] = [
   { key: "dashboards", label: "Dashboards" },
   { key: "batch", label: "Batch Tools" },
   { key: "finance", label: "Finance" },
+  { key: "master", label: "Master Data" },
   { key: "reports", label: "Reports" },
   { key: "settings", label: "Settings" },
   { key: "billing", label: "Billing" },
@@ -174,6 +184,11 @@ export default function ApiOperationsScreen() {
     paymentStatus: "PAID" as ApiTransactionPaymentStatus,
     notes: "",
   });
+  const [batchUpdateForm, setBatchUpdateForm] = useState({
+    notes: "Updated from API Operations",
+    status: "ACTIVE" as ApiBatchStatus,
+    actualCloseDate: "",
+  });
   const [settlementForm, setSettlementForm] = useState({
     payoutRate: "8",
     payoutUnit: "PER_KG_SOLD" as ApiPayoutUnit,
@@ -212,6 +227,15 @@ export default function ApiOperationsScreen() {
     totalAmount: "0",
     paymentStatus: "PAID" as ApiTransactionPaymentStatus,
     remarks: "Payment updated",
+  });
+  const [masterForm, setMasterForm] = useState({
+    traderId: "",
+    traderName: "",
+    traderPhone: "",
+    catalogItemId: "",
+    catalogName: "",
+    catalogUnit: "kg",
+    catalogActive: true,
   });
   const [settingsForm, setSettingsForm] = useState({
     defaultPayoutRate: "8",
@@ -366,6 +390,23 @@ export default function ApiOperationsScreen() {
     );
   };
 
+  const submitBatchUpdate = () => {
+    runBatchAction("batch-update", "Update batch", (token, selectedBatchId) =>
+      updateBatch(token, selectedBatchId, {
+        notes: batchUpdateForm.notes.trim() || undefined,
+      }),
+    );
+  };
+
+  const submitBatchStatusUpdate = () => {
+    runBatchAction("batch-status-update", "Update batch status", (token, selectedBatchId) =>
+      updateBatchStatus(token, selectedBatchId, {
+        status: batchUpdateForm.status,
+        actualCloseDate: batchUpdateForm.actualCloseDate.trim() || undefined,
+      }),
+    );
+  };
+
   const submitSettlement = () => {
     runBatchAction("settlement-create", "Create settlement", (token, selectedBatchId) =>
       createBatchSettlement(token, selectedBatchId, {
@@ -426,6 +467,35 @@ export default function ApiOperationsScreen() {
         totalAmount: toOptionalNumber(purchaseForm.totalAmount),
         paymentStatus: purchaseForm.paymentStatus,
         remarks: purchaseForm.remarks.trim() || undefined,
+      }),
+    );
+  };
+
+  const submitTraderUpdate = () => {
+    if (!masterForm.traderId.trim()) {
+      setError("Enter Trader ID first.");
+      return;
+    }
+
+    void runAction("trader-update", "Update trader", () =>
+      updateTrader(accessToken!, masterForm.traderId.trim(), {
+        name: masterForm.traderName.trim() || undefined,
+        phone: masterForm.traderPhone.trim() || undefined,
+      }),
+    );
+  };
+
+  const submitCatalogUpdate = () => {
+    if (!masterForm.catalogItemId.trim()) {
+      setError("Enter Catalog Item ID first.");
+      return;
+    }
+
+    void runAction("catalog-update", "Update catalog item", () =>
+      updateCatalogItem(accessToken!, masterForm.catalogItemId.trim(), {
+        name: masterForm.catalogName.trim() || undefined,
+        unit: masterForm.catalogUnit.trim() || undefined,
+        isActive: masterForm.catalogActive,
       }),
     );
   };
@@ -559,6 +629,20 @@ export default function ApiOperationsScreen() {
               </ActionGrid>
             </Section>
 
+            <Section title="Batch Updates" icon="pencil-box-outline">
+              <Field label="Batch Notes" value={batchUpdateForm.notes} onChangeText={(notes) => setBatchUpdateForm((v) => ({ ...v, notes }))} />
+              <ChipRow
+                values={["PLANNED", "ACTIVE", "SALES_RUNNING", "SETTLEMENT_PENDING", "CLOSED", "CANCELLED"]}
+                selected={batchUpdateForm.status}
+                onSelect={(status) => setBatchUpdateForm((v) => ({ ...v, status: status as ApiBatchStatus }))}
+              />
+              <Field label="Actual Close Date" value={batchUpdateForm.actualCloseDate} onChangeText={(actualCloseDate) => setBatchUpdateForm((v) => ({ ...v, actualCloseDate }))} />
+              <ActionGrid>
+                <ActionButton label="Update Batch Notes" onPress={submitBatchUpdate} busy={busyKey === "batch-update"} />
+                <ActionButton label="Update Batch Status" onPress={submitBatchStatusUpdate} busy={busyKey === "batch-status-update"} />
+              </ActionGrid>
+            </Section>
+
             <Section title="Expense Actions" icon="cash-check">
               <Field label="Expense ID" value={expenseForm.expenseId} onChangeText={(expenseId) => setExpenseForm((v) => ({ ...v, expenseId }))} />
               <ChipRow
@@ -672,12 +756,58 @@ export default function ApiOperationsScreen() {
         {activeTab === "reports" ? (
           <Section title="Report Registers" icon="chart-box-outline">
             <ActionGrid>
+              <ActionButton label="Batch Summary" onPress={() => runBatchAction("report-batch-summary", "Batch summary", fetchBatchSummary)} busy={busyKey === "report-batch-summary"} />
               <ActionButton label="Expenses" onPress={() => void runAction("report-expenses", "Expense report", () => fetchExpenseReport(accessToken!))} busy={busyKey === "report-expenses"} />
               <ActionButton label="Inventory" onPress={() => void runAction("report-inventory", "Inventory report", () => fetchInventoryReport(accessToken!))} busy={busyKey === "report-inventory"} />
               <ActionButton label="Profitability" onPress={() => void runAction("report-profit", "Profitability report", () => fetchProfitabilityReport(accessToken!))} busy={busyKey === "report-profit"} />
               <ActionButton label="Settlements" onPress={() => void runAction("report-settlements", "Settlement report", () => fetchSettlementReport(accessToken!))} busy={busyKey === "report-settlements"} />
+              <ActionButton
+                label="Export Batch Excel"
+                onPress={() =>
+                  runBatchAction("report-batch-excel", "Batch Excel export", async (token, selectedBatchId) => {
+                    const response = await downloadBatchExcelReport(token, selectedBatchId);
+                    return {
+                      status: response.status,
+                      contentType: response.headers.get("content-type"),
+                    };
+                  })
+                }
+                busy={busyKey === "report-batch-excel"}
+              />
+              <ActionButton
+                label="Export Batch PDF"
+                onPress={() =>
+                  runBatchAction("report-batch-pdf", "Batch PDF export", async (token, selectedBatchId) => {
+                    const response = await downloadBatchPdfReport(token, selectedBatchId);
+                    return {
+                      status: response.status,
+                      contentType: response.headers.get("content-type"),
+                    };
+                  })
+                }
+                busy={busyKey === "report-batch-pdf"}
+              />
             </ActionGrid>
           </Section>
+        ) : null}
+
+        {activeTab === "master" ? (
+          <>
+            <Section title="Trader Master Update" icon="account-cash-outline">
+              <Field label="Trader ID" value={masterForm.traderId} onChangeText={(traderId) => setMasterForm((v) => ({ ...v, traderId }))} />
+              <Field label="Trader Name" value={masterForm.traderName} onChangeText={(traderName) => setMasterForm((v) => ({ ...v, traderName }))} />
+              <Field label="Trader Phone" value={masterForm.traderPhone} onChangeText={(traderPhone) => setMasterForm((v) => ({ ...v, traderPhone }))} keyboardType="numeric" />
+              <ActionButton label="Update Trader" onPress={submitTraderUpdate} busy={busyKey === "trader-update"} />
+            </Section>
+
+            <Section title="Catalog Item Update" icon="package-variant-closed">
+              <Field label="Catalog Item ID" value={masterForm.catalogItemId} onChangeText={(catalogItemId) => setMasterForm((v) => ({ ...v, catalogItemId }))} />
+              <Field label="Catalog Name" value={masterForm.catalogName} onChangeText={(catalogName) => setMasterForm((v) => ({ ...v, catalogName }))} />
+              <Field label="Catalog Unit" value={masterForm.catalogUnit} onChangeText={(catalogUnit) => setMasterForm((v) => ({ ...v, catalogUnit }))} />
+              <SwitchRow label="Catalog active" value={masterForm.catalogActive} onPress={() => setMasterForm((v) => ({ ...v, catalogActive: !v.catalogActive }))} />
+              <ActionButton label="Update Catalog Item" onPress={submitCatalogUpdate} busy={busyKey === "catalog-update"} />
+            </Section>
+          </>
         ) : null}
 
         {activeTab === "settings" ? (

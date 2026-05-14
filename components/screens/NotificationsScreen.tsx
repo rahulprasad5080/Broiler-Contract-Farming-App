@@ -16,6 +16,7 @@ import { useAuth } from "@/context/AuthContext";
 import { showRequestErrorToast } from "@/services/apiFeedback";
 import {
   listNotifications,
+  markNotificationRead,
   type ApiNotification
 } from "@/services/notificationApi";
 
@@ -30,6 +31,7 @@ export function NotificationsScreen() {
   const [selectedFilter, setSelectedFilter] = useState<"All" | "Unread" | "Important">("All");
   const [notifications, setNotifications] = useState<ApiNotification[]>([]);
   const [loading, setLoading] = useState(false);
+  const [markingIds, setMarkingIds] = useState<Record<string, boolean>>({});
 
   const loadNotifications = React.useCallback(async () => {
     if (!accessToken) return;
@@ -47,6 +49,39 @@ export function NotificationsScreen() {
   React.useEffect(() => {
     void loadNotifications();
   }, [loadNotifications]);
+
+  const handleNotificationPress = React.useCallback(async (notification: ApiNotification) => {
+    if (!accessToken || notification.isRead || markingIds[notification.id]) {
+      return;
+    }
+
+    setMarkingIds((current) => ({ ...current, [notification.id]: true }));
+    setNotifications((current) =>
+      current.map((item) =>
+        item.id === notification.id ? { ...item, isRead: true } : item,
+      ),
+    );
+
+    try {
+      const updated = await markNotificationRead(accessToken, notification.id);
+      setNotifications((current) =>
+        current.map((item) => (item.id === updated.id ? updated : item)),
+      );
+    } catch (err) {
+      setNotifications((current) =>
+        current.map((item) =>
+          item.id === notification.id ? { ...item, isRead: false } : item,
+        ),
+      );
+      showRequestErrorToast(err, { title: "Unable to mark notification read" });
+    } finally {
+      setMarkingIds((current) => {
+        const next = { ...current };
+        delete next[notification.id];
+        return next;
+      });
+    }
+  }, [accessToken, markingIds]);
 
   const unreadCount = notifications.filter(n => !n.isRead).length;
 
@@ -151,6 +186,7 @@ export function NotificationsScreen() {
                 <TouchableOpacity
                   style={[styles.notifCard, isLast && { borderBottomWidth: 0 }]}
                   activeOpacity={0.7}
+                  onPress={() => void handleNotificationPress(item)}
                 >
                   <View style={[styles.iconBox, { backgroundColor: meta.bg }]}>
                     <Ionicons name={meta.icon as any} size={22} color={meta.color} />
