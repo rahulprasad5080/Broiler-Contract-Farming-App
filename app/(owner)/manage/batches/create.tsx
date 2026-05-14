@@ -36,12 +36,59 @@ function toOptionalText(value: string | undefined) {
   return trimmed ? trimmed : undefined;
 }
 
+function parseNumberValue(value: string | undefined) {
+  if (!value || !value.trim()) return undefined;
+  const next = Number(value.replace(/,/g, ''));
+  return Number.isNaN(next) ? undefined : next;
+}
+
+function toOptionalNumber(value: string | undefined) {
+  return parseNumberValue(value);
+}
+
+function getBatchCodePrefix(farm?: ApiFarm | null) {
+  const farmNameInitials = farm?.name
+    ?.split(/\s+/)
+    .filter(Boolean)
+    .map((part) => part[0])
+    .join('')
+    .toUpperCase()
+    .slice(0, 2);
+
+  if (farmNameInitials && farmNameInitials.length >= 2) {
+    return farmNameInitials;
+  }
+
+  const farmCodeInitials = farm?.code
+    ?.replace(/[^a-zA-Z]/g, '')
+    .toUpperCase()
+    .slice(0, 2);
+
+  return farmCodeInitials || 'FM';
+}
+
+function generateBatchCode(farm?: ApiFarm | null, offset = 0) {
+  const prefix = getBatchCodePrefix(farm);
+  const baseBatchNumber = 2300 + (farm?.activeBatchCount ?? 0) + 1 + offset;
+  const batchNumber = String(baseBatchNumber).padStart(4, '0');
+
+  return `${prefix}-B-${batchNumber}`;
+}
+
 const requiredNumberField = (label: string) =>
   z
     .string()
     .min(1, `${label} is required`)
-    .refine((value) => !Number.isNaN(Number(value)), { message: `${label} must be a number` })
-    .refine((value) => Number(value) > 0, { message: `${label} must be greater than 0` });
+    .refine((value) => parseNumberValue(value) !== undefined, { message: `${label} must be a number` })
+    .refine((value) => Number(parseNumberValue(value)) > 0, { message: `${label} must be greater than 0` });
+
+const optionalNumberField = (label: string) =>
+  z
+    .string()
+    .optional()
+    .refine((value) => !value || parseNumberValue(value) !== undefined, {
+      message: `${label} must be a number`,
+    });
 
 const batchSchema = z.object({
   farmId: z.string().min(1, 'Farm is required'),
@@ -50,9 +97,19 @@ const batchSchema = z.object({
   birdType: z.string().min(1, 'Bird type is required'),
   placementDate: z.string().min(1, 'Placement date is required'),
   placementCount: requiredNumberField('Placement count'),
+  totalChicksPurchased: optionalNumberField('Total chicks purchased'),
+  freeChicks: optionalNumberField('Free chicks'),
+  chargeableChicks: optionalNumberField('Chargeable chicks'),
+  placementMortality: optionalNumberField('Placement mortality'),
+  chickCostTotal: optionalNumberField('Chick cost total'),
+  chickRatePerBird: optionalNumberField('Chick rate per bird'),
+  ratePerChick: optionalNumberField('Rate per chick'),
+  chickTransportCharge: optionalNumberField('Chick transport charge'),
   sourceHatchery: z.string().optional(),
+  vendorName: z.string().optional(),
   placementWeight: z.string().optional(),
   expectedSaleAge: z.string().optional(),
+  targetCloseDate: z.string().optional(),
   notes: z.string().optional(),
 });
 
@@ -61,13 +118,23 @@ type BatchFormData = z.infer<typeof batchSchema>;
 const BATCH_FORM_DEFAULTS: BatchFormData = {
   farmId: '',
   shed: 'Shed 1',
-  code: 'GV-B-2308',
+  code: '',
   birdType: 'Cobb 430',
   placementDate: todayValue(),
   placementCount: '',
+  totalChicksPurchased: '',
+  freeChicks: '',
+  chargeableChicks: '',
+  placementMortality: '',
+  chickCostTotal: '',
+  chickRatePerBird: '',
+  ratePerChick: '',
+  chickTransportCharge: '',
   sourceHatchery: '',
+  vendorName: '',
   placementWeight: '',
   expectedSaleAge: '',
+  targetCloseDate: '',
   notes: '',
 };
 
@@ -170,16 +237,20 @@ export default function CreateBatchScreen() {
   const [farms, setFarms] = useState<ApiFarm[]>([]);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
+  const [autoCodeOffset, setAutoCodeOffset] = useState(0);
 
   const {
     control,
     handleSubmit,
     setValue,
+    watch,
     formState: { errors: formErrors },
   } = useForm<BatchFormData>({
     resolver: zodResolver(batchSchema),
     defaultValues: BATCH_FORM_DEFAULTS,
   });
+
+  const selectedFarmId = watch('farmId');
 
   const loadFarms = useCallback(async () => {
     if (!accessToken) return;
@@ -191,6 +262,8 @@ export default function CreateBatchScreen() {
       const firstEligible = response.data.find((farm) => farm.activeBatchCount === 0);
       if (firstEligible) {
         setValue('farmId', firstEligible.id);
+        setValue('code', generateBatchCode(firstEligible));
+        setAutoCodeOffset(0);
       }
     } catch (error) {
       console.warn('Failed to load farms:', error);
@@ -227,6 +300,13 @@ export default function CreateBatchScreen() {
     { label: 'Premium Birds', value: 'Premium Birds' },
   ];
 
+  const autoGenerateBatchId = () => {
+    const selectedFarm = farms.find((farm) => farm.id === selectedFarmId) ?? null;
+    const nextOffset = autoCodeOffset + 1;
+    setAutoCodeOffset(nextOffset);
+    setValue('code', generateBatchCode(selectedFarm, nextOffset), { shouldDirty: true, shouldValidate: true });
+  };
+
   const handleSave = async (data: BatchFormData) => {
     if (!accessToken) return;
 
@@ -237,8 +317,18 @@ export default function CreateBatchScreen() {
         farmId: data.farmId,
         code: data.code.trim(),
         placementDate: data.placementDate,
-        placementCount: Number(data.placementCount),
+        placementCount: Number(parseNumberValue(data.placementCount)),
+        totalChicksPurchased: toOptionalNumber(data.totalChicksPurchased),
+        freeChicks: toOptionalNumber(data.freeChicks),
+        chargeableChicks: toOptionalNumber(data.chargeableChicks),
+        placementMortality: toOptionalNumber(data.placementMortality),
+        chickCostTotal: toOptionalNumber(data.chickCostTotal),
+        chickRatePerBird: toOptionalNumber(data.chickRatePerBird),
+        ratePerChick: toOptionalNumber(data.ratePerChick),
+        chickTransportCharge: toOptionalNumber(data.chickTransportCharge),
         sourceHatchery: toOptionalText(data.sourceHatchery),
+        vendorName: toOptionalText(data.vendorName),
+        targetCloseDate: toOptionalText(data.targetCloseDate),
         notes: toOptionalText(data.notes),
       });
 
@@ -285,7 +375,15 @@ export default function CreateBatchScreen() {
               label="Farm"
               required
               value={value}
-              onSelect={onChange}
+              onSelect={(farmId: string) => {
+                onChange(farmId);
+                const selectedFarm = farms.find((farm) => farm.id === farmId) ?? null;
+                setAutoCodeOffset(0);
+                setValue('code', generateBatchCode(selectedFarm), {
+                  shouldDirty: true,
+                  shouldValidate: true,
+                });
+              }}
               options={farmOptions}
               placeholder={loading ? "Loading..." : "Select Farm"}
               error={formErrors.farmId?.message}
@@ -312,13 +410,35 @@ export default function CreateBatchScreen() {
           control={control}
           name="code"
           render={({ field: { onChange, value } }) => (
-            <InputField
-              label="Batch ID (Auto)"
-              value={value}
-              onChangeText={onChange}
-              error={formErrors.code?.message}
-              editable={false} // Make it look like auto-generated
-            />
+            <View style={styles.inputGroup}>
+              <View style={styles.labelRow}>
+                <Text style={styles.label}>
+                  Batch ID <Text style={{ color: 'red' }}>*</Text>
+                </Text>
+                <TouchableOpacity
+                  style={styles.autoButton}
+                  activeOpacity={0.82}
+                  onPress={autoGenerateBatchId}
+                >
+                  <Ionicons name="sparkles-outline" size={13} color={THEME_GREEN} />
+                  <Text style={styles.autoButtonText}>Auto</Text>
+                </TouchableOpacity>
+              </View>
+              <View style={[styles.inputBox, formErrors.code && styles.inputError]}>
+                <TextInput
+                  style={styles.input}
+                  value={value}
+                  onChangeText={onChange}
+                  placeholder="e.g. GV-B-2307"
+                  placeholderTextColor={Colors.textSecondary}
+                  autoCapitalize="characters"
+                />
+              </View>
+              <Text style={styles.helperText}>Auto generate or type your own batch ID.</Text>
+              {formErrors.code?.message ? (
+                <Text style={styles.fieldErrorText}>{formErrors.code.message}</Text>
+              ) : null}
+            </View>
           )}
         />
 
@@ -369,6 +489,138 @@ export default function CreateBatchScreen() {
           )}
         />
 
+        <Text style={styles.sectionTitle}>Chick Purchase Details</Text>
+
+        <Controller
+          control={control}
+          name="totalChicksPurchased"
+          render={({ field: { onChange, value } }) => (
+            <InputField
+              label="Total Chicks Purchased"
+              value={value}
+              onChangeText={onChange}
+              placeholder="10,000"
+              keyboardType="numeric"
+              suffix="birds"
+              error={formErrors.totalChicksPurchased?.message}
+            />
+          )}
+        />
+
+        <Controller
+          control={control}
+          name="freeChicks"
+          render={({ field: { onChange, value } }) => (
+            <InputField
+              label="Free Chicks"
+              value={value}
+              onChangeText={onChange}
+              placeholder="0"
+              keyboardType="numeric"
+              suffix="birds"
+              error={formErrors.freeChicks?.message}
+            />
+          )}
+        />
+
+        <Controller
+          control={control}
+          name="chargeableChicks"
+          render={({ field: { onChange, value } }) => (
+            <InputField
+              label="Chargeable Chicks"
+              value={value}
+              onChangeText={onChange}
+              placeholder="10,000"
+              keyboardType="numeric"
+              suffix="birds"
+              error={formErrors.chargeableChicks?.message}
+            />
+          )}
+        />
+
+        <Controller
+          control={control}
+          name="placementMortality"
+          render={({ field: { onChange, value } }) => (
+            <InputField
+              label="Placement Mortality"
+              value={value}
+              onChangeText={onChange}
+              placeholder="0"
+              keyboardType="numeric"
+              suffix="birds"
+              error={formErrors.placementMortality?.message}
+            />
+          )}
+        />
+
+        <Text style={styles.sectionTitle}>Purchase Cost</Text>
+
+        <Controller
+          control={control}
+          name="chickCostTotal"
+          render={({ field: { onChange, value } }) => (
+            <InputField
+              label="Chick Cost Total"
+              value={value}
+              onChangeText={onChange}
+              placeholder="250000"
+              keyboardType="decimal-pad"
+              suffix="₹"
+              error={formErrors.chickCostTotal?.message}
+            />
+          )}
+        />
+
+        <Controller
+          control={control}
+          name="chickRatePerBird"
+          render={({ field: { onChange, value } }) => (
+            <InputField
+              label="Chick Rate Per Bird"
+              value={value}
+              onChangeText={onChange}
+              placeholder="25"
+              keyboardType="decimal-pad"
+              suffix="₹"
+              error={formErrors.chickRatePerBird?.message}
+            />
+          )}
+        />
+
+        <Controller
+          control={control}
+          name="ratePerChick"
+          render={({ field: { onChange, value } }) => (
+            <InputField
+              label="Rate Per Chick"
+              value={value}
+              onChangeText={onChange}
+              placeholder="25"
+              keyboardType="decimal-pad"
+              suffix="₹"
+              error={formErrors.ratePerChick?.message}
+            />
+          )}
+        />
+
+        <Controller
+          control={control}
+          name="chickTransportCharge"
+          render={({ field: { onChange, value } }) => (
+            <InputField
+              label="Chick Transport Charge"
+              value={value}
+              onChangeText={onChange}
+              placeholder="12000"
+              keyboardType="decimal-pad"
+              suffix="₹"
+              error={formErrors.chickTransportCharge?.message}
+            />
+          )}
+        />
+
         <Controller
           control={control}
           name="sourceHatchery"
@@ -379,6 +631,19 @@ export default function CreateBatchScreen() {
               onSelect={onChange}
               options={supplierOptions}
               placeholder="Select Supplier"
+            />
+          )}
+        />
+
+        <Controller
+          control={control}
+          name="vendorName"
+          render={({ field: { onChange, value } }) => (
+            <InputField
+              label="Vendor Name"
+              value={value}
+              onChangeText={onChange}
+              placeholder="ABC Hatcheries"
             />
           )}
         />
@@ -409,6 +674,20 @@ export default function CreateBatchScreen() {
               placeholder="45"
               keyboardType="numeric"
               suffix="days"
+            />
+          )}
+        />
+
+        <Controller
+          control={control}
+          name="targetCloseDate"
+          render={({ field: { onChange, value } }) => (
+            <DatePickerField
+              label="Target Close Date"
+              value={value}
+              onChange={onChange}
+              placeholder="Select target close date"
+              error={formErrors.targetCloseDate?.message}
             />
           )}
         />
@@ -476,11 +755,40 @@ const styles = StyleSheet.create({
   inputGroup: {
     marginBottom: 20,
   },
+  sectionTitle: {
+    color: THEME_GREEN,
+    fontSize: 14,
+    fontWeight: '800',
+    marginBottom: 12,
+    marginTop: 4,
+  },
   label: {
     fontSize: 13,
     fontWeight: '700',
     color: '#000',
     marginBottom: 8,
+  },
+  labelRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 8,
+  },
+  autoButton: {
+    minHeight: 28,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    borderWidth: 1,
+    borderColor: '#CFE8D6',
+    borderRadius: 999,
+    paddingHorizontal: 10,
+    backgroundColor: '#E8F5E9',
+  },
+  autoButtonText: {
+    color: THEME_GREEN,
+    fontSize: 12,
+    fontWeight: '800',
   },
   inputBox: {
     flexDirection: 'row',
@@ -524,6 +832,12 @@ const styles = StyleSheet.create({
     color: '#EF4444',
     fontSize: 12,
     marginTop: 4,
+  },
+  helperText: {
+    color: Colors.textSecondary,
+    fontSize: 11,
+    fontWeight: '600',
+    marginTop: 5,
   },
   datePickerOverride: {
     flex: 1,

@@ -4,18 +4,18 @@ import {
   ApiBatch,
   listAllBatches,
 } from '@/services/managementApi';
-import { Ionicons, Feather } from '@expo/vector-icons';
+import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import { useRouter, type Href } from 'expo-router';
 import React, { useCallback, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   ScrollView,
+  StatusBar,
   StyleSheet,
   Text,
   TouchableOpacity,
   View,
-  StatusBar,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -70,7 +70,6 @@ export default function BatchManagementScreen() {
   const insets = useSafeAreaInsets();
   const [batches, setBatches] = useState<ApiBatch[]>([]);
   const [activeFilter, setActiveFilter] = useState<FilterKey>('ALL');
-  const [searchText, setSearchText] = useState('');
   const [loading, setLoading] = useState(true);
 
   const loadBatches = useCallback(async () => {
@@ -94,7 +93,6 @@ export default function BatchManagementScreen() {
   );
 
   const filteredBatches = useMemo(() => {
-    const query = searchText.trim().toLowerCase();
     return batches.filter((batch) => {
       const matchesStatus =
         activeFilter === 'ALL'
@@ -102,14 +100,10 @@ export default function BatchManagementScreen() {
           : activeFilter === 'CLOSED'
             ? batch.status === 'CLOSED' || batch.status === 'CANCELLED'
             : batch.status === activeFilter;
-      const matchesSearch =
-        !query ||
-        batch.code.toLowerCase().includes(query) ||
-        (batch.farmName ?? '').toLowerCase().includes(query);
 
-      return matchesStatus && matchesSearch;
+      return matchesStatus;
     });
-  }, [activeFilter, batches, searchText]);
+  }, [activeFilter, batches]);
 
   return (
     <View style={styles.container}>
@@ -118,18 +112,18 @@ export default function BatchManagementScreen() {
       <View style={[styles.header, { paddingTop: insets.top + 10 }]}>
         <View style={styles.headerLeft}>
           <TouchableOpacity onPress={() => router.back()}>
-            <Ionicons name="menu" size={28} color="#FFF" />
+            <Ionicons name="arrow-back" size={24} color="#FFF" />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Batches</Text>
         </View>
-        <View style={styles.headerRight}>
-          <TouchableOpacity style={styles.iconBtn}>
-            <Ionicons name="search" size={24} color="#FFF" />
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.iconBtn}>
-            <Ionicons name="funnel-outline" size={24} color="#FFF" />
-          </TouchableOpacity>
-        </View>
+        <TouchableOpacity
+          style={styles.iconBtn}
+          onPress={() => router.push('/(owner)/manage/batches/create' as Href)}
+          accessibilityRole="button"
+          accessibilityLabel="Create new batch"
+        >
+          <Ionicons name="add" size={28} color="#FFF" />
+        </TouchableOpacity>
       </View>
 
       <View style={styles.filterContainer}>
@@ -228,14 +222,6 @@ export default function BatchManagementScreen() {
         )}
       </ScrollView>
 
-      {/* Floating Action Button */}
-      <TouchableOpacity
-        style={[styles.fab, { bottom: Math.max(insets.bottom, 20) }]}
-        activeOpacity={0.8}
-        onPress={() => router.push('/(owner)/manage/batches/create' as Href)}
-      >
-        <Feather name="plus" size={28} color="#FFF" />
-      </TouchableOpacity>
     </View>
   );
 }
@@ -263,12 +249,12 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     marginLeft: 16,
   },
-  headerRight: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
   iconBtn: {
-    marginLeft: 16,
+    minWidth: 32,
+    minHeight: 32,
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 4,
   },
   filterContainer: {
     backgroundColor: '#FFF',
@@ -388,21 +374,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: 'bold',
     color: Colors.text,
-  },
-  fab: {
-    position: 'absolute',
-    right: 20,
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    backgroundColor: THEME_GREEN,
-    justifyContent: 'center',
-    alignItems: 'center',
-    elevation: 6,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.3,
-    shadowRadius: 4.65,
   },
   loadingBox: {
     paddingTop: 40,
