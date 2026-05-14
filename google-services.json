@@ -1,0 +1,48 @@
+{
+  "project_info": {
+    "project_number": "1004308786457",
+    "project_id": "broiler-ffbee",
+    "storage_bucket": "broiler-ffbee.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1004308786457:android:66f75fcddf2c7588f0a988",
+        "android_client_info": {
+          "package_name": "Broiler.new.com"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDnYfiiIXYN1BFplO0GN2VLukwEtLmZKtk"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1004308786457:android:898168c515d6234bf0a988",
+        "android_client_info": {
+          "package_name": "com.rahul2423.BroilerContractFarming"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDnYfiiIXYN1BFplO0GN2VLukwEtLmZKtk"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

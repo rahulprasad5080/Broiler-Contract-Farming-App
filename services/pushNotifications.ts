@@ -5,6 +5,12 @@ import * as Notifications from 'expo-notifications';
 import { updateFcmToken } from './authApi';
 
 let lastSyncedFcmKey: string | null = null;
+let pendingFcmSyncKey: string | null = null;
+let pendingFcmSyncPromise: Promise<string> | null = null;
+
+export type NativeFcmTokenResult =
+  | { ok: true; token: string }
+  | { ok: false; reason: string };
 
 export async function ensureAndroidNotificationChannel() {
   if (Platform.OS !== 'android') {
@@ -19,12 +25,29 @@ export async function ensureAndroidNotificationChannel() {
   });
 }
 
-export async function getNativeFcmTokenAsync() {
+function getFcmErrorReason(error: unknown) {
+  const message =
+    error instanceof Error && error.message.trim()
+      ? error.message.trim()
+      : 'Failed to get native FCM push token.';
+
+  if (
+    message.toLowerCase().includes('firebase') ||
+    message.toLowerCase().includes('google-services')
+  ) {
+    return `${message} Firebase Android config/google-services.json check karo.`;
+  }
+
+  return message;
+}
+
+export async function getNativeFcmTokenResultAsync(): Promise<NativeFcmTokenResult> {
   await ensureAndroidNotificationChannel();
 
   if (!Device.isDevice) {
-    console.log('Must use physical device for push notifications.');
-    return undefined;
+    const reason = 'Must use physical device for push notifications.';
+    console.log(reason);
+    return { ok: false, reason };
   }
 
   const { status: existingStatus } = await Notifications.getPermissionsAsync();
@@ -36,23 +59,32 @@ export async function getNativeFcmTokenAsync() {
   }
 
   if (finalStatus !== 'granted') {
-    console.log('Push notification permission was not granted.');
-    return undefined;
+    const reason = 'Push notification permission was not granted.';
+    console.log(reason);
+    return { ok: false, reason };
   }
 
   try {
     const token = await Notifications.getDevicePushTokenAsync();
 
     if (token.type !== 'android' || typeof token.data !== 'string') {
-      console.warn(`Unsupported token type for fcmToken sync: ${token.type}`);
-      return undefined;
+      const reason = `Unsupported token type for fcmToken sync: ${token.type}`;
+      console.warn(reason);
+      return { ok: false, reason };
     }
 
-    return token.data;
+    console.log('FCM token:', token.data);
+    return { ok: true, token: token.data };
   } catch (error) {
+    const reason = getFcmErrorReason(error);
     console.error('Failed to get native FCM push token:', error);
-    return undefined;
+    return { ok: false, reason };
   }
+}
+
+export async function getNativeFcmTokenAsync() {
+  const result = await getNativeFcmTokenResultAsync();
+  return result.ok ? result.token : undefined;
 }
 
 export async function syncKnownFcmTokenWithServer(accessToken: string, fcmToken: string) {
@@ -61,9 +93,23 @@ export async function syncKnownFcmTokenWithServer(accessToken: string, fcmToken:
     return fcmToken;
   }
 
-  await updateFcmToken(accessToken, { fcmToken });
-  lastSyncedFcmKey = syncKey;
-  return fcmToken;
+  if (pendingFcmSyncKey === syncKey && pendingFcmSyncPromise) {
+    return pendingFcmSyncPromise;
+  }
+
+  pendingFcmSyncKey = syncKey;
+  pendingFcmSyncPromise = updateFcmToken(accessToken, { fcmToken })
+    .then(() => {
+      lastSyncedFcmKey = syncKey;
+      console.log('FCM token synced with server:', fcmToken);
+      return fcmToken;
+    })
+    .finally(() => {
+      pendingFcmSyncKey = null;
+      pendingFcmSyncPromise = null;
+    });
+
+  return pendingFcmSyncPromise;
 }
 
 export async function syncFcmTokenWithServer(accessToken: string) {
@@ -78,4 +124,6 @@ export async function syncFcmTokenWithServer(accessToken: string) {
 
 export function clearSyncedFcmTokenCache() {
   lastSyncedFcmKey = null;
+  pendingFcmSyncKey = null;
+  pendingFcmSyncPromise = null;
 }

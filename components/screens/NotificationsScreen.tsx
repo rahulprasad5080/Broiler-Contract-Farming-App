@@ -1,4 +1,5 @@
 import { Ionicons } from "@expo/vector-icons";
+import { useFocusEffect } from "@react-navigation/native";
 import React, { useMemo, useState } from "react";
 import {
   SectionList,
@@ -47,9 +48,11 @@ export function NotificationsScreen() {
     }
   }, [accessToken]);
 
-  React.useEffect(() => {
-    void loadNotifications();
-  }, [loadNotifications]);
+  useFocusEffect(
+    React.useCallback(() => {
+      void loadNotifications();
+    }, [loadNotifications]),
+  );
 
   const handleNotificationPress = React.useCallback(async (notification: ApiNotification) => {
     if (!accessToken || notification.isRead || markingIds[notification.id]) {
@@ -89,7 +92,9 @@ export function NotificationsScreen() {
   const filteredNotifications = useMemo(() => {
     let list = [...notifications];
     if (selectedFilter === "Unread") list = list.filter(n => !n.isRead);
-    // Add logic for "Important" if needed, currently showing all as important might be too much
+    if (selectedFilter === "Important") {
+      list = list.filter(n => n.severity === "WARNING" || n.severity === "CRITICAL");
+    }
     return list;
   }, [notifications, selectedFilter]);
 

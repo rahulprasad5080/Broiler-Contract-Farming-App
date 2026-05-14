@@ -21,6 +21,7 @@
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
       "package": "com.rahul2423.BroilerContractFarming",
+      "googleServicesFile": "./google-services.json",
       "permissions": [
         "INTERNET",
         "ACCESS_NETWORK_STATE",
