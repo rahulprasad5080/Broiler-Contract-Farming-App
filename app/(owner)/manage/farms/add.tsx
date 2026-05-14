@@ -12,6 +12,7 @@ import {
   Modal,
   ScrollView,
   StyleSheet,
+  StatusBar,
   Text,
   TextInput,
   TouchableOpacity,
@@ -23,6 +24,8 @@ import Toast from 'react-native-toast-message';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Controller, useForm } from 'react-hook-form';
 import { z } from 'zod';
+
+const THEME_GREEN = '#0B5C36';
 
 type AssignmentField = 'primaryFarmerId' | 'supervisorId' | 'assignmentUserIds';
 type PickerRoleFilter = 'all' | 'farmers' | 'supervisors' | 'staff';
@@ -294,22 +297,39 @@ export default function AddFarmScreen() {
         : 'Select Assigned Staff';
 
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <SafeAreaView style={styles.safeArea} edges={['top']}>
+      <StatusBar barStyle="light-content" backgroundColor={THEME_GREEN} />
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-          <Ionicons name="arrow-back" size={24} color={Colors.primary} />
+        <View style={styles.headerLeft}>
+          <TouchableOpacity onPress={() => router.back()} style={styles.headerBtn}>
+            <Ionicons name="arrow-back" size={24} color="#FFF" />
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>Add Farm</Text>
+        </View>
+        <TouchableOpacity
+          style={[styles.headerBtn, isSubmitting && styles.buttonDisabled]}
+          onPress={handleSubmit(handleCreateFarm)}
+          disabled={isSubmitting}
+          accessibilityRole="button"
+          accessibilityLabel="Create farm"
+        >
+          {isSubmitting ? (
+            <ActivityIndicator color="#FFF" size="small" />
+          ) : (
+            <Ionicons name="checkmark" size={27} color="#FFF" />
+          )}
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Add New Farm</Text>
       </View>
 
       <ScrollView
+        style={styles.contentArea}
         contentContainerStyle={styles.container}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
       >
         {showDraftBanner ? (
           <Animated.View style={[styles.draftBanner, { opacity: draftBannerOpacity }]} pointerEvents="none">
-            <Ionicons name="cloud-done-outline" size={16} color={Colors.primary} />
+            <Ionicons name="cloud-done-outline" size={16} color={THEME_GREEN} />
             <Text style={styles.draftBannerText}>Draft restored</Text>
           </Animated.View>
         ) : null}
@@ -332,7 +352,7 @@ export default function AddFarmScreen() {
               <View style={styles.referenceField}>
                 <Text style={styles.referenceLabel}>Farm Name *</Text>
                 <View style={[styles.referenceInput, formErrors.name && styles.referenceInputError]}>
-                  <Ionicons name="business-outline" size={16} color={Colors.primary} />
+                  <Ionicons name="business-outline" size={16} color={THEME_GREEN} />
                   <TextInput
                     style={styles.referenceTextInput}
                     placeholder="Enter farm name"
@@ -354,7 +374,7 @@ export default function AddFarmScreen() {
                 <View style={styles.referenceHalf}>
                   <Text style={styles.referenceLabel}>Farm Code *</Text>
                   <View style={[styles.referenceInput, formErrors.code && styles.referenceInputError]}>
-                    <Ionicons name="barcode-outline" size={16} color={Colors.primary} />
+                    <Ionicons name="barcode-outline" size={16} color={THEME_GREEN} />
                     <TextInput
                       style={styles.referenceTextInput}
                       placeholder="Enter farm code"
@@ -374,7 +394,7 @@ export default function AddFarmScreen() {
                 <View style={[styles.referenceHalf, !Layout.isSmallDevice && styles.referenceHalfRight]}>
                   <Text style={styles.referenceLabel}>Total Birds Capacity *</Text>
                   <View style={[styles.referenceInput, formErrors.capacity && styles.referenceInputError]}>
-                    <Ionicons name="speedometer-outline" size={16} color={Colors.primary} />
+                    <Ionicons name="speedometer-outline" size={16} color={THEME_GREEN} />
                     <TextInput
                       style={styles.referenceTextInput}
                       placeholder="Enter capacity"
@@ -398,7 +418,7 @@ export default function AddFarmScreen() {
                 <View style={styles.referenceHalf}>
                   <Text style={styles.referenceLabel}>Location *</Text>
                   <View style={[styles.referenceInput, formErrors.location && styles.referenceInputError]}>
-                    <Ionicons name="location-outline" size={16} color={Colors.primary} />
+                    <Ionicons name="location-outline" size={16} color={THEME_GREEN} />
                     <TextInput
                       style={styles.referenceTextInput}
                       placeholder="Enter farm location"
@@ -418,7 +438,7 @@ export default function AddFarmScreen() {
                 <View style={[styles.referenceHalf, !Layout.isSmallDevice && styles.referenceHalfRight]}>
                   <Text style={styles.referenceLabel}>State</Text>
                   <View style={[styles.referenceInput, formErrors.state && styles.referenceInputError]}>
-                    <Ionicons name="map-outline" size={16} color={Colors.primary} />
+                    <Ionicons name="map-outline" size={16} color={THEME_GREEN} />
                     <TextInput
                       style={styles.referenceTextInput}
                       placeholder="Enter state"
@@ -441,7 +461,7 @@ export default function AddFarmScreen() {
                 <View style={styles.referenceHalf}>
                   <Text style={styles.referenceLabel}>Village</Text>
                   <View style={[styles.referenceInput, formErrors.village && styles.referenceInputError]}>
-                    <Ionicons name="leaf-outline" size={16} color={Colors.primary} />
+                    <Ionicons name="leaf-outline" size={16} color={THEME_GREEN} />
                     <TextInput
                       style={styles.referenceTextInput}
                       placeholder="Enter village"
@@ -461,7 +481,7 @@ export default function AddFarmScreen() {
                 <View style={[styles.referenceHalf, !Layout.isSmallDevice && styles.referenceHalfRight]}>
                   <Text style={styles.referenceLabel}>District</Text>
                   <View style={[styles.referenceInput, formErrors.district && styles.referenceInputError]}>
-                    <Ionicons name="navigate-outline" size={16} color={Colors.primary} />
+                    <Ionicons name="navigate-outline" size={16} color={THEME_GREEN} />
                     <TextInput
                       style={styles.referenceTextInput}
                       placeholder="Enter district"
@@ -483,7 +503,7 @@ export default function AddFarmScreen() {
               <View style={styles.referenceField}>
                 <Text style={styles.referenceLabel}>Notes (Optional)</Text>
                 <View style={[styles.referenceInput, styles.referenceTextAreaBox, formErrors.notes && styles.referenceInputError]}>
-                  <Ionicons name="document-text-outline" size={16} color={Colors.primary} />
+                  <Ionicons name="document-text-outline" size={16} color={THEME_GREEN} />
                   <TextInput
                     style={[styles.referenceTextInput, styles.referenceTextArea]}
                     placeholder="Add any additional notes about your farm..."
@@ -520,7 +540,7 @@ export default function AddFarmScreen() {
                 activeOpacity={0.84}
               >
                 <View style={styles.referenceSelectIcon}>
-                  <Ionicons name="person-outline" size={17} color={Colors.primary} />
+                  <Ionicons name="person-outline" size={17} color={THEME_GREEN} />
                 </View>
                 <View style={styles.referenceSelectCopy}>
                   <Text style={styles.referenceSelectTitle}>
@@ -542,7 +562,7 @@ export default function AddFarmScreen() {
                 activeOpacity={0.84}
               >
                 <View style={styles.referenceSelectIcon}>
-                  <Ionicons name="person-outline" size={17} color={Colors.primary} />
+                  <Ionicons name="person-outline" size={17} color={THEME_GREEN} />
                 </View>
                 <View style={styles.referenceSelectCopy}>
                   <Text style={styles.referenceSelectTitle}>
@@ -564,7 +584,7 @@ export default function AddFarmScreen() {
             activeOpacity={0.84}
           >
             <View style={styles.referenceSelectIcon}>
-              <Ionicons name="people-outline" size={17} color={Colors.primary} />
+              <Ionicons name="people-outline" size={17} color={THEME_GREEN} />
             </View>
             <View style={styles.referenceSelectCopy}>
               <Text style={styles.referenceSelectTitle}>Select Staff Members</Text>
@@ -589,7 +609,7 @@ export default function AddFarmScreen() {
                     style={styles.referenceStaffRemove}
                     onPress={() => setValue('assignmentUserIds', assignmentUserIds.filter((id) => id !== userId))}
                   >
-                    <Ionicons name="close" size={11} color={Colors.primary} />
+                    <Ionicons name="close" size={11} color={THEME_GREEN} />
                   </TouchableOpacity>
                 </View>
               ))}
@@ -720,15 +740,16 @@ export default function AddFarmScreen() {
 }
 
 const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: '#F4F5F7' },
+  safeArea: { flex: 1, backgroundColor: THEME_GREEN },
+  contentArea: { flex: 1, backgroundColor: '#FFF' },
   draftBanner: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
     backgroundColor: '#E8F5E9',
-    borderRadius: 8,
+    borderRadius: 999,
     borderWidth: 1,
-    borderColor: '#C8E6C9',
+    borderColor: '#B7E0C2',
     paddingHorizontal: 12,
     paddingVertical: 8,
     marginBottom: 12,
@@ -736,26 +757,40 @@ const styles = StyleSheet.create({
   draftBannerText: {
     fontSize: 12,
     fontWeight: '700',
-    color: Colors.primary,
+    color: THEME_GREEN,
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: Layout.spacing.lg,
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
     paddingVertical: 14,
-    backgroundColor: '#FFF',
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.border,
+    backgroundColor: THEME_GREEN,
   },
-  backButton: { marginRight: 14 },
-  headerTitle: { fontSize: 18, fontWeight: 'bold', color: Colors.primary },
+  headerLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  headerBtn: {
+    minWidth: 32,
+    minHeight: 32,
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 4,
+  },
+  headerTitle: {
+    color: '#FFF',
+    fontSize: 18,
+    fontWeight: '700',
+    marginLeft: 12,
+  },
   container: {
-    paddingHorizontal: Layout.screenPadding,
-    paddingTop: Layout.spacing.md,
+    paddingHorizontal: 20,
+    paddingTop: 20,
     alignSelf: 'center',
     width: '100%',
     maxWidth: Layout.contentMaxWidth,
-    paddingBottom: 120,
+    paddingBottom: 96,
   },
   pageTitle: { fontSize: 22, fontWeight: 'bold', color: Colors.text, marginBottom: 4 },
   pageSubtitle: { fontSize: 13, color: Colors.textSecondary, marginBottom: 16, lineHeight: 18 },
@@ -769,73 +804,70 @@ const styles = StyleSheet.create({
     borderColor: '#FECACA',
   },
   card: {
-    backgroundColor: '#FFF',
-    borderRadius: 14,
-    padding: 16,
-    marginBottom: 16,
-    borderWidth: 1,
-    borderColor: Colors.border,
-    ...Layout.cardShadow,
+    backgroundColor: 'transparent',
+    borderRadius: 0,
+    padding: 0,
+    marginBottom: 24,
+    borderWidth: 0,
   },
   sectionTitle: { fontSize: 16, fontWeight: 'bold', color: Colors.primary, marginBottom: 14 },
   referenceCard: {
-    borderRadius: 14,
-    padding: 16,
-    backgroundColor: '#FFFFFF',
-    borderColor: '#E7ECE8',
-    shadowColor: '#102418',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.06,
-    shadowRadius: 18,
-    elevation: 4,
+    borderRadius: 0,
+    padding: 0,
+    backgroundColor: 'transparent',
+    borderColor: 'transparent',
+    shadowOpacity: 0,
+    elevation: 0,
   },
   referenceHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
     marginBottom: 16,
+    paddingBottom: 0,
+    borderBottomWidth: 0,
   },
   referenceIconBox: {
-    width: 36,
-    height: 36,
+    width: 34,
+    height: 34,
     borderRadius: 10,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: Colors.primary,
+    backgroundColor: THEME_GREEN,
   },
   referenceTitle: {
     fontSize: 15,
-    fontWeight: '900',
-    color: Colors.text,
+    fontWeight: '800',
+    color: '#111827',
   },
   referenceSubtitle: {
     marginTop: 2,
-    fontSize: 10,
-    fontWeight: '600',
+    fontSize: 11,
+    fontWeight: '500',
     color: Colors.textSecondary,
   },
-  referenceField: { marginTop: 10 },
+  referenceField: { marginBottom: 16 },
   referenceRow: {
-    flexDirection: Layout.isSmallDevice ? 'column' : 'row',
-    marginTop: 10,
+    flexDirection: 'column',
+    marginBottom: 16,
   },
   referenceHalf: { flex: 1 },
-  referenceHalfRight: { marginLeft: 12 },
+  referenceHalfRight: { marginLeft: 0, marginTop: 16 },
   referenceLabel: {
-    marginBottom: 6,
-    fontSize: 11,
-    fontWeight: '900',
-    color: Colors.text,
+    marginBottom: 8,
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#111827',
   },
   referenceInput: {
-    minHeight: 44,
+    minHeight: 48,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
     borderWidth: 1,
-    borderColor: '#DDE6E0',
+    borderColor: '#E5E7EB',
     borderRadius: 8,
-    paddingHorizontal: 11,
+    paddingHorizontal: 14,
     backgroundColor: '#FFFFFF',
   },
   referenceInputError: {
@@ -844,78 +876,77 @@ const styles = StyleSheet.create({
   },
   referenceTextInput: {
     flex: 1,
-    color: Colors.text,
-    fontSize: 12,
-    fontWeight: '700',
+    color: '#111827',
+    fontSize: 14,
+    fontWeight: '500',
     paddingVertical: 0,
   },
   referenceTextAreaBox: {
-    minHeight: 78,
+    minHeight: 96,
     alignItems: 'flex-start',
-    paddingVertical: 10,
+    paddingVertical: 12,
   },
   referenceTextArea: {
-    minHeight: 58,
-    lineHeight: 17,
+    minHeight: 68,
+    lineHeight: 19,
     textAlignVertical: 'top',
   },
   referenceCounter: {
     alignSelf: 'flex-end',
     marginTop: 4,
-    fontSize: 9,
-    fontWeight: '700',
+    fontSize: 10,
+    fontWeight: '600',
     color: Colors.textSecondary,
   },
   assignmentTwoCol: {
-    flexDirection: Layout.isSmallDevice ? 'column' : 'row',
-    marginTop: 6,
+    flexDirection: 'column',
   },
   assignmentPickerBlock: {
     flex: 1,
-    marginTop: 8,
+    marginBottom: 16,
   },
   referenceSelectCard: {
-    minHeight: 58,
+    minHeight: 52,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 9,
+    gap: 10,
     borderWidth: 1,
-    borderColor: '#DDE6E0',
-    borderRadius: 12,
-    paddingHorizontal: 11,
+    borderColor: '#E5E7EB',
+    borderRadius: 8,
+    paddingHorizontal: 14,
     paddingVertical: 10,
     backgroundColor: '#FFFFFF',
   },
   staffSelectSummary: {
-    minHeight: 58,
+    minHeight: 52,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 9,
+    gap: 10,
     borderWidth: 1,
-    borderColor: '#DDE6E0',
-    borderRadius: 12,
-    paddingHorizontal: 11,
+    borderColor: '#E5E7EB',
+    borderRadius: 8,
+    paddingHorizontal: 14,
     paddingVertical: 10,
     backgroundColor: '#FFFFFF',
   },
   referenceSelectIcon: {
     width: 32,
     height: 32,
-    borderRadius: 9,
+    borderRadius: 8,
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: '#E8F5E9',
   },
   referenceSelectCopy: { flex: 1 },
   referenceSelectTitle: {
-    fontSize: 12,
-    fontWeight: '900',
-    color: Colors.text,
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#111827',
   },
   referenceSelectSubtitle: {
-    marginTop: 2,
-    fontSize: 10,
-    fontWeight: '600',
+    marginTop: 3,
+    fontSize: 11,
+    fontWeight: '500',
     color: Colors.textSecondary,
   },
   referenceStaffChips: {
@@ -932,9 +963,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     paddingVertical: 6,
     borderRadius: 999,
-    backgroundColor: '#EAF6EC',
+    backgroundColor: '#E8F5E9',
     borderWidth: 1,
-    borderColor: '#CFE8D3',
+    borderColor: '#B7E0C2',
   },
   referenceStaffDot: {
     width: 18,
@@ -942,18 +973,18 @@ const styles = StyleSheet.create({
     borderRadius: 9,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#D5E8D6',
+    backgroundColor: THEME_GREEN,
   },
   referenceStaffInitial: {
     fontSize: 8,
     fontWeight: '900',
-    color: Colors.text,
+    color: '#FFF',
   },
   referenceStaffName: {
     flexShrink: 1,
     fontSize: 10,
     fontWeight: '800',
-    color: Colors.primary,
+    color: THEME_GREEN,
   },
   referenceStaffRemove: {
     width: 16,
@@ -1190,10 +1221,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
-    backgroundColor: Colors.primary,
-    height: 54,
-    borderRadius: 12,
+    backgroundColor: THEME_GREEN,
+    height: 50,
+    borderRadius: 8,
+    marginTop: 4,
     marginBottom: 8,
+    shadowOpacity: 0,
+    elevation: 0,
   },
   buttonDisabled: { opacity: 0.75 },
   saveButtonText: { color: '#FFF', fontSize: 16, fontWeight: 'bold' },
