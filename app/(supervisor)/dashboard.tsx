@@ -5,6 +5,7 @@ import { ActivityIndicator, ScrollView, StyleSheet, Text, TextInput, TouchableOp
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { HeaderNotificationButton } from '../../components/ui/HeaderNotificationButton';
+import { DashboardSidebar } from '../../components/navigation/DashboardSidebar';
 import { Colors } from '../../constants/Colors';
 import { Layout } from '../../constants/Layout';
 import { useAuth } from '../../context/AuthContext';
@@ -22,6 +23,7 @@ function formatStatus(value: string) {
 export default function SupervisorDashboard() {
   const { accessToken } = useAuth();
   const [dashboard, setDashboard] = useState<ApiDashboardSummary | null>(null);
+  const [showSidebar, setShowSidebar] = useState(false);
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState<string | null>(null);
@@ -67,6 +69,15 @@ export default function SupervisorDashboard() {
   return (
     <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
       <View style={styles.topBar}>
+        <TouchableOpacity
+          style={styles.menuButton}
+          onPress={() => setShowSidebar(true)}
+          activeOpacity={0.82}
+          accessibilityRole="button"
+          accessibilityLabel="Open dashboard menu"
+        >
+          <Ionicons name="menu" size={21} color={Colors.primary} />
+        </TouchableOpacity>
         <Text style={styles.topBarTitle}>Broiler Manager</Text>
         <HeaderNotificationButton />
       </View>
@@ -122,6 +133,11 @@ export default function SupervisorDashboard() {
           )}
         </View>
       </ScrollView>
+      <DashboardSidebar
+        visible={showSidebar}
+        onClose={() => setShowSidebar(false)}
+        themeColor={Colors.primary}
+      />
     </SafeAreaView>
   );
 }
@@ -185,6 +201,17 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFF',
     borderBottomWidth: 1,
     borderBottomColor: Colors.border,
+  },
+  menuButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 10,
+    backgroundColor: '#F6FBF7',
+    borderWidth: 1,
+    borderColor: '#DDEBE3',
   },
   topBarTitle: {
     fontSize: 18,

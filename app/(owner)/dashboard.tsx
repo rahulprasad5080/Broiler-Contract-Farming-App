@@ -1,4 +1,8 @@
 import {
+  DashboardSidebar,
+  type DashboardSidebarAction,
+} from "@/components/navigation/DashboardSidebar";
+import {
   showRequestErrorToast,
   showSuccessToast,
 } from "@/services/apiFeedback";
@@ -51,6 +55,7 @@ export default function OwnerDashboard() {
   const router = useRouter();
 
   // Settings Panel State
+  const [showSidebar, setShowSidebar] = useState(false);
   const [showSettingsPanel, setShowSettingsPanel] = useState(false);
   const [users, setUsers] = useState<any[]>([]);
   const [userSearch, setUserSearch] = useState("");
@@ -170,19 +175,40 @@ export default function OwnerDashboard() {
       .includes(query);
   });
 
+  const sidebarExtraItems: DashboardSidebarAction[] = [
+    {
+      title: "User Settings",
+      subtitle: "Activate or disable users",
+      icon: "settings-outline",
+      requiredPermission: "manage:users",
+      section: "More",
+      onPress: () => setShowSettingsPanel(true),
+    },
+  ];
+
   return (
     <View style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor={THEME_GREEN} />
       
       {/* Top Header */}
       <View style={[styles.header, { paddingTop: insets.top + 10 }]}>
-        <TouchableOpacity onPress={() => setShowSettingsPanel(true)}>
-          <Ionicons name="menu" size={28} color="#FFF" />
+        <TouchableOpacity
+          style={styles.headerIconBtn}
+          onPress={() => setShowSidebar(true)}
+          accessibilityRole="button"
+          accessibilityLabel="Open dashboard menu"
+        >
+          <Ionicons name="menu" size={22} color="#FFF" />
         </TouchableOpacity>
         <Text style={styles.headerLogoText}>
           Poultry<Text style={styles.headerLogoLight}>Flow</Text>
         </Text>
-        <TouchableOpacity style={styles.bellIconBtn}>
+        <TouchableOpacity
+          style={styles.bellIconBtn}
+          onPress={() => router.push("/(owner)/notifications" as Href)}
+          accessibilityRole="button"
+          accessibilityLabel="Notifications"
+        >
           <Feather name="bell" size={24} color="#FFF" />
           <View style={styles.bellBadge}>
             <Text style={styles.bellBadgeText}>3</Text>
@@ -422,6 +448,13 @@ export default function OwnerDashboard() {
         <Feather name="plus" size={28} color="#FFF" />
       </TouchableOpacity>
 
+      <DashboardSidebar
+        visible={showSidebar}
+        onClose={() => setShowSidebar(false)}
+        themeColor={THEME_GREEN}
+        extraItems={sidebarExtraItems}
+      />
+
       {/* Settings Panel Modal */}
       <Modal visible={showSettingsPanel} transparent animationType="slide">
         <TouchableOpacity
@@ -571,9 +604,26 @@ const styles = StyleSheet.create({
     fontWeight: "400",
     opacity: 0.8,
   },
+  headerIconBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "rgba(255,255,255,0.12)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.2)",
+  },
   bellIconBtn: {
     position: "relative",
-    padding: 4,
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "rgba(255,255,255,0.12)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.2)",
   },
   bellBadge: {
     position: "absolute",

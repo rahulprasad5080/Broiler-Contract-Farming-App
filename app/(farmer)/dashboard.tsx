@@ -7,16 +7,24 @@ import { Layout } from '../../constants/Layout';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { HeaderNotificationButton } from '../../components/ui/HeaderNotificationButton';
+import { DashboardSidebar } from '../../components/navigation/DashboardSidebar';
 
 export default function FarmerDashboard() {
-  const { hasPermission, signOut } = useAuth();
+  const { hasPermission } = useAuth();
   const router = useRouter();
+  const [showSidebar, setShowSidebar] = React.useState(false);
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
       <View style={styles.topBar}>
-        <TouchableOpacity onPress={signOut}>
-          <Ionicons name="arrow-back" size={24} color={Colors.primary} />
+        <TouchableOpacity
+          style={styles.menuButton}
+          onPress={() => setShowSidebar(true)}
+          activeOpacity={0.82}
+          accessibilityRole="button"
+          accessibilityLabel="Open dashboard menu"
+        >
+          <Ionicons name="menu" size={21} color={Colors.primary} />
         </TouchableOpacity>
         <Text style={styles.topBarTitle}>Broiler Manager</Text>
         <HeaderNotificationButton />
@@ -115,6 +123,11 @@ export default function FarmerDashboard() {
           </View>
         </View>
       </ScrollView>
+      <DashboardSidebar
+        visible={showSidebar}
+        onClose={() => setShowSidebar(false)}
+        themeColor={Colors.primary}
+      />
 
     </SafeAreaView>
   );
@@ -134,6 +147,16 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFF',
     borderBottomWidth: 1,
     borderBottomColor: Colors.border,
+  },
+  menuButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#F6FBF7',
+    borderWidth: 1,
+    borderColor: '#DDEBE3',
   },
   topBarTitle: {
     fontSize: 18,
