@@ -56,13 +56,16 @@ export default function FarmerFarmDetailScreen() {
 
   if (loading && !refreshing) {
     return (
-      <SafeAreaView style={styles.safeArea}>
+      <SafeAreaView style={styles.safeArea} edges={['top']}>
+        <StatusBar barStyle="light-content" backgroundColor="#0B5C36" />
         <View style={styles.header}>
           <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-            <Ionicons name="arrow-back" size={24} color={Colors.text} />
+            <Ionicons name="arrow-back" size={24} color="#FFFFFF" />
           </TouchableOpacity>
+          <Text style={styles.headerTitle} numberOfLines={1}>Loading...</Text>
+          <View style={{ width: 40 }} />
         </View>
-        <View style={styles.centerBox}>
+        <View style={[styles.centerBox, { backgroundColor: '#F9FAFB' }]}>
           <ActivityIndicator size="large" color={Colors.primary} />
           <Text style={styles.loadingText}>Loading farm details...</Text>
         </View>
@@ -72,13 +75,16 @@ export default function FarmerFarmDetailScreen() {
 
   if (!farm) {
     return (
-      <SafeAreaView style={styles.safeArea}>
+      <SafeAreaView style={styles.safeArea} edges={['top']}>
+        <StatusBar barStyle="light-content" backgroundColor="#0B5C36" />
         <View style={styles.header}>
           <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-            <Ionicons name="arrow-back" size={24} color={Colors.text} />
+            <Ionicons name="arrow-back" size={24} color="#FFFFFF" />
           </TouchableOpacity>
+          <Text style={styles.headerTitle} numberOfLines={1}>Not Found</Text>
+          <View style={{ width: 40 }} />
         </View>
-        <View style={styles.centerBox}>
+        <View style={[styles.centerBox, { backgroundColor: '#F9FAFB' }]}>
           <MaterialCommunityIcons name="alert-circle-outline" size={48} color={Colors.textSecondary} />
           <Text style={styles.loadingText}>Farm not found.</Text>
         </View>
