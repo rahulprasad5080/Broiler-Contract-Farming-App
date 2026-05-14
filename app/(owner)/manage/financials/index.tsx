@@ -130,7 +130,7 @@ export default function FinancialDashboardScreen() {
                 icon="briefcase-outline" 
                 iconColor="#D97706" 
                 bgColor="#FFFBEB"
-                onPress={() => {}} 
+                onPress={() => router.navigate('/(owner)/manage/finance-entry' as any)} 
               />
               <QuickAction 
                 label="Payment Entry" 

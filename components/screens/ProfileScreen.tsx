@@ -91,15 +91,24 @@ export default function ProfileScreen() {
         <Text style={styles.sectionTitle}>Account Settings</Text>
         <View style={styles.settingsGroup}>
           <SettingItem icon="person-outline" label="Personal Information" />
-          <SettingItem icon="lock-closed-outline" label="Change Password" />
+          <SettingItem icon="lock-closed-outline" label="Change Password" onPress={() => router.navigate('/(auth)/change-password' as any)} />
           <SettingItem icon="language-outline" label="Language" value="English" />
-          <SettingItem icon="settings-outline" label="App Settings" isLast />
+          <SettingItem
+            icon="settings-outline"
+            label="App Settings"
+            onPress={user?.role === 'OWNER' ? () => router.navigate('/(owner)/manage/settings' as any) : undefined}
+            isLast
+          />
         </View>
 
         {/* Business Settings */}
         <Text style={styles.sectionTitle}>Business Settings</Text>
         <View style={styles.settingsGroup}>
-          <SettingItem icon="business-outline" label="Farm Details" />
+          <SettingItem
+            icon="business-outline"
+            label="Farm Details"
+            onPress={user?.role === 'OWNER' ? () => router.navigate('/(owner)/manage/farms') : undefined}
+          />
           <SettingItem icon="options-outline" label="Units & Measurements" />
           <SettingItem icon="calendar-outline" label="Financial Year" value="2024-25" isLast />
         </View>

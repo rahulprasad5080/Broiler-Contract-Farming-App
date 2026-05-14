@@ -262,7 +262,7 @@ function BatchCard({ batch }: { batch: ApiDashboardBatch }) {
     <TouchableOpacity
       style={styles.farmCard}
       onPress={() => router.navigate({
-        pathname: '/(supervisor)/manage/daily-entry',
+        pathname: '/(supervisor)/tasks/daily',
         params: { batchId: batch.batchId, farmName: batch.farmName }
       } as any)}
     >

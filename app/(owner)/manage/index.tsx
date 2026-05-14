@@ -71,7 +71,7 @@ const ENTRY_ITEMS: EntryItem[] = [
     icon: "document-text-outline",
     iconType: "Ionicons",
     color: "#6366F1",
-    route: "/(owner)/manage/financials",
+    route: "/(owner)/manage/finance-entry",
   },
 ];
 
