@@ -38,7 +38,7 @@ export function BottomTabs({ state, descriptors, navigation, hiddenTabs = [] }: 
     { name: 'farms', label: 'Farms', icon: 'business-outline' },
     { name: 'tasks', label: 'Tasks', icon: 'checkmark-circle-outline' },
     { name: 'review', label: 'Review', icon: 'shield-checkmark-outline' },
-    { name: 'manage', label: 'Manage', icon: 'briefcase-outline' },
+    { name: 'manage', label: 'Entries', icon: 'briefcase-outline' },
     { name: 'reports', label: 'Reports', icon: 'stats-chart-outline' },
     { name: 'profile', label: 'Profile', icon: 'person-outline' },
   ];
