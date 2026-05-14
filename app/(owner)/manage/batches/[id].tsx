@@ -13,6 +13,11 @@ import {
   type ApiDailyLog,
   type ApiSale,
 } from '@/services/managementApi';
+import {
+  downloadBatchExcelReport,
+  downloadBatchPdfReport,
+} from '@/services/reportApi';
+import { saveAndShareReport } from '@/services/reportExport';
 import { Feather, Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
@@ -34,7 +39,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ScreenState } from '@/components/ui/ScreenState';
 import { TopAppBar } from '@/components/ui/TopAppBar';
-import { showRequestErrorToast } from '@/services/apiFeedback';
+import { showRequestErrorToast, showSuccessToast } from '@/services/apiFeedback';
 
 type TabKey = 'overview' | 'daily' | 'expenses' | 'sales' | 'pnl' | 'comments';
 
@@ -112,6 +117,7 @@ export default function BatchDetailsScreen() {
   const [comments, setComments] = useState<ApiComment[]>([]);
   const [loading, setLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [exporting, setExporting] = useState<'pdf' | 'excel' | null>(null);
 
   const loadBatchDetails = useCallback(async () => {
     if (!accessToken || !id) return;
@@ -198,6 +204,40 @@ export default function BatchDetailsScreen() {
     [id, router],
   );
 
+  const exportReport = useCallback(
+    async (format: 'pdf' | 'excel') => {
+      if (!accessToken || !id || exporting) return;
+
+      setExporting(format);
+      try {
+        const response =
+          format === 'pdf'
+            ? await downloadBatchPdfReport(accessToken, id)
+            : await downloadBatchExcelReport(accessToken, id);
+        const extension = format === 'pdf' ? 'pdf' : 'xlsx';
+        const batchCode = batch?.code || id;
+
+        const result = await saveAndShareReport({
+          response,
+          format,
+          fallbackFileName: `batch-${batchCode}-report.${extension}`,
+          dialogTitle: `Share ${format === 'pdf' ? 'PDF' : 'Excel'} report`,
+        });
+
+        showSuccessToast(
+          result.shared
+            ? `${format === 'pdf' ? 'PDF' : 'Excel'} report ready to share.`
+            : `Report saved: ${result.fileName}`,
+        );
+      } catch (error) {
+        showRequestErrorToast(error, { title: 'Report export failed' });
+      } finally {
+        setExporting(null);
+      }
+    },
+    [accessToken, batch?.code, exporting, id],
+  );
+
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <TopAppBar
@@ -206,7 +246,11 @@ export default function BatchDetailsScreen() {
         showBack
         right={
           <>
-            <TouchableOpacity style={styles.headerIcon}>
+            <TouchableOpacity
+              style={styles.headerIcon}
+              onPress={() => void exportReport('pdf')}
+              disabled={Boolean(exporting)}
+            >
               <Ionicons name="share-social-outline" size={22} color="#FFF" />
             </TouchableOpacity>
             <TouchableOpacity style={styles.headerIcon}>
@@ -229,6 +273,38 @@ export default function BatchDetailsScreen() {
           <Text style={styles.heroMetaText}>Placed On: {formatDate(batch?.placementDate)}</Text>
           <Text style={styles.heroMetaDivider}>|</Text>
           <Text style={styles.heroMetaText}>Age: {ageDays} Days</Text>
+        </View>
+        <View style={styles.exportActions}>
+          <TouchableOpacity
+            style={[styles.exportButton, exporting && styles.exportButtonDisabled]}
+            onPress={() => void exportReport('pdf')}
+            disabled={Boolean(exporting)}
+            activeOpacity={0.82}
+          >
+            {exporting === 'pdf' ? (
+              <ActivityIndicator color="#FFF" />
+            ) : (
+              <>
+                <Ionicons name="document-text-outline" size={17} color="#FFF" />
+                <Text style={styles.exportButtonText}>Share PDF</Text>
+              </>
+            )}
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.exportButton, styles.excelButton, exporting && styles.exportButtonDisabled]}
+            onPress={() => void exportReport('excel')}
+            disabled={Boolean(exporting)}
+            activeOpacity={0.82}
+          >
+            {exporting === 'excel' ? (
+              <ActivityIndicator color={THEME_GREEN} />
+            ) : (
+              <>
+                <Ionicons name="grid-outline" size={17} color={THEME_GREEN} />
+                <Text style={[styles.exportButtonText, styles.excelButtonText]}>Share Excel</Text>
+              </>
+            )}
+          </TouchableOpacity>
         </View>
       </View>
 
@@ -621,6 +697,37 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     marginTop: 12,
+  },
+  exportActions: {
+    flexDirection: 'row',
+    gap: 10,
+    marginTop: 16,
+  },
+  exportButton: {
+    flex: 1,
+    minHeight: 44,
+    borderRadius: 8,
+    backgroundColor: THEME_GREEN,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 7,
+  },
+  excelButton: {
+    backgroundColor: '#ECFDF5',
+    borderWidth: 1,
+    borderColor: '#A7F3D0',
+  },
+  exportButtonDisabled: {
+    opacity: 0.6,
+  },
+  exportButtonText: {
+    color: '#FFF',
+    fontSize: 13,
+    fontWeight: '800',
+  },
+  excelButtonText: {
+    color: THEME_GREEN,
   },
   heroMetaText: {
     fontSize: 12,

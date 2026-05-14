@@ -2,10 +2,12 @@ import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useFocusEffect } from "@react-navigation/native";
 import React, { useCallback, useMemo, useState } from "react";
 import {
+  ActivityIndicator,
   RefreshControl,
   ScrollView,
   StyleSheet,
   Text,
+  TouchableOpacity,
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -16,6 +18,8 @@ import { SurfaceCard } from "@/components/ui/SurfaceCard";
 import { TopAppBar } from "@/components/ui/TopAppBar";
 import {
   fetchBatchSummary,
+  downloadBatchExcelReport,
+  downloadBatchPdfReport,
   fetchExpenseReport,
   fetchFarmSummary,
   fetchInventoryReport,
@@ -30,7 +34,8 @@ import {
   type ApiProfitabilityReportRow,
   type ApiSettlementReportRow,
 } from "@/services/reportApi";
-import { getRequestErrorMessage } from "@/services/apiFeedback";
+import { getRequestErrorMessage, showRequestErrorToast, showSuccessToast } from "@/services/apiFeedback";
+import { saveAndShareReport } from "@/services/reportExport";
 
 function formatINR(value?: number | null) {
   return `Rs. ${Number(value ?? 0).toLocaleString("en-IN")}`;
@@ -48,6 +53,7 @@ export default function ReportsScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [exporting, setExporting] = useState<"pdf" | "excel" | null>(null);
 
   const loadReports = useCallback(async (isRefresh = false) => {
     if (!accessToken) return;
@@ -125,6 +131,40 @@ export default function ReportsScreen() {
       pendingPayments: overview?.pendingPayments ?? 0,
     };
   }, [expenses, inventory, overview, profitability, settlements]);
+
+  const exportBatchReport = useCallback(
+    async (format: "pdf" | "excel") => {
+      if (!accessToken || !batchSummary?.batchId || exporting) return;
+
+      setExporting(format);
+      try {
+        const response =
+          format === "pdf"
+            ? await downloadBatchPdfReport(accessToken, batchSummary.batchId)
+            : await downloadBatchExcelReport(accessToken, batchSummary.batchId);
+        const extension = format === "pdf" ? "pdf" : "xlsx";
+        const batchCode = batchSummary.batchCode || batchSummary.batchId;
+
+        const result = await saveAndShareReport({
+          response,
+          format,
+          fallbackFileName: `batch-${batchCode}-report.${extension}`,
+          dialogTitle: `Share ${format === "pdf" ? "PDF" : "Excel"} report`,
+        });
+
+        showSuccessToast(
+          result.shared
+            ? `${format === "pdf" ? "PDF" : "Excel"} report ready to share.`
+            : `Report saved: ${result.fileName}`,
+        );
+      } catch (err) {
+        showRequestErrorToast(err, { title: "Report export failed" });
+      } finally {
+        setExporting(null);
+      }
+    },
+    [accessToken, batchSummary, exporting],
+  );
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['top']}>
@@ -248,6 +288,22 @@ export default function ReportsScreen() {
             iconColor="#7C3AED"
             bgColor="#F3E8FF"
           />
+          <View style={styles.exportActions}>
+            <ExportButton
+              label="Share PDF"
+              icon="file-pdf-box"
+              busy={exporting === "pdf"}
+              disabled={!batchSummary?.batchId || Boolean(exporting)}
+              onPress={() => void exportBatchReport("pdf")}
+            />
+            <ExportButton
+              label="Share Excel"
+              icon="file-excel-box"
+              busy={exporting === "excel"}
+              disabled={!batchSummary?.batchId || Boolean(exporting)}
+              onPress={() => void exportBatchReport("excel")}
+            />
+          </View>
           <ExportRow
             title="Inventory Stock"
             subtitle={`${reportStats.lowStock} low-stock item(s) from inventory report`}
@@ -294,6 +350,38 @@ function ExportRow({ title, subtitle, icon, iconColor, bgColor }: { title: strin
         <Text style={styles.exportSubtitle}>{subtitle}</Text>
       </View>
     </SurfaceCard>
+  );
+}
+
+function ExportButton({
+  label,
+  icon,
+  busy,
+  disabled,
+  onPress,
+}: {
+  label: string;
+  icon: string;
+  busy: boolean;
+  disabled: boolean;
+  onPress: () => void;
+}) {
+  return (
+    <TouchableOpacity
+      style={[styles.exportButton, disabled && styles.exportButtonDisabled]}
+      onPress={onPress}
+      disabled={disabled}
+      activeOpacity={0.82}
+    >
+      {busy ? (
+        <ActivityIndicator color="#FFF" />
+      ) : (
+        <>
+          <MaterialCommunityIcons name={icon as any} size={18} color="#FFF" />
+          <Text style={styles.exportButtonText}>{label}</Text>
+        </>
+      )}
+    </TouchableOpacity>
   );
 }
 
@@ -378,5 +466,29 @@ const styles = StyleSheet.create({
   exportSubtitle: {
     fontSize: 13,
     color: "#6B7280",
+  },
+  exportActions: {
+    flexDirection: "row",
+    gap: 10,
+    marginTop: -4,
+    marginBottom: 14,
+  },
+  exportButton: {
+    flex: 1,
+    minHeight: 46,
+    borderRadius: 8,
+    backgroundColor: "#0B5C36",
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+  },
+  exportButtonDisabled: {
+    opacity: 0.55,
+  },
+  exportButtonText: {
+    color: "#FFF",
+    fontSize: 13,
+    fontWeight: "800",
   },
 });
