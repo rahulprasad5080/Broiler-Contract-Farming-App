@@ -15,7 +15,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { DashboardSidebar } from '../../components/navigation/DashboardSidebar';
-import { useAuth } from '../../context/AuthContext';
+import { useAuth, type Permission } from '../../context/AuthContext';
 import { fetchDashboard, type ApiDashboardSummary } from '../../services/dashboardApi';
 
 const THEME_GREEN = '#0B5C36';
@@ -108,13 +108,20 @@ export default function FarmerDashboard() {
   );
 
   const activeBatch = dashboard?.activeBatches?.[0] ?? null;
-  const pendingTasks = [
+  const pendingTaskCandidates: ({
+    id: string;
+    title: string;
+    time: string;
+    route: string;
+    permission: Permission;
+  } | null)[] = [
     dashboard?.today.pendingEntries
       ? {
           id: 'pending-entry',
           title: 'Pending daily entries',
           time: `${formatNumber(dashboard.today.pendingEntries)} pending`,
           route: '/(farmer)/tasks/daily',
+          permission: 'create:daily-entry',
         }
       : null,
     dashboard?.today.feedAlert
@@ -123,6 +130,7 @@ export default function FarmerDashboard() {
           title: 'Feed alert',
           time: `${formatNumber(dashboard.today.feedAlert)} alert(s)`,
           route: '/(farmer)/farms',
+          permission: 'view:farms',
         }
       : null,
     dashboard?.today.salesReady
@@ -131,9 +139,14 @@ export default function FarmerDashboard() {
           title: 'Sales ready batches',
           time: `${formatNumber(dashboard.today.salesReady)} ready`,
           route: '/(farmer)/tasks/sales',
+          permission: 'create:sales',
         }
       : null,
-  ].filter(Boolean) as { id: string; title: string; time: string; route: string }[];
+  ];
+  const pendingTasks = pendingTaskCandidates.filter(
+    (task): task is NonNullable<(typeof pendingTaskCandidates)[number]> =>
+      Boolean(task && hasPermission(task.permission)),
+  );
 
   return (
     <View style={styles.container}>

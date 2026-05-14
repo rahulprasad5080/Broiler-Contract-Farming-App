@@ -3,6 +3,7 @@ import { View, Text, TouchableOpacity } from 'react-native';
 import { Ionicons, Feather } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { styles } from './styles';
+import { useAuth } from '@/context/AuthContext';
 import type { ApiSale } from '@/services/managementApi';
 
 const THEME_GREEN = '#0B5C36';
@@ -122,6 +123,8 @@ export function SalesTab({
   totalSoldWeight,
 }: SalesTabProps) {
   const router = useRouter();
+  const { hasPermission } = useAuth();
+  const canCreateSale = hasPermission('create:sales');
   
   return (
     <View style={styles.section}>
@@ -148,13 +151,15 @@ export function SalesTab({
 
       <View style={styles.sectionHeader}>
         <Text style={styles.sectionTitle}>Sales History</Text>
-        <TouchableOpacity
-          style={styles.addExpenseBtn}
-          onPress={() => router.navigate('/(owner)/manage/sales')}
-        >
-          <Feather name="plus" size={16} color={THEME_GREEN} />
-          <Text style={styles.addExpenseText}>Add Sale</Text>
-        </TouchableOpacity>
+        {canCreateSale ? (
+          <TouchableOpacity
+            style={styles.addExpenseBtn}
+            onPress={() => router.navigate('/(owner)/manage/sales')}
+          >
+            <Feather name="plus" size={16} color={THEME_GREEN} />
+            <Text style={styles.addExpenseText}>Add Sale</Text>
+          </TouchableOpacity>
+        ) : null}
       </View>
 
       {sales.length === 0 ? (

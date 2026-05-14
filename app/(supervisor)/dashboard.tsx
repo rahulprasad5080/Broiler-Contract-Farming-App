@@ -24,7 +24,7 @@ function formatStatus(value: string) {
 }
 
 export default function SupervisorDashboard() {
-  const { accessToken, user } = useAuth();
+  const { accessToken, hasPermission, user } = useAuth();
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const [dashboard, setDashboard] = useState<ApiDashboardSummary | null>(null);
@@ -72,6 +72,8 @@ export default function SupervisorDashboard() {
   }, [dashboard?.activeBatches, search]);
 
   const alertCount = dashboard?.alerts?.length ?? 0;
+  const canCreateDailyEntry = hasPermission('create:daily-entry');
+  const canViewNotifications = hasPermission('view:notifications');
 
   const mortalityTodayPercent =
     dashboard?.today?.liveBirds && dashboard.today.liveBirds > 0
@@ -100,19 +102,23 @@ export default function SupervisorDashboard() {
         <Text style={styles.headerLogoText}>
           Poultry<Text style={styles.headerLogoLight}>Flow</Text>
         </Text>
-        <TouchableOpacity
-          style={styles.bellIconBtn}
-          onPress={() => router.navigate('/(supervisor)/notifications' as Href)}
-          accessibilityRole="button"
-          accessibilityLabel="Notifications"
-        >
-          <Feather name="bell" size={24} color="#FFF" />
-          {alertCount > 0 ? (
-            <View style={styles.bellBadge}>
-              <Text style={styles.bellBadgeText}>{alertCount > 9 ? '9+' : alertCount}</Text>
-            </View>
-          ) : null}
-        </TouchableOpacity>
+        {canViewNotifications ? (
+          <TouchableOpacity
+            style={styles.bellIconBtn}
+            onPress={() => router.navigate('/(supervisor)/notifications' as Href)}
+            accessibilityRole="button"
+            accessibilityLabel="Notifications"
+          >
+            <Feather name="bell" size={24} color="#FFF" />
+            {alertCount > 0 ? (
+              <View style={styles.bellBadge}>
+                <Text style={styles.bellBadgeText}>{alertCount > 9 ? '9+' : alertCount}</Text>
+              </View>
+            ) : null}
+          </TouchableOpacity>
+        ) : (
+          <View style={styles.headerIconBtn} />
+        )}
       </View>
 
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
@@ -235,7 +241,9 @@ export default function SupervisorDashboard() {
               <Text style={styles.loadingText}>Loading dashboard...</Text>
             </View>
           ) : visibleBatches.length ? (
-            visibleBatches.map((batch) => <BatchCard key={batch.batchId} batch={batch} />)
+            visibleBatches.map((batch) => (
+              <BatchCard key={batch.batchId} batch={batch} canOpenDailyEntry={canCreateDailyEntry} />
+            ))
           ) : (
             <Text style={styles.emptyText}>No active batches found.</Text>
           )}
@@ -256,11 +264,18 @@ export default function SupervisorDashboard() {
   );
 }
 
-function BatchCard({ batch }: { batch: ApiDashboardBatch }) {
+function BatchCard({
+  batch,
+  canOpenDailyEntry,
+}: {
+  batch: ApiDashboardBatch;
+  canOpenDailyEntry: boolean;
+}) {
   const router = useRouter();
   return (
     <TouchableOpacity
       style={styles.farmCard}
+      disabled={!canOpenDailyEntry}
       onPress={() => router.navigate({
         pathname: '/(supervisor)/tasks/daily',
         params: { batchId: batch.batchId, farmName: batch.farmName }

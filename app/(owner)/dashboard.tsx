@@ -211,6 +211,9 @@ export default function OwnerDashboard() {
   const financialSummary = financialDashboard?.summary;
   const netProfitOrLoss = financialSummary?.netProfitOrLoss ?? 0;
   const visibleBatches = dashboard?.activeBatches?.slice(0, 3) ?? [];
+  const canCreateDailyEntry = hasPermission("create:daily-entry");
+  const canManageBatches = hasPermission("manage:batches");
+  const canViewNotifications = hasPermission("view:notifications");
   const activeBatch =
     visibleBatches.length > 0
       ? visibleBatches[activeBatchIndex % visibleBatches.length]
@@ -256,19 +259,23 @@ export default function OwnerDashboard() {
         <Text style={styles.headerLogoText}>
           Poultry<Text style={styles.headerLogoLight}>Flow</Text>
         </Text>
-        <TouchableOpacity
-          style={styles.bellIconBtn}
-          onPress={() => router.navigate("/(owner)/notifications" as Href)}
-          accessibilityRole="button"
-          accessibilityLabel="Notifications"
-        >
-          <Feather name="bell" size={24} color="#FFF" />
-          {alertCount > 0 ? (
-            <View style={styles.bellBadge}>
-              <Text style={styles.bellBadgeText}>{alertCount > 9 ? "9+" : alertCount}</Text>
-            </View>
-          ) : null}
-        </TouchableOpacity>
+        {canViewNotifications ? (
+          <TouchableOpacity
+            style={styles.bellIconBtn}
+            onPress={() => router.navigate("/(owner)/notifications" as Href)}
+            accessibilityRole="button"
+            accessibilityLabel="Notifications"
+          >
+            <Feather name="bell" size={24} color="#FFF" />
+            {alertCount > 0 ? (
+              <View style={styles.bellBadge}>
+                <Text style={styles.bellBadgeText}>{alertCount > 9 ? "9+" : alertCount}</Text>
+              </View>
+            ) : null}
+          </TouchableOpacity>
+        ) : (
+          <View style={styles.headerIconBtn} />
+        )}
       </View>
 
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
@@ -377,9 +384,11 @@ export default function OwnerDashboard() {
         {/* Active Batches Section */}
         <View style={styles.sectionHeader}>
           <Text style={styles.sectionTitleNoMargin}>Active Batches</Text>
-          <TouchableOpacity onPress={() => router.navigate("/(owner)/manage/batches" as Href)}>
-            <Text style={styles.viewAllText}>View All</Text>
-          </TouchableOpacity>
+          {canManageBatches ? (
+            <TouchableOpacity onPress={() => router.navigate("/(owner)/manage/batches" as Href)}>
+              <Text style={styles.viewAllText}>View All</Text>
+            </TouchableOpacity>
+          ) : null}
         </View>
         
         {loadingDashboard && !dashboard ? (
@@ -391,6 +400,7 @@ export default function OwnerDashboard() {
           <TouchableOpacity
             style={styles.activeBatchCard}
             onPress={() => router.navigate("/(owner)/manage/batches" as Href)}
+            disabled={!canManageBatches}
           >
             <View style={styles.batchCardHeader}>
               <View>
@@ -504,12 +514,14 @@ export default function OwnerDashboard() {
       </ScrollView>
 
       {/* Floating Action Button */}
-      <TouchableOpacity
-        style={[styles.fab, { bottom: 20 + (insets.bottom > 0 ? insets.bottom : 0) }]}
-        onPress={() => router.navigate("/(owner)/manage/daily-entry" as Href)}
-      >
-        <Feather name="plus" size={28} color="#FFF" />
-      </TouchableOpacity>
+      {canCreateDailyEntry ? (
+        <TouchableOpacity
+          style={[styles.fab, { bottom: 20 + (insets.bottom > 0 ? insets.bottom : 0) }]}
+          onPress={() => router.navigate("/(owner)/manage/daily-entry" as Href)}
+        >
+          <Feather name="plus" size={28} color="#FFF" />
+        </TouchableOpacity>
+      ) : null}
 
       <DashboardSidebar
         visible={showSidebar}
