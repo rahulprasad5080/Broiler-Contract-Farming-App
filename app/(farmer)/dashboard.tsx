@@ -56,7 +56,7 @@ export default function FarmerDashboard() {
         </View>
 
         {hasPermission('create:daily-entry') ? (
-          <TouchableOpacity style={styles.entryButton} onPress={() => router.push('/(farmer)/tasks/daily')}>
+          <TouchableOpacity style={styles.entryButton} onPress={() => router.navigate('/(farmer)/tasks/daily')}>
             <MaterialCommunityIcons name="playlist-edit" size={24} color="#FFF" />
             <Text style={styles.entryButtonText}>Daily Entry</Text>
           </TouchableOpacity>

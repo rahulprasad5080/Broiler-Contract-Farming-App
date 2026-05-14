@@ -131,7 +131,7 @@ export default function BatchManagementScreen() {
         </View>
         <TouchableOpacity
           style={styles.iconBtn}
-          onPress={() => router.push('/(owner)/manage/batches/create' as Href)}
+          onPress={() => router.navigate('/(owner)/manage/batches/create' as Href)}
           accessibilityRole="button"
           accessibilityLabel="Create new batch"
         >
@@ -185,7 +185,7 @@ export default function BatchManagementScreen() {
                 style={styles.batchCard}
                 activeOpacity={0.9}
                 onPress={() =>
-                  router.push({
+                  router.navigate({
                     pathname: '/(owner)/manage/batches/[id]',
                     params: { id: batch.id },
                   })

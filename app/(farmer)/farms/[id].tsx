@@ -161,7 +161,7 @@ export default function FarmerFarmDetailScreen() {
                 {hasPermission('create:daily-entry') ? (
                   <TouchableOpacity
                     style={styles.actionBtn}
-                    onPress={() => router.push('/(farmer)/tasks/daily')}
+                    onPress={() => router.navigate('/(farmer)/tasks/daily')}
                   >
                     <Ionicons name="clipboard-outline" size={16} color={Colors.primary} />
                     <Text style={styles.actionBtnText}>Daily Log</Text>
@@ -171,7 +171,7 @@ export default function FarmerFarmDetailScreen() {
                 {hasPermission('create:treatments') ? (
                   <TouchableOpacity
                     style={styles.actionBtn}
-                    onPress={() => router.push('/(farmer)/tasks/treatments')}
+                    onPress={() => router.navigate('/(farmer)/tasks/treatments')}
                   >
                     <Ionicons name="medical-outline" size={16} color={Colors.primary} />
                     <Text style={styles.actionBtnText}>Treatments</Text>
@@ -181,7 +181,7 @@ export default function FarmerFarmDetailScreen() {
                 {hasPermission('create:expenses') ? (
                   <TouchableOpacity
                     style={styles.actionBtn}
-                    onPress={() => router.push('/(farmer)/tasks/expenses')}
+                    onPress={() => router.navigate('/(farmer)/tasks/expenses')}
                   >
                     <Ionicons name="receipt-outline" size={16} color={Colors.primary} />
                     <Text style={styles.actionBtnText}>Expenses</Text>

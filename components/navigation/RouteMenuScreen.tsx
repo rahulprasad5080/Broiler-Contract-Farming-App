@@ -71,7 +71,7 @@ export function RouteMenuScreen({
             <TouchableOpacity
               key={`${item.title}-${item.route.toString()}`}
               style={styles.card}
-              onPress={() => router.push(item.route)}
+              onPress={() => router.navigate(item.route)}
             >
               <View
                 style={[

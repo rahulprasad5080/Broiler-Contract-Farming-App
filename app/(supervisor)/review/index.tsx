@@ -46,7 +46,7 @@ export default function SupervisorReviewScreen() {
   const renderBatchCard = ({ item }: { item: ApiBatch }) => (
     <TouchableOpacity
       style={styles.batchCard}
-      onPress={() => router.push({ pathname: '/(supervisor)/review/[batchId]', params: { batchId: item.id } })}
+      onPress={() => router.navigate({ pathname: '/(supervisor)/review/[batchId]', params: { batchId: item.id } })}
       activeOpacity={0.8}
     >
       <View style={styles.cardHeader}>

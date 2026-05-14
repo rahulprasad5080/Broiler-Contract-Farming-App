@@ -143,7 +143,7 @@ export default function QuickLoginPasswordScreen() {
 
           <TouchableOpacity
             activeOpacity={0.7}
-            onPress={() => router.push("/(auth)/quick-login-pin")}
+            onPress={() => router.navigate("/(auth)/quick-login-pin")}
           >
             <Text style={styles.secondaryLink}>Use PIN Instead</Text>
           </TouchableOpacity>

@@ -257,7 +257,7 @@ export default function OwnerDashboard() {
         </Text>
         <TouchableOpacity
           style={styles.bellIconBtn}
-          onPress={() => router.push("/(owner)/notifications" as Href)}
+          onPress={() => router.navigate("/(owner)/notifications" as Href)}
           accessibilityRole="button"
           accessibilityLabel="Notifications"
         >
@@ -376,7 +376,7 @@ export default function OwnerDashboard() {
         {/* Active Batches Section */}
         <View style={styles.sectionHeader}>
           <Text style={styles.sectionTitleNoMargin}>Active Batches</Text>
-          <TouchableOpacity onPress={() => router.push("/(owner)/manage/batches" as Href)}>
+          <TouchableOpacity onPress={() => router.navigate("/(owner)/manage/batches" as Href)}>
             <Text style={styles.viewAllText}>View All</Text>
           </TouchableOpacity>
         </View>
@@ -389,7 +389,7 @@ export default function OwnerDashboard() {
         ) : activeBatch ? (
           <TouchableOpacity
             style={styles.activeBatchCard}
-            onPress={() => router.push("/(owner)/manage/batches" as Href)}
+            onPress={() => router.navigate("/(owner)/manage/batches" as Href)}
           >
             <View style={styles.batchCardHeader}>
               <View>
@@ -505,7 +505,7 @@ export default function OwnerDashboard() {
       {/* Floating Action Button */}
       <TouchableOpacity
         style={[styles.fab, { bottom: 20 + (insets.bottom > 0 ? insets.bottom : 0) }]}
-        onPress={() => router.push("/(owner)/manage/daily-entry" as Href)}
+        onPress={() => router.navigate("/(owner)/manage/daily-entry" as Href)}
       >
         <Feather name="plus" size={28} color="#FFF" />
       </TouchableOpacity>

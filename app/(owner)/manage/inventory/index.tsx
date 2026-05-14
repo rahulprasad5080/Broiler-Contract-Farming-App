@@ -451,14 +451,14 @@ export default function InventoryScreen() {
           {canCreatePurchase ? (
             <TouchableOpacity
               style={styles.iconButton}
-              onPress={() => router.push("/(owner)/manage/inventory/purchase")}
+              onPress={() => router.navigate("/(owner)/manage/inventory/purchase")}
             >
               <MaterialCommunityIcons name="cart-plus" size={19} color="#FFF" />
             </TouchableOpacity>
           ) : null}
           <TouchableOpacity
             style={styles.iconButton}
-            onPress={() => router.push("/(owner)/manage/inventory/allocate")}
+            onPress={() => router.navigate("/(owner)/manage/inventory/allocate")}
           >
             <MaterialCommunityIcons name="truck-delivery-outline" size={19} color="#FFF" />
           </TouchableOpacity>
@@ -493,7 +493,7 @@ export default function InventoryScreen() {
           {canCreatePurchase ? (
             <TouchableOpacity
               style={styles.actionButton}
-              onPress={() => router.push("/(owner)/manage/inventory/purchase")}
+              onPress={() => router.navigate("/(owner)/manage/inventory/purchase")}
             >
               <MaterialCommunityIcons name="plus-box-outline" size={18} color="#FFF" />
               <Text style={styles.actionButtonText}>Purchase</Text>
@@ -501,7 +501,7 @@ export default function InventoryScreen() {
           ) : null}
           <TouchableOpacity
             style={[styles.actionButton, styles.actionButtonAlt]}
-            onPress={() => router.push("/(owner)/manage/inventory/allocate")}
+            onPress={() => router.navigate("/(owner)/manage/inventory/allocate")}
           >
             <MaterialCommunityIcons name="swap-horizontal" size={18} color={Colors.primary} />
             <Text style={[styles.actionButtonText, styles.actionButtonTextAlt]}>

@@ -150,7 +150,7 @@ export function SalesTab({
         <Text style={styles.sectionTitle}>Sales History</Text>
         <TouchableOpacity
           style={styles.addExpenseBtn}
-          onPress={() => router.push('/(owner)/manage/sales')}
+          onPress={() => router.navigate('/(owner)/manage/sales')}
         >
           <Feather name="plus" size={16} color={THEME_GREEN} />
           <Text style={styles.addExpenseText}>Add Sale</Text>

@@ -46,7 +46,7 @@ export default function LoginSuccessScreen() {
 
         <TouchableOpacity
           style={styles.primaryButton}
-          onPress={() => router.push("/(auth)/set-pin")}
+          onPress={() => router.navigate("/(auth)/set-pin")}
           activeOpacity={0.85}
         >
           <Text style={styles.primaryButtonText}>SET 4-DIGIT PIN</Text>
@@ -54,7 +54,7 @@ export default function LoginSuccessScreen() {
 
         <TouchableOpacity
           style={styles.outlineButton}
-          onPress={() => router.push("/(auth)/enable-biometric")}
+          onPress={() => router.navigate("/(auth)/enable-biometric")}
           activeOpacity={0.8}
         >
           <Ionicons name="finger-print-outline" size={22} color={Colors.primary} />

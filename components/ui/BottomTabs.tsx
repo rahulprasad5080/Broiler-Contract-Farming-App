@@ -77,16 +77,16 @@ export function BottomTabs({ state, descriptors, navigation, hiddenTabs = [] }: 
           });
 
           if (!event.defaultPrevented) {
-            // Always navigate to the root (index) of the tab's nested stack.
-            // This prevents stale nested screens (e.g. daily-entry) from showing
-            // when the user switches away and then back to this tab.
-            // When already focused, this also acts as a "pop to top" gesture.
-            navigation.dispatch(
-              CommonActions.navigate({
-                name: route.name,
-                params: { screen: 'index' },
-              })
-            );
+            if (isFocused) {
+              navigation.dispatch(
+                CommonActions.navigate({
+                  name: route.name,
+                  params: { screen: 'index' },
+                })
+              );
+            } else {
+              navigation.navigate(route.name);
+            }
           }
         };
 

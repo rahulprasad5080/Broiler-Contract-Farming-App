@@ -44,7 +44,7 @@ export default function FarmerFarmsScreen() {
   const renderFarmCard = ({ item }: { item: ApiFarm }) => (
     <TouchableOpacity
       style={styles.farmCard}
-      onPress={() => router.push(`/(farmer)/farms/${item.id}`)}
+      onPress={() => router.navigate(`/(farmer)/farms/${item.id}`)}
       activeOpacity={0.8}
     >
       <View style={styles.cardHeader}>

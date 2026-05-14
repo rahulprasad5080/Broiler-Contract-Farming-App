@@ -171,7 +171,7 @@ export default function UserManagementScreen() {
   );
 
   const openEditUser = (userId: string) => {
-    router.push({
+    router.navigate({
       pathname: '/(owner)/manage/users/create',
       params: { userId },
     });
@@ -250,7 +250,7 @@ export default function UserManagementScreen() {
           <Ionicons name="arrow-back" size={24} color="#FFF" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>User Management</Text>
-        <TouchableOpacity onPress={() => router.push('/(owner)/manage/users/create')}>
+        <TouchableOpacity onPress={() => router.navigate('/(owner)/manage/users/create')}>
           <Ionicons name="add" size={28} color="#FFF" />
         </TouchableOpacity>
       </View>

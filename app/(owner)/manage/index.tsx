@@ -106,7 +106,7 @@ export default function EntriesScreen() {
             <TouchableOpacity 
               key={index} 
               style={styles.card}
-              onPress={() => router.push(item.route)}
+              onPress={() => router.navigate(item.route)}
               activeOpacity={0.7}
             >
               <View style={[styles.iconContainer, { backgroundColor: item.color + '15' }]}>

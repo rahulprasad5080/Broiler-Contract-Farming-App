@@ -139,7 +139,7 @@ export default function QuickLoginPinScreen() {
 
   const openBiometric = async () => {
     if (await isBiometricEnabled()) {
-      router.push("/(auth)/quick-login-biometric");
+      router.navigate("/(auth)/quick-login-biometric");
       return;
     }
 
@@ -231,7 +231,7 @@ export default function QuickLoginPinScreen() {
           </View>
 
           <TouchableOpacity
-            onPress={() => router.push("/(auth)/quick-login-password")}
+            onPress={() => router.navigate("/(auth)/quick-login-password")}
             activeOpacity={0.7}
           >
             <Text style={styles.passwordLink}>Use Password Instead</Text>

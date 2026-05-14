@@ -117,7 +117,7 @@ export default function FinancialDashboardScreen() {
             icon="cart-outline" 
             iconColor="#4F46E5" 
             bgColor="#EEF2FF"
-            onPress={() => router.push('/(owner)/manage/inventory/purchase')}
+            onPress={() => router.navigate('/(owner)/manage/inventory/purchase')}
           />
           <QuickAction 
             label="Investment Entry" 
@@ -131,14 +131,14 @@ export default function FinancialDashboardScreen() {
             icon="wallet-outline" 
             iconColor="#7C3AED" 
             bgColor="#F5F3FF"
-            onPress={() => router.push('/(owner)/manage/payments')}
+            onPress={() => router.navigate('/(owner)/manage/payments')}
           />
           <QuickAction 
             label="View Settlements" 
             icon="list-outline" 
             iconColor="#2563EB" 
             bgColor="#EFF6FF"
-            onPress={() => router.push('/(owner)/manage/settlement')}
+            onPress={() => router.navigate('/(owner)/manage/settlement')}
           />
         </View>
 

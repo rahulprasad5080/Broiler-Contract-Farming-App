@@ -183,7 +183,7 @@ export default function BatchDetailsScreen() {
   const openDailyEntry = useCallback(
     (dailyLogId?: string) => {
       if (!id) return;
-      router.push({
+      router.navigate({
         pathname: '/(owner)/manage/daily-entry',
         params: dailyLogId ? { batchId: id, dailyLogId } : { batchId: id },
       });

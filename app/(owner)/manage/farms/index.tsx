@@ -505,7 +505,7 @@ export default function FarmListScreen() {
         </View>
         <TouchableOpacity
           style={styles.headerBtn}
-          onPress={() => router.push('/(owner)/manage/farms/add')}
+          onPress={() => router.navigate('/(owner)/manage/farms/add')}
           accessibilityRole="button"
           accessibilityLabel="Add farm"
         >

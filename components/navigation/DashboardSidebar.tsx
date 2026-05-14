@@ -412,7 +412,7 @@ export function DashboardSidebar({
 
   const navigateTo = (route: Href) => {
     onClose();
-    router.push(route);
+    router.navigate(route);
   };
 
   const runAction = (action: DashboardSidebarAction) => {

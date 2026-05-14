@@ -34,7 +34,7 @@ export function HeaderNotificationButton({
   return (
     <TouchableOpacity
       style={[styles.button, tone === "onPrimary" && styles.buttonOnPrimary]}
-      onPress={() => router.push(route)}
+      onPress={() => router.navigate(route)}
       activeOpacity={0.82}
       accessibilityRole="button"
       accessibilityLabel="Notifications"

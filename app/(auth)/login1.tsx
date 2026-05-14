@@ -302,7 +302,7 @@ export default function LoginScreen() {
 
               <TouchableOpacity
                 style={styles.quickLoginButton}
-                onPress={() => router.push("/(auth)/quick-login-biometric")}
+                onPress={() => router.navigate("/(auth)/quick-login-biometric")}
                 disabled={isLoading}
                 activeOpacity={0.85}
               >
