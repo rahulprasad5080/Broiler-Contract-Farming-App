@@ -1,11 +1,12 @@
 import { useEffect, useRef, useState } from 'react';
-import { Platform } from 'react-native';
-import * as Device from 'expo-device';
 import * as Notifications from 'expo-notifications';
 import Toast from 'react-native-toast-message';
 
 import { useAuth } from '@/context/AuthContext';
-import { updateFcmToken } from '@/services/authApi';
+import {
+  syncFcmTokenWithServer,
+  syncKnownFcmTokenWithServer,
+} from '@/services/pushNotifications';
 
 export interface PushNotificationState {
   fcmToken?: string;
@@ -22,19 +23,6 @@ Notifications.setNotificationHandler({
   }),
 });
 
-async function ensureAndroidNotificationChannel() {
-  if (Platform.OS !== 'android') {
-    return;
-  }
-
-  await Notifications.setNotificationChannelAsync('default', {
-    name: 'default',
-    importance: Notifications.AndroidImportance.MAX,
-    vibrationPattern: [0, 250, 250, 250],
-    lightColor: '#0B5C36',
-  });
-}
-
 export const usePushNotifications = (): PushNotificationState => {
   const { accessToken, user } = useAuth();
   const [fcmToken, setFcmToken] = useState<string | undefined>();
@@ -43,48 +31,7 @@ export const usePushNotifications = (): PushNotificationState => {
   const notificationListener = useRef<Notifications.EventSubscription | null>(null);
   const responseListener = useRef<Notifications.EventSubscription | null>(null);
   const pushTokenListener = useRef<Notifications.EventSubscription | null>(null);
-  const syncedTokenRef = useRef<string | null>(null);
   const canRegisterPushToken = Boolean(accessToken && user?.id);
-
-  async function registerForPushNotificationsAsync() {
-    if (!canRegisterPushToken) {
-      return undefined;
-    }
-
-    await ensureAndroidNotificationChannel();
-
-    if (!Device.isDevice) {
-      console.log('Must use physical device for push notifications.');
-      return undefined;
-    }
-
-    const { status: existingStatus } = await Notifications.getPermissionsAsync();
-    let finalStatus = existingStatus;
-
-    if (existingStatus !== 'granted') {
-      const { status } = await Notifications.requestPermissionsAsync();
-      finalStatus = status;
-    }
-
-    if (finalStatus !== 'granted') {
-      console.log('Push notification permission was not granted.');
-      return undefined;
-    }
-
-    try {
-      const token = await Notifications.getDevicePushTokenAsync();
-
-      if (token.type !== 'android' || typeof token.data !== 'string') {
-        console.warn(`Unsupported token type for fcmToken sync: ${token.type}`);
-        return undefined;
-      }
-
-      return token.data;
-    } catch (error) {
-      console.error('Failed to get native FCM push token:', error);
-      return undefined;
-    }
-  }
 
   useEffect(() => {
     notificationListener.current = Notifications.addNotificationReceivedListener((notification) => {
@@ -116,6 +63,11 @@ export const usePushNotifications = (): PushNotificationState => {
     pushTokenListener.current = Notifications.addPushTokenListener((token) => {
       if (token.type === 'android' && typeof token.data === 'string') {
         setFcmToken(token.data);
+        if (accessToken) {
+          syncKnownFcmTokenWithServer(accessToken, token.data).catch((error) => {
+            console.warn('Failed to sync refreshed FCM token with server:', error);
+          });
+        }
       }
     });
 
@@ -124,7 +76,7 @@ export const usePushNotifications = (): PushNotificationState => {
       responseListener.current?.remove();
       pushTokenListener.current?.remove();
     };
-  }, []);
+  }, [accessToken]);
 
   useEffect(() => {
     if (!canRegisterPushToken) {
@@ -133,7 +85,7 @@ export const usePushNotifications = (): PushNotificationState => {
 
     let cancelled = false;
 
-    registerForPushNotificationsAsync().then((token) => {
+    syncFcmTokenWithServer(accessToken!).then((token) => {
       if (!cancelled && token) {
         setFcmToken(token);
       }
@@ -142,34 +94,7 @@ export const usePushNotifications = (): PushNotificationState => {
     return () => {
       cancelled = true;
     };
-  }, [canRegisterPushToken]);
-
-  useEffect(() => {
-    if (!accessToken || !user?.id || !fcmToken) {
-      return;
-    }
-
-    const syncKey = `${user.id}:${fcmToken}`;
-    if (syncedTokenRef.current === syncKey) {
-      return;
-    }
-
-    let cancelled = false;
-
-    updateFcmToken(accessToken, { fcmToken })
-      .then(() => {
-        if (!cancelled) {
-          syncedTokenRef.current = syncKey;
-        }
-      })
-      .catch((error) => {
-        console.warn('Failed to sync FCM token with server:', error);
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [accessToken, fcmToken, user?.id]);
+  }, [accessToken, canRegisterPushToken]);
 
   return {
     fcmToken,

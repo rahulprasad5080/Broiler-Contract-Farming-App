@@ -48,6 +48,10 @@ import {
   getRouteRequiredPermission,
   isRouteAllowedForRole,
 } from "../services/routeGuards";
+import {
+  clearSyncedFcmTokenCache,
+  syncFcmTokenWithServer,
+} from "../services/pushNotifications";
 import type { AppPermission } from "../services/permissionRules";
 
 export type UserRole = ApiRole | null;
@@ -354,6 +358,12 @@ function getUnlockedRoute(user: ApiUser | UserLike): Href {
     : getDashboardRoute(normalizeUser(user).role);
 }
 
+function syncFcmTokenAfterLogin(accessToken: string) {
+  void syncFcmTokenWithServer(accessToken).catch((error) => {
+    console.warn("Failed to sync FCM token after login:", error);
+  });
+}
+
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = React.useState<User | null>(null);
   const [tokens, setTokens] = React.useState<AuthTokens | null>(null);
@@ -585,6 +595,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const quickAuthEnabled = await hasAnyQuickAuth();
         const mustChangePassword = Boolean(hydratedUser.mustChangePassword);
         await persistSession(nextSession);
+        syncFcmTokenAfterLogin(response.tokens.accessToken);
         backgroundedAtRef.current = null;
         setIsAppUnlocked(mustChangePassword || !quickAuthEnabled);
         router.replace(
@@ -622,6 +633,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         };
 
         await persistSession(nextSession);
+        syncFcmTokenAfterLogin(response.tokens.accessToken);
         backgroundedAtRef.current = null;
         setIsAppUnlocked(true);
         router.replace(getUnlockedRoute(hydratedUser));
@@ -654,6 +666,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         };
 
         await persistSession(nextSession);
+        syncFcmTokenAfterLogin(response.tokens.accessToken);
         backgroundedAtRef.current = null;
         setIsAppUnlocked(true);
         router.replace("/(auth)/login-success2");
@@ -687,6 +700,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         };
 
         await persistSession(nextSession);
+        syncFcmTokenAfterLogin(response.tokens.accessToken);
         backgroundedAtRef.current = null;
         setIsAppUnlocked(true);
         router.replace(getUnlockedRoute(hydratedUser));
@@ -724,6 +738,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         };
 
         await persistSession(nextSession);
+        syncFcmTokenAfterLogin(response.tokens.accessToken);
         backgroundedAtRef.current = null;
         setIsAppUnlocked(true);
         router.replace(getUnlockedRoute(hydratedUser));
@@ -817,6 +832,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
     } catch (error) {
       console.warn("Server FCM token cleanup failed, continuing logout:", error);
+    } finally {
+      clearSyncedFcmTokenCache();
     }
 
     try {
