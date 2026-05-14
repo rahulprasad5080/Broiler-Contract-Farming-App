@@ -25,6 +25,7 @@ import {
 } from '@/services/managementApi';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { zodResolver } from '@hookform/resolvers/zod';
+import { useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import {
@@ -213,6 +214,7 @@ type EditUserFormData = z.infer<typeof editUserSchema>;
 
 export default function UserManagementScreen() {
   const { accessToken } = useAuth();
+  const router = useRouter();
 
   const [users, setUsers] = useState<UserCard[]>([]);
   const [activeTab, setActiveTab] = useState<FilterTab>('Users');
@@ -330,18 +332,6 @@ export default function UserManagementScreen() {
   const activeSites = farms.filter((farm) => farm.status === 'ACTIVE').length;
 
   const filtered = users.filter((user) => {
-    const matchesTab =
-      activeTab === 'Owners'
-        ? user.role === 'OWNER'
-        : activeTab === 'Accounts'
-          ? user.role === 'ACCOUNTS'
-          : activeTab === 'Supervisors'
-            ? user.role === 'SUPERVISOR'
-            : activeTab === 'Farmers'
-              ? user.role === 'FARMER'
-              : activeTab === 'Inactive'
-                ? user.status === 'Inactive'
-                : true;
     const query = userSearch.trim().toLowerCase();
     const matchesSearch =
       !query ||
@@ -349,7 +339,7 @@ export default function UserManagementScreen() {
       ROLE_LABELS[user.role].toLowerCase().includes(query) ||
       user.farm.toLowerCase().includes(query);
 
-    return matchesTab && matchesSearch;
+    return matchesSearch;
   });
 
   const onAddSubmit = async (data: AddUserFormData) => {
@@ -474,12 +464,6 @@ export default function UserManagementScreen() {
       .join('')
       .toUpperCase()
       .slice(0, 2);
-
-  const statusColor = (status: Status) => {
-    if (status === 'Inactive') return Colors.textSecondary;
-    if (status === 'Invited') return '#D97706';
-    return Colors.primary;
-  };
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['top']}>
