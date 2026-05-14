@@ -11,6 +11,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ScreenState } from '@/components/ui/ScreenState';
 import { TopAppBar } from '@/components/ui/TopAppBar';
+import { showRequestErrorToast } from '@/services/apiFeedback';
 
 export default function FarmerCommentsScreen() {
   const { accessToken } = useAuth();
@@ -21,6 +22,8 @@ export default function FarmerCommentsScreen() {
   const [loadingBatches, setLoadingBatches] = useState(true);
   const [loadingComments, setLoadingComments] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const [batchError, setBatchError] = useState<string | null>(null);
+  const [commentsError, setCommentsError] = useState<string | null>(null);
 
   const activeBatches = batches.filter(
     (b) => b.status !== 'CLOSED' && b.status !== 'CANCELLED',
@@ -30,13 +33,19 @@ export default function FarmerCommentsScreen() {
     if (!accessToken) return;
     setLoadingBatches(true);
     try {
+      setBatchError(null);
       const res = await listAllBatches(accessToken);
       setBatches(res.data);
       if (res.data.length > 0) {
         setSelectedBatchId(res.data[0].id);
       }
     } catch (error) {
-      console.warn('Failed to load batches:', error);
+      setBatchError(
+        showRequestErrorToast(error, {
+          title: 'Unable to load batches',
+          fallbackMessage: 'Failed to load batches for comments.',
+        }),
+      );
     } finally {
       setLoadingBatches(false);
     }
@@ -46,11 +55,17 @@ export default function FarmerCommentsScreen() {
     if (!accessToken || !batchId) return;
     setLoadingComments(true);
     try {
+      setCommentsError(null);
       const res = await listBatchComments(accessToken, batchId);
       // Sort newest first
       setComments(res.data.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()));
     } catch (error) {
-      console.warn('Failed to load comments:', error);
+      setCommentsError(
+        showRequestErrorToast(error, {
+          title: 'Unable to load comments',
+          fallbackMessage: 'Failed to load supervisor notes for this batch.',
+        }),
+      );
     } finally {
       setLoadingComments(false);
       setRefreshing(false);
@@ -95,6 +110,16 @@ export default function FarmerCommentsScreen() {
       <View style={styles.container}>
         {loadingBatches ? (
           <ScreenState title="Loading batches" message="Fetching available batches." loading style={styles.stateBox} />
+        ) : batchError ? (
+          <ScreenState
+            title="Unable to load batches"
+            message={batchError}
+            icon="cloud-offline-outline"
+            tone="error"
+            actionLabel="Retry"
+            onAction={() => void fetchBatches()}
+            style={styles.stateBox}
+          />
         ) : activeBatches.length === 0 ? (
           <ScreenState
             title="No active batches"
@@ -154,6 +179,15 @@ export default function FarmerCommentsScreen() {
               ListEmptyComponent={
                 loadingComments && !refreshing ? (
                   <ScreenState title="Loading comments" message="Fetching supervisor notes." loading compact />
+                ) : commentsError ? (
+                  <ScreenState
+                    title="Unable to load comments"
+                    message={commentsError}
+                    icon="cloud-offline-outline"
+                    tone="error"
+                    actionLabel="Retry"
+                    onAction={() => void fetchComments(selectedBatchId)}
+                  />
                 ) : (
                   <ScreenState
                     title="No comments"

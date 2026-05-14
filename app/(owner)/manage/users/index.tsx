@@ -1,4 +1,5 @@
 import {
+  getRequestErrorMessage,
   showRequestErrorToast,
   showSuccessToast,
 } from '@/services/apiFeedback';
@@ -110,7 +111,7 @@ export default function UserManagementScreen() {
     options: { append?: boolean; refreshing?: boolean } = {},
   ) => {
     if (!accessToken) {
-      setError('Missing access token. Please sign in again.');
+      setError('Your session has expired. Please sign in again.');
       setIsLoading(false);
       return;
     }
@@ -160,7 +161,7 @@ export default function UserManagementScreen() {
       setTotalPages(Math.max(1, usersResponse.meta.totalPages || 1));
     } catch (err) {
       if (requestId === usersRequestIdRef.current) {
-        setError(err instanceof Error ? err.message : 'Failed to load users.');
+        setError(getRequestErrorMessage(err, 'Failed to load users.'));
       }
     } finally {
       if (requestId === usersRequestIdRef.current) {

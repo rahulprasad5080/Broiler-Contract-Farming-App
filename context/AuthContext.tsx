@@ -15,6 +15,8 @@ import {
   type RegisterOwnerRequest,
 } from "../services/authApi";
 import { ApiError } from "../services/api";
+import { subscribeToApiAuthFailures } from "../services/api";
+import { showRequestErrorToast } from "../services/apiFeedback";
 import {
   clearStoredSession,
   loadStoredSession,
@@ -754,6 +756,28 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setIsAppUnlocked(false);
     router.replace(LOGIN_ROUTE);
   }, [applySessionState, router, tokens]);
+
+  React.useEffect(() => {
+    let lastHandledAt = 0;
+
+    return subscribeToApiAuthFailures((event) => {
+      const now = Date.now();
+      if (now - lastHandledAt < 1200) return;
+      lastHandledAt = now;
+
+      if (event.status === 401) {
+        showRequestErrorToast(new ApiError(event.message, event.status, null), {
+          fallbackMessage: "Your session has expired. Please sign in again.",
+        });
+        void signOut();
+        return;
+      }
+
+      showRequestErrorToast(new ApiError(event.message, event.status, null), {
+        fallbackMessage: "You do not have permission to perform this action.",
+      });
+    });
+  }, [signOut]);
 
   const unlockApp = React.useCallback(() => {
     backgroundedAtRef.current = null;

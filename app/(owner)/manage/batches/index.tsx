@@ -19,6 +19,7 @@ import {
 } from 'react-native';
 import { ScreenState } from '@/components/ui/ScreenState';
 import { TopAppBar } from '@/components/ui/TopAppBar';
+import { showRequestErrorToast } from '@/services/apiFeedback';
 
 const THEME_GREEN = "#0B5C36";
 
@@ -72,6 +73,7 @@ export default function BatchManagementScreen() {
   const [activeFilter, setActiveFilter] = useState<FilterKey>('ALL');
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const loadBatches = useCallback(async (isRefresh = false) => {
     if (!accessToken) return;
@@ -83,10 +85,16 @@ export default function BatchManagementScreen() {
     }
 
     try {
+      setErrorMessage(null);
       const response = await listAllBatches(accessToken);
       setBatches(response.data);
     } catch (error) {
-      console.warn('Failed to load batches:', error);
+      setErrorMessage(
+        showRequestErrorToast(error, {
+          title: 'Unable to load batches',
+          fallbackMessage: 'Failed to load batch records.',
+        }),
+      );
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -156,6 +164,17 @@ export default function BatchManagementScreen() {
       {loading ? (
         <View style={styles.loadingBox}>
           <ScreenState title="Loading batches" message="Fetching latest batch records." loading />
+        </View>
+      ) : errorMessage ? (
+        <View style={styles.loadingBox}>
+          <ScreenState
+            title="Unable to load batches"
+            message={errorMessage}
+            icon="cloud-offline-outline"
+            tone="error"
+            actionLabel="Retry"
+            onAction={() => void loadBatches()}
+          />
         </View>
       ) : (
         <FlatList

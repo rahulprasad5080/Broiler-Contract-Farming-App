@@ -32,7 +32,9 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { ScreenState } from '@/components/ui/ScreenState';
 import { TopAppBar } from '@/components/ui/TopAppBar';
+import { showRequestErrorToast } from '@/services/apiFeedback';
 
 type TabKey = 'overview' | 'daily' | 'expenses' | 'sales' | 'pnl' | 'comments';
 
@@ -109,11 +111,13 @@ export default function BatchDetailsScreen() {
   const [sales, setSales] = useState<ApiSale[]>([]);
   const [comments, setComments] = useState<ApiComment[]>([]);
   const [loading, setLoading] = useState(true);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const loadBatchDetails = useCallback(async () => {
     if (!accessToken || !id) return;
     setLoading(true);
     try {
+      setErrorMessage(null);
       const [
         batchRes,
         dailyLogsRes,
@@ -139,7 +143,12 @@ export default function BatchDetailsScreen() {
       setSales(salesRes.data);
       setComments(commentsRes.data);
     } catch (error) {
-      console.warn('Failed to load batch details:', error);
+      setErrorMessage(
+        showRequestErrorToast(error, {
+          title: 'Unable to load batch',
+          fallbackMessage: 'Failed to load batch details.',
+        }),
+      );
     } finally {
       setLoading(false);
     }
@@ -243,7 +252,16 @@ export default function BatchDetailsScreen() {
 
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
         {loading ? (
-          <ActivityIndicator color={THEME_GREEN} style={{ marginTop: 40 }} />
+          <ScreenState title="Loading batch details" message="Fetching batch records." loading />
+        ) : errorMessage ? (
+          <ScreenState
+            title="Unable to load batch"
+            message={errorMessage}
+            icon="cloud-offline-outline"
+            tone="error"
+            actionLabel="Retry"
+            onAction={() => void loadBatchDetails()}
+          />
         ) : (
           <>
             

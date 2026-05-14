@@ -12,6 +12,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ScreenState } from '@/components/ui/ScreenState';
 import { TopAppBar } from '@/components/ui/TopAppBar';
+import { showRequestErrorToast } from '@/services/apiFeedback';
 
 export default function FarmerFarmDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -22,10 +23,12 @@ export default function FarmerFarmDetailScreen() {
   const [batches, setBatches] = useState<ApiBatch[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const loadData = useCallback(async () => {
     if (!accessToken || !id) return;
     try {
+      setErrorMessage(null);
       const [farmRes, batchesRes] = await Promise.all([
         fetchFarm(accessToken, id),
         listBatches(accessToken, { farmId: id })
@@ -33,7 +36,12 @@ export default function FarmerFarmDetailScreen() {
       setFarm(farmRes);
       setBatches(batchesRes.data);
     } catch (error) {
-      console.warn('Failed to load farm details:', error);
+      setErrorMessage(
+        showRequestErrorToast(error, {
+          title: 'Unable to load farm',
+          fallbackMessage: 'Failed to load farm details.',
+        }),
+      );
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -71,14 +79,25 @@ export default function FarmerFarmDetailScreen() {
   if (!farm) {
     return (
       <SafeAreaView style={styles.safeArea} edges={['top']}>
-        <TopAppBar title="Farm Details" subtitle="Record not found" showBack />
+        <TopAppBar title="Farm Details" subtitle={errorMessage ? "Unable to load" : "Record not found"} showBack />
         <View style={[styles.centerBox, { backgroundColor: '#F9FAFB' }]}>
-          <ScreenState
-            title="Farm not found"
-            message="This farm may have been removed or is not assigned to you."
-            icon="alert-circle-outline"
-            tone="error"
-          />
+          {errorMessage ? (
+            <ScreenState
+              title="Unable to load farm"
+              message={errorMessage}
+              icon="cloud-offline-outline"
+              tone="error"
+              actionLabel="Retry"
+              onAction={() => void loadData()}
+            />
+          ) : (
+            <ScreenState
+              title="Farm not found"
+              message="This farm may have been removed or is not assigned to you."
+              icon="alert-circle-outline"
+              tone="error"
+            />
+          )}
         </View>
       </SafeAreaView>
     );

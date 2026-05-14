@@ -12,18 +12,22 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import Toast from 'react-native-toast-message';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Controller, useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 
 import { DatePickerField } from '@/components/ui/DatePickerField';
+import { ScreenState } from '@/components/ui/ScreenState';
 import { TopAppBar } from '@/components/ui/TopAppBar';
 import { Colors } from '@/constants/Colors';
 import { useAuth } from '@/context/AuthContext';
 import { getLocalDateValue } from '@/services/dateUtils';
 import { ApiFarm, createBatch, listAllFarms } from '@/services/managementApi';
+import {
+  showRequestErrorToast,
+  showSuccessToast,
+} from '@/services/apiFeedback';
 
 const THEME_GREEN = "#0B5C36";
 
@@ -236,6 +240,7 @@ export default function CreateBatchScreen() {
   const insets = useSafeAreaInsets();
   const [farms, setFarms] = useState<ApiFarm[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [autoCodeOffset, setAutoCodeOffset] = useState(0);
 
@@ -257,6 +262,7 @@ export default function CreateBatchScreen() {
 
     setLoading(true);
     try {
+      setLoadError(null);
       const response = await listAllFarms(accessToken);
       setFarms(response.data);
       const firstEligible = response.data.find((farm) => farm.activeBatchCount === 0);
@@ -266,7 +272,12 @@ export default function CreateBatchScreen() {
         setAutoCodeOffset(0);
       }
     } catch (error) {
-      console.warn('Failed to load farms:', error);
+      setLoadError(
+        showRequestErrorToast(error, {
+          title: 'Unable to load farms',
+          fallbackMessage: 'Failed to load farms for batch creation.',
+        }),
+      );
     } finally {
       setLoading(false);
     }
@@ -332,21 +343,12 @@ export default function CreateBatchScreen() {
         notes: toOptionalText(data.notes),
       });
 
-      Toast.show({
-        type: 'success',
-        text1: 'Success',
-        text2: `Batch created successfully.`,
-        position: 'bottom',
-      });
+      showSuccessToast('Batch created successfully.');
       router.back();
     } catch (error) {
-      console.warn('Failed to create batch:', error);
-      const fallback = error instanceof Error ? error.message : 'Failed to create batch.';
-      Toast.show({
-        type: 'error',
-        text1: 'Batch create failed',
-        text2: fallback,
-        position: 'bottom',
+      showRequestErrorToast(error, {
+        title: 'Batch create failed',
+        fallbackMessage: 'Failed to create batch.',
       });
     } finally {
       setSubmitting(false);
@@ -358,6 +360,18 @@ export default function CreateBatchScreen() {
       <TopAppBar title="Create New Batch" subtitle="Placement, farm, and target details" showBack />
 
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+        {loadError ? (
+          <ScreenState
+            title="Unable to load farms"
+            message={loadError}
+            icon="cloud-offline-outline"
+            tone="error"
+            actionLabel="Retry"
+            onAction={() => void loadFarms()}
+            style={styles.stateSpacing}
+          />
+        ) : null}
+
         
         <Controller
           control={control}
@@ -728,6 +742,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingTop: 24,
     paddingBottom: 100,
+  },
+  stateSpacing: {
+    marginBottom: 18,
   },
   inputGroup: {
     marginBottom: 20,

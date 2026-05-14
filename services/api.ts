@@ -42,7 +42,34 @@ type RequestOptions = {
   retry?: number;
 };
 
+type ApiAuthFailureEvent = {
+  status: 401 | 403;
+  message: string;
+  path: string;
+};
+
 let refreshPromise: Promise<AuthSession | null> | null = null;
+let authFailureListeners = new Set<(event: ApiAuthFailureEvent) => void>();
+
+export function subscribeToApiAuthFailures(
+  listener: (event: ApiAuthFailureEvent) => void,
+) {
+  authFailureListeners.add(listener);
+
+  return () => {
+    authFailureListeners.delete(listener);
+  };
+}
+
+function isAuthRoute(path: string) {
+  return path.startsWith("/auth/");
+}
+
+function emitApiAuthFailure(event: ApiAuthFailureEvent) {
+  authFailureListeners.forEach((listener) => {
+    listener(event);
+  });
+}
 
 export const apiClient: AxiosInstance = axios.create({
   baseURL: API_BASE_URL,
@@ -323,6 +350,14 @@ async function performRequest(
       const storedSession = await getStoredSession();
       if (storedSession && path === "/auth/refresh") {
         await clearStoredSession();
+      }
+
+      if (apiError.status === 401 && !isAuthRoute(path)) {
+        emitApiAuthFailure({
+          status: apiError.status,
+          message: apiError.message,
+          path,
+        });
       }
     }
 

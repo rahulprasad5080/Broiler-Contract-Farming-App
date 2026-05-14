@@ -60,7 +60,6 @@ export default function SupervisorReviewLogsScreen() {
       // Sort latest first
       setLogs(res.data.sort((a, b) => new Date(b.logDate).getTime() - new Date(a.logDate).getTime()));
     } catch (error) {
-      console.warn('Failed to load daily logs:', error);
       showRequestErrorToast(error, {
         title: 'Unable to load daily logs',
         fallbackMessage: 'Failed to load daily logs.',
@@ -117,7 +116,6 @@ export default function SupervisorReviewLogsScreen() {
       setSelectedLog(null);
       fetchLogs();
     } catch (error) {
-      console.warn('Failed to correct log', error);
       showRequestErrorToast(error, {
         title: 'Correction failed',
         fallbackMessage: 'Failed to update log.',

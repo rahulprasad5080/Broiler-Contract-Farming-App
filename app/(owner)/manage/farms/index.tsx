@@ -18,6 +18,7 @@ import { Layout } from '@/constants/Layout';
 import { useAuth } from '@/context/AuthContext';
 import Toast from 'react-native-toast-message';
 import { TopAppBar } from '@/components/ui/TopAppBar';
+import { getRequestErrorMessage } from '@/services/apiFeedback';
 import {
   fetchFarm,
   listAllFarms,
@@ -185,7 +186,7 @@ export default function FarmListScreen() {
 
   const loadFarms = async () => {
     if (!accessToken) {
-      setError('Missing access token. Please sign in again.');
+      setError('Your session has expired. Please sign in again.');
       setIsLoading(false);
       return;
     }
@@ -201,7 +202,7 @@ export default function FarmListScreen() {
       setFarms(farmsResponse.data.map(toFarmCard));
       setUsers(usersResponse.data.map(normalizeUserOption));
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load farms.');
+      setError(getRequestErrorMessage(err, 'Failed to load farms.'));
     } finally {
       setIsLoading(false);
     }
@@ -214,7 +215,7 @@ export default function FarmListScreen() {
 
   const openEditFarm = async (farmId: string) => {
     if (!accessToken) {
-      setError('Missing access token. Please sign in again.');
+      setError('Your session has expired. Please sign in again.');
       return;
     }
 
@@ -240,7 +241,7 @@ export default function FarmListScreen() {
       });
       setShowEditModal(true);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load farm details.');
+      setError(getRequestErrorMessage(err, 'Failed to load farm details.'));
     } finally {
       setIsSavingEdit(false);
     }
@@ -248,7 +249,7 @@ export default function FarmListScreen() {
 
   const openQuickAssignment = async (farmId: string, field: Exclude<AssignmentField, 'assignmentUserIds'>) => {
     if (!accessToken) {
-      setError('Missing access token. Please sign in again.');
+      setError('Your session has expired. Please sign in again.');
       return;
     }
 
@@ -278,7 +279,7 @@ export default function FarmListScreen() {
       setAssignmentRoleFilter(field === 'primaryFarmerId' ? 'farmers' : 'supervisors');
       setShowAssignmentPicker(true);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load farm details.');
+      setError(getRequestErrorMessage(err, 'Failed to load farm details.'));
     } finally {
       setIsSavingAssignment(false);
     }

@@ -16,6 +16,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { DashboardSidebar } from '../../components/navigation/DashboardSidebar';
 import { useAuth, type Permission } from '../../context/AuthContext';
+import { showRequestErrorToast } from '../../services/apiFeedback';
 import { fetchDashboard, type ApiDashboardSummary } from '../../services/dashboardApi';
 
 const THEME_GREEN = '#0B5C36';
@@ -59,14 +60,21 @@ export default function FarmerDashboard() {
     status: 'Current location',
   });
   const [loading, setLoading] = React.useState(true);
+  const [dashboardError, setDashboardError] = React.useState<string | null>(null);
 
   const loadDashboard = React.useCallback(async () => {
     if (!accessToken) return;
     setLoading(true);
     try {
+      setDashboardError(null);
       setDashboard(await fetchDashboard(accessToken));
     } catch (error) {
-      console.warn('Failed to load farmer dashboard:', error);
+      setDashboardError(
+        showRequestErrorToast(error, {
+          title: 'Unable to load dashboard',
+          fallbackMessage: 'Failed to load farmer dashboard.',
+        }),
+      );
     } finally {
       setLoading(false);
     }
@@ -95,7 +103,6 @@ export default function FarmerDashboard() {
         status: 'Current location',
       });
     } catch (error) {
-      console.warn('Failed to load weather:', error);
       setWeather({ temperature: null, humidity: null, status: 'Unavailable' });
     }
   }, []);
@@ -191,6 +198,12 @@ export default function FarmerDashboard() {
           <View style={styles.loadingBox}>
             <ActivityIndicator color={THEME_GREEN} />
             <Text style={styles.loadingText}>Loading dashboard...</Text>
+          </View>
+        ) : null}
+        {!loading && dashboardError ? (
+          <View style={styles.errorBox}>
+            <Ionicons name="cloud-offline-outline" size={18} color="#BA5855" />
+            <Text style={styles.errorText}>{dashboardError}</Text>
           </View>
         ) : null}
 
@@ -397,6 +410,18 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   loadingText: { color: '#6B7280', fontSize: 13, fontWeight: '600' },
+  errorBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    backgroundColor: '#FFF4F4',
+    borderWidth: 1,
+    borderColor: '#F3C8C6',
+    borderRadius: 8,
+    padding: 14,
+    marginBottom: 16,
+  },
+  errorText: { flex: 1, color: '#BA5855', fontSize: 13, fontWeight: '700' },
   batchCard: {
     backgroundColor: '#FFF',
     borderRadius: 18,

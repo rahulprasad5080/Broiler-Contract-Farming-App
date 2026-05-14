@@ -10,6 +10,7 @@ import { ApiBatch, listAllBatches } from '@/services/managementApi';
 import { useFocusEffect } from '@react-navigation/native';
 import { ScreenState } from '@/components/ui/ScreenState';
 import { TopAppBar } from '@/components/ui/TopAppBar';
+import { showRequestErrorToast } from '@/services/apiFeedback';
 
 export default function SupervisorReviewScreen() {
   const router = useRouter();
@@ -17,16 +18,23 @@ export default function SupervisorReviewScreen() {
   const [batches, setBatches] = useState<ApiBatch[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const fetchBatches = useCallback(async () => {
     if (!accessToken) return;
     try {
+      setErrorMessage(null);
       const response = await listAllBatches(accessToken);
       setBatches(
         response.data.filter((b) => b.status !== 'CLOSED' && b.status !== 'CANCELLED'),
       );
     } catch (error) {
-      console.warn('Failed to load batches for review:', error);
+      setErrorMessage(
+        showRequestErrorToast(error, {
+          title: 'Unable to load batches',
+          fallbackMessage: 'Failed to load batches for review.',
+        }),
+      );
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -81,6 +89,17 @@ export default function SupervisorReviewScreen() {
         {loading && !refreshing ? (
           <View style={styles.centerBox}>
             <ScreenState title="Loading batches" message="Fetching batches for review." loading />
+          </View>
+        ) : errorMessage ? (
+          <View style={styles.centerBox}>
+            <ScreenState
+              title="Unable to load batches"
+              message={errorMessage}
+              icon="cloud-offline-outline"
+              tone="error"
+              actionLabel="Retry"
+              onAction={() => void fetchBatches()}
+            />
           </View>
         ) : batches.length === 0 ? (
           <View style={styles.centerBox}>

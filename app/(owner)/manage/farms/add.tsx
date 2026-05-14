@@ -22,6 +22,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import Toast from 'react-native-toast-message';
 
 import { TopAppBar } from '@/components/ui/TopAppBar';
+import { getRequestErrorMessage } from '@/services/apiFeedback';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Controller, useForm } from 'react-hook-form';
 import { z } from 'zod';
@@ -160,7 +161,7 @@ export default function AddFarmScreen() {
 
   const loadUsers = async () => {
     if (!accessToken) {
-      setError('Missing access token. Please sign in again.');
+      setError('Your session has expired. Please sign in again.');
       setIsLoading(false);
       return;
     }
@@ -172,7 +173,7 @@ export default function AddFarmScreen() {
       const response = await listAllUsers(accessToken);
       setUsers(response.data.map(normalizeUserOption));
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load users.');
+      setError(getRequestErrorMessage(err, 'Failed to load users.'));
     } finally {
       setIsLoading(false);
     }

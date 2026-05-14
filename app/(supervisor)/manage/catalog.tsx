@@ -97,7 +97,6 @@ export default function SupervisorCatalogScreen() {
         const res = await listCatalogItems(accessToken, { limit: 100 });
         setItems(res.data);
       } catch (error) {
-        console.warn('Failed to fetch catalog items', error);
         showRequestErrorToast(error, {
           title: 'Unable to load catalog',
           fallbackMessage: 'Failed to fetch catalog items.',
@@ -125,7 +124,6 @@ export default function SupervisorCatalogScreen() {
       reset();
       showSuccessToast('Catalog item added.');
     } catch (error) {
-      console.warn('Failed to save catalog item', error);
       showRequestErrorToast(error, {
         title: 'Catalog save failed',
         fallbackMessage: 'Failed to add item.',

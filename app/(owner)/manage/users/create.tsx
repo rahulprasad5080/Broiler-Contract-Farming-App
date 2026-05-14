@@ -1,6 +1,7 @@
 import { Colors } from '@/constants/Colors';
 import { useAuth } from '@/context/AuthContext';
 import {
+  getRequestErrorMessage,
   showRequestErrorToast,
   showSuccessToast,
 } from '@/services/apiFeedback';
@@ -252,7 +253,7 @@ export default function CreateUserScreen() {
 
   const loadFarms = useCallback(async () => {
     if (!accessToken) {
-      setError('Missing access token. Please sign in again.');
+      setError('Your session has expired. Please sign in again.');
       setIsLoadingFarms(false);
       return;
     }
@@ -264,7 +265,7 @@ export default function CreateUserScreen() {
       const response = await listAllFarms(accessToken);
       setFarms(response.data);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load farms.');
+      setError(getRequestErrorMessage(err, 'Failed to load farms.'));
     } finally {
       setIsLoadingFarms(false);
     }
@@ -294,7 +295,7 @@ export default function CreateUserScreen() {
       });
       setPasswordError(null);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load user details.');
+      setError(getRequestErrorMessage(err, 'Failed to load user details.'));
     } finally {
       setIsLoadingUser(false);
     }
@@ -328,7 +329,7 @@ export default function CreateUserScreen() {
 
   const onSubmit = async (data: UserFormData) => {
     if (!accessToken) {
-      setError('Missing access token. Please sign in again.');
+      setError('Your session has expired. Please sign in again.');
       return;
     }
 

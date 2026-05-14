@@ -12,7 +12,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { ScreenState } from "@/components/ui/ScreenState";
 import { TopAppBar } from "@/components/ui/TopAppBar";
 import { useAuth } from "@/context/AuthContext";
-import { showRequestErrorToast } from "@/services/apiFeedback";
+import { getRequestErrorMessage, showRequestErrorToast } from "@/services/apiFeedback";
 import {
   listNotifications,
   markNotificationRead,
@@ -40,7 +40,7 @@ export function NotificationsScreen() {
       const response = await listNotifications(accessToken);
       setNotifications(response.data);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Unable to load notifications.");
+      setError(getRequestErrorMessage(err, "Unable to load notifications."));
       showRequestErrorToast(err, { title: "Unable to load notifications" });
     } finally {
       setLoading(false);

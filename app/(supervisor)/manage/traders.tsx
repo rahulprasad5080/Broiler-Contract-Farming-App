@@ -53,7 +53,6 @@ export default function SupervisorTradersScreen() {
       const res = await listAllTraders(accessToken);
       setTraders(res.data);
     } catch (error) {
-      console.warn('Failed to fetch traders', error);
       showRequestErrorToast(error, {
         title: 'Unable to load traders',
         fallbackMessage: 'Failed to fetch traders.',
@@ -82,7 +81,6 @@ export default function SupervisorTradersScreen() {
       setShowAddModal(false);
       showSuccessToast('Trader added.');
     } catch (error) {
-      console.warn('Failed to save trader', error);
       showRequestErrorToast(error, {
         title: 'Trader save failed',
         fallbackMessage: 'Failed to add trader.',

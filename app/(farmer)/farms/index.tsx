@@ -7,6 +7,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useAuth } from '@/context/AuthContext';
 import { ApiFarm, listAllFarms } from '@/services/managementApi';
+import { showRequestErrorToast } from '@/services/apiFeedback';
 import { useFocusEffect } from '@react-navigation/native';
 import { ScreenState } from '@/components/ui/ScreenState';
 import { TopAppBar } from '@/components/ui/TopAppBar';
@@ -17,14 +18,21 @@ export default function FarmerFarmsScreen() {
   const [farms, setFarms] = useState<ApiFarm[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const fetchFarms = useCallback(async () => {
     if (!accessToken) return;
     try {
+      setErrorMessage(null);
       const response = await listAllFarms(accessToken);
       setFarms(response.data);
     } catch (error) {
-      console.warn('Failed to load assigned farms:', error);
+      setErrorMessage(
+        showRequestErrorToast(error, {
+          title: 'Unable to load farms',
+          fallbackMessage: 'Failed to load your assigned farms.',
+        }),
+      );
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -84,6 +92,17 @@ export default function FarmerFarmsScreen() {
         {loading && !refreshing ? (
           <View style={styles.centerBox}>
             <ScreenState title="Loading farms" message="Fetching your assigned farms." loading />
+          </View>
+        ) : errorMessage ? (
+          <View style={styles.centerBox}>
+            <ScreenState
+              title="Unable to load farms"
+              message={errorMessage}
+              icon="cloud-offline-outline"
+              tone="error"
+              actionLabel="Retry"
+              onAction={() => void fetchFarms()}
+            />
           </View>
         ) : farms.length === 0 ? (
           <View style={styles.centerBox}>

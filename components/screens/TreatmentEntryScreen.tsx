@@ -148,7 +148,6 @@ export function TreatmentEntryScreen({
         setValue('batchId', firstActiveId);
       }
     } catch (error) {
-      console.warn('Failed to load data for treatments:', error);
       setMessage(
         showRequestErrorToast(error, {
           title: 'Unable to load treatment data',
@@ -215,7 +214,6 @@ export function TreatmentEntryScreen({
       await clearPersistedData();
       showSuccessToast('Treatment logged successfully.');
     } catch (error) {
-      console.warn('Failed to log treatment:', error);
       setMessage(
         showRequestErrorToast(error, {
           title: 'Treatment save failed',

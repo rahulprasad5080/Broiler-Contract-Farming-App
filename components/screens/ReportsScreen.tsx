@@ -30,6 +30,7 @@ import {
   type ApiProfitabilityReportRow,
   type ApiSettlementReportRow,
 } from "@/services/reportApi";
+import { getRequestErrorMessage } from "@/services/apiFeedback";
 
 function formatINR(value?: number | null) {
   return `Rs. ${Number(value ?? 0).toLocaleString("en-IN")}`;
@@ -85,7 +86,7 @@ export default function ReportsScreen() {
       setFarmSummary(farmSummaryRes);
       setBatchSummary(batchSummaryRes);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Unable to load reports.");
+      setError(getRequestErrorMessage(err, "Unable to load reports."));
     } finally {
       setLoading(false);
       setRefreshing(false);

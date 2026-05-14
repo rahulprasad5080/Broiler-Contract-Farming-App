@@ -36,6 +36,7 @@ export {
   ApiError,
   API_BASE_URL,
   API_ROOT_URL,
+  subscribeToApiAuthFailures,
 } from "./api";
 
 // ── Auth types (AuthSession, AuthTokens, ApiUser, ApiRole, ApiPermissionMatrix) ──
@@ -189,9 +190,11 @@ export type { ApiHealthResponse } from "./supportApi";
 // ── Feedback / Toast utilities ──
 export {
   getRequestErrorMessage,
+  getRequestErrorInfo,
   showRequestErrorToast,
   showSuccessToast,
 } from "./apiFeedback";
+export type { RequestErrorInfo } from "./apiFeedback";
 
 // ── Route guards & role helpers ──
 export {
