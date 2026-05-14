@@ -116,23 +116,9 @@ const ownerRoutes: DashboardSidebarRoute[] = [
     requiredPermission: "manage:farms",
   },
   {
-    title: "Add Farm",
-    icon: "add-circle-outline",
-    route: "/(owner)/manage/farms/add",
-    section: "Management",
-    requiredPermission: "manage:farms",
-  },
-  {
     title: "Batches",
     icon: "layers-outline",
     route: "/(owner)/manage/batches",
-    section: "Management",
-    requiredPermission: "manage:batches",
-  },
-  {
-    title: "Create Batch",
-    icon: "create-outline",
-    route: "/(owner)/manage/batches/create",
     section: "Management",
     requiredPermission: "manage:batches",
   },
