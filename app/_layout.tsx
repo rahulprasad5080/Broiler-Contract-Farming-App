@@ -3,6 +3,7 @@ import { StatusBar } from "expo-status-bar";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import Toast from "react-native-toast-message";
 import { SplashScreen } from "@/components/screens";
+import { NetworkStatus } from "@/components/ui/NetworkStatus";
 import { Colors } from "../constants/Colors";
 import { AuthProvider, useAuth } from "../context/AuthContext";
 
@@ -35,6 +36,7 @@ export default function RootLayout() {
     <SafeAreaProvider>
       <AuthProvider>
         <RootContent />
+        <NetworkStatus />
       </AuthProvider>
       <Toast topOffset={60} bottomOffset={100} config={undefined} />
     </SafeAreaProvider>
