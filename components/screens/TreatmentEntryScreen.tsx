@@ -1,18 +1,3 @@
-import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
-import { useFocusEffect } from '@react-navigation/native';
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import {
-  ActivityIndicator,
-  Animated,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
-} from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { Colors } from '@/constants/Colors';
 import { Layout } from '@/constants/Layout';
 import { useAuth } from '@/context/AuthContext';
@@ -24,18 +9,33 @@ import {
   listAllBatches,
   listCatalogItems,
 } from '@/services/managementApi';
+import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import { useFocusEffect } from '@react-navigation/native';
+import { useRouter } from 'expo-router';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import {
+  ActivityIndicator,
+  Animated,
+  ScrollView,
+  StatusBar,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
+} from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { useForm, Controller } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import { z } from 'zod';
+import { DatePickerField } from '@/components/ui/DatePickerField';
+import { useFormPersistence } from '@/hooks/useFormPersistence';
 import {
   showRequestErrorToast,
   showSuccessToast,
 } from '@/services/apiFeedback';
 import { getLocalDateValue } from '@/services/dateUtils';
-import { useFormPersistence } from '@/hooks/useFormPersistence';
-import { HeaderNotificationButton } from '@/components/ui/HeaderNotificationButton';
-import { DatePickerField } from '@/components/ui/DatePickerField';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { Controller, useForm } from 'react-hook-form';
+import { z } from 'zod';
 
 type TreatmentEntryScreenProps = {
   title?: string;
@@ -81,14 +81,13 @@ const TREATMENT_DEFAULTS = {
 
 export function TreatmentEntryScreen({
   title = 'Treatments',
-  subtitle = 'Log vaccines and medicines given to the batch.',
 }: TreatmentEntryScreenProps) {
   const router = useRouter();
   const { accessToken, user } = useAuth();
-  
+
   const [batches, setBatches] = useState<ApiBatch[]>([]);
   const [catalogItems, setCatalogItems] = useState<ApiCatalogItem[]>([]);
-  
+
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
@@ -107,13 +106,16 @@ export function TreatmentEntryScreen({
     TREATMENT_DEFAULTS,
   );
 
+  const [showBanner, setShowBanner] = useState(false);
+
   useEffect(() => {
     if (!isRestored) return;
+    setShowBanner(true);
     Animated.sequence([
       Animated.timing(draftBannerOpacity, { toValue: 1, duration: 300, useNativeDriver: true }),
       Animated.delay(2500),
       Animated.timing(draftBannerOpacity, { toValue: 0, duration: 400, useNativeDriver: true }),
-    ]).start();
+    ]).start(() => setShowBanner(false));
   }, [isRestored, draftBannerOpacity]);
 
   const selectedBatchId = watch('batchId');
@@ -141,7 +143,7 @@ export function TreatmentEntryScreen({
       ]);
       setBatches(batchesRes.data);
       setCatalogItems(catalogRes.data.filter(item => item.isActive !== false));
-      
+
       const firstActiveId = batchesRes.data.find((b) => b.status === 'ACTIVE')?.id;
       if (firstActiveId && !selectedBatchId) {
         setValue('batchId', firstActiveId);
@@ -227,16 +229,14 @@ export function TreatmentEntryScreen({
   };
 
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <SafeAreaView style={styles.safeArea} edges={['top']}>
+      <StatusBar barStyle="light-content" backgroundColor="#0B5C36" />
+
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-          <Ionicons name="arrow-back" size={24} color={Colors.primary} />
-        </TouchableOpacity>
         <View style={styles.headerCopy}>
           <Text style={styles.headerTitle}>{title}</Text>
-          <Text style={styles.headerSub}>{user?.role ?? 'User'}</Text>
         </View>
-        <HeaderNotificationButton />
+        <View style={{ width: 24 }} />
       </View>
 
       <ScrollView
@@ -245,12 +245,13 @@ export function TreatmentEntryScreen({
         keyboardShouldPersistTaps="handled"
       >
         {/* Draft restored banner */}
-        <Animated.View style={[styles.draftBanner, { opacity: draftBannerOpacity }]} pointerEvents="none">
-          <Ionicons name="cloud-done-outline" size={16} color={Colors.primary} />
-          <Text style={styles.draftBannerText}>Draft restored</Text>
-        </Animated.View>
+        {showBanner && (
+          <Animated.View style={[styles.draftBanner, { opacity: draftBannerOpacity }]} pointerEvents="none">
+            <Ionicons name="cloud-done-outline" size={16} color="#0B5C36" />
+            <Text style={styles.draftBannerText}>Draft restored</Text>
+          </Animated.View>
+        )}
 
-        <Text style={styles.pageTitle}>{subtitle}</Text>
 
         <View style={styles.card}>
           <Controller
@@ -258,7 +259,10 @@ export function TreatmentEntryScreen({
             name="batchId"
             render={({ field: { onChange, value } }) => (
               <>
-                <Text style={styles.sectionTitle}>Choose Batch</Text>
+                <View style={styles.sectionHeader}>
+                  <MaterialCommunityIcons name="home-group" size={20} color="#0B5C36" />
+                  <Text style={styles.sectionTitle}>Choose Batch</Text>
+                </View>
                 {loading ? (
                   <View style={styles.loadingBox}>
                     <ActivityIndicator color={Colors.primary} />
@@ -293,7 +297,10 @@ export function TreatmentEntryScreen({
         </View>
 
         <View style={styles.card}>
-          <Text style={styles.sectionTitle}>Treatment Details</Text>
+          <View style={styles.sectionHeader}>
+            <MaterialCommunityIcons name="flask-outline" size={22} color="#0B5C36" />
+            <Text style={styles.sectionTitle}>Treatment Details</Text>
+          </View>
 
           <Controller
             control={control}
@@ -499,89 +506,160 @@ export function TreatmentEntryScreen({
 }
 
 const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: Colors.background },
+  safeArea: { flex: 1, backgroundColor: '#0B5C36' },
   draftBanner: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
-    backgroundColor: '#E8F5E9',
-    borderRadius: 8,
+    gap: 8,
+    backgroundColor: '#E7F5ED',
+    borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#C8E6C9',
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    marginBottom: 10,
+    borderColor: '#B7E0C2',
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    marginBottom: 16,
   },
   draftBannerText: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: Colors.primary,
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#0B5C36',
   },
   header: {
-    flexDirection: 'row', alignItems: 'center', paddingHorizontal: Layout.screenPadding,
-    paddingVertical: 14, backgroundColor: Colors.surface, borderBottomWidth: 1, borderBottomColor: Colors.border,
+    backgroundColor: "#0B5C36",
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 20,
+    paddingVertical: 12,
   },
-  backBtn: { marginRight: 14 },
   headerCopy: { flex: 1 },
-  headerTitle: { fontSize: 18, fontWeight: '800', color: Colors.text },
-  headerSub: { marginTop: 2, fontSize: 12, color: Colors.textSecondary },
-  container: { padding: Layout.screenPadding, paddingBottom: 100 },
-  pageTitle: { fontSize: 26, fontWeight: '800', color: Colors.text, marginBottom: 14 },
+  headerTitle: {
+    color: "#FFF",
+    fontSize: 22,
+    fontWeight: "700",
+    letterSpacing: 0.5,
+  },
+  container: { paddingHorizontal: 20, paddingTop: 10, paddingBottom: 100, backgroundColor: '#F9FAFB' },
   card: {
-    backgroundColor: Colors.surface, borderRadius: 12, padding: 16, marginBottom: 14,
-    borderWidth: 1, borderColor: Colors.border, ...Layout.cardShadow,
+    backgroundColor: "#FFF",
+    borderRadius: 20,
+    padding: 20,
+    marginBottom: 20,
+    borderWidth: 1,
+    borderColor: "#F3F4F6",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.05,
+    shadowRadius: 10,
+    elevation: 2,
   },
-  sectionTitle: { fontSize: 16, fontWeight: '800', color: Colors.text, marginBottom: 12 },
-  loadingBox: { minHeight: 72, justifyContent: 'center', alignItems: 'center', gap: 8 },
-  loadingText: { fontSize: 12, color: Colors.textSecondary },
-  emptyBox: { paddingVertical: 8 },
-  emptyText: { fontSize: 13, color: Colors.textSecondary },
-  chipRow: { gap: 8, paddingBottom: 8, flexDirection: 'row', flexWrap: 'wrap' },
+  sectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 16,
+  },
+  sectionTitle: {
+    fontSize: 17,
+    fontWeight: "700",
+    color: "#111827",
+  },
+  loadingBox: { minHeight: 80, justifyContent: 'center', alignItems: 'center', gap: 8 },
+  loadingText: { fontSize: 13, color: "#6B7280" },
+  emptyBox: { paddingVertical: 12 },
+  emptyText: { fontSize: 14, color: "#6B7280" },
+  chipRow: { gap: 10, paddingBottom: 4, flexDirection: 'row' },
   batchChip: {
-    paddingHorizontal: 14, paddingVertical: 10, borderRadius: 999, borderWidth: 1,
-    borderColor: Colors.border, backgroundColor: '#F9FAFB',
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 12,
+    borderWidth: 1.5,
+    borderColor: "#E5E7EB",
+    backgroundColor: "#FFF",
   },
-  batchChipActive: { borderColor: Colors.primary, backgroundColor: Colors.primary },
-  batchChipText: { fontSize: 12, fontWeight: '700', color: Colors.text },
-  batchChipTextActive: { color: '#FFF' },
+  batchChipActive: {
+    borderColor: "#0B5C36",
+    backgroundColor: "#E7F5ED",
+  },
+  batchChipText: { fontSize: 13, fontWeight: '600', color: "#4B5563" },
+  batchChipTextActive: { color: "#0B5C36" },
   typeChip: {
-    paddingHorizontal: 14, paddingVertical: 8, borderRadius: 8, borderWidth: 1,
-    borderColor: Colors.border, backgroundColor: '#FFF',
+    flex: 1,
+    paddingVertical: 12,
+    borderRadius: 12,
+    borderWidth: 1.5,
+    borderColor: "#E5E7EB",
+    backgroundColor: "#FFF",
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  typeChipActive: { borderColor: Colors.primary, backgroundColor: '#E8F5E9' },
-  typeChipText: { fontSize: 13, fontWeight: '600', color: Colors.textSecondary },
-  typeChipTextActive: { color: Colors.primary },
+  typeChipActive: {
+    borderColor: "#0B5C36",
+    backgroundColor: "#E7F5ED",
+  },
+  typeChipText: { fontSize: 13, fontWeight: '600', color: "#6B7280" },
+  typeChipTextActive: { color: "#0B5C36" },
   catalogChip: {
-    paddingHorizontal: 12, paddingVertical: 8, borderRadius: 999, borderWidth: 1,
-    borderColor: Colors.border, backgroundColor: '#F9FAFB',
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
+    backgroundColor: "#F9FAFB",
   },
-  catalogChipActive: { borderColor: Colors.primary, backgroundColor: '#E8F5E9' },
-  catalogChipText: { fontSize: 12, color: Colors.text },
-  catalogChipTextActive: { color: Colors.primary, fontWeight: '600' },
-  inputGroup: { marginBottom: 14 },
-  label: { fontSize: 13, fontWeight: '700', color: Colors.text, marginBottom: 8 },
+  catalogChipActive: {
+    borderColor: "#0B5C36",
+    backgroundColor: "#E7F5ED",
+  },
+  catalogChipText: { fontSize: 12, color: "#4B5563", fontWeight: '500' },
+  catalogChipTextActive: { color: "#0B5C36", fontWeight: '700' },
+  inputGroup: { marginBottom: 18 },
+  label: { fontSize: 14, fontWeight: '600', color: "#374151", marginBottom: 8 },
   inputMock: {
-    minHeight: 48, flexDirection: 'row', alignItems: 'center', gap: 8, borderWidth: 1,
-    borderColor: Colors.border, borderRadius: 10, paddingHorizontal: 12, backgroundColor: '#F9FAFB',
+    minHeight: 52,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    borderWidth: 1.5,
+    borderColor: "#E5E7EB",
+    borderRadius: 14,
+    paddingHorizontal: 16,
+    backgroundColor: "#F9FAFB",
   },
-  textArea: { minHeight: 84, alignItems: 'flex-start', paddingTop: 12 },
-  textInput: { flex: 1, fontSize: 15, color: Colors.text, padding: 0 },
-  multiLine: { minHeight: 56, textAlignVertical: 'top' },
+  textArea: { minHeight: 100, alignItems: 'flex-start', paddingTop: 14 },
+  textInput: { flex: 1, fontSize: 15, color: "#111827", padding: 0 },
+  multiLine: { minHeight: 70, textAlignVertical: 'top' },
   messageBox: {
-    flexDirection: 'row', gap: 8, alignItems: 'center', backgroundColor: '#E8F5E9',
-    borderWidth: 1, borderColor: '#C8E6C9', borderRadius: 10, padding: 12, marginBottom: 14,
+    flexDirection: 'row',
+    gap: 10,
+    alignItems: 'center',
+    backgroundColor: '#E7F5ED',
+    borderWidth: 1,
+    borderColor: '#B7E0C2',
+    borderRadius: 14,
+    padding: 16,
+    marginBottom: 20,
   },
-  messageText: { flex: 1, fontSize: 12, color: Colors.primary, fontWeight: '700' },
+  messageText: { flex: 1, fontSize: 13, color: "#0B5C36", fontWeight: '600' },
   submitBtn: {
-    minHeight: 52, borderRadius: 10, backgroundColor: Colors.primary, flexDirection: 'row',
-    justifyContent: 'center', alignItems: 'center', gap: 8,
+    minHeight: 56,
+    borderRadius: 16,
+    backgroundColor: "#0B5C36",
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 10,
+    shadowColor: "#0B5C36",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 4,
   },
-  submitBtnDisabled: { backgroundColor: '#9DB8A8' },
-  submitBtnText: { color: '#FFF', fontSize: 15, fontWeight: '800' },
+  submitBtnDisabled: { backgroundColor: '#9DB8A8', shadowOpacity: 0 },
+  submitBtnText: { color: '#FFF', fontSize: 16, fontWeight: '700' },
   fieldErrorText: {
-    color: Colors.tertiary,
-    fontSize: 11,
-    marginTop: 4,
-    fontWeight: '600',
+    color: "#DC2626",
+    fontSize: 12,
+    marginTop: 6,
+    fontWeight: '500',
   },
 });
