@@ -1,34 +1,35 @@
-import { Ionicons } from '@expo/vector-icons';
-import React, { useEffect, useRef, useState } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  ScrollView,
-  TouchableOpacity,
-  ActivityIndicator,
-  Animated,
-  TextInput,
-} from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { Colors } from '@/constants/Colors';
 import { Layout } from '@/constants/Layout';
-import { useRouter } from 'expo-router';
 import { useAuth } from '@/context/AuthContext';
+import { useFormPersistence } from '@/hooks/useFormPersistence';
+import {
+  showRequestErrorToast,
+  showSuccessToast,
+} from '@/services/apiFeedback';
 import {
   ApiCatalogItem,
   ApiCatalogItemType,
   createCatalogItem,
   listCatalogItems,
 } from '@/services/managementApi';
-import {
-  showRequestErrorToast,
-  showSuccessToast,
-} from '@/services/apiFeedback';
-import { useForm, Controller } from 'react-hook-form';
+import { Ionicons } from '@expo/vector-icons';
 import { zodResolver } from '@hookform/resolvers/zod';
+import { useRouter } from 'expo-router';
+import React, { useEffect, useRef, useState } from 'react';
+import { Controller, useForm } from 'react-hook-form';
+import {
+  ActivityIndicator,
+  Animated,
+  ScrollView,
+  StatusBar,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
+} from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { z } from 'zod';
-import { useFormPersistence } from '@/hooks/useFormPersistence';
 
 const CATALOG_TYPES = [
   'CHICKS',
@@ -133,12 +134,13 @@ export default function SupervisorCatalogScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <SafeAreaView style={styles.safeArea} edges={['top']}>
+      <StatusBar barStyle="light-content" backgroundColor="#0B5C36" />
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-          <Ionicons name="arrow-back" size={24} color={Colors.text} />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Catalog Master</Text>
+        <View style={styles.headerCopy}>
+          <Text style={styles.headerTitle}>Catalog Master</Text>
+        </View>
+        <View style={{ width: 24 }} />
       </View>
 
       <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
@@ -275,14 +277,22 @@ export default function SupervisorCatalogScreen() {
 }
 
 const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: '#F9FAFB' },
+  safeArea: { flex: 1, backgroundColor: '#0B5C36' },
   header: {
-    flexDirection: 'row', alignItems: 'center', paddingHorizontal: Layout.screenPadding,
-    paddingVertical: 14, backgroundColor: '#FFF', borderBottomWidth: 1, borderBottomColor: Colors.border,
+    backgroundColor: "#0B5C36",
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 20,
+    paddingVertical: 14,
   },
   backBtn: { marginRight: 16 },
-  headerTitle: { fontSize: 20, fontWeight: 'bold', color: Colors.text },
-  container: { padding: Layout.screenPadding, paddingBottom: 100, maxWidth: Layout.contentMaxWidth, alignSelf: 'center', width: '100%' },
+  headerCopy: { flex: 1 },
+  headerTitle: {
+    color: "#FFF",
+    fontSize: 20,
+    fontWeight: "700",
+  },
+  container: { padding: Layout.screenPadding, paddingBottom: 100, maxWidth: Layout.contentMaxWidth, alignSelf: 'center', width: '100%', backgroundColor: '#F9FAFB' },
   draftBanner: {
     flexDirection: 'row',
     alignItems: 'center',

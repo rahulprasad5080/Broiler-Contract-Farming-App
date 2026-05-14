@@ -1,23 +1,23 @@
-import React, { useCallback, useEffect, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, TextInput, Modal } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { Colors } from '@/constants/Colors';
 import { Layout } from '@/constants/Layout';
-import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
 import { useAuth } from '@/context/AuthContext';
+import {
+  showRequestErrorToast,
+  showSuccessToast,
+} from '@/services/apiFeedback';
 import {
   ApiTrader,
   createTrader,
   listAllTraders,
 } from '@/services/managementApi';
-import {
-  showRequestErrorToast,
-  showSuccessToast,
-} from '@/services/apiFeedback';
+import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
+import React, { useCallback, useEffect, useState } from 'react';
+import { ActivityIndicator, Modal, ScrollView, StatusBar, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
+import { Controller, useForm } from 'react-hook-form';
 import { z } from 'zod';
 
 const traderSchema = z.object({
@@ -31,12 +31,12 @@ type TraderFormData = z.infer<typeof traderSchema>;
 export default function SupervisorTradersScreen() {
   const router = useRouter();
   const { accessToken } = useAuth();
-  
+
   const [traders, setTraders] = useState<ApiTrader[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
-  
+
   const { control, handleSubmit, reset, formState: { errors: formErrors } } = useForm<TraderFormData>({
     resolver: zodResolver(traderSchema),
     defaultValues: {
@@ -93,14 +93,14 @@ export default function SupervisorTradersScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <SafeAreaView style={styles.safeArea} edges={['top']}>
+      <StatusBar barStyle="light-content" backgroundColor="#0B5C36" />
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-          <Ionicons name="arrow-back" size={24} color={Colors.text} />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Traders Directory</Text>
+        <View style={styles.headerCopy}>
+          <Text style={styles.headerTitle}>Traders Directory</Text>
+        </View>
         <TouchableOpacity style={styles.headerAction} onPress={() => setShowAddModal(true)}>
-          <Ionicons name="add" size={24} color="#FFF" />
+          <Ionicons name="add" size={24} color="#0B5C36" />
         </TouchableOpacity>
       </View>
 
@@ -216,15 +216,23 @@ export default function SupervisorTradersScreen() {
 }
 
 const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: '#F9FAFB' },
+  safeArea: { flex: 1, backgroundColor: '#0B5C36' },
   header: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: Layout.screenPadding,
-    paddingVertical: 14, backgroundColor: '#FFF', borderBottomWidth: 1, borderBottomColor: Colors.border,
+    backgroundColor: "#0B5C36",
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 16,
+    paddingVertical: 14,
   },
-  backBtn: { width: 40, alignItems: 'flex-start' },
-  headerTitle: { flex: 1, fontSize: 20, fontWeight: 'bold', color: Colors.text, textAlign: 'center' },
-  headerAction: { width: 40, height: 40, borderRadius: 20, backgroundColor: Colors.primary, justifyContent: 'center', alignItems: 'center' },
-  container: { padding: Layout.screenPadding, paddingBottom: 100, maxWidth: Layout.contentMaxWidth, alignSelf: 'center', width: '100%' },
+  backBtn: { marginRight: 16 },
+  headerCopy: { flex: 1 },
+  headerTitle: {
+    color: "#FFF",
+    fontSize: 20,
+    fontWeight: "700",
+  },
+  headerAction: { width: 36, height: 36, borderRadius: 18, backgroundColor: "#FFF", justifyContent: 'center', alignItems: 'center' },
+  container: { padding: Layout.screenPadding, paddingBottom: 100, maxWidth: Layout.contentMaxWidth, alignSelf: 'center', width: '100%', backgroundColor: '#F9FAFB' },
   emptyBox: { alignItems: 'center', marginTop: 60 },
   emptyTitle: { fontSize: 18, fontWeight: 'bold', color: Colors.text, marginTop: 16 },
   emptyText: { fontSize: 14, color: Colors.textSecondary, marginTop: 8 },

@@ -255,13 +255,7 @@ const supervisorRoutes: DashboardSidebarRoute[] = [
     section: "Entries",
     requiredPermission: "view:comments",
   },
-  {
-    title: "Management",
-    icon: "briefcase-outline",
-    route: "/(supervisor)/manage",
-    section: "Management",
-    requiredPermission: ["manage:catalog", "manage:traders"],
-  },
+
   {
     title: "Catalog Master",
     icon: "archive-outline",
