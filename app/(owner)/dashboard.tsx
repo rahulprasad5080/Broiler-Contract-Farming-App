@@ -289,7 +289,7 @@ export default function OwnerDashboard() {
             />
             <View>
               <Text style={styles.greetingText}>Hello, {user?.name ?? "Admin"}</Text>
-              <TouchableOpacity style={styles.farmSelector}>
+          <TouchableOpacity style={styles.farmSelector} onPress={() => router.navigate("/(owner)/manage/farms" as Href)}>
                 <Text style={styles.farmName}>{firstFarmName}</Text>
                 <Feather name="chevron-down" size={16} color={Colors.text} />
               </TouchableOpacity>
@@ -310,21 +310,21 @@ export default function OwnerDashboard() {
         <Text style={styles.sectionTitle}>Today at a Glance</Text>
         <View style={styles.glanceGrid}>
           {/* Active Batches */}
-          <View style={styles.glanceCard}>
+          <TouchableOpacity style={styles.glanceCard} onPress={() => router.navigate("/(owner)/manage/batches" as Href)} activeOpacity={0.82}>
             <Text style={styles.glanceValue}>
               {formatNumber(dashboard?.today?.activeBatches)}
             </Text>
             <Text style={styles.glanceLabel}>Active Batches</Text>
-          </View>
+          </TouchableOpacity>
           {/* Total Live Birds */}
-          <View style={styles.glanceCard}>
+          <TouchableOpacity style={styles.glanceCard} onPress={() => router.navigate("/(owner)/reports" as Href)} activeOpacity={0.82}>
             <Text style={styles.glanceValue}>
               {formatNumber(dashboard?.today?.liveBirds)}
             </Text>
             <Text style={styles.glanceLabel}>Total Live Birds</Text>
-          </View>
+          </TouchableOpacity>
           {/* Mortality Today */}
-          <View style={styles.glanceCard}>
+          <TouchableOpacity style={styles.glanceCard} onPress={() => router.navigate("/(owner)/manage/daily-entry" as Href)} activeOpacity={0.82}>
             <View style={styles.glanceRow}>
               <Text style={styles.glanceValueSmall}>
                 {formatNumber(dashboard?.today?.mortalityToday)}
@@ -334,9 +334,9 @@ export default function OwnerDashboard() {
             <Text style={styles.glanceLabel}>
               Mortality{"\n"}(Today)
             </Text>
-          </View>
+          </TouchableOpacity>
           {/* Mortality Total */}
-          <View style={styles.glanceCard}>
+          <TouchableOpacity style={styles.glanceCard} onPress={() => router.navigate("/(owner)/reports" as Href)} activeOpacity={0.82}>
             <View style={styles.glanceRow}>
               <Text style={styles.glanceValueSmall}>
                 {formatNumber(dashboard?.today?.mortalityTotal)}
@@ -346,7 +346,7 @@ export default function OwnerDashboard() {
             <Text style={styles.glanceLabel}>
               Mortality{"\n"}(Total)
             </Text>
-          </View>
+          </TouchableOpacity>
         </View>
 
         {/* Alert Pills */}
@@ -355,30 +355,30 @@ export default function OwnerDashboard() {
           showsHorizontalScrollIndicator={false}
           contentContainerStyle={styles.alertPillsContainer}
         >
-          <View style={styles.alertPill}>
+          <TouchableOpacity style={styles.alertPill} onPress={() => router.navigate("/(owner)/manage/sales" as Href)} activeOpacity={0.82}>
             <Text style={[styles.alertPillValue, { color: THEME_GREEN }]}>
               {formatNumber(dashboard?.today?.salesReady)}
             </Text>
             <Text style={styles.alertPillLabel}>Sales Ready</Text>
-          </View>
-          <View style={styles.alertPill}>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.alertPill} onPress={() => router.navigate("/(owner)/manage/daily-entry" as Href)} activeOpacity={0.82}>
             <Text style={[styles.alertPillValue, { color: "#1976D2" }]}>
               {formatNumber(dashboard?.today?.pendingEntries)}
             </Text>
             <Text style={styles.alertPillLabel}>Pending{"\n"}Entries</Text>
-          </View>
-          <View style={styles.alertPill}>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.alertPill} onPress={() => router.navigate("/(owner)/manage/inventory" as Href)} activeOpacity={0.82}>
             <Text style={[styles.alertPillValue, { color: "#F57C00" }]}>
               {formatNumber(dashboard?.today?.feedAlert)}
             </Text>
             <Text style={styles.alertPillLabel}>Feed Alert</Text>
-          </View>
-          <View style={styles.alertPill}>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.alertPill} onPress={() => router.navigate("/(owner)/reports" as Href)} activeOpacity={0.82}>
             <Text style={[styles.alertPillValue, { color: "#D32F2F" }]}>
               {formatNumber(dashboard?.today?.fcrAlert)}
             </Text>
             <Text style={styles.alertPillLabel}>FCR Alert</Text>
-          </View>
+          </TouchableOpacity>
         </ScrollView>
 
         {/* Active Batches Section */}
@@ -399,7 +399,13 @@ export default function OwnerDashboard() {
         ) : activeBatch ? (
           <TouchableOpacity
             style={styles.activeBatchCard}
-            onPress={() => router.navigate("/(owner)/manage/batches" as Href)}
+            onPress={() =>
+              router.navigate(
+                activeBatch?.batchId
+                  ? ({ pathname: "/(owner)/manage/batches/[id]", params: { id: activeBatch.batchId } } as any)
+                  : ("/(owner)/manage/batches" as Href),
+              )
+            }
             disabled={!canManageBatches}
           >
             <View style={styles.batchCardHeader}>
@@ -447,30 +453,30 @@ export default function OwnerDashboard() {
         </View>
 
         <View style={styles.plGrid}>
-          <View style={styles.plCard}>
+          <TouchableOpacity style={styles.plCard} onPress={() => router.navigate("/(owner)/manage/financials" as Href)} activeOpacity={0.82}>
             <Text style={[styles.plValue, { color: THEME_GREEN }]}>
               {formatINR(financialSummary?.investment)}
             </Text>
             <Text style={styles.plLabel}>Investment</Text>
-          </View>
-          <View style={styles.plCard}>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.plCard} onPress={() => router.navigate("/(owner)/manage/expenses" as Href)} activeOpacity={0.82}>
             <Text style={[styles.plValue, { color: THEME_GREEN }]}>
               {formatINR(financialSummary?.expenses)}
             </Text>
             <Text style={styles.plLabel}>Expenses</Text>
-          </View>
-          <View style={styles.plCard}>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.plCard} onPress={() => router.navigate("/(owner)/manage/sales" as Href)} activeOpacity={0.82}>
             <Text style={[styles.plValue, { color: THEME_GREEN }]}>
               {formatINR(financialSummary?.sales)}
             </Text>
             <Text style={styles.plLabel}>Sales</Text>
-          </View>
-          <View style={styles.plCard}>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.plCard} onPress={() => router.navigate("/(owner)/manage/financials" as Href)} activeOpacity={0.82}>
             <Text style={[styles.plValue, { color: netProfitOrLoss >= 0 ? THEME_GREEN : "#D32F2F" }]}>
               {formatINR(netProfitOrLoss)}
             </Text>
             <Text style={styles.plLabel}>{netProfitOrLoss >= 0 ? "Profit" : "Loss"}</Text>
-          </View>
+          </TouchableOpacity>
         </View>
 
         {/* Payment Status */}
@@ -483,30 +489,30 @@ export default function OwnerDashboard() {
           showsHorizontalScrollIndicator={false}
           contentContainerStyle={styles.paymentCardsContainer}
         >
-          <View style={styles.paymentCard}>
+          <TouchableOpacity style={styles.paymentCard} onPress={() => router.navigate("/(owner)/manage/payments" as Href)} activeOpacity={0.82}>
             <View style={styles.paymentCardHeader}>
               <Text style={styles.paymentCardTitle}>Pending{"\n"}Payments</Text>
               <Feather name="clock" size={16} color="#D32F2F" />
             </View>
             <Text style={styles.paymentCardAmount}>{formatNumber(paymentStatus.pending)}</Text>
             <Text style={styles.paymentCardSub}>Pending</Text>
-          </View>
-          <View style={styles.paymentCard}>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.paymentCard} onPress={() => router.navigate("/(owner)/manage/payments" as Href)} activeOpacity={0.82}>
             <View style={styles.paymentCardHeader}>
               <Text style={styles.paymentCardTitle}>Partial{"\n"}Payments</Text>
               <Feather name="minus-circle" size={16} color="#D97706" />
             </View>
             <Text style={styles.paymentCardAmount}>{formatNumber(paymentStatus.partial)}</Text>
             <Text style={styles.paymentCardSub}>Partial</Text>
-          </View>
-          <View style={styles.paymentCard}>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.paymentCard} onPress={() => router.navigate("/(owner)/manage/payments" as Href)} activeOpacity={0.82}>
             <View style={styles.paymentCardHeader}>
               <Text style={styles.paymentCardTitle}>Paid{"\n"}Payments</Text>
               <Feather name="check-circle" size={16} color={THEME_GREEN} />
             </View>
             <Text style={styles.paymentCardAmount}>{formatNumber(paymentStatus.paid)}</Text>
             <Text style={styles.paymentCardSub}>Paid</Text>
-          </View>
+          </TouchableOpacity>
         </ScrollView>
         
         {/* Bottom padding for FAB */}

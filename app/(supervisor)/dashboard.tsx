@@ -157,28 +157,28 @@ export default function SupervisorDashboard() {
         {/* Today at a Glance - Grid Style from Admin */}
         <Text style={styles.sectionTitle}>Today at a Glance</Text>
         <View style={styles.glanceGrid}>
-          <View style={styles.glanceCard}>
+          <TouchableOpacity style={styles.glanceCard} onPress={() => router.navigate('/(supervisor)/review' as Href)} activeOpacity={0.82}>
             <Text style={styles.glanceValue}>{formatNumber(dashboard?.today?.activeBatches)}</Text>
             <Text style={styles.glanceLabel}>Active Batches</Text>
-          </View>
-          <View style={styles.glanceCard}>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.glanceCard} onPress={() => router.navigate('/(supervisor)/reports' as Href)} activeOpacity={0.82}>
             <Text style={styles.glanceValue}>{formatNumber(dashboard?.today?.liveBirds)}</Text>
             <Text style={styles.glanceLabel}>Total Live Birds</Text>
-          </View>
-          <View style={styles.glanceCard}>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.glanceCard} onPress={() => router.navigate('/(supervisor)/tasks/daily' as Href)} activeOpacity={0.82}>
             <View style={styles.glanceRow}>
               <Text style={styles.glanceValueSmall}>{formatNumber(dashboard?.today?.mortalityToday)}</Text>
               <Text style={styles.glancePercentBold}>{mortalityTodayPercent.toFixed(2)}%</Text>
             </View>
             <Text style={styles.glanceLabel}>Mortality (Today)</Text>
-          </View>
-          <View style={styles.glanceCard}>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.glanceCard} onPress={() => router.navigate('/(supervisor)/reports' as Href)} activeOpacity={0.82}>
             <View style={styles.glanceRow}>
               <Text style={styles.glanceValueSmall}>{formatNumber(dashboard?.today?.mortalityTotal)}</Text>
               <Text style={styles.glancePercentBold}>{mortalityTotalPercent.toFixed(2)}%</Text>
             </View>
             <Text style={styles.glanceLabel}>Mortality (Total)</Text>
-          </View>
+          </TouchableOpacity>
         </View>
 
         {/* Alert Pills - Horizontal Scroll from Admin */}
@@ -187,30 +187,30 @@ export default function SupervisorDashboard() {
           showsHorizontalScrollIndicator={false}
           contentContainerStyle={styles.alertPillsContainer}
         >
-          <View style={styles.alertPill}>
+          <TouchableOpacity style={styles.alertPill} onPress={() => router.navigate('/(supervisor)/tasks/sales' as Href)} activeOpacity={0.82}>
             <Text style={[styles.alertPillValue, { color: THEME_GREEN }]}>
               {formatNumber(dashboard?.today?.salesReady)}
             </Text>
             <Text style={styles.alertPillLabel}>Sales Ready</Text>
-          </View>
-          <View style={styles.alertPill}>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.alertPill} onPress={() => router.navigate('/(supervisor)/tasks/daily' as Href)} activeOpacity={0.82}>
             <Text style={[styles.alertPillValue, { color: "#1976D2" }]}>
               {formatNumber(dashboard?.today?.pendingEntries)}
             </Text>
             <Text style={styles.alertPillLabel}>Pending{"\n"}Entries</Text>
-          </View>
-          <View style={styles.alertPill}>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.alertPill} onPress={() => router.navigate('/(supervisor)/review' as Href)} activeOpacity={0.82}>
             <Text style={[styles.alertPillValue, { color: "#F57C00" }]}>
               {formatNumber(dashboard?.today?.feedAlert)}
             </Text>
             <Text style={styles.alertPillLabel}>Feed Alert</Text>
-          </View>
-          <View style={styles.alertPill}>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.alertPill} onPress={() => router.navigate('/(supervisor)/reports' as Href)} activeOpacity={0.82}>
             <Text style={[styles.alertPillValue, { color: "#D32F2F" }]}>
               {formatNumber(dashboard?.today?.fcrAlert)}
             </Text>
             <Text style={styles.alertPillLabel}>FCR Alert</Text>
-          </View>
+          </TouchableOpacity>
         </ScrollView>
 
         <View style={styles.searchRow}>
@@ -275,11 +275,13 @@ function BatchCard({
   return (
     <TouchableOpacity
       style={styles.farmCard}
-      disabled={!canOpenDailyEntry}
-      onPress={() => router.navigate({
-        pathname: '/(supervisor)/tasks/daily',
-        params: { batchId: batch.batchId, farmName: batch.farmName }
-      } as any)}
+      onPress={() =>
+        router.navigate({
+          pathname: '/(supervisor)/review/[batchId]',
+          params: { batchId: batch.batchId },
+        } as any)
+      }
+      activeOpacity={0.82}
     >
       <View style={styles.cardHeader}>
         <View style={styles.cardTitleCopy}>
@@ -310,6 +312,21 @@ function BatchCard({
           <Text style={styles.metricValue}>{formatNumber(batch.mortalityPercent)}%</Text>
         </View>
       </View>
+      {canOpenDailyEntry ? (
+        <TouchableOpacity
+          style={styles.cardAction}
+          onPress={() =>
+            router.navigate({
+              pathname: '/(supervisor)/tasks/daily',
+              params: { batchId: batch.batchId, farmName: batch.farmName },
+            } as any)
+          }
+          activeOpacity={0.8}
+        >
+          <Ionicons name="clipboard-outline" size={15} color={THEME_GREEN} />
+          <Text style={styles.cardActionText}>Daily Entry</Text>
+        </TouchableOpacity>
+      ) : null}
     </TouchableOpacity>
   );
 }
@@ -640,6 +657,23 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: 'bold',
     color: Colors.text,
+  },
+  cardAction: {
+    marginTop: 14,
+    minHeight: 38,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#B7E0C2',
+    backgroundColor: '#ECFDF5',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+  },
+  cardActionText: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: THEME_GREEN,
   },
   fab: {
     position: 'absolute',

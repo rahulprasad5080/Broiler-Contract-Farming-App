@@ -25,12 +25,26 @@ type WeatherState = {
   temperature: number | null;
   humidity: number | null;
   status: string;
+  forecast: {
+    date: string;
+    max: number | null;
+    min: number | null;
+    rainChance: number | null;
+  }[];
+  alerts: string[];
 };
 
 type OpenMeteoResponse = {
   current?: {
     temperature_2m?: number;
     relative_humidity_2m?: number;
+    wind_speed_10m?: number;
+  };
+  daily?: {
+    time?: string[];
+    temperature_2m_max?: number[];
+    temperature_2m_min?: number[];
+    precipitation_probability_max?: number[];
   };
 };
 
@@ -42,7 +56,10 @@ function buildWeatherUrl(latitude: number, longitude: number) {
   const params = new URLSearchParams({
     latitude: String(latitude),
     longitude: String(longitude),
-    current: 'temperature_2m,relative_humidity_2m',
+    current: 'temperature_2m,relative_humidity_2m,wind_speed_10m',
+    daily: 'temperature_2m_max,temperature_2m_min,precipitation_probability_max',
+    forecast_days: '3',
+    timezone: 'auto',
   });
 
   return `https://api.open-meteo.com/v1/forecast?${params.toString()}`;
@@ -58,6 +75,8 @@ export default function FarmerDashboard() {
     temperature: null,
     humidity: null,
     status: 'Current location',
+    forecast: [],
+    alerts: [],
   });
   const [loading, setLoading] = React.useState(true);
   const [dashboardError, setDashboardError] = React.useState<string | null>(null);
@@ -84,7 +103,7 @@ export default function FarmerDashboard() {
     try {
       const permission = await Location.requestForegroundPermissionsAsync();
       if (permission.status !== Location.PermissionStatus.GRANTED) {
-        setWeather({ temperature: null, humidity: null, status: 'Location off' });
+        setWeather({ temperature: null, humidity: null, status: 'Location off', forecast: [], alerts: ['Location permission is off'] });
         return;
       }
 
@@ -97,13 +116,29 @@ export default function FarmerDashboard() {
         throw new Error(`Weather request failed: ${response.status}`);
       }
       const data = (await response.json()) as OpenMeteoResponse;
+      const rainChance = data.daily?.precipitation_probability_max?.[0] ?? null;
+      const maxTemp = data.daily?.temperature_2m_max?.[0] ?? data.current?.temperature_2m ?? null;
+      const windSpeed = data.current?.wind_speed_10m ?? null;
+      const alerts = [
+        rainChance !== null && rainChance >= 60 ? `Rain chance ${rainChance}% - keep litter dry` : null,
+        maxTemp !== null && maxTemp >= 34 ? `Heat alert ${maxTemp.toFixed(1)}°C - check ventilation` : null,
+        windSpeed !== null && windSpeed >= 28 ? `High wind ${windSpeed.toFixed(0)} km/h - secure curtains` : null,
+      ].filter(Boolean) as string[];
+
       setWeather({
         temperature: data.current?.temperature_2m ?? null,
         humidity: data.current?.relative_humidity_2m ?? null,
         status: 'Current location',
+        forecast: (data.daily?.time ?? []).slice(0, 3).map((date, index) => ({
+          date,
+          max: data.daily?.temperature_2m_max?.[index] ?? null,
+          min: data.daily?.temperature_2m_min?.[index] ?? null,
+          rainChance: data.daily?.precipitation_probability_max?.[index] ?? null,
+        })),
+        alerts,
       });
     } catch (error) {
-      setWeather({ temperature: null, humidity: null, status: 'Unavailable' });
+      setWeather({ temperature: null, humidity: null, status: 'Unavailable', forecast: [], alerts: [] });
     }
   }, []);
 
@@ -207,7 +242,16 @@ export default function FarmerDashboard() {
           </View>
         ) : null}
 
-        <View style={styles.batchCard}>
+        <TouchableOpacity
+          style={styles.batchCard}
+          activeOpacity={0.82}
+          disabled={!activeBatch?.farmId}
+          onPress={() =>
+            activeBatch?.farmId
+              ? router.navigate({ pathname: '/(farmer)/farms/[id]', params: { id: activeBatch.farmId } } as any)
+              : undefined
+          }
+        >
           <View style={styles.batchHeader}>
             <View style={styles.batchTitleWrap}>
               <Text style={styles.batchLabel}>Active Batch</Text>
@@ -239,7 +283,7 @@ export default function FarmerDashboard() {
               <Text style={styles.statValue}>{formatNumber(dashboard?.today.activeBatches)}</Text>
             </View>
           </View>
-        </View>
+        </TouchableOpacity>
 
         {hasPermission('create:daily-entry') ? (
           <TouchableOpacity
@@ -279,6 +323,48 @@ export default function FarmerDashboard() {
             color="#00695C"
             bg="#E0F2F1"
           />
+        </View>
+        <View style={styles.forecastBox}>
+          <View style={styles.forecastHeader}>
+            <Text style={styles.forecastTitle}>3-Day Forecast</Text>
+            <TouchableOpacity onPress={() => void loadWeather()} activeOpacity={0.76}>
+              <Ionicons name="refresh" size={18} color={THEME_GREEN} />
+            </TouchableOpacity>
+          </View>
+          {weather.forecast.length ? (
+            <View style={styles.forecastRow}>
+              {weather.forecast.map((day) => (
+                <View key={day.date} style={styles.forecastItem}>
+                  <Text style={styles.forecastDay}>
+                    {new Date(day.date).toLocaleDateString('en-IN', { weekday: 'short' })}
+                  </Text>
+                  <Text style={styles.forecastTemp}>
+                    {day.max === null ? '--' : `${day.max.toFixed(0)}°`} / {day.min === null ? '--' : `${day.min.toFixed(0)}°`}
+                  </Text>
+                  <Text style={styles.forecastRain}>
+                    Rain {day.rainChance === null ? '--' : `${day.rainChance}%`}
+                  </Text>
+                </View>
+              ))}
+            </View>
+          ) : (
+            <Text style={styles.forecastEmpty}>Forecast unavailable right now.</Text>
+          )}
+          {weather.alerts.length ? (
+            <View style={styles.weatherAlerts}>
+              {weather.alerts.map((alert) => (
+                <View key={alert} style={styles.weatherAlertItem}>
+                  <Ionicons name="warning-outline" size={15} color="#B45309" />
+                  <Text style={styles.weatherAlertText}>{alert}</Text>
+                </View>
+              ))}
+            </View>
+          ) : (
+            <View style={styles.weatherAlertItem}>
+              <Ionicons name="checkmark-circle-outline" size={15} color={THEME_GREEN} />
+              <Text style={[styles.weatherAlertText, { color: THEME_GREEN }]}>No weather alerts for now.</Text>
+            </View>
+          )}
         </View>
 
         <View style={styles.sectionHeader}>
@@ -434,6 +520,75 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.05,
     shadowRadius: 8,
+  },
+  forecastBox: {
+    backgroundColor: '#FFF',
+    borderRadius: 16,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    marginBottom: 24,
+  },
+  forecastHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 12,
+  },
+  forecastTitle: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: '#111827',
+  },
+  forecastRow: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  forecastItem: {
+    flex: 1,
+    backgroundColor: '#F9FAFB',
+    borderRadius: 10,
+    padding: 10,
+  },
+  forecastDay: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: '#374151',
+    marginBottom: 6,
+  },
+  forecastTemp: {
+    fontSize: 13,
+    fontWeight: '900',
+    color: '#111827',
+  },
+  forecastRain: {
+    marginTop: 4,
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#6B7280',
+  },
+  forecastEmpty: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#6B7280',
+  },
+  weatherAlerts: {
+    gap: 8,
+    marginTop: 12,
+  },
+  weatherAlertItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 7,
+    backgroundColor: '#FFFBEB',
+    borderRadius: 8,
+    padding: 9,
+  },
+  weatherAlertText: {
+    flex: 1,
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#92400E',
   },
   batchHeader: {
     flexDirection: 'row',
