@@ -101,7 +101,12 @@ export default function FarmerDashboard() {
 
   const loadWeather = React.useCallback(async () => {
     try {
-      const permission = await Location.requestForegroundPermissionsAsync();
+      const currentPermission = await Location.getForegroundPermissionsAsync();
+      const permission =
+        currentPermission.status === Location.PermissionStatus.UNDETERMINED
+          ? await Location.requestForegroundPermissionsAsync()
+          : currentPermission;
+
       if (permission.status !== Location.PermissionStatus.GRANTED) {
         setWeather({ temperature: null, humidity: null, status: 'Location off', forecast: [], alerts: ['Location permission is off'] });
         return;
