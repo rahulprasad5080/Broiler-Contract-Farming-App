@@ -1,7 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useFocusEffect } from "@react-navigation/native";
-import React, { useCallback, useState } from "react";
+import React, { useCallback, useMemo, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 import {
   ActivityIndicator,
@@ -15,6 +15,9 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { z } from "zod";
 
+import { DatePickerField } from "@/components/ui/DatePickerField";
+import { ScreenState } from "@/components/ui/ScreenState";
+import { SearchableSelectField } from "@/components/ui/SearchableSelectField";
 import { TopAppBar } from "@/components/ui/TopAppBar";
 import { useAuth } from "@/context/AuthContext";
 import {
@@ -75,9 +78,7 @@ export function ExpenseEntryScreen({ title = "Expense Entry", subtitle }: Expens
   const { accessToken } = useAuth();
   const [batches, setBatches] = useState<ApiBatch[]>([]);
   const [submitting, setSubmitting] = useState(false);
-  const [farmDropdownOpen, setFarmDropdownOpen] = useState(false);
-  const [batchDropdownOpen, setBatchDropdownOpen] = useState(false);
-  const [categoryDropdownOpen, setCategoryDropdownOpen] = useState(false);
+  const [savedMessage, setSavedMessage] = useState<string | null>(null);
 
   const {
     control,
@@ -85,6 +86,7 @@ export function ExpenseEntryScreen({ title = "Expense Entry", subtitle }: Expens
     setValue,
     watch,
     reset,
+    formState: { errors },
   } = useForm<ExpenseFormData>({
     resolver: zodResolver(expenseSchema),
     defaultValues: {
@@ -102,6 +104,37 @@ export function ExpenseEntryScreen({ title = "Expense Entry", subtitle }: Expens
   const selectedBatchId = watch("batchId");
   const selectedBatch = batches.find((b) => b.id === selectedBatchId) ?? null;
   const categories = selectedLedger === "COMPANY" ? COMPANY_CATEGORIES : FARMER_CATEGORIES;
+  const selectedFarmId = selectedBatch?.farmId ?? "";
+  const farmOptions = useMemo(() => {
+    const farmsById = new Map<string, { label: string; value: string }>();
+    batches.forEach((batch) => {
+      const farmId = batch.farmId;
+      if (farmId && !farmsById.has(farmId)) {
+        farmsById.set(farmId, { label: batch.farmName ?? "Unknown Farm", value: farmId });
+      }
+    });
+    return Array.from(farmsById.values());
+  }, [batches]);
+  const batchOptions = useMemo(
+    () =>
+      batches
+        .filter((batch) => !selectedFarmId || batch.farmId === selectedFarmId)
+        .map((batch) => ({
+          label: batch.code,
+          value: batch.id,
+          description: batch.farmName ?? undefined,
+          keywords: batch.status,
+        })),
+    [batches, selectedFarmId],
+  );
+  const categoryOptions = useMemo(
+    () =>
+      categories.map((category) => ({
+        label: category.replace(/_/g, " "),
+        value: category,
+      })),
+    [categories],
+  );
 
   const loadBatches = useCallback(async () => {
     if (!accessToken) return;
@@ -118,7 +151,8 @@ export function ExpenseEntryScreen({ title = "Expense Entry", subtitle }: Expens
   useFocusEffect(useCallback(() => { void loadBatches(); }, [loadBatches]));
 
   const onSubmit = async (data: ExpenseFormData) => {
-    if (!accessToken) return;
+    if (!accessToken || submitting) return;
+    setSavedMessage(null);
     setSubmitting(true);
     try {
       await createBatchExpense(accessToken, data.batchId, {
@@ -130,6 +164,7 @@ export function ExpenseEntryScreen({ title = "Expense Entry", subtitle }: Expens
         clientReferenceId: `expense-${Date.now()}`,
       });
       showSuccessToast("Expense saved successfully.");
+      setSavedMessage("Expense saved successfully.");
       reset({ ...data, totalAmount: "", notes: "" });
     } catch (error) {
       showRequestErrorToast(error, { title: "Save failed" });
@@ -138,17 +173,20 @@ export function ExpenseEntryScreen({ title = "Expense Entry", subtitle }: Expens
     }
   };
 
-  const formatReadableDate = (val: string) => {
-    const d = new Date(val);
-    return d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
-  };
-
   return (
     <SafeAreaView style={styles.safeArea} edges={['top']}>
       <TopAppBar title={title} subtitle={subtitle} />
 
       <ScrollView contentContainerStyle={styles.scrollContainer} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
         <View style={styles.form}>
+          {savedMessage ? (
+            <ScreenState
+              title={savedMessage}
+              message="Form is ready for the next expense."
+              compact
+              style={styles.stateSpacing}
+            />
+          ) : null}
 
           {/* Expense For Segmented Control */}
           <View style={styles.inputGroup}>
@@ -176,64 +214,59 @@ export function ExpenseEntryScreen({ title = "Expense Entry", subtitle }: Expens
           </View>
 
           {/* Date */}
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Date</Text>
-            <Controller
-              control={control}
-              name="expenseDate"
-              render={({ field: { value } }) => (
-                <View style={styles.inputMock}>
-                  <Text style={styles.inputValue}>{formatReadableDate(value)}</Text>
-                  <Ionicons name="calendar-outline" size={20} color="#6B7280" />
-                </View>
-              )}
-            />
-          </View>
+          <Controller
+            control={control}
+            name="expenseDate"
+            render={({ field: { value, onChange } }) => (
+              <DatePickerField
+                label="Date"
+                value={value}
+                onChange={onChange}
+                error={errors.expenseDate?.message}
+                disableFuture
+              />
+            )}
+          />
 
           {/* Farm Select */}
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Farm</Text>
-            <TouchableOpacity style={styles.inputMock} activeOpacity={0.7} onPress={() => setFarmDropdownOpen(!farmDropdownOpen)}>
-              <Text style={styles.inputValue}>{selectedBatch?.farmName || "Select Farm"}</Text>
-              <Ionicons name="chevron-down" size={20} color="#6B7280" />
-            </TouchableOpacity>
-          </View>
+          <SearchableSelectField
+            label="Farm"
+            value={selectedFarmId}
+            options={farmOptions}
+            onSelect={(farmId) => {
+              const nextBatch = batches.find((batch) => batch.farmId === farmId);
+              if (nextBatch) {
+                setValue("batchId", nextBatch.id, { shouldDirty: true, shouldValidate: true });
+              }
+            }}
+            placeholder="Select Farm"
+            searchPlaceholder="Search farm"
+            emptyMessage="No farms found"
+          />
 
           {/* Batch Select */}
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Batch (Optional)</Text>
-            <TouchableOpacity style={styles.inputMock} activeOpacity={0.7} onPress={() => setBatchDropdownOpen(!batchDropdownOpen)}>
-              <Text style={styles.inputValue}>{selectedBatch?.code || "Select Batch"}</Text>
-              <Ionicons name="chevron-down" size={20} color="#6B7280" />
-            </TouchableOpacity>
-            {batchDropdownOpen && (
-              <View style={styles.dropdownList}>
-                {batches.map((b) => (
-                  <TouchableOpacity key={b.id} style={styles.dropdownItem} onPress={() => { setValue("batchId", b.id); setBatchDropdownOpen(false); }}>
-                    <Text style={styles.dropdownItemText}>{b.code}</Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-            )}
-          </View>
+          <SearchableSelectField
+            label="Batch"
+            value={selectedBatchId}
+            options={batchOptions}
+            onSelect={(value) => setValue("batchId", value, { shouldDirty: true, shouldValidate: true })}
+            placeholder="Select Batch"
+            searchPlaceholder="Search batch"
+            emptyMessage="No batches found"
+            error={errors.batchId?.message}
+          />
 
           {/* Expense Category Select */}
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Expense Category</Text>
-            <TouchableOpacity style={styles.inputMock} activeOpacity={0.7} onPress={() => setCategoryDropdownOpen(!categoryDropdownOpen)}>
-              <Text style={styles.inputValue}>{watch("category")}</Text>
-              <Ionicons name="chevron-down" size={20} color="#6B7280" />
-            </TouchableOpacity>
-            {categoryDropdownOpen && (
-              <View style={styles.dropdownList}>
-                {categories.map((c) => (
-                  <TouchableOpacity key={c} style={styles.dropdownItem} onPress={() => { setValue("category", c); setCategoryDropdownOpen(false); }}>
-                    <Text style={styles.dropdownItemText}>{c}</Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-            )}
-          </View>
+          <SearchableSelectField
+            label="Expense Category"
+            value={watch("category")}
+            options={categoryOptions}
+            onSelect={(value) => setValue("category", value, { shouldDirty: true, shouldValidate: true })}
+            placeholder="Select Category"
+            searchPlaceholder="Search category"
+            emptyMessage="No categories found"
+            error={errors.category?.message}
+          />
 
           {/* Amount Input */}
           <View style={styles.inputGroup}>
@@ -327,6 +360,7 @@ const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: "#0B5C36" },
   scrollContainer: { flexGrow: 1, backgroundColor: "#FFF", paddingHorizontal: 20, paddingTop: 24 },
   form: { flex: 1 },
+  stateSpacing: { marginBottom: 20 },
   inputGroup: { marginBottom: 20 },
   label: { fontSize: 14, fontWeight: "700", color: "#111827", marginBottom: 8 },
   ledgerTabs: {

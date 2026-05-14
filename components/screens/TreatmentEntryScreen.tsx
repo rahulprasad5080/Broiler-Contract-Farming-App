@@ -25,6 +25,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { DatePickerField } from '@/components/ui/DatePickerField';
+import { SearchableSelectField } from '@/components/ui/SearchableSelectField';
 import { TopAppBar } from '@/components/ui/TopAppBar';
 import { useFormPersistence } from '@/hooks/useFormPersistence';
 import {
@@ -125,10 +126,30 @@ export function TreatmentEntryScreen({
     () => batches.filter((batch) => batch.status === 'ACTIVE'),
     [batches],
   );
+  const batchOptions = useMemo(
+    () =>
+      activeBatches.map((batch) => ({
+        label: batch.code,
+        value: batch.id,
+        description: batch.farmName ?? undefined,
+        keywords: `${batch.farmName ?? ''} ${batch.status}`,
+      })),
+    [activeBatches],
+  );
 
   const filteredCatalogItems = useMemo(
     () => catalogItems.filter(item => item.type === (kind === 'VACCINATION' ? 'VACCINE' : kind === 'MEDICATION' ? 'MEDICINE' : 'OTHER')),
     [catalogItems, kind]
+  );
+  const catalogOptions = useMemo(
+    () =>
+      filteredCatalogItems.map((item) => ({
+        label: item.name,
+        value: item.id,
+        description: `${item.type} - ${item.unit}`,
+        keywords: `${item.type} ${item.unit}`,
+      })),
+    [filteredCatalogItems],
   );
 
   const loadData = useCallback(async () => {
@@ -174,6 +195,8 @@ export function TreatmentEntryScreen({
   }, [kind, filteredCatalogItems, catalogItemId, setValue]);
 
   const onSubmit = async (data: TreatmentFormData) => {
+    if (submitting) return;
+
     if (!accessToken || !data.batchId) {
       setMessage('Select a batch before submitting.');
       return;
@@ -258,29 +281,18 @@ export function TreatmentEntryScreen({
                     <ActivityIndicator color={Colors.primary} />
                     <Text style={styles.loadingText}>Loading...</Text>
                   </View>
-                ) : activeBatches.length === 0 ? (
-                  <View style={styles.emptyBox}>
-                    <Text style={styles.emptyText}>No active batches found.</Text>
-                  </View>
                 ) : (
-                  <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipRow}>
-                    {activeBatches.map((batch) => {
-                      const active = batch.id === value;
-                      return (
-                        <TouchableOpacity
-                          key={batch.id}
-                          style={[styles.batchChip, active && styles.batchChipActive, formErrors.batchId && { borderColor: Colors.tertiary }]}
-                          onPress={() => onChange(batch.id)}
-                        >
-                          <Text style={[styles.batchChipText, active && styles.batchChipTextActive]}>
-                            {batchLabel(batch)}
-                          </Text>
-                        </TouchableOpacity>
-                      );
-                    })}
-                  </ScrollView>
+                  <SearchableSelectField
+                    label="Batch"
+                    value={value}
+                    options={batchOptions}
+                    onSelect={onChange}
+                    placeholder="Select Batch"
+                    searchPlaceholder="Search batch or farm"
+                    emptyMessage="No active batches found"
+                    error={formErrors.batchId?.message}
+                  />
                 )}
-                {formErrors.batchId && <Text style={styles.fieldErrorText}>{formErrors.batchId.message}</Text>}
               </>
             )}
           />
@@ -355,30 +367,16 @@ export function TreatmentEntryScreen({
             control={control}
             name="catalogItemId"
             render={({ field: { onChange, value } }) => (
-              <View style={styles.inputGroup}>
-                <Text style={styles.label}>Item Used (Optional)</Text>
-                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipRow}>
-                  {filteredCatalogItems.length === 0 ? (
-                    <Text style={styles.emptyText}>No {kind.toLowerCase()} items found in catalog.</Text>
-                  ) : (
-                    filteredCatalogItems.map((item) => {
-                      const active = item.id === value;
-                      return (
-                        <TouchableOpacity
-                          key={item.id}
-                          style={[styles.catalogChip, active && styles.catalogChipActive]}
-                          onPress={() => onChange(active ? '' : item.id)} // Toggle off
-                        >
-                          <Text style={[styles.catalogChipText, active && styles.catalogChipTextActive]}>
-                            {item.name}
-                          </Text>
-                        </TouchableOpacity>
-                      );
-                    })
-                  )}
-                </ScrollView>
-                {formErrors.catalogItemId && <Text style={styles.fieldErrorText}>{formErrors.catalogItemId.message}</Text>}
-              </View>
+              <SearchableSelectField
+                label="Item Used (Optional)"
+                value={value}
+                options={catalogOptions}
+                onSelect={(nextValue) => onChange(nextValue === value ? '' : nextValue)}
+                placeholder="Select Item"
+                searchPlaceholder="Search catalog item"
+                emptyMessage={`No ${kind.toLowerCase()} items found in catalog`}
+                error={formErrors.catalogItemId?.message}
+              />
             )}
           />
 

@@ -24,6 +24,9 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
+import { DatePickerField } from "@/components/ui/DatePickerField";
+import { ScreenState } from "@/components/ui/ScreenState";
+import { SearchableSelectField } from "@/components/ui/SearchableSelectField";
 import { TopAppBar } from "@/components/ui/TopAppBar";
 import {
   showRequestErrorToast,
@@ -36,17 +39,6 @@ import { z } from "zod";
 
 function todayValue() {
   return getLocalDateValue();
-}
-
-function formatReadableDate(value?: string | null) {
-  if (!value) return "Select date";
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return value;
-  return date.toLocaleDateString("en-US", {
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-  });
 }
 
 const numericField = (label: string) =>
@@ -82,16 +74,15 @@ const PURCHASE_ENTRY_DEFAULTS: PurchaseEntryFormData = {
   attachmentUrl: "",
 };
 
+const STORE_OPTIONS = ["Main Store", "Warehouse A", "Secondary Godown"];
+
 export function PurchaseEntryScreen() {
   const { accessToken } = useAuth();
   const [traders, setTraders] = useState<ApiTrader[]>([]);
   const [catalogItems, setCatalogItems] = useState<ApiCatalogItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
-  
-  const [traderDropdownOpen, setTraderDropdownOpen] = useState(false);
-  const [catalogDropdownOpen, setCatalogDropdownOpen] = useState(false);
-  const [storeDropdownOpen, setStoreDropdownOpen] = useState(false);
+  const [savedMessage, setSavedMessage] = useState<string | null>(null);
 
   const {
     control,
@@ -114,8 +105,31 @@ export function PurchaseEntryScreen() {
   const store = watch("store");
   const attachmentUrl = watch("attachmentUrl");
 
-  const selectedTrader = traders.find((t) => t.id === selectedTraderId) ?? null;
   const selectedCatalogItem = catalogItems.find((c) => c.id === selectedCatalogItemId) ?? null;
+  const traderOptions = useMemo(
+    () =>
+      traders.map((trader) => ({
+        label: trader.name,
+        value: trader.id,
+        description: trader.phone ?? undefined,
+        keywords: trader.phone ?? "",
+      })),
+    [traders],
+  );
+  const catalogOptions = useMemo(
+    () =>
+      catalogItems.map((item) => ({
+        label: item.name,
+        value: item.id,
+        description: `${item.type} - ${item.unit}`,
+        keywords: `${item.type} ${item.unit}`,
+      })),
+    [catalogItems],
+  );
+  const storeOptions = useMemo(
+    () => STORE_OPTIONS.map((storeName) => ({ label: storeName, value: storeName })),
+    [],
+  );
 
   const totalAmount = useMemo(() => {
     const qty = Number(quantity.replace(/,/g, '')) || 0;
@@ -147,7 +161,8 @@ export function PurchaseEntryScreen() {
   );
 
   const onSubmit = async (data: PurchaseEntryFormData) => {
-    if (!accessToken) return;
+    if (!accessToken || submitting) return;
+    setSavedMessage(null);
     setSubmitting(true);
     try {
       const qty = Number(data.quantity.replace(/,/g, ''));
@@ -168,6 +183,7 @@ export function PurchaseEntryScreen() {
         clientReferenceId: `purchase-${Date.now()}`,
       });
       showSuccessToast("Purchase entry saved successfully.");
+      setSavedMessage("Purchase entry saved successfully.");
       reset(PURCHASE_ENTRY_DEFAULTS);
     } catch (error) {
       showRequestErrorToast(error, { title: "Save failed" });
@@ -190,20 +206,28 @@ export function PurchaseEntryScreen() {
         keyboardShouldPersistTaps="handled"
       >
         <View style={styles.form}>
-          {/* Date */}
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Date</Text>
-            <Controller
-              control={control}
-              name="purchaseDate"
-              render={({ field: { value } }) => (
-                <View style={styles.inputMock}>
-                  <Text style={styles.inputValue}>{formatReadableDate(value)}</Text>
-                  <Ionicons name="calendar-outline" size={20} color="#6B7280" />
-                </View>
-              )}
+          {savedMessage ? (
+            <ScreenState
+              title={savedMessage}
+              message="Form is ready for the next purchase."
+              compact
+              style={styles.stateSpacing}
             />
-          </View>
+          ) : null}
+          {/* Date */}
+          <Controller
+            control={control}
+            name="purchaseDate"
+            render={({ field: { value, onChange } }) => (
+              <DatePickerField
+                label="Date"
+                value={value}
+                onChange={onChange}
+                error={errors.purchaseDate?.message}
+                disableFuture
+              />
+            )}
+          />
 
           {/* Purchase Type */}
           <View style={styles.inputGroup}>
@@ -225,64 +249,28 @@ export function PurchaseEntryScreen() {
           </View>
 
           {/* Supplier */}
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Supplier</Text>
-            <TouchableOpacity 
-              style={styles.inputMock} 
-              activeOpacity={0.7}
-              onPress={() => setTraderDropdownOpen(!traderDropdownOpen)}
-            >
-              <Text style={styles.inputValue}>{selectedTrader?.name || "Select Supplier"}</Text>
-              <Ionicons name="chevron-down" size={20} color="#6B7280" />
-            </TouchableOpacity>
-            {traderDropdownOpen && (
-              <View style={styles.dropdownList}>
-                {traders.map((trader) => (
-                  <TouchableOpacity 
-                    key={trader.id} 
-                    style={styles.dropdownItem}
-                    onPress={() => {
-                      setValue("traderId", trader.id);
-                      setTraderDropdownOpen(false);
-                    }}
-                  >
-                    <Text style={styles.dropdownItemText}>{trader.name}</Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-            )}
-            {errors.traderId && <Text style={styles.errorText}>{errors.traderId.message}</Text>}
-          </View>
+          <SearchableSelectField
+            label="Supplier"
+            value={selectedTraderId}
+            options={traderOptions}
+            onSelect={(value) => setValue("traderId", value, { shouldDirty: true, shouldValidate: true })}
+            placeholder="Select Supplier"
+            searchPlaceholder="Search supplier"
+            emptyMessage="No suppliers found"
+            error={errors.traderId?.message}
+          />
 
           {/* Item */}
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Item</Text>
-            <TouchableOpacity 
-              style={styles.inputMock} 
-              activeOpacity={0.7}
-              onPress={() => setCatalogDropdownOpen(!catalogDropdownOpen)}
-            >
-              <Text style={styles.inputValue}>{selectedCatalogItem?.name || "Select Item"}</Text>
-              <Ionicons name="chevron-down" size={20} color="#6B7280" />
-            </TouchableOpacity>
-            {catalogDropdownOpen && (
-              <View style={styles.dropdownList}>
-                {catalogItems.map((item) => (
-                  <TouchableOpacity 
-                    key={item.id} 
-                    style={styles.dropdownItem}
-                    onPress={() => {
-                      setValue("catalogItemId", item.id);
-                      setCatalogDropdownOpen(false);
-                    }}
-                  >
-                    <Text style={styles.dropdownItemText}>{item.name}</Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-            )}
-            {errors.catalogItemId && <Text style={styles.errorText}>{errors.catalogItemId.message}</Text>}
-          </View>
+          <SearchableSelectField
+            label="Item"
+            value={selectedCatalogItemId}
+            options={catalogOptions}
+            onSelect={(value) => setValue("catalogItemId", value, { shouldDirty: true, shouldValidate: true })}
+            placeholder="Select Item"
+            searchPlaceholder="Search catalog item"
+            emptyMessage="No catalog items found"
+            error={errors.catalogItemId?.message}
+          />
 
           {/* Quantity */}
           <View style={styles.inputGroup}>
@@ -336,33 +324,16 @@ export function PurchaseEntryScreen() {
           </View>
 
           {/* Store / Godown */}
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Store / Godown</Text>
-            <TouchableOpacity 
-              style={styles.inputMock} 
-              activeOpacity={0.7}
-              onPress={() => setStoreDropdownOpen(!storeDropdownOpen)}
-            >
-              <Text style={styles.inputValue}>{store}</Text>
-              <Ionicons name="chevron-down" size={20} color="#6B7280" />
-            </TouchableOpacity>
-            {storeDropdownOpen && (
-              <View style={styles.dropdownList}>
-                {["Main Store", "Warehouse A", "Secondary Godown"].map((s) => (
-                  <TouchableOpacity 
-                    key={s} 
-                    style={styles.dropdownItem}
-                    onPress={() => {
-                      setValue("store", s);
-                      setStoreDropdownOpen(false);
-                    }}
-                  >
-                    <Text style={styles.dropdownItemText}>{s}</Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-            )}
-          </View>
+          <SearchableSelectField
+            label="Store / Godown"
+            value={store}
+            options={storeOptions}
+            onSelect={(value) => setValue("store", value, { shouldDirty: true, shouldValidate: true })}
+            placeholder="Select Store"
+            searchPlaceholder="Search store"
+            emptyMessage="No stores found"
+            error={errors.store?.message}
+          />
 
           {/* Payment Type */}
           <View style={styles.inputGroup}>
@@ -454,6 +425,9 @@ const styles = StyleSheet.create({
   },
   form: {
     flex: 1,
+  },
+  stateSpacing: {
+    marginBottom: 20,
   },
   inputGroup: {
     marginBottom: 20,

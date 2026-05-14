@@ -14,7 +14,9 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Controller, useForm } from "react-hook-form";
 import { z } from "zod";
+import { DatePickerField } from "@/components/ui/DatePickerField";
 import { ScreenState } from "@/components/ui/ScreenState";
+import { SearchableSelectField } from "@/components/ui/SearchableSelectField";
 import { TopAppBar } from "@/components/ui/TopAppBar";
 
 import { useAuth } from "@/context/AuthContext";
@@ -60,16 +62,7 @@ const DEFAULTS: AllocationFormData = {
   remarks: "",
 };
 
-function formatReadableDate(value?: string | null) {
-  if (!value) return "Select date";
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return value;
-  return date.toLocaleDateString("en-GB", {
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-  });
-}
+const STOCK_OPTIONS = ["Main Store", "Warehouse A", "Godown 1"];
 
 export default function AllocateStockScreen() {
   const { accessToken } = useAuth();
@@ -78,12 +71,7 @@ export default function AllocateStockScreen() {
   const [catalogItems, setCatalogItems] = useState<ApiCatalogItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
-
-  // Dropdown states
-  const [farmDropdownOpen, setFarmDropdownOpen] = useState(false);
-  const [batchDropdownOpen, setBatchDropdownOpen] = useState(false);
-  const [itemDropdownOpen, setItemDropdownOpen] = useState(false);
-  const [stockDropdownOpen, setStockDropdownOpen] = useState(false);
+  const [savedMessage, setSavedMessage] = useState<string | null>(null);
 
   const {
     control,
@@ -106,6 +94,43 @@ export default function AllocateStockScreen() {
   const selectedFarm = farms.find(f => f.id === farmId);
   const selectedBatch = batches.find(b => b.id === batchId);
   const selectedItem = catalogItems.find(i => i.id === catalogItemId);
+  const farmOptions = useMemo(
+    () =>
+      farms.map((farm) => ({
+        label: farm.name,
+        value: farm.id,
+        description: farm.code,
+      })),
+    [farms],
+  );
+  const batchOptions = useMemo(
+    () =>
+      batches
+        .filter((batch) => batch.farmId === farmId)
+        .map((batch) => ({
+          label: batch.code,
+          value: batch.id,
+          description: batch.farmName ?? undefined,
+          keywords: batch.status,
+        })),
+    [batches, farmId],
+  );
+  const catalogOptions = useMemo(
+    () =>
+      catalogItems
+        .filter((item) => item.type.toLowerCase().includes(itemType.toLowerCase()))
+        .map((item) => ({
+          label: item.name,
+          value: item.id,
+          description: `${item.type} - ${item.unit}`,
+          keywords: `${item.type} ${item.unit}`,
+        })),
+    [catalogItems, itemType],
+  );
+  const stockOptions = useMemo(
+    () => STOCK_OPTIONS.map((stock) => ({ label: stock, value: stock })),
+    [],
+  );
 
   const loadData = useCallback(async () => {
     if (!accessToken) return;
@@ -133,7 +158,8 @@ export default function AllocateStockScreen() {
   );
 
   const onSubmit = async (data: AllocationFormData) => {
-    if (!accessToken) return;
+    if (!accessToken || saving) return;
+    setSavedMessage(null);
     setSaving(true);
     try {
       await allocateInventory(accessToken, {
@@ -143,6 +169,7 @@ export default function AllocateStockScreen() {
         remarks: data.remarks?.trim() || undefined,
       });
       showSuccessToast("Inventory allocated successfully.");
+      setSavedMessage("Inventory allocated successfully.");
       reset(DEFAULTS);
     } catch (err) {
       showRequestErrorToast(err, { title: "Allocation failed" });
@@ -164,79 +191,56 @@ export default function AllocateStockScreen() {
           {loading ? (
             <ScreenState title="Loading inventory data" message="Fetching farms, batches, and catalog items." loading compact style={styles.stateSpacing} />
           ) : null}
+          {savedMessage ? (
+            <ScreenState
+              title={savedMessage}
+              message="Form is ready for the next allocation."
+              compact
+              style={styles.stateSpacing}
+            />
+          ) : null}
 
           {/* Date */}
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Date</Text>
-            <Controller
-              control={control}
-              name="date"
-              render={({ field: { value } }) => (
-                <View style={styles.inputMock}>
-                  <Text style={styles.inputValue}>{formatReadableDate(value)}</Text>
-                  <Ionicons name="calendar-outline" size={20} color="#6B7280" />
-                </View>
-              )}
-            />
-          </View>
+          <Controller
+            control={control}
+            name="date"
+            render={({ field: { value, onChange } }) => (
+              <DatePickerField
+                label="Date"
+                value={value}
+                onChange={onChange}
+                error={errors.date?.message}
+                disableFuture
+              />
+            )}
+          />
 
           {/* Farm */}
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Farm</Text>
-            <TouchableOpacity 
-              style={styles.inputMock} 
-              activeOpacity={0.7}
-              onPress={() => setFarmDropdownOpen(!farmDropdownOpen)}
-            >
-              <Text style={styles.inputValue}>{selectedFarm?.name || "Select Farm"}</Text>
-              <Ionicons name="chevron-down" size={20} color="#6B7280" />
-            </TouchableOpacity>
-            {farmDropdownOpen && (
-              <View style={styles.dropdownList}>
-                {farms.map((f) => (
-                  <TouchableOpacity 
-                    key={f.id} 
-                    style={styles.dropdownItem}
-                    onPress={() => {
-                      setValue("farmId", f.id);
-                      setFarmDropdownOpen(false);
-                    }}
-                  >
-                    <Text style={styles.dropdownItemText}>{f.name}</Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-            )}
-          </View>
+          <SearchableSelectField
+            label="Farm"
+            value={farmId}
+            options={farmOptions}
+            onSelect={(value) => {
+              setValue("farmId", value, { shouldDirty: true, shouldValidate: true });
+              setValue("batchId", "", { shouldDirty: true, shouldValidate: true });
+            }}
+            placeholder="Select Farm"
+            searchPlaceholder="Search farm"
+            emptyMessage="No farms found"
+            error={errors.farmId?.message}
+          />
 
           {/* Batch */}
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Batch</Text>
-            <TouchableOpacity 
-              style={styles.inputMock} 
-              activeOpacity={0.7}
-              onPress={() => setBatchDropdownOpen(!batchDropdownOpen)}
-            >
-              <Text style={styles.inputValue}>{selectedBatch?.code || "Select Batch"}</Text>
-              <Ionicons name="chevron-down" size={20} color="#6B7280" />
-            </TouchableOpacity>
-            {batchDropdownOpen && (
-              <View style={styles.dropdownList}>
-                {batches.filter(b => b.farmId === farmId).map((b) => (
-                  <TouchableOpacity 
-                    key={b.id} 
-                    style={styles.dropdownItem}
-                    onPress={() => {
-                      setValue("batchId", b.id);
-                      setBatchDropdownOpen(false);
-                    }}
-                  >
-                    <Text style={styles.dropdownItemText}>{b.code}</Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-            )}
-          </View>
+          <SearchableSelectField
+            label="Batch"
+            value={batchId}
+            options={batchOptions}
+            onSelect={(value) => setValue("batchId", value, { shouldDirty: true, shouldValidate: true })}
+            placeholder="Select Batch"
+            searchPlaceholder="Search batch"
+            emptyMessage={farmId ? "No batches found for this farm" : "Select a farm first"}
+            error={errors.batchId?.message}
+          />
 
           {/* Item Type */}
           <View style={styles.inputGroup}>
@@ -255,33 +259,16 @@ export default function AllocateStockScreen() {
           </View>
 
           {/* Item */}
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Item</Text>
-            <TouchableOpacity 
-              style={styles.inputMock} 
-              activeOpacity={0.7}
-              onPress={() => setItemDropdownOpen(!itemDropdownOpen)}
-            >
-              <Text style={styles.inputValue}>{selectedItem?.name || "Select Item"}</Text>
-              <Ionicons name="chevron-down" size={20} color="#6B7280" />
-            </TouchableOpacity>
-            {itemDropdownOpen && (
-              <View style={styles.dropdownList}>
-                {catalogItems.filter(i => i.type.toLowerCase().includes(itemType.toLowerCase())).map((i) => (
-                  <TouchableOpacity 
-                    key={i.id} 
-                    style={styles.dropdownItem}
-                    onPress={() => {
-                      setValue("catalogItemId", i.id);
-                      setItemDropdownOpen(false);
-                    }}
-                  >
-                    <Text style={styles.dropdownItemText}>{i.name}</Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-            )}
-          </View>
+          <SearchableSelectField
+            label="Item"
+            value={catalogItemId}
+            options={catalogOptions}
+            onSelect={(value) => setValue("catalogItemId", value, { shouldDirty: true, shouldValidate: true })}
+            placeholder="Select Item"
+            searchPlaceholder="Search catalog item"
+            emptyMessage="No matching catalog items found"
+            error={errors.catalogItemId?.message}
+          />
 
           {/* Quantity */}
           <View style={styles.inputGroup}>
@@ -306,33 +293,16 @@ export default function AllocateStockScreen() {
           </View>
 
           {/* From Stock */}
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>From Stock</Text>
-            <TouchableOpacity 
-              style={styles.inputMock} 
-              activeOpacity={0.7}
-              onPress={() => setStockDropdownOpen(!stockDropdownOpen)}
-            >
-              <Text style={styles.inputValue}>{fromStock}</Text>
-              <Ionicons name="chevron-down" size={20} color="#6B7280" />
-            </TouchableOpacity>
-            {stockDropdownOpen && (
-              <View style={styles.dropdownList}>
-                {["Main Store", "Warehouse A", "Godown 1"].map((s) => (
-                  <TouchableOpacity 
-                    key={s} 
-                    style={styles.dropdownItem}
-                    onPress={() => {
-                      setValue("fromStock", s);
-                      setStockDropdownOpen(false);
-                    }}
-                  >
-                    <Text style={styles.dropdownItemText}>{s}</Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-            )}
-          </View>
+          <SearchableSelectField
+            label="From Stock"
+            value={fromStock}
+            options={stockOptions}
+            onSelect={(value) => setValue("fromStock", value, { shouldDirty: true, shouldValidate: true })}
+            placeholder="Select Stock"
+            searchPlaceholder="Search stock"
+            emptyMessage="No stock sources found"
+            error={errors.fromStock?.message}
+          />
 
           {/* Remarks */}
           <View style={styles.inputGroup}>

@@ -60,6 +60,17 @@ function dateFromValue(value?: string) {
   return new Date(year, month - 1, day);
 }
 
+function formatReadableDate(value?: string) {
+  if (!isValidDateValue(value)) return value || '';
+
+  const [year, month, day] = value!.split('-').map(Number);
+  return new Date(year, month - 1, day).toLocaleDateString('en-US', {
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+  });
+}
+
 function monthFromValue(value?: string) {
   const date = dateFromValue(value);
   return new Date(date.getFullYear(), date.getMonth(), 1);
@@ -125,7 +136,7 @@ export function DatePickerField({
         activeOpacity={0.78}
       >
         <Text style={[styles.dateValue, !value && styles.datePlaceholder]}>
-          {value || placeholder}
+          {value ? formatReadableDate(value) : placeholder}
         </Text>
         <Ionicons name="calendar-outline" size={18} color={Colors.textSecondary} />
       </TouchableOpacity>
@@ -227,9 +238,9 @@ const styles = StyleSheet.create({
     gap: 8,
     borderWidth: 1,
     borderColor: Colors.border,
-    borderRadius: 10,
+    borderRadius: 12,
     paddingHorizontal: 12,
-    backgroundColor: '#F9FAFB',
+    backgroundColor: '#FFF',
   },
   inputError: {
     borderColor: Colors.tertiary,

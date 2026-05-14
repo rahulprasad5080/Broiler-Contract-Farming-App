@@ -27,6 +27,9 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
+import { DatePickerField } from "@/components/ui/DatePickerField";
+import { ScreenState } from "@/components/ui/ScreenState";
+import { SearchableSelectField } from "@/components/ui/SearchableSelectField";
 import { TopAppBar } from "@/components/ui/TopAppBar";
 import {
   showRequestErrorToast,
@@ -46,17 +49,6 @@ function toOptionalNumber(value: string) {
   if (!normalized) return undefined;
   const next = Number(normalized);
   return Number.isNaN(next) ? undefined : next;
-}
-
-function formatReadableDate(value?: string | null) {
-  if (!value) return "Select date";
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return value;
-  return date.toLocaleDateString("en-US", {
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-  });
 }
 
 const optionalNumericField = (label: string) =>
@@ -137,7 +129,7 @@ export function DailyEntryScreen({ title = "Daily Entry", subtitle }: DailyEntry
   const [loading, setLoading] = useState(true);
   const [loadingLog, setLoadingLog] = useState(false);
   const [submitting, setSubmitting] = useState(false);
-  const [batchDropdownOpen, setBatchDropdownOpen] = useState(false);
+  const [savedMessage, setSavedMessage] = useState<string | null>(null);
 
   const {
     control,
@@ -161,6 +153,16 @@ export function DailyEntryScreen({ title = "Daily Entry", subtitle }: DailyEntry
   const activeBatches = useMemo(
     () => batches.filter((batch) => batch.status === "ACTIVE" || batch.id === lockedBatchId),
     [batches, lockedBatchId]
+  );
+  const batchOptions = useMemo(
+    () =>
+      activeBatches.map((batch) => ({
+        label: batch.code,
+        value: batch.id,
+        description: batch.farmName ?? undefined,
+        keywords: `${batch.farmName ?? ""} ${batch.status}`,
+      })),
+    [activeBatches],
   );
   const selectedBatch = batches.find((b) => b.id === selectedBatchId) ?? null;
 
@@ -223,7 +225,8 @@ export function DailyEntryScreen({ title = "Daily Entry", subtitle }: DailyEntry
   );
 
   const onSubmit = async (data: DailyEntryFormData) => {
-    if (!accessToken) return;
+    if (!accessToken || submitting) return;
+    setSavedMessage(null);
     setSubmitting(true);
     try {
       const payload = buildDailyLogPayload(data);
@@ -231,6 +234,7 @@ export function DailyEntryScreen({ title = "Daily Entry", subtitle }: DailyEntry
       if (isEditMode && typeof dailyLogId === "string") {
         await updateDailyLog(accessToken, data.batchId, dailyLogId, payload);
         showSuccessToast("Daily log updated successfully.");
+        setSavedMessage("Daily log updated successfully.");
         router.back();
       } else {
         await createDailyLog(accessToken, data.batchId, {
@@ -238,6 +242,7 @@ export function DailyEntryScreen({ title = "Daily Entry", subtitle }: DailyEntry
           clientReferenceId: `daily-${Date.now()}`,
         });
         showSuccessToast("Daily log saved successfully.");
+        setSavedMessage("Daily log saved successfully.");
         reset({ ...DAILY_ENTRY_DEFAULTS, batchId: data.batchId });
       }
     } catch (error) {
@@ -261,29 +266,28 @@ export function DailyEntryScreen({ title = "Daily Entry", subtitle }: DailyEntry
       >
         <View style={styles.form}>
           {loading || loadingLog ? <ActivityIndicator color="#0B5C36" style={styles.formLoader} /> : null}
-          {/* Date */}
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Date</Text>
-            <Controller
-              control={control}
-              name="logDate"
-              render={({ field: { value, onChange } }) => (
-                <View style={styles.inputMock}>
-                  <View style={styles.dateInputWrap}>
-                    <Text style={styles.dateReadable}>{formatReadableDate(value)}</Text>
-                    <TextInput
-                      style={styles.dateInput}
-                      value={value}
-                      onChangeText={onChange}
-                      placeholder="YYYY-MM-DD"
-                      placeholderTextColor="#9CA3AF"
-                    />
-                  </View>
-                  <Ionicons name="calendar-outline" size={20} color="#6B7280" />
-                </View>
-              )}
+          {savedMessage ? (
+            <ScreenState
+              title={savedMessage}
+              message="Form is ready for the next entry."
+              compact
+              style={styles.stateSpacing}
             />
-          </View>
+          ) : null}
+          {/* Date */}
+          <Controller
+            control={control}
+            name="logDate"
+            render={({ field: { value, onChange } }) => (
+              <DatePickerField
+                label="Date"
+                value={value}
+                onChange={onChange}
+                error={errors.logDate?.message}
+                disableFuture
+              />
+            )}
+          />
 
           {/* Farm */}
           <View style={styles.inputGroup}>
@@ -295,42 +299,17 @@ export function DailyEntryScreen({ title = "Daily Entry", subtitle }: DailyEntry
           </View>
 
           {/* Batch */}
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Batch</Text>
-            <TouchableOpacity
-              style={[styles.inputMock, lockedBatchId && styles.inputLocked]}
-              activeOpacity={0.7}
-              onPress={() => {
-                if (!lockedBatchId) {
-                  setBatchDropdownOpen(!batchDropdownOpen);
-                }
-              }}
-            >
-              <Text style={styles.inputValue}>{selectedBatch?.code || "Select Batch"}</Text>
-              <Ionicons
-                name={lockedBatchId ? "lock-closed-outline" : "chevron-down"}
-                size={20}
-                color="#6B7280"
-              />
-            </TouchableOpacity>
-            {batchDropdownOpen && !lockedBatchId && (
-              <View style={styles.dropdownList}>
-                {activeBatches.map((batch) => (
-                  <TouchableOpacity
-                    key={batch.id}
-                    style={styles.dropdownItem}
-                    onPress={() => {
-                      setValue("batchId", batch.id);
-                      setBatchDropdownOpen(false);
-                    }}
-                  >
-                    <Text style={styles.dropdownItemText}>{batch.code}</Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-            )}
-            {errors.batchId && <Text style={styles.errorText}>{errors.batchId.message}</Text>}
-          </View>
+          <SearchableSelectField
+            label="Batch"
+            value={selectedBatchId}
+            options={batchOptions}
+            onSelect={(value) => setValue("batchId", value, { shouldDirty: true, shouldValidate: true })}
+            placeholder="Select Batch"
+            searchPlaceholder="Search batch or farm"
+            emptyMessage="No active batches found"
+            error={errors.batchId?.message}
+            locked={Boolean(lockedBatchId)}
+          />
 
           {/* Opening Bird Count */}
           <View style={styles.inputGroup}>
@@ -512,6 +491,9 @@ const styles = StyleSheet.create({
   },
   form: {
     flex: 1,
+  },
+  stateSpacing: {
+    marginBottom: 20,
   },
   inputGroup: {
     marginBottom: 20,

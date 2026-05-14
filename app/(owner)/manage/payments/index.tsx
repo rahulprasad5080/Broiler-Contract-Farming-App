@@ -28,11 +28,15 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Controller, useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { ScreenState } from '@/components/ui/ScreenState';
+import { DatePickerField } from '@/components/ui/DatePickerField';
+import { SearchableSelectField } from '@/components/ui/SearchableSelectField';
 import { TopAppBar } from '@/components/ui/TopAppBar';
 
 const PAYMENT_TYPES = ['PURCHASE', 'EXPENSE', 'SALE_RECEIPT', 'SETTLEMENT', 'INVESTMENT', 'OTHER'] as const satisfies readonly ApiPaymentEntryType[];
 const DIRECTIONS = ['OUTBOUND', 'INBOUND'] as const satisfies readonly ApiPaymentDirection[];
 const METHODS = ['Cash', 'UPI', 'Bank Transfer', 'Cheque'];
+const PARTY_OPTIONS = ['Agro Feed Suppliers', 'Zenith Pharma', 'City Bank', 'General Expenses'];
+const ACCOUNT_OPTIONS = ['HDFC Bank - 1234', 'ICICI Bank - 5678', 'Cash in Hand'];
 
 const paymentSchema = z.object({
   direction: z.enum(DIRECTIONS),
@@ -62,27 +66,12 @@ const DEFAULTS: PaymentFormData = {
   fromAccount: 'HDFC Bank - 1234',
 };
 
-function formatReadableDate(value?: string | null) {
-  if (!value) return "Select date";
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return value;
-  return date.toLocaleDateString("en-GB", {
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-  });
-}
-
 export default function PaymentEntryScreen() {
   const { accessToken } = useAuth();
   const [batches, setBatches] = useState<ApiBatch[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-
-  // Dropdown states
-  const [paidToDropdownOpen, setPaidToDropdownOpen] = useState(false);
-  const [againstDropdownOpen, setAgainstDropdownOpen] = useState(false);
-  const [accountDropdownOpen, setAccountDropdownOpen] = useState(false);
+  const [savedMessage, setSavedMessage] = useState<string | null>(null);
 
   const {
     control,
@@ -101,6 +90,22 @@ export default function PaymentEntryScreen() {
   const paymentMethod = watch('paymentMethod');
   const fromAccount = watch('fromAccount');
   const partyName = watch('partyName');
+  const partyOptions = useMemo(
+    () => PARTY_OPTIONS.map((party) => ({ label: party, value: party })),
+    [],
+  );
+  const paymentTypeOptions = useMemo(
+    () =>
+      PAYMENT_TYPES.map((type) => ({
+        label: type.replace(/_/g, ' '),
+        value: type,
+      })),
+    [],
+  );
+  const accountOptions = useMemo(
+    () => ACCOUNT_OPTIONS.map((account) => ({ label: account, value: account })),
+    [],
+  );
 
   const loadData = useCallback(async () => {
     if (!accessToken) return;
@@ -122,7 +127,8 @@ export default function PaymentEntryScreen() {
   );
 
   const onSubmit = async (data: PaymentFormData) => {
-    if (!accessToken) return;
+    if (!accessToken || saving) return;
+    setSavedMessage(null);
     setSaving(true);
     try {
       await createFinancePayment(accessToken, {
@@ -137,6 +143,7 @@ export default function PaymentEntryScreen() {
         notes: data.notes?.trim() || undefined,
       });
       showSuccessToast('Payment saved successfully.');
+      setSavedMessage('Payment saved successfully.');
       reset(DEFAULTS);
     } catch (err) {
       showRequestErrorToast(err, { title: 'Payment save failed' });
@@ -158,6 +165,14 @@ export default function PaymentEntryScreen() {
           {loading ? (
             <ScreenState title="Loading batches" message="Fetching payment references." loading compact style={styles.stateSpacing} />
           ) : null}
+          {savedMessage ? (
+            <ScreenState
+              title={savedMessage}
+              message="Form is ready for the next payment."
+              compact
+              style={styles.stateSpacing}
+            />
+          ) : null}
 
           {/* Payment Type */}
           <View style={styles.inputGroup}>
@@ -178,78 +193,43 @@ export default function PaymentEntryScreen() {
           </View>
 
           {/* Date */}
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Date</Text>
-            <Controller
-              control={control}
-              name="paymentDate"
-              render={({ field: { value } }) => (
-                <View style={styles.inputMock}>
-                  <Text style={styles.inputValue}>{formatReadableDate(value)}</Text>
-                  <Ionicons name="calendar-outline" size={20} color="#6B7280" />
-                </View>
-              )}
-            />
-          </View>
+          <Controller
+            control={control}
+            name="paymentDate"
+            render={({ field: { value, onChange } }) => (
+              <DatePickerField
+                label="Date"
+                value={value}
+                onChange={onChange}
+                error={errors.paymentDate?.message}
+                disableFuture
+              />
+            )}
+          />
 
           {/* Paid To / Received From */}
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>{direction === 'OUTBOUND' ? 'Paid To' : 'Received From'}</Text>
-            <TouchableOpacity 
-              style={styles.inputMock} 
-              activeOpacity={0.7}
-              onPress={() => setPaidToDropdownOpen(!paidToDropdownOpen)}
-            >
-              <Text style={styles.inputValue}>{partyName || (direction === 'OUTBOUND' ? "Select Party" : "Select Sender")}</Text>
-              <Ionicons name="chevron-down" size={20} color="#6B7280" />
-            </TouchableOpacity>
-            {paidToDropdownOpen && (
-              <View style={styles.dropdownList}>
-                {["Agro Feed Suppliers", "Zenith Pharma", "City Bank", "General Expenses"].map((item) => (
-                  <TouchableOpacity 
-                    key={item} 
-                    style={styles.dropdownItem}
-                    onPress={() => {
-                      setValue("partyName", item);
-                      setPaidToDropdownOpen(false);
-                    }}
-                  >
-                    <Text style={styles.dropdownItemText}>{item}</Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-            )}
-            {errors.partyName && <Text style={styles.errorText}>{errors.partyName.message}</Text>}
-          </View>
+          <SearchableSelectField
+            label={direction === 'OUTBOUND' ? 'Paid To' : 'Received From'}
+            value={partyName}
+            options={partyOptions}
+            onSelect={(value) => setValue('partyName', value, { shouldDirty: true, shouldValidate: true })}
+            placeholder={direction === 'OUTBOUND' ? 'Select Party' : 'Select Sender'}
+            searchPlaceholder="Search party"
+            emptyMessage="No parties found"
+            error={errors.partyName?.message}
+          />
 
           {/* Against */}
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Against</Text>
-            <TouchableOpacity 
-              style={styles.inputMock} 
-              activeOpacity={0.7}
-              onPress={() => setAgainstDropdownOpen(!againstDropdownOpen)}
-            >
-              <Text style={styles.inputValue}>{paymentType ? paymentType.charAt(0) + paymentType.slice(1).toLowerCase() : "Select Reference"}</Text>
-              <Ionicons name="chevron-down" size={20} color="#6B7280" />
-            </TouchableOpacity>
-            {againstDropdownOpen && (
-              <View style={styles.dropdownList}>
-                {PAYMENT_TYPES.map((type) => (
-                  <TouchableOpacity 
-                    key={type} 
-                    style={styles.dropdownItem}
-                    onPress={() => {
-                      setValue("paymentType", type);
-                      setAgainstDropdownOpen(false);
-                    }}
-                  >
-                    <Text style={styles.dropdownItemText}>{type.charAt(0) + type.slice(1).toLowerCase()}</Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-            )}
-          </View>
+          <SearchableSelectField
+            label="Against"
+            value={paymentType}
+            options={paymentTypeOptions}
+            onSelect={(value) => setValue('paymentType', value as ApiPaymentEntryType, { shouldDirty: true, shouldValidate: true })}
+            placeholder="Select Reference"
+            searchPlaceholder="Search reference"
+            emptyMessage="No references found"
+            error={errors.paymentType?.message}
+          />
 
           {/* Amount */}
           <View style={styles.inputGroup}>
@@ -307,33 +287,15 @@ export default function PaymentEntryScreen() {
           </View>
 
           {/* Payment From Account */}
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Payment From Account</Text>
-            <TouchableOpacity 
-              style={styles.inputMock} 
-              activeOpacity={0.7}
-              onPress={() => setAccountDropdownOpen(!accountDropdownOpen)}
-            >
-              <Text style={styles.inputValue}>{fromAccount || "Select Account"}</Text>
-              <Ionicons name="chevron-down" size={20} color="#6B7280" />
-            </TouchableOpacity>
-            {accountDropdownOpen && (
-              <View style={styles.dropdownList}>
-                {["HDFC Bank - 1234", "ICICI Bank - 5678", "Cash in Hand"].map((acc) => (
-                  <TouchableOpacity 
-                    key={acc} 
-                    style={styles.dropdownItem}
-                    onPress={() => {
-                      setValue("fromAccount", acc);
-                      setAccountDropdownOpen(false);
-                    }}
-                  >
-                    <Text style={styles.dropdownItemText}>{acc}</Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-            )}
-          </View>
+          <SearchableSelectField
+            label="Payment From Account"
+            value={fromAccount}
+            options={accountOptions}
+            onSelect={(value) => setValue('fromAccount', value, { shouldDirty: true, shouldValidate: true })}
+            placeholder="Select Account"
+            searchPlaceholder="Search account"
+            emptyMessage="No accounts found"
+          />
 
           {/* Remarks */}
           <View style={styles.inputGroup}>

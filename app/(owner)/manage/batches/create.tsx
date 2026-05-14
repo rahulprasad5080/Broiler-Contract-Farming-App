@@ -4,7 +4,6 @@ import { useRouter } from 'expo-router';
 import React, { useCallback, useState } from 'react';
 import {
   ActivityIndicator,
-  Modal,
   ScrollView,
   StyleSheet,
   Text,
@@ -19,6 +18,7 @@ import { z } from 'zod';
 
 import { DatePickerField } from '@/components/ui/DatePickerField';
 import { ScreenState } from '@/components/ui/ScreenState';
+import { SearchableSelectField } from '@/components/ui/SearchableSelectField';
 import { TopAppBar } from '@/components/ui/TopAppBar';
 import { Colors } from '@/constants/Colors';
 import { useAuth } from '@/context/AuthContext';
@@ -190,50 +190,6 @@ function InputField({
   );
 }
 
-function DropdownField({ label, value, options, onSelect, placeholder, required = false, error }: any) {
-  const [modalVisible, setModalVisible] = useState(false);
-  const selectedOption = options.find((o: any) => o.value === value);
-
-  return (
-    <View style={styles.inputGroup}>
-      <Text style={styles.label}>
-        {label} {required && <Text style={{ color: 'red' }}>*</Text>}
-      </Text>
-      <TouchableOpacity
-        style={[styles.inputBox, error && styles.inputError]}
-        activeOpacity={0.8}
-        onPress={() => setModalVisible(true)}
-      >
-        <Text style={[styles.inputText, !selectedOption && { color: Colors.textSecondary }]}>
-          {selectedOption ? selectedOption.label : placeholder}
-        </Text>
-        <Ionicons name="chevron-down" size={18} color={Colors.textSecondary} />
-      </TouchableOpacity>
-      
-      {error ? <Text style={styles.fieldErrorText}>{error}</Text> : null}
-
-      <Modal visible={modalVisible} transparent animationType="fade">
-        <TouchableOpacity style={styles.modalOverlay} activeOpacity={1} onPress={() => setModalVisible(false)}>
-          <View style={styles.modalContent}>
-            {options.map((opt: any) => (
-              <TouchableOpacity
-                key={opt.value}
-                style={styles.modalOption}
-                onPress={() => {
-                  onSelect(opt.value);
-                  setModalVisible(false);
-                }}
-              >
-                <Text style={styles.modalOptionText}>{opt.label}</Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-        </TouchableOpacity>
-      </Modal>
-    </View>
-  );
-}
-
 export default function CreateBatchScreen() {
   const router = useRouter();
   const { accessToken } = useAuth();
@@ -319,7 +275,7 @@ export default function CreateBatchScreen() {
   };
 
   const handleSave = async (data: BatchFormData) => {
-    if (!accessToken) return;
+    if (!accessToken || submitting) return;
 
     setSubmitting(true);
 
@@ -377,7 +333,7 @@ export default function CreateBatchScreen() {
           control={control}
           name="farmId"
           render={({ field: { onChange, value } }) => (
-            <DropdownField
+            <SearchableSelectField
               label="Farm"
               required
               value={value}
@@ -392,6 +348,8 @@ export default function CreateBatchScreen() {
               }}
               options={farmOptions}
               placeholder={loading ? "Loading..." : "Select Farm"}
+              searchPlaceholder="Search farm"
+              emptyMessage="No eligible farms found"
               error={formErrors.farmId?.message}
             />
           )}
@@ -401,13 +359,14 @@ export default function CreateBatchScreen() {
           control={control}
           name="shed"
           render={({ field: { onChange, value } }) => (
-            <DropdownField
+            <SearchableSelectField
               label="Shed / House"
               required
               value={value}
               onSelect={onChange}
               options={shedOptions}
               placeholder="Select Shed"
+              searchPlaceholder="Search shed"
             />
           )}
         />
@@ -452,13 +411,14 @@ export default function CreateBatchScreen() {
           control={control}
           name="birdType"
           render={({ field: { onChange, value } }) => (
-            <DropdownField
+            <SearchableSelectField
               label="Bird Type"
               required
               value={value}
               onSelect={onChange}
               options={birdTypeOptions}
               placeholder="Select Bird Type"
+              searchPlaceholder="Search bird type"
               error={formErrors.birdType?.message}
             />
           )}
@@ -631,12 +591,13 @@ export default function CreateBatchScreen() {
           control={control}
           name="sourceHatchery"
           render={({ field: { onChange, value } }) => (
-            <DropdownField
+            <SearchableSelectField
               label="Supplier"
               value={value}
               onSelect={onChange}
               options={supplierOptions}
               placeholder="Select Supplier"
+              searchPlaceholder="Search supplier"
             />
           )}
         />

@@ -214,6 +214,7 @@ export default function CreateUserScreen() {
   const [roleDropdownOpen, setRoleDropdownOpen] = useState(false);
   const [statusDropdownOpen, setStatusDropdownOpen] = useState(false);
   const [farmDropdownOpen, setFarmDropdownOpen] = useState(false);
+  const [farmSearch, setFarmSearch] = useState('');
   const skipPermissionSyncRef = useRef(false);
 
   const {
@@ -238,6 +239,14 @@ export default function CreateUserScreen() {
     () => PERMISSION_LABELS.filter((permission) => permissions[permission.key]).length,
     [permissions],
   );
+  const filteredFarms = useMemo(() => {
+    const query = farmSearch.trim().toLowerCase();
+    if (!query) return farms;
+
+    return farms.filter((farm) =>
+      `${farm.name} ${farm.code ?? ''}`.toLowerCase().includes(query),
+    );
+  }, [farmSearch, farms]);
 
   useEffect(() => {
     if (skipPermissionSyncRef.current) {
@@ -328,6 +337,8 @@ export default function CreateUserScreen() {
   };
 
   const onSubmit = async (data: UserFormData) => {
+    if (isSubmitting) return;
+
     if (!accessToken) {
       setError('Your session has expired. Please sign in again.');
       return;
@@ -611,7 +622,11 @@ export default function CreateUserScreen() {
               onPress={() => {
                 setRoleDropdownOpen(false);
                 setStatusDropdownOpen(false);
-                setFarmDropdownOpen((prev) => !prev);
+                setFarmDropdownOpen((prev) => {
+                  const nextOpen = !prev;
+                  if (nextOpen) setFarmSearch('');
+                  return nextOpen;
+                });
               }}
               activeOpacity={0.85}
             >
@@ -639,8 +654,20 @@ export default function CreateUserScreen() {
                   </View>
                 ) : farms.length ? (
                   <>
+                    <View style={styles.farmSearchBox}>
+                      <Ionicons name="search-outline" size={17} color={Colors.textSecondary} />
+                      <TextInput
+                        style={styles.farmSearchInput}
+                        value={farmSearch}
+                        onChangeText={setFarmSearch}
+                        placeholder="Search farms"
+                        placeholderTextColor={Colors.textSecondary}
+                        autoCapitalize="none"
+                        autoCorrect={false}
+                      />
+                    </View>
                     <ScrollView nestedScrollEnabled showsVerticalScrollIndicator={false}>
-                      {farms.map((farm) => {
+                      {filteredFarms.map((farm) => {
                         const isSelected = selectedFarmIds.includes(farm.id);
 
                         return (
@@ -662,6 +689,11 @@ export default function CreateUserScreen() {
                           </TouchableOpacity>
                         );
                       })}
+                      {!filteredFarms.length ? (
+                        <View style={styles.dropdownEmpty}>
+                          <Text style={styles.helperText}>No farms match your search.</Text>
+                        </View>
+                      ) : null}
                     </ScrollView>
                     <View style={styles.dropdownFooter}>
                       <Text style={styles.dropdownFooterText}>{selectedFarmIds.length} selected</Text>
@@ -863,6 +895,22 @@ const styles = StyleSheet.create({
   },
   farmDropdownList: {
     maxHeight: 280,
+  },
+  farmSearchBox: {
+    minHeight: 44,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F3F4F6',
+    paddingHorizontal: 12,
+    backgroundColor: '#F9FAFB',
+  },
+  farmSearchInput: {
+    flex: 1,
+    color: Colors.text,
+    fontSize: 14,
+    paddingVertical: 0,
   },
   dropdownItem: {
     minHeight: 48,

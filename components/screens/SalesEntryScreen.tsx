@@ -24,6 +24,9 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
+import { DatePickerField } from "@/components/ui/DatePickerField";
+import { ScreenState } from "@/components/ui/ScreenState";
+import { SearchableSelectField } from "@/components/ui/SearchableSelectField";
 import { TopAppBar } from "@/components/ui/TopAppBar";
 import {
   showRequestErrorToast,
@@ -42,17 +45,6 @@ function toOptionalNumber(value: string) {
   if (!value || value.trim() === "") return undefined;
   const next = Number(value.replace(/,/g, ''));
   return Number.isNaN(next) ? undefined : next;
-}
-
-function formatReadableDate(value?: string | null) {
-  if (!value) return "Select date";
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return value;
-  return date.toLocaleDateString("en-US", {
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-  });
 }
 
 const numericField = (label: string) =>
@@ -95,9 +87,7 @@ export function SalesEntryScreen({ title = "Sales Entry", subtitle }: SalesEntry
   const [traders, setTraders] = useState<ApiTrader[]>([]);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
-
-  const [batchDropdownOpen, setBatchDropdownOpen] = useState(false);
-  const [traderDropdownOpen, setTraderDropdownOpen] = useState(false);
+  const [savedMessage, setSavedMessage] = useState<string | null>(null);
 
   const {
     control,
@@ -121,6 +111,26 @@ export function SalesEntryScreen({ title = "Sales Entry", subtitle }: SalesEntry
   const activeBatches = useMemo(
     () => batches.filter((batch) => batch.status === "ACTIVE" || batch.status === "SALES_RUNNING"),
     [batches]
+  );
+  const batchOptions = useMemo(
+    () =>
+      activeBatches.map((batch) => ({
+        label: batch.code,
+        value: batch.id,
+        description: batch.farmName ?? undefined,
+        keywords: `${batch.farmName ?? ""} ${batch.status}`,
+      })),
+    [activeBatches],
+  );
+  const traderOptions = useMemo(
+    () =>
+      traders.map((trader) => ({
+        label: trader.name,
+        value: trader.id,
+        description: trader.phone ?? undefined,
+        keywords: trader.phone ?? "",
+      })),
+    [traders],
   );
 
   const selectedBatch = batches.find((b) => b.id === selectedBatchId) ?? null;
@@ -162,7 +172,8 @@ export function SalesEntryScreen({ title = "Sales Entry", subtitle }: SalesEntry
   );
 
   const onSubmit = async (data: SalesEntryFormData) => {
-    if (!accessToken) return;
+    if (!accessToken || submitting) return;
+    setSavedMessage(null);
     setSubmitting(true);
     try {
       const qty = Number(data.birdCount.replace(/,/g, ''));
@@ -182,6 +193,7 @@ export function SalesEntryScreen({ title = "Sales Entry", subtitle }: SalesEntry
         clientReferenceId: `sale-${Date.now()}`,
       });
       showSuccessToast("Sales entry saved successfully.");
+      setSavedMessage("Sales entry saved successfully.");
       reset({ ...SALES_ENTRY_DEFAULTS, batchId: data.batchId });
     } catch (error) {
       showRequestErrorToast(error, { title: "Save failed" });
@@ -200,20 +212,28 @@ export function SalesEntryScreen({ title = "Sales Entry", subtitle }: SalesEntry
         keyboardShouldPersistTaps="handled"
       >
         <View style={styles.form}>
-          {/* Date */}
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Date</Text>
-            <Controller
-              control={control}
-              name="saleDate"
-              render={({ field: { value } }) => (
-                <View style={styles.inputMock}>
-                  <Text style={styles.inputValue}>{formatReadableDate(value)}</Text>
-                  <Ionicons name="calendar-outline" size={20} color="#6B7280" />
-                </View>
-              )}
+          {savedMessage ? (
+            <ScreenState
+              title={savedMessage}
+              message="Form is ready for the next sale."
+              compact
+              style={styles.stateSpacing}
             />
-          </View>
+          ) : null}
+          {/* Date */}
+          <Controller
+            control={control}
+            name="saleDate"
+            render={({ field: { value, onChange } }) => (
+              <DatePickerField
+                label="Date"
+                value={value}
+                onChange={onChange}
+                error={errors.saleDate?.message}
+                disableFuture
+              />
+            )}
+          />
 
           {/* Farm */}
           <View style={styles.inputGroup}>
@@ -225,64 +245,28 @@ export function SalesEntryScreen({ title = "Sales Entry", subtitle }: SalesEntry
           </View>
 
           {/* Batch */}
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Batch</Text>
-            <TouchableOpacity
-              style={styles.inputMock}
-              activeOpacity={0.7}
-              onPress={() => setBatchDropdownOpen(!batchDropdownOpen)}
-            >
-              <Text style={styles.inputValue}>{selectedBatch?.code || "Select Batch"}</Text>
-              <Ionicons name="chevron-down" size={20} color="#6B7280" />
-            </TouchableOpacity>
-            {batchDropdownOpen && (
-              <View style={styles.dropdownList}>
-                {activeBatches.map((batch) => (
-                  <TouchableOpacity
-                    key={batch.id}
-                    style={styles.dropdownItem}
-                    onPress={() => {
-                      setValue("batchId", batch.id);
-                      setBatchDropdownOpen(false);
-                    }}
-                  >
-                    <Text style={styles.dropdownItemText}>{batch.code} ({batch.farmName})</Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-            )}
-            {errors.batchId && <Text style={styles.errorText}>{errors.batchId.message}</Text>}
-          </View>
+          <SearchableSelectField
+            label="Batch"
+            value={selectedBatchId}
+            options={batchOptions}
+            onSelect={(value) => setValue("batchId", value, { shouldDirty: true, shouldValidate: true })}
+            placeholder="Select Batch"
+            searchPlaceholder="Search batch or farm"
+            emptyMessage="No sales-ready batches found"
+            error={errors.batchId?.message}
+          />
 
           {/* Customer / Buyer */}
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Customer / Buyer</Text>
-            <TouchableOpacity
-              style={styles.inputMock}
-              activeOpacity={0.7}
-              onPress={() => setTraderDropdownOpen(!traderDropdownOpen)}
-            >
-              <Text style={styles.inputValue}>{selectedTrader?.name || "Select Customer"}</Text>
-              <Ionicons name="chevron-down" size={20} color="#6B7280" />
-            </TouchableOpacity>
-            {traderDropdownOpen && (
-              <View style={styles.dropdownList}>
-                {traders.map((trader) => (
-                  <TouchableOpacity
-                    key={trader.id}
-                    style={styles.dropdownItem}
-                    onPress={() => {
-                      setValue("traderId", trader.id);
-                      setTraderDropdownOpen(false);
-                    }}
-                  >
-                    <Text style={styles.dropdownItemText}>{trader.name}</Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-            )}
-            {errors.traderId && <Text style={styles.errorText}>{errors.traderId.message}</Text>}
-          </View>
+          <SearchableSelectField
+            label="Customer / Buyer"
+            value={selectedTraderId}
+            options={traderOptions}
+            onSelect={(value) => setValue("traderId", value, { shouldDirty: true, shouldValidate: true })}
+            placeholder="Select Customer"
+            searchPlaceholder="Search customer"
+            emptyMessage="No customers found"
+            error={errors.traderId?.message}
+          />
 
           {/* Quantity Sold */}
           <View style={styles.inputGroup}>
@@ -422,6 +406,9 @@ const styles = StyleSheet.create({
   },
   form: {
     flex: 1,
+  },
+  stateSpacing: {
+    marginBottom: 20,
   },
   inputGroup: {
     marginBottom: 20,
