@@ -250,25 +250,18 @@ export function DailyEntryScreen({ title = "Daily Entry" }: DailyEntryScreenProp
   return (
     <SafeAreaView style={styles.safeArea} edges={['top']}>
       <StatusBar barStyle="light-content" backgroundColor="#0B5C36" />
-      
+
       {/* Header */}
       <View style={styles.header}>
         <View style={styles.headerLeft}>
-          <TouchableOpacity onPress={() => router.back()} style={styles.headerBtn}>
-            <Ionicons name="arrow-back" size={24} color="#FFF" />
-          </TouchableOpacity>
+
           <Text style={styles.headerTitle}>{isEditMode ? "Edit Daily Entry" : title}</Text>
         </View>
-        <TouchableOpacity style={styles.headerBtn}>
-          <View>
-            <Ionicons name="notifications-outline" size={24} color="#FFF" />
-            <View style={styles.notifDot} />
-          </View>
-        </TouchableOpacity>
+
       </View>
 
-      <ScrollView 
-        contentContainerStyle={styles.scrollContainer} 
+      <ScrollView
+        contentContainerStyle={styles.scrollContainer}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
       >
@@ -310,8 +303,8 @@ export function DailyEntryScreen({ title = "Daily Entry" }: DailyEntryScreenProp
           {/* Batch */}
           <View style={styles.inputGroup}>
             <Text style={styles.label}>Batch</Text>
-            <TouchableOpacity 
-              style={[styles.inputMock, lockedBatchId && styles.inputLocked]} 
+            <TouchableOpacity
+              style={[styles.inputMock, lockedBatchId && styles.inputLocked]}
               activeOpacity={0.7}
               onPress={() => {
                 if (!lockedBatchId) {
@@ -329,8 +322,8 @@ export function DailyEntryScreen({ title = "Daily Entry" }: DailyEntryScreenProp
             {batchDropdownOpen && !lockedBatchId && (
               <View style={styles.dropdownList}>
                 {activeBatches.map((batch) => (
-                  <TouchableOpacity 
-                    key={batch.id} 
+                  <TouchableOpacity
+                    key={batch.id}
                     style={styles.dropdownItem}
                     onPress={() => {
                       setValue("batchId", batch.id);
@@ -494,8 +487,8 @@ export function DailyEntryScreen({ title = "Daily Entry" }: DailyEntryScreenProp
             />
           </View>
 
-          <TouchableOpacity 
-            style={[styles.submitBtn, submitting && styles.btnDisabled]} 
+          <TouchableOpacity
+            style={[styles.submitBtn, submitting && styles.btnDisabled]}
             onPress={handleSubmit(onSubmit)}
             disabled={submitting}
           >
@@ -513,9 +506,9 @@ export function DailyEntryScreen({ title = "Daily Entry" }: DailyEntryScreenProp
 }
 
 const styles = StyleSheet.create({
-  safeArea: { 
-    flex: 1, 
-    backgroundColor: "#0B5C36" 
+  safeArea: {
+    flex: 1,
+    backgroundColor: "#0B5C36"
   },
   header: {
     backgroundColor: "#0B5C36",

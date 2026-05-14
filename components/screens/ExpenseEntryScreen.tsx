@@ -3,6 +3,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useFocusEffect } from "@react-navigation/native";
 import { useRouter } from "expo-router";
 import React, { useCallback, useState } from "react";
+import { Controller, useForm } from "react-hook-form";
 import {
   ActivityIndicator,
   ScrollView,
@@ -14,7 +15,6 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { Controller, useForm } from "react-hook-form";
 import { z } from "zod";
 
 import { useAuth } from "@/context/AuthContext";
@@ -148,31 +148,24 @@ export function ExpenseEntryScreen({ title = "Expense Entry" }: ExpenseEntryScre
   return (
     <SafeAreaView style={styles.safeArea} edges={['top']}>
       <StatusBar barStyle="light-content" backgroundColor="#0B5C36" />
-      
+
       {/* Header */}
       <View style={styles.header}>
         <View style={styles.headerLeft}>
-          <TouchableOpacity onPress={() => router.back()} style={styles.headerBtn}>
-            <Ionicons name="arrow-back" size={24} color="#FFF" />
-          </TouchableOpacity>
+
           <Text style={styles.headerTitle}>{title}</Text>
         </View>
-        <TouchableOpacity style={styles.headerBtn}>
-          <View>
-            <Ionicons name="notifications-outline" size={24} color="#FFF" />
-            <View style={styles.notifDot} />
-          </View>
-        </TouchableOpacity>
+
       </View>
 
       <ScrollView contentContainerStyle={styles.scrollContainer} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
         <View style={styles.form}>
-          
+
           {/* Expense For Segmented Control */}
           <View style={styles.inputGroup}>
             <Text style={styles.label}>Expense For</Text>
             <View style={styles.ledgerTabs}>
-              <TouchableOpacity 
+              <TouchableOpacity
                 style={[styles.ledgerTab, selectedLedger === "COMPANY" && styles.ledgerTabActive]}
                 onPress={() => {
                   setValue("ledger", "COMPANY");
@@ -181,7 +174,7 @@ export function ExpenseEntryScreen({ title = "Expense Entry" }: ExpenseEntryScre
               >
                 <Text style={[styles.ledgerTabText, selectedLedger === "COMPANY" && styles.ledgerTabTextActive]}>Company Expense</Text>
               </TouchableOpacity>
-              <TouchableOpacity 
+              <TouchableOpacity
                 style={[styles.ledgerTab, selectedLedger === "FARMER" && styles.ledgerTabActive]}
                 onPress={() => {
                   setValue("ledger", "FARMER");
@@ -282,8 +275,8 @@ export function ExpenseEntryScreen({ title = "Expense Entry" }: ExpenseEntryScre
                 render={({ field: { value, onChange } }) => (
                   <>
                     {PAYMENT_TYPES.map((type) => (
-                      <TouchableOpacity 
-                        key={type} 
+                      <TouchableOpacity
+                        key={type}
                         style={[styles.chip, value === type && styles.chipActive]}
                         onPress={() => onChange(type)}
                       >

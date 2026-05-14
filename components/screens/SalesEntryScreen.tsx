@@ -1,4 +1,3 @@
-import { Colors } from "@/constants/Colors";
 import { useAuth } from "@/context/AuthContext";
 import {
   ApiBatch,
@@ -12,9 +11,8 @@ import { useFocusEffect } from "@react-navigation/native";
 import { useRouter } from "expo-router";
 import React, {
   useCallback,
-  useEffect,
   useMemo,
-  useState,
+  useState
 } from "react";
 import {
   ActivityIndicator,
@@ -99,7 +97,7 @@ export function SalesEntryScreen({ title = "Sales Entry", subtitle }: SalesEntry
   const [traders, setTraders] = useState<ApiTrader[]>([]);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
-  
+
   const [batchDropdownOpen, setBatchDropdownOpen] = useState(false);
   const [traderDropdownOpen, setTraderDropdownOpen] = useState(false);
 
@@ -126,7 +124,7 @@ export function SalesEntryScreen({ title = "Sales Entry", subtitle }: SalesEntry
     () => batches.filter((batch) => batch.status === "ACTIVE" || batch.status === "SALES_RUNNING"),
     [batches]
   );
-  
+
   const selectedBatch = batches.find((b) => b.id === selectedBatchId) ?? null;
   const selectedTrader = traders.find((t) => t.id === selectedTraderId) ?? null;
 
@@ -147,7 +145,7 @@ export function SalesEntryScreen({ title = "Sales Entry", subtitle }: SalesEntry
       ]);
       setBatches(batchesRes.data);
       setTraders(tradersRes.data);
-      
+
       const firstActiveId = batchesRes.data.find((b) => b.status === "ACTIVE" || b.status === "SALES_RUNNING")?.id;
       if (firstActiveId && !selectedBatchId) {
         setValue("batchId", firstActiveId);
@@ -197,19 +195,17 @@ export function SalesEntryScreen({ title = "Sales Entry", subtitle }: SalesEntry
   return (
     <SafeAreaView style={styles.safeArea} edges={['top']}>
       <StatusBar barStyle="light-content" backgroundColor="#0B5C36" />
-      
+
       {/* Header */}
       <View style={styles.header}>
         <View style={styles.headerLeft}>
-          <TouchableOpacity onPress={() => router.back()} style={styles.headerBtn}>
-            <Ionicons name="arrow-back" size={24} color="#FFF" />
-          </TouchableOpacity>
+
           <Text style={styles.headerTitle}>{title}</Text>
         </View>
       </View>
 
-      <ScrollView 
-        contentContainerStyle={styles.scrollContainer} 
+      <ScrollView
+        contentContainerStyle={styles.scrollContainer}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
       >
@@ -246,8 +242,8 @@ export function SalesEntryScreen({ title = "Sales Entry", subtitle }: SalesEntry
           {/* Batch */}
           <View style={styles.inputGroup}>
             <Text style={styles.label}>Batch</Text>
-            <TouchableOpacity 
-              style={styles.inputMock} 
+            <TouchableOpacity
+              style={styles.inputMock}
               activeOpacity={0.7}
               onPress={() => setBatchDropdownOpen(!batchDropdownOpen)}
             >
@@ -257,8 +253,8 @@ export function SalesEntryScreen({ title = "Sales Entry", subtitle }: SalesEntry
             {batchDropdownOpen && (
               <View style={styles.dropdownList}>
                 {activeBatches.map((batch) => (
-                  <TouchableOpacity 
-                    key={batch.id} 
+                  <TouchableOpacity
+                    key={batch.id}
                     style={styles.dropdownItem}
                     onPress={() => {
                       setValue("batchId", batch.id);
@@ -276,8 +272,8 @@ export function SalesEntryScreen({ title = "Sales Entry", subtitle }: SalesEntry
           {/* Customer / Buyer */}
           <View style={styles.inputGroup}>
             <Text style={styles.label}>Customer / Buyer</Text>
-            <TouchableOpacity 
-              style={styles.inputMock} 
+            <TouchableOpacity
+              style={styles.inputMock}
               activeOpacity={0.7}
               onPress={() => setTraderDropdownOpen(!traderDropdownOpen)}
             >
@@ -287,8 +283,8 @@ export function SalesEntryScreen({ title = "Sales Entry", subtitle }: SalesEntry
             {traderDropdownOpen && (
               <View style={styles.dropdownList}>
                 {traders.map((trader) => (
-                  <TouchableOpacity 
-                    key={trader.id} 
+                  <TouchableOpacity
+                    key={trader.id}
                     style={styles.dropdownItem}
                     onPress={() => {
                       setValue("traderId", trader.id);
@@ -350,13 +346,13 @@ export function SalesEntryScreen({ title = "Sales Entry", subtitle }: SalesEntry
           <View style={styles.inputGroup}>
             <Text style={styles.label}>Rate Type</Text>
             <View style={styles.toggleContainer}>
-              <TouchableOpacity 
+              <TouchableOpacity
                 style={[styles.toggleBtn, rateType === 'LIVE' && styles.toggleBtnActive]}
                 onPress={() => setValue("rateType", "LIVE")}
               >
                 <Text style={[styles.toggleBtnText, rateType === 'LIVE' && styles.toggleBtnTextActive]}>Live Rate</Text>
               </TouchableOpacity>
-              <TouchableOpacity 
+              <TouchableOpacity
                 style={[styles.toggleBtn, rateType === 'DRESSED' && styles.toggleBtnActive]}
                 onPress={() => setValue("rateType", "DRESSED")}
               >
@@ -410,8 +406,8 @@ export function SalesEntryScreen({ title = "Sales Entry", subtitle }: SalesEntry
             />
           </View>
 
-          <TouchableOpacity 
-            style={[styles.submitBtn, submitting && styles.btnDisabled]} 
+          <TouchableOpacity
+            style={[styles.submitBtn, submitting && styles.btnDisabled]}
             onPress={handleSubmit(onSubmit)}
             disabled={submitting}
           >
@@ -429,9 +425,9 @@ export function SalesEntryScreen({ title = "Sales Entry", subtitle }: SalesEntry
 }
 
 const styles = StyleSheet.create({
-  safeArea: { 
-    flex: 1, 
-    backgroundColor: "#0B5C36" 
+  safeArea: {
+    flex: 1,
+    backgroundColor: "#0B5C36"
   },
   header: {
     backgroundColor: "#0B5C36",

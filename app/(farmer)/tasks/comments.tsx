@@ -1,19 +1,19 @@
-import React, { useCallback, useEffect, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, RefreshControl, StatusBar } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { Colors } from '@/constants/Colors';
 import { Layout } from '@/constants/Layout';
-import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
 import { useAuth } from '@/context/AuthContext';
 import { ApiBatch, ApiComment, listAllBatches, listBatchComments } from '@/services/managementApi';
-import { format } from 'date-fns';
+import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
+import { format } from 'date-fns';
+import { useRouter } from 'expo-router';
+import React, { useCallback, useEffect, useState } from 'react';
+import { ActivityIndicator, RefreshControl, ScrollView, StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 export default function FarmerCommentsScreen() {
   const router = useRouter();
   const { accessToken } = useAuth();
-  
+
   const [batches, setBatches] = useState<ApiBatch[]>([]);
   const [selectedBatchId, setSelectedBatchId] = useState<string>('');
   const [comments, setComments] = useState<ApiComment[]>([]);
@@ -90,11 +90,9 @@ export default function FarmerCommentsScreen() {
   return (
     <SafeAreaView style={styles.safeArea} edges={['top']}>
       <StatusBar barStyle="light-content" backgroundColor="#0B5C36" />
-      
+
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-          <Ionicons name="arrow-back" size={24} color="#FFF" />
-        </TouchableOpacity>
+
         <View style={styles.headerCopy}>
           <Text style={styles.headerTitle}>Comments & Notes</Text>
           <Text style={styles.headerSub}>Supervisor feedback</Text>
@@ -134,7 +132,7 @@ export default function FarmerCommentsScreen() {
                 <ActivityIndicator size="large" color={Colors.primary} />
               </View>
             ) : comments.length === 0 ? (
-              <ScrollView 
+              <ScrollView
                 contentContainerStyle={styles.centerBox}
                 refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[Colors.primary]} />}
               >
@@ -143,7 +141,7 @@ export default function FarmerCommentsScreen() {
                 <Text style={styles.emptySub}>There are no supervisor notes for this batch.</Text>
               </ScrollView>
             ) : (
-              <ScrollView 
+              <ScrollView
                 contentContainerStyle={styles.listContent}
                 refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[Colors.primary]} />}
                 showsVerticalScrollIndicator={false}
@@ -159,9 +157,9 @@ export default function FarmerCommentsScreen() {
                         {format(new Date(comment.createdAt), 'dd MMM, hh:mm a')}
                       </Text>
                     </View>
-                    
+
                     <Text style={styles.commentBody}>{comment.comment}</Text>
-                    
+
                     {comment.correctionNote ? (
                       <View style={styles.correctionBox}>
                         <Ionicons name="alert-circle-outline" size={14} color="#E65100" />
