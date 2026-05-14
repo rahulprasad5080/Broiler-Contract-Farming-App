@@ -8,12 +8,14 @@ import { Colors } from "../constants/Colors";
 import { AuthProvider, useAuth } from "../context/AuthContext";
 
 import { usePushNotifications } from "@/hooks/usePushNotifications";
+import { useOfflineSyncQueue } from "@/hooks/useOfflineSyncQueue";
 
 function RootContent() {
-  const { isReady } = useAuth();
+  const { accessToken, isReady } = useAuth();
   
   // Initialize Push Notifications
   usePushNotifications();
+  useOfflineSyncQueue(accessToken);
 
   if (!isReady) {
     return (

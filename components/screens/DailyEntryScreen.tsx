@@ -31,11 +31,13 @@ import { DatePickerField } from "@/components/ui/DatePickerField";
 import { ScreenState } from "@/components/ui/ScreenState";
 import { SearchableSelectField } from "@/components/ui/SearchableSelectField";
 import { TopAppBar } from "@/components/ui/TopAppBar";
+import { useFormPersistence } from "@/hooks/useFormPersistence";
 import {
   showRequestErrorToast,
   showSuccessToast,
 } from "@/services/apiFeedback";
 import { getLocalDateValue } from "@/services/dateUtils";
+import { enqueueOfflineSubmission, isNetworkConnected } from "@/services/offlineSyncQueue";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Controller, useForm } from "react-hook-form";
 import { z } from "zod";
@@ -145,6 +147,15 @@ export function DailyEntryScreen({ title = "Daily Entry", subtitle }: DailyEntry
       batchId: typeof routeBatchId === "string" ? routeBatchId : "",
     },
   });
+  const { clearPersistedData, isRestored } = useFormPersistence(
+    `form_draft_daily_entry_${typeof routeBatchId === "string" ? routeBatchId : "new"}`,
+    watch,
+    reset,
+    {
+      ...DAILY_ENTRY_DEFAULTS,
+      batchId: typeof routeBatchId === "string" ? routeBatchId : "",
+    },
+  );
 
   const selectedBatchId = watch("batchId");
   const isEditMode = typeof dailyLogId === "string" && dailyLogId.length > 0;
@@ -230,19 +241,45 @@ export function DailyEntryScreen({ title = "Daily Entry", subtitle }: DailyEntry
     setSubmitting(true);
     try {
       const payload = buildDailyLogPayload(data);
+      const clientReferenceId = `daily-${Date.now()}`;
+
+      if (!(await isNetworkConnected())) {
+        if (isEditMode && typeof dailyLogId === "string") {
+          await enqueueOfflineSubmission({
+            type: "daily-entry-update",
+            payload: { batchId: data.batchId, dailyLogId, body: payload },
+          });
+        } else {
+          await enqueueOfflineSubmission({
+            type: "daily-entry",
+            payload: {
+              batchId: data.batchId,
+              body: { ...payload, clientReferenceId },
+            },
+          });
+        }
+
+        await clearPersistedData();
+        showSuccessToast("Saved offline. It will sync automatically.");
+        setSavedMessage("Saved offline. It will sync when internet returns.");
+        reset({ ...DAILY_ENTRY_DEFAULTS, batchId: data.batchId });
+        return;
+      }
 
       if (isEditMode && typeof dailyLogId === "string") {
         await updateDailyLog(accessToken, data.batchId, dailyLogId, payload);
         showSuccessToast("Daily log updated successfully.");
         setSavedMessage("Daily log updated successfully.");
+        await clearPersistedData();
         router.back();
       } else {
         await createDailyLog(accessToken, data.batchId, {
           ...payload,
-          clientReferenceId: `daily-${Date.now()}`,
+          clientReferenceId,
         });
         showSuccessToast("Daily log saved successfully.");
         setSavedMessage("Daily log saved successfully.");
+        await clearPersistedData();
         reset({ ...DAILY_ENTRY_DEFAULTS, batchId: data.batchId });
       }
     } catch (error) {
@@ -266,6 +303,14 @@ export function DailyEntryScreen({ title = "Daily Entry", subtitle }: DailyEntry
       >
         <View style={styles.form}>
           {loading || loadingLog ? <ActivityIndicator color="#0B5C36" style={styles.formLoader} /> : null}
+          {isRestored ? (
+            <ScreenState
+              title="Draft restored"
+              message="Your unsaved daily entry was restored."
+              compact
+              style={styles.stateSpacing}
+            />
+          ) : null}
           {savedMessage ? (
             <ScreenState
               title={savedMessage}

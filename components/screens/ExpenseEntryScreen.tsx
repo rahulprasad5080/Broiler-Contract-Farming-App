@@ -20,11 +20,13 @@ import { ScreenState } from "@/components/ui/ScreenState";
 import { SearchableSelectField } from "@/components/ui/SearchableSelectField";
 import { TopAppBar } from "@/components/ui/TopAppBar";
 import { useAuth } from "@/context/AuthContext";
+import { useFormPersistence } from "@/hooks/useFormPersistence";
 import {
   showRequestErrorToast,
   showSuccessToast,
 } from "@/services/apiFeedback";
 import { getLocalDateValue } from "@/services/dateUtils";
+import { enqueueOfflineSubmission, isNetworkConnected } from "@/services/offlineSyncQueue";
 import {
   createBatchExpense,
   listAllBatches,
@@ -56,6 +58,15 @@ const FARMER_CATEGORIES = [
 ];
 
 const PAYMENT_TYPES = ["Cash", "UPI", "Bank", "Credit"];
+const EXPENSE_DEFAULTS: ExpenseFormData = {
+  batchId: "",
+  ledger: "COMPANY",
+  category: "CHICKS",
+  totalAmount: "",
+  expenseDate: getLocalDateValue(),
+  notes: "",
+  paymentType: "Cash",
+};
 
 const expenseSchema = z.object({
   batchId: z.string().min(1, "Please select a batch"),
@@ -89,16 +100,14 @@ export function ExpenseEntryScreen({ title = "Expense Entry", subtitle }: Expens
     formState: { errors },
   } = useForm<ExpenseFormData>({
     resolver: zodResolver(expenseSchema),
-    defaultValues: {
-      batchId: "",
-      ledger: "COMPANY",
-      category: "CHICKS",
-      totalAmount: "",
-      expenseDate: getLocalDateValue(),
-      notes: "",
-      paymentType: "Cash",
-    },
+    defaultValues: EXPENSE_DEFAULTS,
   });
+  const { clearPersistedData, isRestored } = useFormPersistence(
+    "form_draft_expense_entry",
+    watch,
+    reset,
+    EXPENSE_DEFAULTS,
+  );
 
   const selectedLedger = watch("ledger");
   const selectedBatchId = watch("batchId");
@@ -155,16 +164,31 @@ export function ExpenseEntryScreen({ title = "Expense Entry", subtitle }: Expens
     setSavedMessage(null);
     setSubmitting(true);
     try {
-      await createBatchExpense(accessToken, data.batchId, {
+      const payload = {
         ledger: data.ledger,
         category: data.category as ApiExpenseCategoryCode,
         expenseDate: data.expenseDate,
         description: data.notes || data.category,
         totalAmount: Number(data.totalAmount),
         clientReferenceId: `expense-${Date.now()}`,
-      });
+      };
+
+      if (!(await isNetworkConnected())) {
+        await enqueueOfflineSubmission({
+          type: "expense-entry",
+          payload: { batchId: data.batchId, body: payload },
+        });
+        await clearPersistedData();
+        showSuccessToast("Saved offline. It will sync automatically.");
+        setSavedMessage("Saved offline. It will sync when internet returns.");
+        reset({ ...data, totalAmount: "", notes: "" });
+        return;
+      }
+
+      await createBatchExpense(accessToken, data.batchId, payload);
       showSuccessToast("Expense saved successfully.");
       setSavedMessage("Expense saved successfully.");
+      await clearPersistedData();
       reset({ ...data, totalAmount: "", notes: "" });
     } catch (error) {
       showRequestErrorToast(error, { title: "Save failed" });
@@ -179,6 +203,14 @@ export function ExpenseEntryScreen({ title = "Expense Entry", subtitle }: Expens
 
       <ScrollView contentContainerStyle={styles.scrollContainer} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
         <View style={styles.form}>
+          {isRestored ? (
+            <ScreenState
+              title="Draft restored"
+              message="Your unsaved expense entry was restored."
+              compact
+              style={styles.stateSpacing}
+            />
+          ) : null}
           {savedMessage ? (
             <ScreenState
               title={savedMessage}

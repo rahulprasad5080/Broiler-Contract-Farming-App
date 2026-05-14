@@ -33,6 +33,7 @@ import {
   showSuccessToast,
 } from '@/services/apiFeedback';
 import { getLocalDateValue } from '@/services/dateUtils';
+import { enqueueOfflineSubmission, isNetworkConnected } from '@/services/offlineSyncQueue';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Controller, useForm } from 'react-hook-form';
 import { z } from 'zod';
@@ -207,8 +208,7 @@ export function TreatmentEntryScreen({
     try {
       const selectedCatalogItem =
         filteredCatalogItems.find((item) => item.id === data.catalogItemId) ?? null;
-
-      await createTreatment(accessToken, data.batchId, {
+      const payload = {
         dailyLogId: data.dailyLogId?.trim() || undefined,
         treatmentDate: data.treatmentDate,
         kind: data.kind,
@@ -221,7 +221,29 @@ export function TreatmentEntryScreen({
         birdCount: data.birdCount ? Number(data.birdCount) : undefined,
         notes: data.notes?.trim() || undefined,
         clientReferenceId: `tx-${Date.now()}`,
-      });
+      };
+
+      if (!(await isNetworkConnected())) {
+        await enqueueOfflineSubmission({
+          type: 'treatment-entry',
+          payload: { batchId: data.batchId, body: payload },
+        });
+        setMessage('Saved offline. It will sync when internet returns.');
+        reset({
+          ...data,
+          dosage: '',
+          birdCount: '',
+          notes: '',
+          catalogItemId: '',
+          dailyLogId: '',
+          treatmentName: '',
+        });
+        await clearPersistedData();
+        showSuccessToast('Saved offline. It will sync automatically.');
+        return;
+      }
+
+      await createTreatment(accessToken, data.batchId, payload);
 
       setMessage('Treatment logged successfully.');
       const nextValues = {

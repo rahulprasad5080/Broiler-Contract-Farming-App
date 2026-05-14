@@ -28,11 +28,13 @@ import { DatePickerField } from "@/components/ui/DatePickerField";
 import { ScreenState } from "@/components/ui/ScreenState";
 import { SearchableSelectField } from "@/components/ui/SearchableSelectField";
 import { TopAppBar } from "@/components/ui/TopAppBar";
+import { useFormPersistence } from "@/hooks/useFormPersistence";
 import {
   showRequestErrorToast,
   showSuccessToast,
 } from "@/services/apiFeedback";
 import { getLocalDateValue } from "@/services/dateUtils";
+import { enqueueOfflineSubmission, isNetworkConnected } from "@/services/offlineSyncQueue";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Controller, useForm } from "react-hook-form";
 import { z } from "zod";
@@ -100,6 +102,12 @@ export function SalesEntryScreen({ title = "Sales Entry", subtitle }: SalesEntry
     resolver: zodResolver(salesEntrySchema),
     defaultValues: SALES_ENTRY_DEFAULTS,
   });
+  const { clearPersistedData, isRestored } = useFormPersistence(
+    "form_draft_sales_entry",
+    watch,
+    reset,
+    SALES_ENTRY_DEFAULTS,
+  );
 
   const selectedBatchId = watch("batchId");
   const selectedTraderId = watch("traderId");
@@ -180,8 +188,7 @@ export function SalesEntryScreen({ title = "Sales Entry", subtitle }: SalesEntry
       const weight = Number(data.averageWeightKg);
       const rate = Number(data.ratePerKg);
       const total = qty * weight * rate;
-
-      await createSale(accessToken, data.batchId, {
+      const payload = {
         traderId: data.traderId,
         saleDate: data.saleDate,
         birdCount: qty,
@@ -191,9 +198,24 @@ export function SalesEntryScreen({ title = "Sales Entry", subtitle }: SalesEntry
         netAmount: total,
         notes: data.notes?.trim() || undefined,
         clientReferenceId: `sale-${Date.now()}`,
-      });
+      };
+
+      if (!(await isNetworkConnected())) {
+        await enqueueOfflineSubmission({
+          type: "sales-entry",
+          payload: { batchId: data.batchId, body: payload },
+        });
+        await clearPersistedData();
+        showSuccessToast("Saved offline. It will sync automatically.");
+        setSavedMessage("Saved offline. It will sync when internet returns.");
+        reset({ ...SALES_ENTRY_DEFAULTS, batchId: data.batchId });
+        return;
+      }
+
+      await createSale(accessToken, data.batchId, payload);
       showSuccessToast("Sales entry saved successfully.");
       setSavedMessage("Sales entry saved successfully.");
+      await clearPersistedData();
       reset({ ...SALES_ENTRY_DEFAULTS, batchId: data.batchId });
     } catch (error) {
       showRequestErrorToast(error, { title: "Save failed" });
@@ -212,6 +234,14 @@ export function SalesEntryScreen({ title = "Sales Entry", subtitle }: SalesEntry
         keyboardShouldPersistTaps="handled"
       >
         <View style={styles.form}>
+          {isRestored ? (
+            <ScreenState
+              title="Draft restored"
+              message="Your unsaved sales entry was restored."
+              compact
+              style={styles.stateSpacing}
+            />
+          ) : null}
           {savedMessage ? (
             <ScreenState
               title={savedMessage}
