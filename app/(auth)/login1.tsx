@@ -1,6 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
-import { useRouter } from "expo-router";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { useRouter } from "expo-router";
 import React from "react";
 import { Controller, useForm } from "react-hook-form";
 import {
@@ -18,9 +18,9 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { z } from "zod";
 
+import Toast from 'react-native-toast-message';
 import { Colors } from "../../constants/Colors";
 import { useAuth } from "../../context/AuthContext";
-import Toast from 'react-native-toast-message';
 import {
   getMobileValidationError,
   normalizeMobileNumber,
@@ -289,7 +289,7 @@ export default function LoginScreen() {
               ) : null}
             </TouchableOpacity>
 
-            <View style={styles.quickLoginRow}>
+            {/* <View style={styles.quickLoginRow}>
               <TouchableOpacity
                 style={styles.quickLoginButton}
                 onPress={openPinLogin}
@@ -309,18 +309,18 @@ export default function LoginScreen() {
                 <Ionicons name="finger-print-outline" size={18} color={Colors.primary} />
                 <Text style={styles.quickLoginText}>Biometric</Text>
               </TouchableOpacity>
-            </View>
+            </View> */}
 
-            <TouchableOpacity
+            {/* <TouchableOpacity
               style={styles.forgotPasswordButton}
               onPress={() => setShowResetHelp(true)}
               disabled={isLoading}
               activeOpacity={0.7}
             >
               <Text style={styles.forgotPasswordText}>Forgot Password?</Text>
-            </TouchableOpacity>
+            </TouchableOpacity> */}
 
-            <View style={styles.helpContainer}>
+            {/* <View style={styles.helpContainer}>
               <Ionicons
                 name="shield-checkmark-outline"
                 size={19}
@@ -329,9 +329,9 @@ export default function LoginScreen() {
               <Text style={styles.helpText}>
                 Access is protected. Contact your farm admin if your mobile number is not working.
               </Text>
-            </View>
+            </View> */}
 
-            <TouchableOpacity
+            {/* <TouchableOpacity
               style={styles.registerButton}
               onPress={() => setShowRegister(true)}
               disabled={isLoading}
@@ -339,7 +339,7 @@ export default function LoginScreen() {
             >
               <Ionicons name="business-outline" size={18} color={Colors.primary} />
               <Text style={styles.registerButtonText}>Register Organization</Text>
-            </TouchableOpacity>
+            </TouchableOpacity> */}
           </View>
         </KeyboardAvoidingView>
       </ScrollView>
