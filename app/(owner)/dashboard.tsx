@@ -9,35 +9,31 @@ import {
 import {
   listAllUsers,
   updateUserStatus,
-  type ApiUser,
 } from "@/services/managementApi";
 import {
-  FontAwesome5,
+  Feather,
   Ionicons,
   MaterialCommunityIcons,
-  Feather,
 } from "@expo/vector-icons";
 import { useRouter, type Href } from "expo-router";
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import {
   ActivityIndicator,
+  Image,
   Modal,
   ScrollView,
+  StatusBar,
   StyleSheet,
   Switch,
   Text,
   TextInput,
   TouchableOpacity,
   View,
-  Image,
-  StatusBar,
 } from "react-native";
 import {
-  SafeAreaView,
   useSafeAreaInsets,
 } from "react-native-safe-area-context";
 import { Colors } from "../../constants/Colors";
-import { Layout } from "../../constants/Layout";
 import { useAuth } from "../../context/AuthContext";
 import {
   fetchDashboard,
@@ -48,6 +44,20 @@ import {
 
 // Using a custom deeper green based on the image
 const THEME_GREEN = "#0B5C36";
+
+function formatNumber(value?: number | null) {
+  return Number(value ?? 0).toLocaleString("en-IN");
+}
+
+function formatINR(value?: number | null) {
+  return `₹ ${Number(value ?? 0).toLocaleString("en-IN")}`;
+}
+
+function formatPercent(value?: number | null) {
+  return `${Number(value ?? 0).toLocaleString("en-IN", {
+    maximumFractionDigits: 2,
+  })}%`;
+}
 
 export default function OwnerDashboard() {
   const { hasPermission, user, accessToken } = useAuth();
@@ -68,8 +78,9 @@ export default function OwnerDashboard() {
   const [financialDashboard, setFinancialDashboard] =
     useState<ApiFinancialDashboard | null>(null);
   const [loadingDashboard, setLoadingDashboard] = useState(false);
+  const [activeBatchIndex, setActiveBatchIndex] = useState(0);
 
-  const loadDashboard = async () => {
+  const loadDashboard = useCallback(async () => {
     if (!accessToken) return;
     setLoadingDashboard(true);
     try {
@@ -89,14 +100,14 @@ export default function OwnerDashboard() {
     } finally {
       setLoadingDashboard(false);
     }
-  };
+  }, [accessToken, hasPermission]);
 
   useEffect(() => {
     void loadDashboard();
-  }, [accessToken]);
+  }, [loadDashboard]);
 
   // Load Users for settings panel
-  const loadUsers = async () => {
+  const loadUsers = useCallback(async () => {
     if (!accessToken) {
       setSettingsError("Missing access token. Please sign in again.");
       return;
@@ -125,13 +136,13 @@ export default function OwnerDashboard() {
     } finally {
       setLoadingUsers(false);
     }
-  };
+  }, [accessToken]);
 
   useEffect(() => {
     if (showSettingsPanel) {
       void loadUsers();
     }
-  }, [showSettingsPanel, accessToken]);
+  }, [showSettingsPanel, loadUsers]);
 
   const toggleUserStatus = async (nextUser: any, active: boolean) => {
     if (!accessToken) return;
@@ -186,6 +197,47 @@ export default function OwnerDashboard() {
     },
   ];
 
+  const firstFarmName =
+    dashboard?.activeBatches.find((batch) => batch.farmName)?.farmName ??
+    (dashboard?.farmCount ? `${formatNumber(dashboard.farmCount)} farms` : "No active farms");
+  const alertCount = dashboard?.alerts?.length ?? 0;
+  const paymentStatus =
+    financialDashboard?.paymentStatus ?? dashboard?.paymentStatus ?? {
+      paid: 0,
+      partial: 0,
+      pending: 0,
+    };
+  const financialSummary = financialDashboard?.summary;
+  const netProfitOrLoss = financialSummary?.netProfitOrLoss ?? 0;
+  const visibleBatches = dashboard?.activeBatches?.slice(0, 3) ?? [];
+  const activeBatch =
+    visibleBatches.length > 0
+      ? visibleBatches[activeBatchIndex % visibleBatches.length]
+      : null;
+  const activeBatchDotIndex =
+    visibleBatches.length > 0 ? activeBatchIndex % visibleBatches.length : 0;
+  const mortalityTodayPercent =
+    dashboard?.today?.liveBirds && dashboard.today.liveBirds > 0
+      ? ((dashboard?.today?.mortalityToday ?? 0) / dashboard.today.liveBirds) * 100
+      : 0;
+  const mortalityTotalPercent =
+    dashboard?.today?.liveBirds && dashboard.today.liveBirds > 0
+      ? ((dashboard?.today?.mortalityTotal ?? 0) / dashboard.today.liveBirds) * 100
+      : 0;
+
+  useEffect(() => {
+    if (visibleBatches.length <= 1) {
+      setActiveBatchIndex(0);
+      return;
+    }
+
+    const timer = setInterval(() => {
+      setActiveBatchIndex((current) => (current + 1) % visibleBatches.length);
+    }, 3500);
+
+    return () => clearInterval(timer);
+  }, [visibleBatches.length]);
+
   return (
     <View style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor={THEME_GREEN} />
@@ -210,9 +262,11 @@ export default function OwnerDashboard() {
           accessibilityLabel="Notifications"
         >
           <Feather name="bell" size={24} color="#FFF" />
-          <View style={styles.bellBadge}>
-            <Text style={styles.bellBadgeText}>3</Text>
-          </View>
+          {alertCount > 0 ? (
+            <View style={styles.bellBadge}>
+              <Text style={styles.bellBadgeText}>{alertCount > 9 ? "9+" : alertCount}</Text>
+            </View>
+          ) : null}
         </TouchableOpacity>
       </View>
 
@@ -226,9 +280,9 @@ export default function OwnerDashboard() {
               style={styles.avatar}
             />
             <View>
-              <Text style={styles.greetingText}>Hello, Admin 👋</Text>
+              <Text style={styles.greetingText}>Hello, {user?.name ?? "Admin"}</Text>
               <TouchableOpacity style={styles.farmSelector}>
-                <Text style={styles.farmName}>Green Valley Farms</Text>
+                <Text style={styles.farmName}>{firstFarmName}</Text>
                 <Feather name="chevron-down" size={16} color={Colors.text} />
               </TouchableOpacity>
             </View>
@@ -250,16 +304,14 @@ export default function OwnerDashboard() {
           {/* Active Batches */}
           <View style={styles.glanceCard}>
             <Text style={styles.glanceValue}>
-              {dashboard?.today?.activeBatches ?? "12"}
+              {formatNumber(dashboard?.today?.activeBatches)}
             </Text>
             <Text style={styles.glanceLabel}>Active Batches</Text>
           </View>
           {/* Total Live Birds */}
           <View style={styles.glanceCard}>
             <Text style={styles.glanceValue}>
-              {dashboard?.today?.liveBirds
-                ? Number(dashboard.today.liveBirds).toLocaleString("en-IN")
-                : "45,320"}
+              {formatNumber(dashboard?.today?.liveBirds)}
             </Text>
             <Text style={styles.glanceLabel}>Total Live Birds</Text>
           </View>
@@ -267,9 +319,9 @@ export default function OwnerDashboard() {
           <View style={styles.glanceCard}>
             <View style={styles.glanceRow}>
               <Text style={styles.glanceValueSmall}>
-                {dashboard?.today?.mortalityToday ?? "320"}
+                {formatNumber(dashboard?.today?.mortalityToday)}
               </Text>
-              <Text style={styles.glancePercentBold}>0.71%</Text>
+              <Text style={styles.glancePercentBold}>{formatPercent(mortalityTodayPercent)}</Text>
             </View>
             <Text style={styles.glanceLabel}>
               Mortality{"\n"}(Today)
@@ -279,11 +331,9 @@ export default function OwnerDashboard() {
           <View style={styles.glanceCard}>
             <View style={styles.glanceRow}>
               <Text style={styles.glanceValueSmall}>
-                {dashboard?.today?.mortalityTotal
-                  ? Number(dashboard.today.mortalityTotal).toLocaleString("en-IN")
-                  : "1,850"}
+                {formatNumber(dashboard?.today?.mortalityTotal)}
               </Text>
-              <Text style={styles.glancePercentBold}>4.08%</Text>
+              <Text style={styles.glancePercentBold}>{formatPercent(mortalityTotalPercent)}</Text>
             </View>
             <Text style={styles.glanceLabel}>
               Mortality{"\n"}(Total)
@@ -299,25 +349,25 @@ export default function OwnerDashboard() {
         >
           <View style={styles.alertPill}>
             <Text style={[styles.alertPillValue, { color: THEME_GREEN }]}>
-              {dashboard?.today?.salesReady ?? "3"}
+              {formatNumber(dashboard?.today?.salesReady)}
             </Text>
             <Text style={styles.alertPillLabel}>Sales Ready</Text>
           </View>
           <View style={styles.alertPill}>
             <Text style={[styles.alertPillValue, { color: "#1976D2" }]}>
-              {dashboard?.today?.pendingEntries ?? "5"}
+              {formatNumber(dashboard?.today?.pendingEntries)}
             </Text>
             <Text style={styles.alertPillLabel}>Pending{"\n"}Entries</Text>
           </View>
           <View style={styles.alertPill}>
             <Text style={[styles.alertPillValue, { color: "#F57C00" }]}>
-              {dashboard?.today?.feedAlert ?? "2"}
+              {formatNumber(dashboard?.today?.feedAlert)}
             </Text>
             <Text style={styles.alertPillLabel}>Feed Alert</Text>
           </View>
           <View style={styles.alertPill}>
             <Text style={[styles.alertPillValue, { color: "#D32F2F" }]}>
-              {dashboard?.today?.fcrAlert ?? "1"}
+              {formatNumber(dashboard?.today?.fcrAlert)}
             </Text>
             <Text style={styles.alertPillLabel}>FCR Alert</Text>
           </View>
@@ -331,78 +381,90 @@ export default function OwnerDashboard() {
           </TouchableOpacity>
         </View>
         
-        <TouchableOpacity style={styles.activeBatchCard} onPress={() => router.push("/(owner)/manage/batches" as Href)}>
-          <View style={styles.batchCardHeader}>
-            <View>
-              <Text style={styles.batchFarmName}>Green Valley - Shed 1</Text>
-              <Text style={styles.batchCode}>GV-B-2307</Text>
-            </View>
-            <Feather name="chevron-right" size={24} color={Colors.textSecondary} />
+        {loadingDashboard && !dashboard ? (
+          <View style={styles.loadingDashboardCard}>
+            <ActivityIndicator color={THEME_GREEN} />
+            <Text style={styles.loadingText}>Loading dashboard...</Text>
           </View>
-          <View style={styles.batchStatsRow}>
-            <View style={styles.batchStatCol}>
-              <Text style={styles.batchStatLabel}>Age</Text>
-              <Text style={styles.batchStatValue}>28 Days</Text>
+        ) : activeBatch ? (
+          <TouchableOpacity
+            style={styles.activeBatchCard}
+            onPress={() => router.push("/(owner)/manage/batches" as Href)}
+          >
+            <View style={styles.batchCardHeader}>
+              <View>
+                <Text style={styles.batchFarmName}>{activeBatch.farmName ?? "Farm"}</Text>
+                <Text style={styles.batchCode}>{activeBatch.batchCode}</Text>
+                </View>
             </View>
-            <View style={styles.batchStatCol}>
-              <Text style={styles.batchStatLabel}>Live Birds</Text>
-              <Text style={styles.batchStatValue}>8,250</Text>
+            <View style={styles.batchStatsRow}>
+              <View style={styles.batchStatCol}>
+                <Text style={styles.batchStatLabel}>Age</Text>
+                <Text style={styles.batchStatValue}>{formatNumber(activeBatch.currentAgeDays)} Days</Text>
+              </View>
+              <View style={styles.batchStatCol}>
+                <Text style={styles.batchStatLabel}>Live Birds</Text>
+                <Text style={styles.batchStatValue}>{formatNumber(activeBatch.liveBirds)}</Text>
+              </View>
+              <View style={styles.batchStatCol}>
+                <Text style={styles.batchStatLabel}>Mortality</Text>
+                <Text style={styles.batchStatValue}>{formatPercent(activeBatch.mortalityPercent)}</Text>
+              </View>
             </View>
-            <View style={styles.batchStatCol}>
-              <Text style={styles.batchStatLabel}>Mortality</Text>
-              <Text style={styles.batchStatValue}>3.12%</Text>
+            <View style={styles.paginationDots}>
+              {visibleBatches.map((item, dotIndex) => (
+                <TouchableOpacity
+                  key={item.batchId}
+                  onPress={() => setActiveBatchIndex(dotIndex)}
+                  style={[styles.dot, dotIndex === activeBatchDotIndex && styles.dotActive]}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Show batch ${dotIndex + 1}`}
+                />
+              ))}
             </View>
+          </TouchableOpacity>
+        ) : (
+          <View style={styles.emptyDashboardCard}>
+            <Text style={styles.emptyText}>No active batches found.</Text>
           </View>
-          <View style={styles.paginationDots}>
-            <View style={[styles.dot, styles.dotActive]} />
-            <View style={styles.dot} />
-            <View style={styles.dot} />
-            <View style={styles.dot} />
-          </View>
-        </TouchableOpacity>
+        )}
 
         {/* Overall P&L */}
         <View style={styles.sectionHeader}>
           <Text style={styles.sectionTitleNoMargin}>Overall P&L (This Month)</Text>
-          <TouchableOpacity style={styles.dropdownBtn}>
-            <Text style={styles.dropdownBtnText}>Monthly</Text>
-            <Feather name="chevron-down" size={14} color={Colors.textSecondary} />
-          </TouchableOpacity>
+
         </View>
 
         <View style={styles.plGrid}>
           <View style={styles.plCard}>
             <Text style={[styles.plValue, { color: THEME_GREEN }]}>
-              ₹ 10,75,000
+              {formatINR(financialSummary?.investment)}
             </Text>
             <Text style={styles.plLabel}>Investment</Text>
           </View>
           <View style={styles.plCard}>
             <Text style={[styles.plValue, { color: THEME_GREEN }]}>
-              ₹ 27,45,000
+              {formatINR(financialSummary?.expenses)}
             </Text>
             <Text style={styles.plLabel}>Expenses</Text>
           </View>
           <View style={styles.plCard}>
             <Text style={[styles.plValue, { color: THEME_GREEN }]}>
-              ₹ 36,80,000
+              {formatINR(financialSummary?.sales)}
             </Text>
             <Text style={styles.plLabel}>Sales</Text>
           </View>
           <View style={styles.plCard}>
-            <Text style={[styles.plValue, { color: "#D32F2F" }]}>
-              ₹ 8,35,000
+            <Text style={[styles.plValue, { color: netProfitOrLoss >= 0 ? THEME_GREEN : "#D32F2F" }]}>
+              {formatINR(netProfitOrLoss)}
             </Text>
-            <Text style={styles.plLabel}>Profit</Text>
+            <Text style={styles.plLabel}>{netProfitOrLoss >= 0 ? "Profit" : "Loss"}</Text>
           </View>
         </View>
 
         {/* Payment Status */}
         <View style={styles.sectionHeader}>
           <Text style={styles.sectionTitleNoMargin}>Payment Status</Text>
-          <TouchableOpacity onPress={() => router.push("/(owner)/manage/payments/index" as Href)}>
-            <Text style={styles.viewAllText}>View All</Text>
-          </TouchableOpacity>
         </View>
 
         <ScrollView
@@ -412,27 +474,27 @@ export default function OwnerDashboard() {
         >
           <View style={styles.paymentCard}>
             <View style={styles.paymentCardHeader}>
-              <Text style={styles.paymentCardTitle}>Vendor{"\n"}Pending</Text>
-              <Feather name="x" size={16} color="#D32F2F" />
+              <Text style={styles.paymentCardTitle}>Pending{"\n"}Payments</Text>
+              <Feather name="clock" size={16} color="#D32F2F" />
             </View>
-            <Text style={styles.paymentCardAmount}>₹ 2,45,000</Text>
-            <Text style={styles.paymentCardSub}>3 Pending</Text>
+            <Text style={styles.paymentCardAmount}>{formatNumber(paymentStatus.pending)}</Text>
+            <Text style={styles.paymentCardSub}>Pending</Text>
           </View>
           <View style={styles.paymentCard}>
             <View style={styles.paymentCardHeader}>
-              <Text style={styles.paymentCardTitle}>Trader{"\n"}Collection</Text>
-              <Feather name="x" size={16} color="#D32F2F" />
+              <Text style={styles.paymentCardTitle}>Partial{"\n"}Payments</Text>
+              <Feather name="minus-circle" size={16} color="#D97706" />
             </View>
-            <Text style={styles.paymentCardAmount}>₹ 1,80,000</Text>
-            <Text style={styles.paymentCardSub}>2 Pending</Text>
+            <Text style={styles.paymentCardAmount}>{formatNumber(paymentStatus.partial)}</Text>
+            <Text style={styles.paymentCardSub}>Partial</Text>
           </View>
           <View style={styles.paymentCard}>
             <View style={styles.paymentCardHeader}>
-              <Text style={styles.paymentCardTitle}>Expense{"\n"}Pending</Text>
-              <Feather name="x" size={16} color="#D32F2F" />
+              <Text style={styles.paymentCardTitle}>Paid{"\n"}Payments</Text>
+              <Feather name="check-circle" size={16} color={THEME_GREEN} />
             </View>
-            <Text style={styles.paymentCardAmount}>₹ 75,000</Text>
-            <Text style={styles.paymentCardSub}>2 Pending</Text>
+            <Text style={styles.paymentCardAmount}>{formatNumber(paymentStatus.paid)}</Text>
+            <Text style={styles.paymentCardSub}>Paid</Text>
           </View>
         </ScrollView>
         
@@ -801,6 +863,27 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.05,
     shadowRadius: 4,
+  },
+  loadingDashboardCard: {
+    backgroundColor: "#FFF",
+    borderWidth: 1,
+    borderColor: "#F0F0F0",
+    borderRadius: 16,
+    marginHorizontal: 20,
+    padding: 20,
+    marginBottom: 24,
+    alignItems: "center",
+    gap: 8,
+  },
+  emptyDashboardCard: {
+    backgroundColor: "#FFF",
+    borderWidth: 1,
+    borderColor: "#F0F0F0",
+    borderRadius: 16,
+    marginHorizontal: 20,
+    padding: 20,
+    marginBottom: 24,
+    alignItems: "center",
   },
   batchCardHeader: {
     flexDirection: "row",
