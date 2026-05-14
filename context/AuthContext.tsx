@@ -9,6 +9,7 @@ import {
   logout,
   registerOwner,
   refreshAuth,
+  changePassword as changeAccountPassword,
   setServerPin,
   updateServerBiometric,
   type ApiRole,
@@ -96,6 +97,7 @@ interface AuthContextType {
   unlockWithPin: (pin: string) => Promise<string | null>;
   setQuickPin: (currentPassword: string, pin: string) => Promise<void>;
   setBiometricPreference: (enabled: boolean) => Promise<void>;
+  changePassword: (currentPassword: string, newPassword: string) => Promise<void>;
   updateProfileName: (name: string) => Promise<void>;
   hasPermission: (permission: Permission) => boolean;
 }
@@ -104,7 +106,9 @@ const AuthContext = React.createContext<AuthContextType | undefined>(undefined);
 
 const AUTH_GROUP = "(auth)";
 const LOGIN_SCREEN = "login1";
+const CHANGE_PASSWORD_SCREEN = "change-password";
 const LOGIN_ROUTE: Href = "/(auth)/login1";
+const CHANGE_PASSWORD_ROUTE: Href = "/(auth)/change-password";
 const SETUP_SCREENS = ["setup-security", "login-success2", "set-pin", "enable-biometric"];
 const UNLOCK_SCREENS = [
   "quick-unlock",
@@ -343,6 +347,12 @@ async function hydrateServerUser(tokens: AuthTokens, fallbackUser: ApiUser) {
   }
 }
 
+function getUnlockedRoute(user: ApiUser | UserLike): Href {
+  return user.mustChangePassword
+    ? CHANGE_PASSWORD_ROUTE
+    : getDashboardRoute(normalizeUser(user).role);
+}
+
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = React.useState<User | null>(null);
   const [tokens, setTokens] = React.useState<AuthTokens | null>(null);
@@ -466,6 +476,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const inAuthGroup = segmentList.includes(AUTH_GROUP);
       const inSetupScreen = SETUP_SCREENS.includes(currentAuthScreen);
       const inUnlockScreen = UNLOCK_SCREENS.includes(currentAuthScreen);
+      const inChangePasswordScreen =
+        inAuthGroup && currentAuthScreen === CHANGE_PASSWORD_SCREEN;
 
       if (!user) {
         if (!inAuthGroup || currentAuthScreen !== LOGIN_SCREEN) {
@@ -476,6 +488,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
 
       if (isAppUnlocked) {
+        if (user.mustChangePassword) {
+          if (!inChangePasswordScreen && !cancelled) {
+            router.replace(CHANGE_PASSWORD_ROUTE);
+          }
+          if (!isReady) setIsReady(true);
+          return;
+        }
+
+        if (inChangePasswordScreen) {
+          if (!isReady) setIsReady(true);
+          return;
+        }
+
         if (!isRouteAllowedForRole(user.role, segmentList)) {
           if (!cancelled) {
             router.replace(getDashboardRoute(user.role));
@@ -557,11 +582,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         };
 
         const quickAuthEnabled = await hasAnyQuickAuth();
+        const mustChangePassword = Boolean(hydratedUser.mustChangePassword);
         await persistSession(nextSession);
         backgroundedAtRef.current = null;
-        setIsAppUnlocked(!quickAuthEnabled);
+        setIsAppUnlocked(mustChangePassword || !quickAuthEnabled);
         router.replace(
-          (quickAuthEnabled
+          (mustChangePassword
+            ? CHANGE_PASSWORD_ROUTE
+            : quickAuthEnabled
             ? "/(auth)/quick-unlock"
             : "/(auth)/login-success2"),
         );
@@ -595,7 +623,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         await persistSession(nextSession);
         backgroundedAtRef.current = null;
         setIsAppUnlocked(true);
-        router.replace(getDashboardRoute(normalizeUser(hydratedUser).role));
+        router.replace(getUnlockedRoute(hydratedUser));
         return null;
       } catch (error) {
         return getAuthErrorMessage(error, "Incorrect password. Try again.");
@@ -660,7 +688,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         await persistSession(nextSession);
         backgroundedAtRef.current = null;
         setIsAppUnlocked(true);
-        router.replace(getDashboardRoute(normalizeUser(hydratedUser).role));
+        router.replace(getUnlockedRoute(hydratedUser));
         return null;
       } catch (error) {
         return getAuthErrorMessage(error, "Incorrect PIN. Try again.");
@@ -697,7 +725,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         await persistSession(nextSession);
         backgroundedAtRef.current = null;
         setIsAppUnlocked(true);
-        router.replace(getDashboardRoute(normalizeUser(hydratedUser).role));
+        router.replace(getUnlockedRoute(hydratedUser));
         return null;
       } catch (error) {
         return getAuthErrorMessage(error, "Incorrect PIN. Try again.");
@@ -747,6 +775,40 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     [persistSession, tokens],
   );
 
+  const changePassword = React.useCallback(
+    async (currentPassword: string, newPassword: string) => {
+      if (!tokens?.accessToken || !user?.role) {
+        throw new Error("Please sign in again before changing your password.");
+      }
+
+      await changeAccountPassword(tokens.accessToken, {
+        currentPassword,
+        newPassword,
+      });
+
+      const { permissions: _permissions, ...apiUser } = user;
+      const fallbackUser: ApiUser = {
+        ...apiUser,
+        organizationId: apiUser.organizationId ?? "",
+        status: (apiUser.status ?? "ACTIVE") as import("../services/authTypes").ApiUserStatus,
+        role: user.role,
+        mustChangePassword: false,
+      };
+      const updatedUser = await fetchMe(tokens.accessToken)
+        .then(assertUserCanKeepSession)
+        .catch(() => fallbackUser);
+
+      await persistSession({
+        user: {
+          ...updatedUser,
+          mustChangePassword: false,
+        },
+        tokens,
+      });
+    },
+    [persistSession, tokens, user],
+  );
+
   const signOut = React.useCallback(async () => {
     try {
       if (tokens?.refreshToken) {
@@ -793,8 +855,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const unlockApp = React.useCallback(() => {
     backgroundedAtRef.current = null;
     setIsAppUnlocked(true);
-    router.replace(getDashboardRoute(user?.role ?? "FARMER"));
-  }, [router, user?.role]);
+    router.replace(
+      user?.mustChangePassword
+        ? CHANGE_PASSWORD_ROUTE
+        : getDashboardRoute(user?.role ?? "FARMER"),
+    );
+  }, [router, user?.mustChangePassword, user?.role]);
 
   const updateProfileName = React.useCallback(
     async (name: string) => {
@@ -843,6 +909,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         unlockWithPin,
         setQuickPin,
         setBiometricPreference,
+        changePassword,
         updateProfileName,
         hasPermission,
       }}

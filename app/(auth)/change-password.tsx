@@ -18,15 +18,16 @@ import {
   showRequestErrorToast,
   showSuccessToast,
 } from "@/services/apiFeedback";
-import { changePassword } from "@/services/authApi";
+import { getDashboardRoute } from "@/services/routeGuards";
 
 export default function ChangePasswordScreen() {
   const router = useRouter();
-  const { accessToken } = useAuth();
+  const { changePassword, signOut, user } = useAuth();
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [saving, setSaving] = useState(false);
+  const isPasswordChangeRequired = Boolean(user?.mustChangePassword);
 
   const canSubmit =
     currentPassword.trim().length > 0 &&
@@ -35,7 +36,7 @@ export default function ChangePasswordScreen() {
     !saving;
 
   const submit = async () => {
-    if (!accessToken || !canSubmit) {
+    if (!canSubmit) {
       if (newPassword !== confirmPassword) {
         showRequestErrorToast(new Error("New password and confirmation do not match."), {
           title: "Password mismatch",
@@ -47,12 +48,13 @@ export default function ChangePasswordScreen() {
 
     setSaving(true);
     try {
-      await changePassword(accessToken, {
-        currentPassword,
-        newPassword,
-      });
+      await changePassword(currentPassword, newPassword);
       showSuccessToast("Password updated successfully.", "Security Updated");
-      router.back();
+      if (isPasswordChangeRequired) {
+        router.replace(getDashboardRoute(user?.role ?? "FARMER"));
+      } else {
+        router.back();
+      }
     } catch (error) {
       showRequestErrorToast(error, {
         title: "Password update failed",
@@ -65,11 +67,30 @@ export default function ChangePasswordScreen() {
 
   return (
     <SafeAreaView style={styles.safeArea} edges={["top"]}>
-      <TopAppBar title="Change Password" subtitle="Update account security" showBack />
+      <TopAppBar
+        title="Security"
+        subtitle="Change password"
+        showBack={!isPasswordChangeRequired}
+        right={
+          isPasswordChangeRequired ? (
+            <TouchableOpacity
+              style={styles.signOutButton}
+              onPress={signOut}
+              activeOpacity={0.8}
+              accessibilityRole="button"
+              accessibilityLabel="Sign out"
+            >
+              <Ionicons name="log-out-outline" size={22} color="#FFFFFF" />
+            </TouchableOpacity>
+          ) : null
+        }
+      />
 
       <View style={styles.container}>
         <View style={styles.card}>
-          <Text style={styles.title}>Update account password</Text>
+          <Text style={styles.title}>
+            {isPasswordChangeRequired ? "Change password to continue" : "Update account password"}
+          </Text>
           <Text style={styles.subtitle}>Use your current password to confirm this change.</Text>
 
           <Field label="Current Password" value={currentPassword} onChangeText={setCurrentPassword} />
@@ -94,6 +115,8 @@ function Field({
   value: string;
   onChangeText: (value: string) => void;
 }) {
+  const [isPasswordVisible, setIsPasswordVisible] = useState(false);
+
   return (
     <>
       <Text style={styles.label}>{label}</Text>
@@ -102,10 +125,23 @@ function Field({
           style={styles.input}
           value={value}
           onChangeText={onChangeText}
-          secureTextEntry
+          secureTextEntry={!isPasswordVisible}
           autoCapitalize="none"
           placeholderTextColor={Colors.textSecondary}
         />
+        <TouchableOpacity
+          style={styles.eyeButton}
+          onPress={() => setIsPasswordVisible((visible) => !visible)}
+          activeOpacity={0.75}
+          accessibilityRole="button"
+          accessibilityLabel={isPasswordVisible ? "Hide password" : "Show password"}
+        >
+          <Ionicons
+            name={isPasswordVisible ? "eye-off-outline" : "eye-outline"}
+            size={21}
+            color={Colors.textSecondary}
+          />
+        </TouchableOpacity>
       </View>
     </>
   );
@@ -130,10 +166,18 @@ const styles = StyleSheet.create({
     borderColor: Colors.border,
     borderRadius: 10,
     paddingHorizontal: 12,
+    flexDirection: "row",
+    alignItems: "center",
     justifyContent: "center",
     backgroundColor: "#F9FAFB",
   },
-  input: { fontSize: 14, color: Colors.text, padding: 0 },
+  input: { flex: 1, fontSize: 14, color: Colors.text, padding: 0 },
+  eyeButton: {
+    width: 40,
+    height: 40,
+    alignItems: "center",
+    justifyContent: "center",
+  },
   submitBtn: {
     height: 50,
     borderRadius: 10,
@@ -144,4 +188,10 @@ const styles = StyleSheet.create({
   },
   submitBtnDisabled: { opacity: 0.55 },
   submitBtnText: { color: "#FFF", fontSize: 15, fontWeight: "800" },
+  signOutButton: {
+    width: 44,
+    height: 44,
+    alignItems: "center",
+    justifyContent: "center",
+  },
 });

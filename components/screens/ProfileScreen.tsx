@@ -89,12 +89,23 @@ export default function ProfileScreen() {
         <Text style={styles.sectionTitle}>Account Settings</Text>
         <SurfaceCard padded={false} style={styles.settingsGroup}>
           <SettingItem icon="person-outline" label="Personal Information" />
-          <SettingItem icon="lock-closed-outline" label="Change Password" onPress={() => router.navigate('/(auth)/change-password' as any)} />
           <SettingItem icon="language-outline" label="Language" value="English" />
           <SettingItem
             icon="settings-outline"
             label="App Settings"
             onPress={hasPermission('manage:users') ? () => router.navigate('/(owner)/manage/settings' as any) : undefined}
+            isLast
+          />
+        </SurfaceCard>
+
+        {/* Security */}
+        <Text style={styles.sectionTitle}>Security</Text>
+        <SurfaceCard padded={false} style={styles.settingsGroup}>
+          <SettingItem
+            icon="lock-closed-outline"
+            label="Password"
+            value="Change"
+            onPress={() => router.navigate('/(auth)/change-password' as any)}
             isLast
           />
         </SurfaceCard>
