@@ -1,8 +1,13 @@
+import {
+  showRequestErrorToast,
+  showSuccessToast,
+} from '@/services/apiFeedback';
 import { Colors } from '@/constants/Colors';
 import { useAuth } from '@/context/AuthContext';
 import {
   listAllFarms,
   listUsers,
+  updateUserStatus,
   type ApiFarm,
   type ApiRole,
   type ApiUser,
@@ -14,8 +19,10 @@ import React, { useCallback, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   FlatList,
+  ScrollView,
   StatusBar,
   StyleSheet,
+  Switch,
   Text,
   TextInput,
   TouchableOpacity,
@@ -93,6 +100,7 @@ export default function UserManagementScreen() {
   const [totalPages, setTotalPages] = useState(1);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [savingUserIds, setSavingUserIds] = useState<Set<string>>(new Set());
   const farmsRef = useRef<ApiFarm[]>([]);
   const usersRequestIdRef = useRef(0);
 
@@ -190,6 +198,59 @@ export default function UserManagementScreen() {
   const refreshUsers = () => {
     loadUsersPage(1, { refreshing: true });
   };
+  
+  const toggleUserStatusAction = async (user: UserCard, active: boolean) => {
+    if (!accessToken || savingUserIds.has(user.id)) return;
+    
+    // Add to saving set
+    setSavingUserIds((prev) => new Set(prev).add(user.id));
+    
+    try {
+      const nextApiStatus = active ? 'ACTIVE' : 'DISABLED';
+      const nextLocalStatus = active ? 'Active' : 'Inactive';
+      
+      // Optimistic Update
+      setUsers((prev) =>
+        prev.map((item) =>
+          item.id === user.id ? { ...item, status: nextLocalStatus } : item
+        )
+      );
+
+      const updated = await updateUserStatus(accessToken, user.id, {
+        status: nextApiStatus,
+      });
+      
+      setUsers((prev) =>
+        prev.map((item) =>
+          item.id === updated.id ? toUserCard(updated, farmsRef.current) : item
+        )
+      );
+      
+      showSuccessToast(
+        `${updated.name} is now ${updated.status === 'ACTIVE' ? 'active' : 'inactive'}.`,
+        'Status Updated'
+      );
+    } catch (err) {
+      // Rollback on error
+      setUsers((prev) =>
+        prev.map((item) =>
+          item.id === user.id ? user : item
+        )
+      );
+      
+      showRequestErrorToast(err, {
+        title: 'Status update failed',
+        fallbackMessage: 'Failed to update user status.',
+      });
+    } finally {
+      // Remove from saving set
+      setSavingUserIds((prev) => {
+        const next = new Set(prev);
+        next.delete(user.id);
+        return next;
+      });
+    }
+  };
 
   const initials = (name: string) =>
     name
@@ -202,40 +263,72 @@ export default function UserManagementScreen() {
 
   const renderUserItem = ({ item: user, index }: { item: UserCard; index: number }) => {
     const isInactive = user.status === 'Inactive';
+    const isInvited = user.status === 'Invited';
     const roleDisplay = user.role === 'OWNER' ? 'Admin' : ROLE_LABELS[user.role];
-    const emailDisplay = user.email || '';
-    const isFirst = index === 0;
-    const isLast = index === users.length - 1;
+    const emailDisplay = user.email || 'No email provided';
+    
+    // Status badge colors
+    const statusColor = isInactive ? '#EF4444' : isInvited ? '#F59E0B' : '#10B981';
+    const statusBg = isInactive ? '#FEF2F2' : isInvited ? '#FFFBEB' : '#ECFDF5';
 
     return (
-      <View style={[styles.userRow, isFirst && styles.userRowFirst, isLast && styles.userRowLast]}>
-        <View style={[styles.avatar, isInactive && styles.avatarInactive]}>
-          {user.hasAvatar ? (
-            <MaterialCommunityIcons
-              name="account-circle"
-              size={36}
-              color={isInactive ? '#9CA3AF' : '#6B7280'}
-            />
-          ) : (
-            <Text style={[styles.avatarInitials, isInactive && { color: Colors.textSecondary }]}>
-              {initials(user.name)}
+      <View style={styles.userCard}>
+        <View style={styles.cardHeader}>
+          <View style={[styles.avatar, isInactive && styles.avatarInactive]}>
+            {user.hasAvatar ? (
+              <MaterialCommunityIcons
+                name="account-circle"
+                size={40}
+                color={isInactive ? '#9CA3AF' : '#0B5C36'}
+              />
+            ) : (
+              <Text style={styles.avatarInitials}>
+                {initials(user.name)}
+              </Text>
+            )}
+          </View>
+          
+          <View style={styles.nameBlock}>
+            <Text style={[styles.userName, isInactive && styles.textFaded]} numberOfLines={1}>
+              {user.name}
             </Text>
-          )}
+            <View style={styles.roleBadge}>
+              <Text style={styles.roleBadgeText}>{roleDisplay}</Text>
+            </View>
+          </View>
+
+          <View style={styles.cardActions}>
+            <Switch
+              value={user.status === 'Active'}
+              onValueChange={(val) => toggleUserStatusAction(user, val)}
+              disabled={savingUserIds.has(user.id) || isInvited}
+              trackColor={{ false: '#D1D5DB', true: '#A7F3D0' }}
+              thumbColor={user.status === 'Active' ? '#10B981' : '#F3F4F6'}
+              ios_backgroundColor="#D1D5DB"
+            />
+          </View>
         </View>
 
-        <View style={styles.nameBlock}>
-          <Text style={[styles.userName, isInactive && styles.textFaded]}>{user.name}</Text>
-          <Text style={styles.userRole}>{roleDisplay}</Text>
-          <Text style={styles.userEmail}>{emailDisplay}</Text>
-        </View>
-
-        <View style={styles.statusAndAction}>
-          <Text style={[styles.statusTextBadge, { color: isInactive ? '#EF4444' : '#10B981' }]}>
-            {user.status}
-          </Text>
-          <TouchableOpacity style={styles.actionIcon} onPress={() => openEditUser(user.id)}>
-            <MaterialCommunityIcons name="pencil-outline" size={20} color="#6B7280" />
-          </TouchableOpacity>
+        <View style={styles.cardFooter}>
+          <View style={styles.infoRow}>
+            <MaterialCommunityIcons name="email-outline" size={14} color="#9CA3AF" />
+            <Text style={styles.userEmail} numberOfLines={1}>{emailDisplay}</Text>
+          </View>
+          
+          <View style={styles.footerRight}>
+            <View style={[styles.statusPill, { backgroundColor: statusBg }]}>
+              <View style={[styles.statusDot, { backgroundColor: statusColor }]} />
+              <Text style={[styles.statusPillText, { color: statusColor }]}>{user.status}</Text>
+            </View>
+            
+            <TouchableOpacity 
+              style={styles.editBtnCircle} 
+              onPress={() => openEditUser(user.id)}
+              activeOpacity={0.7}
+            >
+              <MaterialCommunityIcons name="pencil" size={16} color="#0B5C36" />
+            </TouchableOpacity>
+          </View>
         </View>
       </View>
     );
@@ -397,12 +490,93 @@ const styles = StyleSheet.create({
     fontSize: 13,
   },
   userListContainer: {
-    backgroundColor: '#FFF',
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
-    overflow: 'hidden',
+    paddingBottom: 20,
   },
+  userCard: {
+    backgroundColor: '#FFF',
+    borderRadius: 16,
+    marginBottom: 12,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: '#F3F4F6',
+    // Shadow for iOS
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    // Elevation for Android
+    elevation: 2,
+  },
+  cardHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  cardFooter: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: '#F9FAFB',
+  },
+  footerRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  infoRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    flex: 1,
+  },
+  cardActions: {
+    marginLeft: 'auto',
+  },
+  roleBadge: {
+    alignSelf: 'flex-start',
+    backgroundColor: '#F0FDF4',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 6,
+    borderWidth: 0.5,
+    borderColor: '#DCFCE7',
+  },
+  roleBadgeText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#166534',
+    textTransform: 'uppercase',
+  },
+  statusPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 20,
+    gap: 6,
+  },
+  statusDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+  },
+  statusPillText: {
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  editBtnCircle: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#F0FDF4',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: '#DCFCE7',
+  },
+
   userRow: {
     flexDirection: 'row',
     alignItems: 'center',
