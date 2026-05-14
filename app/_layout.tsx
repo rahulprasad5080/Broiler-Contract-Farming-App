@@ -7,8 +7,13 @@ import { NetworkStatus } from "@/components/ui/NetworkStatus";
 import { Colors } from "../constants/Colors";
 import { AuthProvider, useAuth } from "../context/AuthContext";
 
+import { usePushNotifications } from "@/hooks/usePushNotifications";
+
 function RootContent() {
   const { isReady } = useAuth();
+  
+  // Initialize Push Notifications
+  usePushNotifications();
 
   if (!isReady) {
     return (
