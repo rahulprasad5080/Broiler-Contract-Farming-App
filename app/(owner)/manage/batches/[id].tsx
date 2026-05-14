@@ -1,7 +1,17 @@
 import { useAuth } from '@/context/AuthContext';
 import {
   fetchBatch,
-  type ApiBatch
+  fetchBatchPnl,
+  listBatchExpenses,
+  listBatchComments,
+  listDailyLogs,
+  listSales,
+  type ApiBatch,
+  type ApiBatchExpense,
+  type ApiBatchPnl,
+  type ApiComment,
+  type ApiDailyLog,
+  type ApiSale,
 } from '@/services/managementApi';
 import { Feather, Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
@@ -9,6 +19,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useCallback, useState } from 'react';
 import {
   ActivityIndicator,
+  Linking,
   ScrollView,
   StatusBar,
   StyleSheet,
@@ -18,14 +29,14 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-type TabKey = 'overview' | 'daily' | 'expenses' | 'sales' | 'pnl';
+type TabKey = 'overview' | 'daily' | 'expenses' | 'sales' | 'pnl' | 'comments';
 
 const TABS: { key: TabKey; label: string }[] = [
-  { key: 'overview', label: 'Overview' },
   { key: 'daily', label: 'Daily Entries' },
   { key: 'expenses', label: 'Expenses' },
   { key: 'sales', label: 'Sales' },
   { key: 'pnl', label: 'P&L' },
+  { key: 'comments', label: 'Comments' },
 ];
 
 const THEME_GREEN = "#0B5C36";
@@ -42,24 +53,87 @@ function formatNumber(value?: number | null, suffix = '') {
   return `${Number(value).toLocaleString('en-IN')}${suffix}`;
 }
 
+function formatMoney(value?: number | null) {
+  return `Rs. ${formatNumber(value)}`;
+}
+
+function labelize(value?: string | null) {
+  if (!value) return 'Not set';
+  return value
+    .split('_')
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1).toLowerCase())
+    .join(' ');
+}
+
+function sumExpenses(expenses: ApiBatchExpense[]) {
+  return expenses.reduce((total, item) => total + Number(item.totalAmount ?? 0), 0);
+}
+
+function sumSalesAmount(sales: ApiSale[]) {
+  return sales.reduce((total, item) => total + Number(item.netAmount ?? item.grossAmount ?? 0), 0);
+}
+
+function sumSalesBirds(sales: ApiSale[]) {
+  return sales.reduce((total, item) => total + Number(item.birdCount ?? 0), 0);
+}
+
+function sumSalesWeight(sales: ApiSale[]) {
+  return sales.reduce((total, item) => total + Number(item.totalWeightKg ?? 0), 0);
+}
+
+function getLocalDateValue(date = new Date()) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
 export default function BatchDetailsScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const { accessToken } = useAuth();
   const insets = useSafeAreaInsets();
 
-  const [activeTab, setActiveTab] = useState<TabKey>('pnl');
+  const [activeTab, setActiveTab] = useState<TabKey>('daily');
   const [activeExpenseTab, setActiveExpenseTab] = useState<'company' | 'farmer'>('company');
   const [activePnlTab, setActivePnlTab] = useState<'company' | 'farmer'>('company');
   const [batch, setBatch] = useState<ApiBatch | null>(null);
+  const [dailyLogs, setDailyLogs] = useState<ApiDailyLog[]>([]);
+  const [companyExpenses, setCompanyExpenses] = useState<ApiBatchExpense[]>([]);
+  const [farmerExpenses, setFarmerExpenses] = useState<ApiBatchExpense[]>([]);
+  const [batchPnl, setBatchPnl] = useState<ApiBatchPnl | null>(null);
+  const [sales, setSales] = useState<ApiSale[]>([]);
+  const [comments, setComments] = useState<ApiComment[]>([]);
   const [loading, setLoading] = useState(true);
 
   const loadBatchDetails = useCallback(async () => {
     if (!accessToken || !id) return;
     setLoading(true);
     try {
-      const batchRes = await fetchBatch(accessToken, id);
+      const [
+        batchRes,
+        dailyLogsRes,
+        companyExpensesRes,
+        farmerExpensesRes,
+        pnlRes,
+        salesRes,
+        commentsRes,
+      ] = await Promise.all([
+        fetchBatch(accessToken, id),
+        listDailyLogs(accessToken, id),
+        listBatchExpenses(accessToken, id, { ledger: 'COMPANY' }),
+        listBatchExpenses(accessToken, id, { ledger: 'FARMER' }),
+        fetchBatchPnl(accessToken, id),
+        listSales(accessToken, id),
+        listBatchComments(accessToken, id),
+      ]);
       setBatch(batchRes);
+      setDailyLogs(dailyLogsRes.data);
+      setCompanyExpenses(companyExpensesRes.data);
+      setFarmerExpenses(farmerExpensesRes.data);
+      setBatchPnl(pnlRes);
+      setSales(salesRes.data);
+      setComments(commentsRes.data);
     } catch (error) {
       console.warn('Failed to load batch details:', error);
     } finally {
@@ -69,6 +143,7 @@ export default function BatchDetailsScreen() {
 
   useFocusEffect(
     useCallback(() => {
+      setActiveTab('daily');
       void loadBatchDetails();
     }, [loadBatchDetails]),
   );
@@ -85,6 +160,31 @@ export default function BatchDetailsScreen() {
   const ageDays = summary?.currentAgeDays ?? 28;
   const expectedAge = 45;
   const toGo = expectedAge - ageDays > 0 ? expectedAge - ageDays : 0;
+  const activeExpenses = activeExpenseTab === 'company' ? companyExpenses : farmerExpenses;
+  const activeExpenseTitle = activeExpenseTab === 'company' ? 'Company Expenses' : 'Farmer Expenses';
+  const activeExpenseTotal = sumExpenses(activeExpenses);
+  const todayExpenseTotal = sumExpenses(
+    activeExpenses.filter((expense) => expense.expenseDate === getLocalDateValue()),
+  );
+  const companyProfitLoss = batchPnl?.company.netProfitOrLoss ?? 0;
+  const companyResultColor = companyProfitLoss >= 0 ? THEME_GREEN : '#D32F2F';
+  const totalSalesAmount = sumSalesAmount(sales);
+  const todaySalesAmount = sumSalesAmount(
+    sales.filter((sale) => sale.saleDate === getLocalDateValue()),
+  );
+  const totalSoldBirds = sumSalesBirds(sales);
+  const totalSoldWeight = sumSalesWeight(sales);
+
+  const openDailyEntry = useCallback(
+    (dailyLogId?: string) => {
+      if (!id) return;
+      router.push({
+        pathname: '/(owner)/manage/daily-entry',
+        params: dailyLogId ? { batchId: id, dailyLogId } : { batchId: id },
+      });
+    },
+    [id, router],
+  );
 
   return (
     <View style={styles.container}>
@@ -253,6 +353,60 @@ export default function BatchDetailsScreen() {
               </>
             )}
 
+            {activeTab === 'daily' && (
+              <View style={styles.section}>
+                <View style={styles.sectionHeader}>
+                  <Text style={styles.sectionTitle}>Daily Flock History</Text>
+                  <TouchableOpacity style={styles.addExpenseBtn} onPress={() => openDailyEntry()}>
+                    <Feather name="plus" size={16} color={THEME_GREEN} />
+                    <Text style={styles.addExpenseText}>Add Entry</Text>
+                  </TouchableOpacity>
+                </View>
+
+                {dailyLogs.length === 0 ? (
+                  <View style={styles.emptyStateCard}>
+                    <Ionicons name="document-text-outline" size={28} color="#9CA3AF" />
+                    <Text style={styles.emptyStateTitle}>No daily entries yet</Text>
+                    <Text style={styles.emptyStateText}>
+                      Record the first flock update for this batch.
+                    </Text>
+                  </View>
+                ) : (
+                  dailyLogs.map((log) => (
+                    <TouchableOpacity
+                      key={log.id}
+                      style={styles.dailyLogCard}
+                      activeOpacity={0.75}
+                      onPress={() => openDailyEntry(log.id)}
+                    >
+                      <View style={styles.dailyLogHeader}>
+                        <View>
+                          <Text style={styles.dailyLogDate}>{formatDate(log.logDate)}</Text>
+                          <Text style={styles.dailyLogSub}>Opening: {formatNumber(log.openingBirdCount)} birds</Text>
+                        </View>
+                        <View style={styles.editBadge}>
+                          <Feather name="edit-2" size={14} color={THEME_GREEN} />
+                          <Text style={styles.editBadgeText}>Edit</Text>
+                        </View>
+                      </View>
+
+                      <View style={styles.dailyMetricGrid}>
+                        <DailyMetric label="Mortality" value={formatNumber(log.mortalityCount)} tone="#EF4444" />
+                        <DailyMetric label="Cull" value={formatNumber(log.cullCount)} tone="#F97316" />
+                        <DailyMetric label="Feed" value={formatNumber(log.feedConsumedKg, ' kg')} tone="#3B82F6" />
+                        <DailyMetric label="Water" value={formatNumber(log.waterConsumedLtr, ' L')} tone="#0891B2" />
+                        <DailyMetric label="Avg Weight" value={formatNumber(log.avgWeightGrams, ' g')} tone="#10B981" />
+                      </View>
+
+                      {log.notes ? <Text style={styles.dailyNotes} numberOfLines={2}>{log.notes}</Text> : null}
+                    </TouchableOpacity>
+                  ))
+                )}
+
+                <View style={{ height: 40 }} />
+              </View>
+            )}
+
             {activeTab === 'expenses' && (
               <View style={styles.section}>
                 {/* Expense Toggle */}
@@ -275,6 +429,57 @@ export default function BatchDetailsScreen() {
                   </TouchableOpacity>
                 </View>
 
+                <View style={styles.expenseSummaryCard}>
+                  <View style={styles.expenseSummaryHeader}>
+                    <Text style={styles.expenseSummaryTitle}>{activeExpenseTitle} Summary</Text>
+                  </View>
+                  <View style={styles.expenseSummaryBody}>
+                    <View style={styles.expenseRow}>
+                      <View>
+                        <Text style={styles.expenseRowLabel}>Total Expenses</Text>
+                        <Text style={styles.expenseRowSub}>This Batch</Text>
+                      </View>
+                      <Text style={styles.expenseTotalVal}>{formatMoney(activeExpenseTotal)}</Text>
+                    </View>
+                    <View style={styles.expenseDivider} />
+                    <View style={[styles.expenseRow, { marginBottom: 0 }]}>
+                      <Text style={styles.expenseRowLabel}>Today Expenses</Text>
+                      <Text style={styles.expenseTotalVal}>{formatMoney(todayExpenseTotal)}</Text>
+                    </View>
+                  </View>
+                </View>
+
+                <View style={styles.sectionHeader}>
+                  <Text style={styles.sectionTitle}>{activeExpenseTitle}</Text>
+                  <TouchableOpacity style={styles.addExpenseBtn}>
+                    <Feather name="plus" size={16} color={THEME_GREEN} />
+                    <Text style={styles.addExpenseText}>Add Expense</Text>
+                  </TouchableOpacity>
+                </View>
+
+                {activeExpenses.length === 0 ? (
+                  <View style={styles.emptyStateCard}>
+                    <Ionicons name="receipt-outline" size={28} color="#9CA3AF" />
+                    <Text style={styles.emptyStateTitle}>No {activeExpenseTitle.toLowerCase()} yet</Text>
+                    <Text style={styles.emptyStateText}>
+                      Expenses recorded against this batch will appear here.
+                    </Text>
+                  </View>
+                ) : (
+                  activeExpenses.map((expense) => (
+                    <ExpenseHistoryCard key={expense.id} expense={expense} />
+                  ))
+                )}
+
+                <View style={styles.noteBox}>
+                  <Text style={styles.noteText}>
+                    Company and farmer ledgers are loaded separately from the batch expenses API.
+                  </Text>
+                </View>
+
+                {activeExpenses.length < 0 ? (
+                  <>
+
                 {/* Summary Card */}
                 <View style={styles.expenseSummaryCard}>
                   <View style={styles.expenseSummaryHeader}>
@@ -290,7 +495,7 @@ export default function BatchDetailsScreen() {
                     </View>
                     <View style={styles.expenseDivider} />
                     <View style={[styles.expenseRow, { marginBottom: 0 }]}>
-                      <Text style={styles.expenseRowLabel}>Today's Expenses</Text>
+                      <Text style={styles.expenseRowLabel}>Today Expenses</Text>
                       <Text style={styles.expenseTotalVal}>₹ 12,500</Text>
                     </View>
                   </View>
@@ -329,10 +534,63 @@ export default function BatchDetailsScreen() {
                 <View style={styles.noteBox}>
                   <Text style={styles.noteText}>Note: Farmer expenses are not included in company P&L</Text>
                 </View>
+                  </>
+                ) : null}
 
                 <View style={{ height: 40 }} />
               </View>
             )}
+
+            {activeTab === 'sales' && (
+              <View style={styles.section}>
+                <View style={styles.expenseSummaryCard}>
+                  <View style={styles.expenseSummaryHeader}>
+                    <Text style={styles.expenseSummaryTitle}>Sales Summary</Text>
+                  </View>
+                  <View style={styles.expenseSummaryBody}>
+                    <View style={styles.expenseRow}>
+                      <View>
+                        <Text style={styles.expenseRowLabel}>Total Sales</Text>
+                        <Text style={styles.expenseRowSub}>This Batch</Text>
+                      </View>
+                      <Text style={styles.expenseTotalVal}>{formatMoney(totalSalesAmount)}</Text>
+                    </View>
+                    <View style={styles.expenseDivider} />
+                    <View style={styles.salesSummaryGrid}>
+                      <InfoPill label="Today" value={formatMoney(todaySalesAmount)} />
+                      <InfoPill label="Birds Sold" value={formatNumber(totalSoldBirds)} />
+                      <InfoPill label="Weight" value={formatNumber(totalSoldWeight, ' kg')} />
+                    </View>
+                  </View>
+                </View>
+
+                <View style={styles.sectionHeader}>
+                  <Text style={styles.sectionTitle}>Sales History</Text>
+                  <TouchableOpacity
+                    style={styles.addExpenseBtn}
+                    onPress={() => router.push('/(owner)/manage/sales')}
+                  >
+                    <Feather name="plus" size={16} color={THEME_GREEN} />
+                    <Text style={styles.addExpenseText}>Add Sale</Text>
+                  </TouchableOpacity>
+                </View>
+
+                {sales.length === 0 ? (
+                  <View style={styles.emptyStateCard}>
+                    <Ionicons name="receipt-outline" size={28} color="#9CA3AF" />
+                    <Text style={styles.emptyStateTitle}>No sales yet</Text>
+                    <Text style={styles.emptyStateText}>
+                      Sales recorded against this batch will appear here.
+                    </Text>
+                  </View>
+                ) : (
+                  sales.map((sale) => <SaleHistoryCard key={sale.id} sale={sale} />)
+                )}
+
+                <View style={{ height: 40 }} />
+              </View>
+            )}
+
             {activeTab === 'pnl' && (
               <View style={styles.section}>
                 {/* P&L Toggle */}
@@ -355,7 +613,58 @@ export default function BatchDetailsScreen() {
                   </TouchableOpacity>
                 </View>
 
-                {activePnlTab === 'company' && (
+                {activePnlTab === 'company' ? (
+                  <View>
+                    <View style={styles.expenseSummaryCard}>
+                      <View style={styles.expenseSummaryHeader}>
+                        <Text style={styles.expenseSummaryTitle}>Company P&L</Text>
+                      </View>
+                      <View style={styles.expenseSummaryBody}>
+                        <PnlRow label="Sales Revenue" value={formatMoney(batchPnl?.company.salesRevenue)} />
+                        <PnlRow label="Company Expenses" value={formatMoney(batchPnl?.company.expenses)} />
+                        <View style={styles.expenseDivider} />
+                        <PnlRow
+                          label={companyProfitLoss >= 0 ? 'Company Profit' : 'Company Loss'}
+                          value={formatMoney(companyProfitLoss)}
+                          valueColor={companyResultColor}
+                          emphasis
+                        />
+                      </View>
+                    </View>
+                    <View style={styles.noteBox}>
+                      <Text style={styles.noteText}>
+                        Company P&L uses only company-side sales revenue and expense values.
+                      </Text>
+                    </View>
+                  </View>
+                ) : (
+                  <View>
+                    <View style={styles.farmerPnlCard}>
+                      <View style={styles.farmerPnlHeader}>
+                        <Text style={styles.farmerPnlTitle}>Farmer Earnings</Text>
+                      </View>
+                      <View style={styles.expenseSummaryBody}>
+                        <PnlRow label="Growing Income" value={formatMoney(batchPnl?.farmer.growingIncome)} />
+                        <PnlRow label="Incentives" value={formatMoney(batchPnl?.farmer.incentives)} />
+                        <PnlRow label="Farmer Expenses" value={formatMoney(batchPnl?.farmer.expenses)} />
+                        <View style={styles.expenseDivider} />
+                        <PnlRow
+                          label="Farmer Net Earnings"
+                          value={formatMoney(batchPnl?.farmer.netEarnings)}
+                          valueColor="#EA580C"
+                          emphasis
+                        />
+                      </View>
+                    </View>
+                    <View style={[styles.noteBox, { backgroundColor: '#F8FAFC', borderColor: '#E2E8F0' }]}>
+                      <Text style={styles.noteText}>
+                        Farmer earnings are kept separate from company profitability.
+                      </Text>
+                    </View>
+                  </View>
+                )}
+
+                {false && activePnlTab === 'company' && (
                   <View>
                     {/* Company P&L Card */}
                     <View style={styles.expenseSummaryCard}>
@@ -384,7 +693,7 @@ export default function BatchDetailsScreen() {
                   </View>
                 )}
 
-                {activePnlTab === 'farmer' && (
+                {false && activePnlTab === 'farmer' && (
                   <View>
                     {/* Farmer P&L Card */}
                     <View style={styles.farmerPnlCard}>
@@ -424,6 +733,30 @@ export default function BatchDetailsScreen() {
                 <View style={{ height: 40 }} />
               </View>
             )}
+
+            {activeTab === 'comments' && (
+              <View style={styles.section}>
+                <View style={styles.sectionHeader}>
+                  <Text style={styles.sectionTitle}>Comments & Notes</Text>
+                </View>
+
+                {comments.length === 0 ? (
+                  <View style={styles.emptyStateCard}>
+                    <Ionicons name="chatbubble-ellipses-outline" size={28} color="#9CA3AF" />
+                    <Text style={styles.emptyStateTitle}>No comments yet</Text>
+                    <Text style={styles.emptyStateText}>
+                      Batch comments, corrections, and notes will appear here.
+                    </Text>
+                  </View>
+                ) : (
+                  comments.map((comment) => (
+                    <CommentCard key={comment.id} comment={comment} />
+                  ))
+                )}
+
+                <View style={{ height: 40 }} />
+              </View>
+            )}
           </>
         )}
       </ScrollView>
@@ -436,6 +769,214 @@ function GridCard({ value, label, valColor, bgHighlight }: any) {
     <View style={[styles.gridCard, bgHighlight && { backgroundColor: bgHighlight }]}>
       <Text style={[styles.gridVal, { color: valColor }]}>{value}</Text>
       <Text style={styles.gridLabel}>{label}</Text>
+    </View>
+  );
+}
+
+function DailyMetric({ label, value, tone }: { label: string; value: string; tone: string }) {
+  return (
+    <View style={styles.dailyMetricCard}>
+      <Text style={[styles.dailyMetricValue, { color: tone }]}>{value}</Text>
+      <Text style={styles.dailyMetricLabel}>{label}</Text>
+    </View>
+  );
+}
+
+function PnlRow({
+  label,
+  value,
+  valueColor = '#111827',
+  emphasis = false,
+}: {
+  label: string;
+  value: string;
+  valueColor?: string;
+  emphasis?: boolean;
+}) {
+  return (
+    <View style={styles.expenseRow}>
+      <Text style={[styles.expenseRowLabel, emphasis && styles.pnlEmphasisLabel]}>{label}</Text>
+      <Text style={[styles.expenseTotalVal, emphasis && styles.pnlEmphasisValue, { color: valueColor }]}>
+        {value}
+      </Text>
+    </View>
+  );
+}
+
+function ExpenseHistoryCard({ expense }: { expense: ApiBatchExpense }) {
+  const hasBill = Boolean(expense.billPhotoUrl);
+  const quantityText =
+    expense.quantity === undefined || expense.quantity === null
+      ? null
+      : `${formatNumber(expense.quantity)}${expense.unit ? ` ${expense.unit}` : ''}`;
+  const rateText =
+    expense.rate === undefined || expense.rate === null ? null : `${formatMoney(expense.rate)} rate`;
+
+  return (
+    <View style={styles.expenseHistoryCard}>
+      <View style={styles.expenseHistoryHeader}>
+        <View style={styles.expenseHistoryTitleWrap}>
+          <Text style={styles.expenseHistoryTitle} numberOfLines={1}>
+            {expense.description || labelize(expense.category)}
+          </Text>
+          <Text style={styles.expenseHistoryMeta}>
+            {[labelize(expense.category), formatDate(expense.expenseDate)].filter(Boolean).join(' | ')}
+          </Text>
+        </View>
+        <Text style={styles.expenseHistoryAmount}>{formatMoney(expense.totalAmount)}</Text>
+      </View>
+
+      <View style={styles.expenseInfoGrid}>
+        <InfoPill label="Ledger" value={labelize(expense.ledger)} />
+        <InfoPill label="Payment" value={labelize(expense.paymentStatus)} />
+        <InfoPill label="Approval" value={labelize(expense.approvalStatus)} />
+        {quantityText ? <InfoPill label="Qty" value={quantityText} /> : null}
+        {rateText ? <InfoPill label="Rate" value={rateText} /> : null}
+        {expense.paidAmount !== undefined && expense.paidAmount !== null ? (
+          <InfoPill label="Paid" value={formatMoney(expense.paidAmount)} />
+        ) : null}
+      </View>
+
+      {expense.vendorName || expense.invoiceNumber ? (
+        <View style={styles.auditRow}>
+          {expense.vendorName ? (
+            <View style={styles.auditItem}>
+              <Feather name="briefcase" size={13} color="#6B7280" />
+              <Text style={styles.auditText} numberOfLines={1}>{expense.vendorName}</Text>
+            </View>
+          ) : null}
+          {expense.invoiceNumber ? (
+            <View style={styles.auditItem}>
+              <Feather name="hash" size={13} color="#6B7280" />
+              <Text style={styles.auditText} numberOfLines={1}>{expense.invoiceNumber}</Text>
+            </View>
+          ) : null}
+        </View>
+      ) : null}
+
+      {expense.notes ? <Text style={styles.expenseNotes} numberOfLines={2}>{expense.notes}</Text> : null}
+
+      {hasBill ? (
+        <TouchableOpacity
+          style={styles.billButton}
+          activeOpacity={0.75}
+          onPress={() => {
+            if (expense.billPhotoUrl) {
+              void Linking.openURL(expense.billPhotoUrl);
+            }
+          }}
+        >
+          <Feather name="paperclip" size={14} color={THEME_GREEN} />
+          <Text style={styles.billButtonText}>Open Bill Attachment</Text>
+        </TouchableOpacity>
+      ) : null}
+    </View>
+  );
+}
+
+function InfoPill({ label, value }: { label: string; value: string }) {
+  return (
+    <View style={styles.infoPill}>
+      <Text style={styles.infoPillLabel}>{label}</Text>
+      <Text style={styles.infoPillValue} numberOfLines={1}>{value}</Text>
+    </View>
+  );
+}
+
+function SaleHistoryCard({ sale }: { sale: ApiSale }) {
+  const mainAmount = sale.netAmount ?? sale.grossAmount;
+  const avgWeight =
+    sale.averageWeightKg ??
+    (sale.birdCount && sale.totalWeightKg ? sale.totalWeightKg / sale.birdCount : undefined);
+
+  return (
+    <View style={styles.expenseHistoryCard}>
+      <View style={styles.expenseHistoryHeader}>
+        <View style={styles.expenseHistoryTitleWrap}>
+          <Text style={styles.expenseHistoryTitle} numberOfLines={1}>
+            {sale.traderName || 'Batch Sale'}
+          </Text>
+          <Text style={styles.expenseHistoryMeta}>
+            {[formatDate(sale.saleDate), sale.vehicleNumber].filter(Boolean).join(' | ')}
+          </Text>
+        </View>
+        <Text style={styles.expenseHistoryAmount}>{formatMoney(mainAmount)}</Text>
+      </View>
+
+      <View style={styles.expenseInfoGrid}>
+        <InfoPill label="Status" value={labelize(sale.status)} />
+        <InfoPill label="Payment" value={labelize(sale.paymentStatus)} />
+        <InfoPill label="Birds" value={formatNumber(sale.birdCount)} />
+        <InfoPill label="Weight" value={formatNumber(sale.totalWeightKg, ' kg')} />
+        <InfoPill label="Avg Weight" value={formatNumber(avgWeight, ' kg')} />
+        <InfoPill label="Rate" value={formatMoney(sale.ratePerKg)} />
+      </View>
+
+      <View style={styles.auditRow}>
+        {sale.grossAmount !== undefined && sale.grossAmount !== null ? (
+          <View style={styles.auditItem}>
+            <Feather name="trending-up" size={13} color="#6B7280" />
+            <Text style={styles.auditText}>Gross {formatMoney(sale.grossAmount)}</Text>
+          </View>
+        ) : null}
+        {sale.paymentReceivedAmount !== undefined && sale.paymentReceivedAmount !== null ? (
+          <View style={styles.auditItem}>
+            <Feather name="credit-card" size={13} color="#6B7280" />
+            <Text style={styles.auditText}>Received {formatMoney(sale.paymentReceivedAmount)}</Text>
+          </View>
+        ) : null}
+      </View>
+
+      {sale.loadingMortalityCount || sale.transportCharge || sale.commissionCharge || sale.otherDeduction ? (
+        <View style={styles.salesAdjustments}>
+          {sale.loadingMortalityCount ? (
+            <Text style={styles.adjustmentText}>Loading mortality: {formatNumber(sale.loadingMortalityCount)}</Text>
+          ) : null}
+          {sale.transportCharge ? (
+            <Text style={styles.adjustmentText}>Transport: {formatMoney(sale.transportCharge)}</Text>
+          ) : null}
+          {sale.commissionCharge ? (
+            <Text style={styles.adjustmentText}>Commission: {formatMoney(sale.commissionCharge)}</Text>
+          ) : null}
+          {sale.otherDeduction ? (
+            <Text style={styles.adjustmentText}>Other deduction: {formatMoney(sale.otherDeduction)}</Text>
+          ) : null}
+        </View>
+      ) : null}
+
+      {sale.notes ? <Text style={styles.expenseNotes} numberOfLines={2}>{sale.notes}</Text> : null}
+    </View>
+  );
+}
+
+function CommentCard({ comment }: { comment: ApiComment }) {
+  return (
+    <View style={styles.commentCard}>
+      <View style={styles.commentHeader}>
+        <View style={styles.commentIcon}>
+          <Ionicons name="chatbubble-ellipses-outline" size={18} color={THEME_GREEN} />
+        </View>
+        <View style={styles.commentTitleWrap}>
+          <Text style={styles.commentTarget}>{labelize(comment.targetType)}</Text>
+          <Text style={styles.commentDate}>{formatDate(comment.createdAt)}</Text>
+        </View>
+      </View>
+
+      <Text style={styles.commentText}>{comment.comment}</Text>
+
+      {comment.correctionNote ? (
+        <View style={styles.correctionBox}>
+          <Text style={styles.correctionLabel}>Correction Note</Text>
+          <Text style={styles.correctionText}>{comment.correctionNote}</Text>
+        </View>
+      ) : null}
+
+      <View style={styles.commentMetaRow}>
+        <Text style={styles.commentMetaText}>Target ID: {comment.targetId}</Text>
+        {comment.createdById ? (
+          <Text style={styles.commentMetaText}>By: {comment.createdById}</Text>
+        ) : null}
+      </View>
     </View>
   );
 }
@@ -743,6 +1284,287 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: '#111827',
   },
+  emptyStateCard: {
+    alignItems: 'center',
+    backgroundColor: '#FFF',
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    padding: 24,
+  },
+  emptyStateTitle: {
+    fontSize: 15,
+    fontWeight: '800',
+    color: '#111827',
+    marginTop: 10,
+  },
+  emptyStateText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#6B7280',
+    marginTop: 4,
+    textAlign: 'center',
+  },
+  dailyLogCard: {
+    backgroundColor: '#FFF',
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    padding: 14,
+    marginBottom: 12,
+  },
+  dailyLogHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  dailyLogDate: {
+    fontSize: 15,
+    fontWeight: '800',
+    color: '#111827',
+  },
+  dailyLogSub: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#6B7280',
+    marginTop: 3,
+  },
+  editBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    backgroundColor: '#ECFDF5',
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: '#A7F3D0',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+  },
+  editBadgeText: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: THEME_GREEN,
+  },
+  dailyMetricGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  dailyMetricCard: {
+    width: '31%',
+    minHeight: 62,
+    backgroundColor: '#F9FAFB',
+    borderRadius: 8,
+    paddingVertical: 10,
+    paddingHorizontal: 8,
+    justifyContent: 'center',
+  },
+  dailyMetricValue: {
+    fontSize: 14,
+    fontWeight: '800',
+  },
+  dailyMetricLabel: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#6B7280',
+    marginTop: 3,
+  },
+  dailyNotes: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#4B5563',
+    marginTop: 12,
+    lineHeight: 18,
+  },
+  expenseHistoryCard: {
+    backgroundColor: '#FFF',
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    padding: 14,
+    marginBottom: 12,
+  },
+  expenseHistoryHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    gap: 12,
+    marginBottom: 12,
+  },
+  expenseHistoryTitleWrap: {
+    flex: 1,
+  },
+  expenseHistoryTitle: {
+    fontSize: 15,
+    fontWeight: '800',
+    color: '#111827',
+  },
+  expenseHistoryMeta: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#6B7280',
+    marginTop: 3,
+  },
+  expenseHistoryAmount: {
+    fontSize: 15,
+    fontWeight: '900',
+    color: THEME_GREEN,
+  },
+  expenseInfoGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  infoPill: {
+    minWidth: '31%',
+    maxWidth: '48%',
+    backgroundColor: '#F9FAFB',
+    borderRadius: 8,
+    paddingVertical: 8,
+    paddingHorizontal: 9,
+  },
+  infoPillLabel: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: '#9CA3AF',
+    marginBottom: 2,
+  },
+  infoPillValue: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: '#374151',
+  },
+  auditRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 10,
+    marginTop: 12,
+  },
+  auditItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    maxWidth: '100%',
+  },
+  auditText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#4B5563',
+    flexShrink: 1,
+  },
+  expenseNotes: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#4B5563',
+    marginTop: 12,
+    lineHeight: 18,
+  },
+  billButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#A7F3D0',
+    backgroundColor: '#ECFDF5',
+    paddingVertical: 10,
+    marginTop: 12,
+  },
+  billButtonText: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: THEME_GREEN,
+  },
+  salesSummaryGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  salesAdjustments: {
+    backgroundColor: '#F9FAFB',
+    borderRadius: 8,
+    padding: 10,
+    marginTop: 12,
+    gap: 4,
+  },
+  adjustmentText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#4B5563',
+  },
+  commentCard: {
+    backgroundColor: '#FFF',
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    padding: 14,
+    marginBottom: 12,
+  },
+  commentHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+  commentIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: 8,
+    backgroundColor: '#ECFDF5',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 10,
+  },
+  commentTitleWrap: {
+    flex: 1,
+  },
+  commentTarget: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: '#111827',
+  },
+  commentDate: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#6B7280',
+    marginTop: 2,
+  },
+  commentText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#374151',
+    lineHeight: 20,
+  },
+  correctionBox: {
+    backgroundColor: '#FFF7ED',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#FED7AA',
+    padding: 10,
+    marginTop: 12,
+  },
+  correctionLabel: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: '#EA580C',
+    marginBottom: 4,
+  },
+  correctionText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#7C2D12',
+    lineHeight: 18,
+  },
+  commentMetaRow: {
+    marginTop: 12,
+    gap: 4,
+  },
+  commentMetaText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#9CA3AF',
+  },
   expenseToggleBox: {
     flexDirection: 'row',
     backgroundColor: '#F9FAFB',
@@ -811,6 +1633,13 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '800',
     color: '#111827',
+  },
+  pnlEmphasisLabel: {
+    color: THEME_GREEN,
+    fontWeight: '800',
+  },
+  pnlEmphasisValue: {
+    fontSize: 18,
   },
   expenseDivider: {
     height: 1,

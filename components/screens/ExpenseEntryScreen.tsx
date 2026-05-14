@@ -1,8 +1,8 @@
-import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
+import { Ionicons } from "@expo/vector-icons";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useFocusEffect } from "@react-navigation/native";
 import { useRouter } from "expo-router";
-import React, { useCallback, useMemo, useState } from "react";
+import React, { useCallback, useState } from "react";
 import {
   ActivityIndicator,
   ScrollView,
@@ -28,7 +28,6 @@ import {
   listAllBatches,
   type ApiBatch,
   type ApiExpenseCategoryCode,
-  type ApiExpenseLedger,
 } from "@/services/managementApi";
 
 const COMPANY_CATEGORIES = [
@@ -68,11 +67,15 @@ const expenseSchema = z.object({
 
 type ExpenseFormData = z.infer<typeof expenseSchema>;
 
-export function ExpenseEntryScreen() {
+type ExpenseEntryScreenProps = {
+  title?: string;
+  subtitle?: string;
+};
+
+export function ExpenseEntryScreen({ title = "Expense Entry" }: ExpenseEntryScreenProps) {
   const router = useRouter();
   const { accessToken } = useAuth();
   const [batches, setBatches] = useState<ApiBatch[]>([]);
-  const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [farmDropdownOpen, setFarmDropdownOpen] = useState(false);
   const [batchDropdownOpen, setBatchDropdownOpen] = useState(false);
@@ -84,7 +87,6 @@ export function ExpenseEntryScreen() {
     setValue,
     watch,
     reset,
-    formState: { errors },
   } = useForm<ExpenseFormData>({
     resolver: zodResolver(expenseSchema),
     defaultValues: {
@@ -105,7 +107,6 @@ export function ExpenseEntryScreen() {
 
   const loadBatches = useCallback(async () => {
     if (!accessToken) return;
-    setLoading(true);
     try {
       const response = await listAllBatches(accessToken);
       setBatches(response.data);
@@ -113,8 +114,6 @@ export function ExpenseEntryScreen() {
       if (firstActive && !selectedBatchId) setValue("batchId", firstActive);
     } catch (error) {
       showRequestErrorToast(error, { title: "Unable to load batches" });
-    } finally {
-      setLoading(false);
     }
   }, [accessToken, selectedBatchId, setValue]);
 
@@ -156,7 +155,7 @@ export function ExpenseEntryScreen() {
           <TouchableOpacity onPress={() => router.back()} style={styles.headerBtn}>
             <Ionicons name="arrow-back" size={24} color="#FFF" />
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>Expense Entry</Text>
+          <Text style={styles.headerTitle}>{title}</Text>
         </View>
         <TouchableOpacity style={styles.headerBtn}>
           <View>

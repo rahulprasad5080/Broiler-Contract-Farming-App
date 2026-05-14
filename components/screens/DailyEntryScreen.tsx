@@ -1,13 +1,15 @@
-import { Colors } from "@/constants/Colors";
 import { useAuth } from "@/context/AuthContext";
 import {
   ApiBatch,
+  ApiDailyLog,
   createDailyLog,
   listAllBatches,
+  listDailyLogs,
+  updateDailyLog,
 } from "@/services/managementApi";
 import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect } from "@react-navigation/native";
-import { useRouter } from "expo-router";
+import { useLocalSearchParams, useRouter } from "expo-router";
 import React, {
   useCallback,
   useEffect,
@@ -40,8 +42,9 @@ function todayValue() {
 }
 
 function toOptionalNumber(value: string) {
-  if (!value || value.trim() === "") return undefined;
-  const next = Number(value);
+  const normalized = value.replace(/,/g, "").trim();
+  if (!normalized) return undefined;
+  const next = Number(normalized);
   return Number.isNaN(next) ? undefined : next;
 }
 
@@ -57,14 +60,16 @@ function formatReadableDate(value?: string | null) {
 }
 
 const optionalNumericField = (label: string) =>
-  z.string().optional().refine((value) => !value || !Number.isNaN(Number(value)), {
+  z.string().optional().refine((value) => !value || !Number.isNaN(Number(value.replace(/,/g, ""))), {
     message: `${label} must be a number`,
   });
 
 const dailyEntrySchema = z.object({
   batchId: z.string().min(1, "Please select a batch"),
   logDate: z.string().min(1, "Date is required"),
+  openingBirdCount: optionalNumericField("Opening bird count"),
   mortalityCount: optionalNumericField("Mortality"),
+  cullCount: optionalNumericField("Cull"),
   feedConsumedKg: optionalNumericField("Feed consumed"),
   waterConsumedLtr: optionalNumericField("Water consumed"),
   avgWeightGrams: optionalNumericField("Average weight"),
@@ -76,18 +81,61 @@ type DailyEntryFormData = z.infer<typeof dailyEntrySchema>;
 const DAILY_ENTRY_DEFAULTS = {
   batchId: "",
   logDate: todayValue(),
+  openingBirdCount: "",
   mortalityCount: "",
+  cullCount: "",
   feedConsumedKg: "",
   waterConsumedLtr: "",
   avgWeightGrams: "",
   notes: "",
 };
 
-export function DailyEntryScreen() {
+type DailyEntryScreenProps = {
+  title?: string;
+  subtitle?: string;
+};
+
+function toStringValue(value?: number | null) {
+  return value === undefined || value === null ? "" : String(value);
+}
+
+function toFormValues(log: ApiDailyLog): DailyEntryFormData {
+  return {
+    batchId: log.batchId,
+    logDate: log.logDate,
+    openingBirdCount: toStringValue(log.openingBirdCount),
+    mortalityCount: toStringValue(log.mortalityCount),
+    cullCount: toStringValue(log.cullCount),
+    feedConsumedKg: toStringValue(log.feedConsumedKg),
+    waterConsumedLtr: toStringValue(log.waterConsumedLtr),
+    avgWeightGrams: toStringValue(log.avgWeightGrams),
+    notes: log.notes ?? "",
+  };
+}
+
+function buildDailyLogPayload(data: DailyEntryFormData) {
+  return {
+    logDate: data.logDate,
+    openingBirdCount: toOptionalNumber(data.openingBirdCount ?? ""),
+    mortalityCount: toOptionalNumber(data.mortalityCount ?? ""),
+    cullCount: toOptionalNumber(data.cullCount ?? ""),
+    feedConsumedKg: toOptionalNumber(data.feedConsumedKg ?? ""),
+    waterConsumedLtr: toOptionalNumber(data.waterConsumedLtr ?? ""),
+    avgWeightGrams: toOptionalNumber(data.avgWeightGrams ?? ""),
+    notes: data.notes?.trim() || undefined,
+  };
+}
+
+export function DailyEntryScreen({ title = "Daily Entry" }: DailyEntryScreenProps) {
   const router = useRouter();
+  const { batchId: routeBatchId, dailyLogId } = useLocalSearchParams<{
+    batchId?: string;
+    dailyLogId?: string;
+  }>();
   const { accessToken } = useAuth();
   const [batches, setBatches] = useState<ApiBatch[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadingLog, setLoadingLog] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [batchDropdownOpen, setBatchDropdownOpen] = useState(false);
 
@@ -100,15 +148,54 @@ export function DailyEntryScreen() {
     formState: { errors },
   } = useForm<DailyEntryFormData>({
     resolver: zodResolver(dailyEntrySchema),
-    defaultValues: DAILY_ENTRY_DEFAULTS,
+    defaultValues: {
+      ...DAILY_ENTRY_DEFAULTS,
+      batchId: typeof routeBatchId === "string" ? routeBatchId : "",
+    },
   });
 
   const selectedBatchId = watch("batchId");
+  const isEditMode = typeof dailyLogId === "string" && dailyLogId.length > 0;
+  const lockedBatchId =
+    typeof routeBatchId === "string" && routeBatchId.length > 0 ? routeBatchId : null;
   const activeBatches = useMemo(
-    () => batches.filter((batch) => batch.status === "ACTIVE"),
-    [batches]
+    () => batches.filter((batch) => batch.status === "ACTIVE" || batch.id === lockedBatchId),
+    [batches, lockedBatchId]
   );
   const selectedBatch = batches.find((b) => b.id === selectedBatchId) ?? null;
+
+  useEffect(() => {
+    if (lockedBatchId && selectedBatchId !== lockedBatchId) {
+      setValue("batchId", lockedBatchId);
+    }
+  }, [lockedBatchId, selectedBatchId, setValue]);
+
+  const loadEntryForEdit = useCallback(async () => {
+    if (!accessToken || !lockedBatchId || !dailyLogId) return;
+    setLoadingLog(true);
+    try {
+      const response = await listDailyLogs(accessToken, lockedBatchId);
+      const log = response.data.find((item) => item.id === dailyLogId);
+
+      if (log) {
+        reset(toFormValues(log));
+      } else {
+        showRequestErrorToast(new Error("Daily log not found."), {
+          title: "Unable to load entry",
+        });
+      }
+    } catch (error) {
+      showRequestErrorToast(error, { title: "Unable to load entry" });
+    } finally {
+      setLoadingLog(false);
+    }
+  }, [accessToken, dailyLogId, lockedBatchId, reset]);
+
+  useEffect(() => {
+    if (isEditMode) {
+      void loadEntryForEdit();
+    }
+  }, [isEditMode, loadEntryForEdit]);
 
   const loadBatches = useCallback(async () => {
     if (!accessToken) return;
@@ -117,7 +204,9 @@ export function DailyEntryScreen() {
       const response = await listAllBatches(accessToken);
       setBatches(response.data);
       const firstActiveId = response.data.find((b) => b.status === "ACTIVE")?.id;
-      if (firstActiveId && !selectedBatchId) {
+      if (lockedBatchId) {
+        setValue("batchId", lockedBatchId);
+      } else if (firstActiveId && !selectedBatchId) {
         setValue("batchId", firstActiveId);
       }
     } catch (error) {
@@ -125,7 +214,7 @@ export function DailyEntryScreen() {
     } finally {
       setLoading(false);
     }
-  }, [accessToken, selectedBatchId, setValue]);
+  }, [accessToken, lockedBatchId, selectedBatchId, setValue]);
 
   useFocusEffect(
     useCallback(() => {
@@ -137,17 +226,20 @@ export function DailyEntryScreen() {
     if (!accessToken) return;
     setSubmitting(true);
     try {
-      await createDailyLog(accessToken, data.batchId, {
-        logDate: data.logDate,
-        mortalityCount: toOptionalNumber(data.mortalityCount ?? ""),
-        feedConsumedKg: toOptionalNumber(data.feedConsumedKg ?? ""),
-        waterConsumedLtr: toOptionalNumber(data.waterConsumedLtr ?? ""),
-        avgWeightGrams: toOptionalNumber(data.avgWeightGrams ?? ""),
-        notes: data.notes?.trim() || undefined,
-        clientReferenceId: `daily-${Date.now()}`,
-      });
-      showSuccessToast("Daily log saved successfully.");
-      reset({ ...DAILY_ENTRY_DEFAULTS, batchId: data.batchId });
+      const payload = buildDailyLogPayload(data);
+
+      if (isEditMode && typeof dailyLogId === "string") {
+        await updateDailyLog(accessToken, data.batchId, dailyLogId, payload);
+        showSuccessToast("Daily log updated successfully.");
+        router.back();
+      } else {
+        await createDailyLog(accessToken, data.batchId, {
+          ...payload,
+          clientReferenceId: `daily-${Date.now()}`,
+        });
+        showSuccessToast("Daily log saved successfully.");
+        reset({ ...DAILY_ENTRY_DEFAULTS, batchId: data.batchId });
+      }
     } catch (error) {
       showRequestErrorToast(error, { title: "Save failed" });
     } finally {
@@ -165,7 +257,7 @@ export function DailyEntryScreen() {
           <TouchableOpacity onPress={() => router.back()} style={styles.headerBtn}>
             <Ionicons name="arrow-back" size={24} color="#FFF" />
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>Daily Entry</Text>
+          <Text style={styles.headerTitle}>{isEditMode ? "Edit Daily Entry" : title}</Text>
         </View>
         <TouchableOpacity style={styles.headerBtn}>
           <View>
@@ -181,15 +273,25 @@ export function DailyEntryScreen() {
         keyboardShouldPersistTaps="handled"
       >
         <View style={styles.form}>
+          {loading || loadingLog ? <ActivityIndicator color="#0B5C36" style={styles.formLoader} /> : null}
           {/* Date */}
           <View style={styles.inputGroup}>
             <Text style={styles.label}>Date</Text>
             <Controller
               control={control}
               name="logDate"
-              render={({ field: { value } }) => (
+              render={({ field: { value, onChange } }) => (
                 <View style={styles.inputMock}>
-                  <Text style={styles.inputValue}>{formatReadableDate(value)}</Text>
+                  <View style={styles.dateInputWrap}>
+                    <Text style={styles.dateReadable}>{formatReadableDate(value)}</Text>
+                    <TextInput
+                      style={styles.dateInput}
+                      value={value}
+                      onChangeText={onChange}
+                      placeholder="YYYY-MM-DD"
+                      placeholderTextColor="#9CA3AF"
+                    />
+                  </View>
                   <Ionicons name="calendar-outline" size={20} color="#6B7280" />
                 </View>
               )}
@@ -209,14 +311,22 @@ export function DailyEntryScreen() {
           <View style={styles.inputGroup}>
             <Text style={styles.label}>Batch</Text>
             <TouchableOpacity 
-              style={styles.inputMock} 
+              style={[styles.inputMock, lockedBatchId && styles.inputLocked]} 
               activeOpacity={0.7}
-              onPress={() => setBatchDropdownOpen(!batchDropdownOpen)}
+              onPress={() => {
+                if (!lockedBatchId) {
+                  setBatchDropdownOpen(!batchDropdownOpen);
+                }
+              }}
             >
               <Text style={styles.inputValue}>{selectedBatch?.code || "Select Batch"}</Text>
-              <Ionicons name="chevron-down" size={20} color="#6B7280" />
+              <Ionicons
+                name={lockedBatchId ? "lock-closed-outline" : "chevron-down"}
+                size={20}
+                color="#6B7280"
+              />
             </TouchableOpacity>
-            {batchDropdownOpen && (
+            {batchDropdownOpen && !lockedBatchId && (
               <View style={styles.dropdownList}>
                 {activeBatches.map((batch) => (
                   <TouchableOpacity 
@@ -233,6 +343,28 @@ export function DailyEntryScreen() {
               </View>
             )}
             {errors.batchId && <Text style={styles.errorText}>{errors.batchId.message}</Text>}
+          </View>
+
+          {/* Opening Bird Count */}
+          <View style={styles.inputGroup}>
+            <Text style={styles.label}>Opening Bird Count</Text>
+            <Controller
+              control={control}
+              name="openingBirdCount"
+              render={({ field: { value, onChange } }) => (
+                <TextInput
+                  style={styles.input}
+                  value={value}
+                  onChangeText={onChange}
+                  keyboardType="numeric"
+                  placeholder="2480"
+                  placeholderTextColor="#9CA3AF"
+                />
+              )}
+            />
+            {errors.openingBirdCount && (
+              <Text style={styles.errorText}>{errors.openingBirdCount.message}</Text>
+            )}
           </View>
 
           {/* Mortality */}
@@ -252,6 +384,29 @@ export function DailyEntryScreen() {
                 />
               )}
             />
+            {errors.mortalityCount && (
+              <Text style={styles.errorText}>{errors.mortalityCount.message}</Text>
+            )}
+          </View>
+
+          {/* Cull */}
+          <View style={styles.inputGroup}>
+            <Text style={styles.label}>Cull (Today)</Text>
+            <Controller
+              control={control}
+              name="cullCount"
+              render={({ field: { value, onChange } }) => (
+                <TextInput
+                  style={styles.input}
+                  value={value}
+                  onChangeText={onChange}
+                  keyboardType="numeric"
+                  placeholder="3"
+                  placeholderTextColor="#9CA3AF"
+                />
+              )}
+            />
+            {errors.cullCount && <Text style={styles.errorText}>{errors.cullCount.message}</Text>}
           </View>
 
           {/* Feed Consumption */}
@@ -271,6 +426,9 @@ export function DailyEntryScreen() {
                 />
               )}
             />
+            {errors.feedConsumedKg && (
+              <Text style={styles.errorText}>{errors.feedConsumedKg.message}</Text>
+            )}
           </View>
 
           {/* Water Consumption */}
@@ -290,11 +448,14 @@ export function DailyEntryScreen() {
                 />
               )}
             />
+            {errors.waterConsumedLtr && (
+              <Text style={styles.errorText}>{errors.waterConsumedLtr.message}</Text>
+            )}
           </View>
 
           {/* Average Weight */}
           <View style={styles.inputGroup}>
-            <Text style={styles.label}>Average Weight (kg)</Text>
+            <Text style={styles.label}>Average Weight (g)</Text>
             <Controller
               control={control}
               name="avgWeightGrams"
@@ -304,11 +465,14 @@ export function DailyEntryScreen() {
                   value={value}
                   onChangeText={onChange}
                   keyboardType="numeric"
-                  placeholder="1.320"
+                  placeholder="2350"
                   placeholderTextColor="#9CA3AF"
                 />
               )}
             />
+            {errors.avgWeightGrams && (
+              <Text style={styles.errorText}>{errors.avgWeightGrams.message}</Text>
+            )}
           </View>
 
           {/* Remarks */}
@@ -338,7 +502,7 @@ export function DailyEntryScreen() {
             {submitting ? (
               <ActivityIndicator color="#FFF" />
             ) : (
-              <Text style={styles.submitBtnText}>Save Entry</Text>
+              <Text style={styles.submitBtnText}>{isEditMode ? "Update Entry" : "Save Entry"}</Text>
             )}
           </TouchableOpacity>
         </View>
@@ -432,6 +596,26 @@ const styles = StyleSheet.create({
     height: 100,
     paddingTop: 16,
     textAlignVertical: "top",
+  },
+  inputLocked: {
+    backgroundColor: "#F9FAFB",
+  },
+  formLoader: {
+    marginBottom: 16,
+  },
+  dateInputWrap: {
+    flex: 1,
+  },
+  dateReadable: {
+    fontSize: 12,
+    fontWeight: "700",
+    color: "#6B7280",
+    marginBottom: 2,
+  },
+  dateInput: {
+    fontSize: 15,
+    color: "#111827",
+    padding: 0,
   },
   dropdownList: {
     marginTop: 4,
