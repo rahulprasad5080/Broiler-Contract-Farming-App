@@ -1,5 +1,5 @@
 import React, { useCallback, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, RefreshControl, Modal, TextInput } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, RefreshControl, Modal, TextInput, StatusBar } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Colors } from '@/constants/Colors';
 import { Layout } from '@/constants/Layout';
@@ -127,12 +127,16 @@ export default function SupervisorReviewLogsScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <SafeAreaView style={styles.safeArea} edges={['top']}>
+      <StatusBar barStyle="light-content" backgroundColor="#0B5C36" />
       <View style={styles.header}>
         <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-          <Ionicons name="arrow-back" size={24} color={Colors.text} />
+          <Ionicons name="arrow-back" size={24} color="#FFF" />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Review Daily Logs</Text>
+        <View style={styles.headerCopy}>
+          <Text style={styles.headerTitle}>Review Daily Logs</Text>
+        </View>
+        <View style={{ width: 24 }} />
       </View>
 
       <ScrollView 
@@ -273,14 +277,22 @@ export default function SupervisorReviewLogsScreen() {
 }
 
 const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: '#F9FAFB' },
+  safeArea: { flex: 1, backgroundColor: '#0B5C36' },
   header: {
-    flexDirection: 'row', alignItems: 'center', paddingHorizontal: Layout.screenPadding,
-    paddingVertical: 14, backgroundColor: '#FFF', borderBottomWidth: 1, borderBottomColor: Colors.border,
+    backgroundColor: "#0B5C36",
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 20,
+    paddingVertical: 14,
   },
   backBtn: { marginRight: 16 },
-  headerTitle: { fontSize: 20, fontWeight: 'bold', color: Colors.text },
-  container: { padding: Layout.screenPadding, paddingBottom: 100, maxWidth: Layout.contentMaxWidth, alignSelf: 'center', width: '100%' },
+  headerCopy: { flex: 1 },
+  headerTitle: {
+    color: "#FFF",
+    fontSize: 20,
+    fontWeight: "700",
+  },
+  container: { padding: Layout.screenPadding, paddingBottom: 100, maxWidth: Layout.contentMaxWidth, alignSelf: 'center', width: '100%', backgroundColor: '#F9FAFB' },
   emptyBox: { alignItems: 'center', marginTop: 60 },
   emptyTitle: { fontSize: 18, fontWeight: 'bold', color: Colors.text, marginTop: 16 },
   emptyText: { fontSize: 14, color: Colors.textSecondary, marginTop: 8, textAlign: 'center' },

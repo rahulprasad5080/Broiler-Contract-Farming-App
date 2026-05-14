@@ -1,5 +1,5 @@
 import React, { useCallback, useState } from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, ActivityIndicator, RefreshControl } from 'react-native';
+import { View, Text, StyleSheet, FlatList, TouchableOpacity, ActivityIndicator, RefreshControl, StatusBar } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Colors } from '@/constants/Colors';
 import { Layout } from '@/constants/Layout';
@@ -72,9 +72,13 @@ export default function SupervisorReviewScreen() {
   );
 
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <SafeAreaView style={styles.safeArea} edges={['top']}>
+      <StatusBar barStyle="light-content" backgroundColor="#0B5C36" />
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>Review & Corrections</Text>
+        <View style={styles.headerCopy}>
+          <Text style={styles.headerTitle}>Review & Corrections</Text>
+        </View>
+        <View style={{ width: 24 }} />
       </View>
 
       <View style={styles.container}>
@@ -107,15 +111,21 @@ export default function SupervisorReviewScreen() {
 }
 
 const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: '#F9FAFB' },
+  safeArea: { flex: 1, backgroundColor: '#0B5C36' },
   header: {
-    padding: Layout.spacing.lg,
-    backgroundColor: '#FFF',
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.border,
+    backgroundColor: "#0B5C36",
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 20,
+    paddingVertical: 14,
   },
-  headerTitle: { fontSize: 24, fontWeight: 'bold', color: Colors.text },
-  container: { flex: 1, width: '100%', maxWidth: Layout.contentMaxWidth, alignSelf: 'center' },
+  headerCopy: { flex: 1 },
+  headerTitle: {
+    color: "#FFF",
+    fontSize: 20,
+    fontWeight: "700",
+  },
+  container: { flex: 1, width: '100%', maxWidth: Layout.contentMaxWidth, alignSelf: 'center', backgroundColor: '#F9FAFB' },
   listContent: { padding: Layout.screenPadding, paddingBottom: 100 },
   centerBox: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 20 },
   loadingText: { marginTop: 12, fontSize: 14, color: Colors.textSecondary },
