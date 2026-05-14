@@ -104,7 +104,11 @@ export default function SupervisorTradersScreen() {
         </TouchableOpacity>
       </View>
 
-      <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        style={styles.mainScroll}
+        contentContainerStyle={styles.container}
+        showsVerticalScrollIndicator={false}
+      >
         {loading ? (
           <ActivityIndicator color={Colors.primary} style={{ marginTop: 40 }} />
         ) : traders.length === 0 ? (
@@ -222,9 +226,8 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     paddingHorizontal: 16,
-    paddingVertical: 14,
+    paddingVertical: 12,
   },
-  backBtn: { marginRight: 16 },
   headerCopy: { flex: 1 },
   headerTitle: {
     color: "#FFF",
@@ -232,31 +235,33 @@ const styles = StyleSheet.create({
     fontWeight: "700",
   },
   headerAction: { width: 36, height: 36, borderRadius: 18, backgroundColor: "#FFF", justifyContent: 'center', alignItems: 'center' },
-  container: { padding: Layout.screenPadding, paddingBottom: 100, maxWidth: Layout.contentMaxWidth, alignSelf: 'center', width: '100%', backgroundColor: '#F9FAFB' },
-  emptyBox: { alignItems: 'center', marginTop: 60 },
-  emptyTitle: { fontSize: 18, fontWeight: 'bold', color: Colors.text, marginTop: 16 },
-  emptyText: { fontSize: 14, color: Colors.textSecondary, marginTop: 8 },
+  container: { paddingHorizontal: 20, paddingTop: 10, paddingBottom: 100, maxWidth: Layout.contentMaxWidth, alignSelf: 'center', width: '100%' },
+  mainScroll: { flex: 1, backgroundColor: '#F9FAFB' },
+  emptyBox: { alignItems: 'center', marginTop: 80 },
+  emptyTitle: { fontSize: 18, fontWeight: '700', color: "#111827", marginTop: 16 },
+  emptyText: { fontSize: 14, color: "#6B7280", marginTop: 8, textAlign: 'center' },
   traderCard: {
-    flexDirection: 'row', backgroundColor: '#FFF', borderRadius: 12, padding: 16,
-    marginBottom: 12, borderWidth: 1, borderColor: Colors.border, ...Layout.cardShadow,
+    flexDirection: 'row', backgroundColor: '#FFF', borderRadius: 16, padding: 18,
+    marginBottom: 16, borderWidth: 1, borderColor: '#F3F4F6',
+    shadowColor: "#000", shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.05, shadowRadius: 10, elevation: 2,
   },
-  avatarBox: { width: 48, height: 48, borderRadius: 24, backgroundColor: '#E8F5E9', justifyContent: 'center', alignItems: 'center', marginRight: 16 },
+  avatarBox: { width: 52, height: 52, borderRadius: 14, backgroundColor: '#E7F5ED', justifyContent: 'center', alignItems: 'center', marginRight: 16 },
   traderInfo: { flex: 1, justifyContent: 'center' },
-  traderName: { fontSize: 16, fontWeight: 'bold', color: Colors.text, marginBottom: 4 },
-  infoRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 2 },
-  infoText: { fontSize: 13, color: Colors.textSecondary },
+  traderName: { fontSize: 17, fontWeight: '700', color: "#111827", marginBottom: 6 },
+  infoRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 4 },
+  infoText: { fontSize: 13, color: "#4B5563" },
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
-  modalSheet: { backgroundColor: '#FFF', borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 24, paddingBottom: 40 },
-  modalTitle: { fontSize: 20, fontWeight: 'bold', color: Colors.text, marginBottom: 16 },
-  label: { fontSize: 13, fontWeight: '700', color: Colors.text, marginBottom: 6, marginTop: 12 },
-  inputBox: { height: 48, borderWidth: 1, borderColor: Colors.border, borderRadius: 10, paddingHorizontal: 12, justifyContent: 'center', backgroundColor: '#F9FAFB' },
-  input: { fontSize: 14, color: Colors.text, padding: 0 },
-  submitBtn: { backgroundColor: Colors.primary, height: 50, borderRadius: 10, justifyContent: 'center', alignItems: 'center', marginTop: 24 },
-  submitBtnText: { color: '#FFF', fontSize: 16, fontWeight: 'bold' },
+  modalSheet: { backgroundColor: '#FFF', borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 24, paddingBottom: 40 },
+  modalTitle: { fontSize: 22, fontWeight: '700', color: "#111827", marginBottom: 20 },
+  label: { fontSize: 14, fontWeight: '600', color: "#374151", marginBottom: 8, marginTop: 14 },
+  inputBox: { height: 52, borderWidth: 1.5, borderColor: "#E5E7EB", borderRadius: 12, paddingHorizontal: 16, justifyContent: 'center', backgroundColor: '#F9FAFB' },
+  input: { fontSize: 15, color: "#111827", padding: 0 },
+  submitBtn: { backgroundColor: "#0B5C36", height: 52, borderRadius: 12, justifyContent: 'center', alignItems: 'center', marginTop: 28 },
+  submitBtnText: { color: '#FFF', fontSize: 16, fontWeight: '700' },
   fieldErrorText: {
-    color: Colors.tertiary,
-    fontSize: 10,
-    marginTop: 4,
+    color: "#DC2626",
+    fontSize: 11,
+    marginTop: 6,
     fontWeight: '600',
   },
 });
