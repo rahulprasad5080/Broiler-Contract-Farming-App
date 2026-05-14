@@ -11,13 +11,11 @@ import {
 } from '@/services/managementApi';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
-import { useRouter } from 'expo-router';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Animated,
   ScrollView,
-  StatusBar,
   StyleSheet,
   Text,
   TextInput,
@@ -27,6 +25,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { DatePickerField } from '@/components/ui/DatePickerField';
+import { TopAppBar } from '@/components/ui/TopAppBar';
 import { useFormPersistence } from '@/hooks/useFormPersistence';
 import {
   showRequestErrorToast,
@@ -81,9 +80,9 @@ const TREATMENT_DEFAULTS = {
 
 export function TreatmentEntryScreen({
   title = 'Treatments',
+  subtitle,
 }: TreatmentEntryScreenProps) {
-  const router = useRouter();
-  const { accessToken, user } = useAuth();
+  const { accessToken } = useAuth();
 
   const [batches, setBatches] = useState<ApiBatch[]>([]);
   const [catalogItems, setCatalogItems] = useState<ApiCatalogItem[]>([]);
@@ -230,14 +229,7 @@ export function TreatmentEntryScreen({
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['top']}>
-      <StatusBar barStyle="light-content" backgroundColor="#0B5C36" />
-
-      <View style={styles.header}>
-        <View style={styles.headerCopy}>
-          <Text style={styles.headerTitle}>{title}</Text>
-        </View>
-        <View style={{ width: 24 }} />
-      </View>
+      <TopAppBar title={title} subtitle={subtitle} />
 
       <ScrollView
         contentContainerStyle={styles.container}
@@ -524,24 +516,10 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#0B5C36',
   },
-  header: {
-    backgroundColor: "#0B5C36",
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: 20,
-    paddingVertical: 12,
-  },
-  headerCopy: { flex: 1 },
-  headerTitle: {
-    color: "#FFF",
-    fontSize: 22,
-    fontWeight: "700",
-    letterSpacing: 0.5,
-  },
   container: { paddingHorizontal: 20, paddingTop: 10, paddingBottom: 100, backgroundColor: '#F9FAFB' },
   card: {
     backgroundColor: "#FFF",
-    borderRadius: 20,
+    borderRadius: Layout.borderRadius.sm,
     padding: 20,
     marginBottom: 20,
     borderWidth: 1,

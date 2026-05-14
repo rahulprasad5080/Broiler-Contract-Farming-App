@@ -31,6 +31,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { Controller, useForm } from "react-hook-form";
 import { z } from "zod";
 
+import { TopAppBar } from "@/components/ui/TopAppBar";
 import { Colors } from "@/constants/Colors";
 import { Layout } from "@/constants/Layout";
 import { useAuth } from "@/context/AuthContext";
@@ -342,28 +343,29 @@ export default function InventoryScreen() {
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <View style={styles.header}>
-        <View>
-          <Text style={styles.headerEyebrow}>Inventory operations</Text>
-          <Text style={styles.headerTitle}>Stock, Purchases, Expenses</Text>
-        </View>
-        <View style={styles.headerActions}>
-          {canCreatePurchase ? (
+      <TopAppBar
+        title="Stock, Purchases, Expenses"
+        eyebrow="Inventory operations"
+        subtitle="Catalog, ledger, and expense tracking"
+        right={
+          <>
+            {canCreatePurchase ? (
+              <TouchableOpacity
+                style={styles.iconButton}
+                onPress={() => router.navigate("/(owner)/manage/inventory/purchase")}
+              >
+                <MaterialCommunityIcons name="cart-plus" size={19} color="#FFF" />
+              </TouchableOpacity>
+            ) : null}
             <TouchableOpacity
               style={styles.iconButton}
-              onPress={() => router.navigate("/(owner)/manage/inventory/purchase")}
+              onPress={() => router.navigate("/(owner)/manage/inventory/allocate")}
             >
-              <MaterialCommunityIcons name="cart-plus" size={19} color="#FFF" />
+              <MaterialCommunityIcons name="truck-delivery-outline" size={19} color="#FFF" />
             </TouchableOpacity>
-          ) : null}
-          <TouchableOpacity
-            style={styles.iconButton}
-            onPress={() => router.navigate("/(owner)/manage/inventory/allocate")}
-          >
-            <MaterialCommunityIcons name="truck-delivery-outline" size={19} color="#FFF" />
-          </TouchableOpacity>
-        </View>
-      </View>
+          </>
+        }
+      />
 
       <ScrollView
         contentContainerStyle={styles.container}

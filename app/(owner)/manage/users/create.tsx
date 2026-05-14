@@ -29,7 +29,6 @@ import { Controller, useForm } from 'react-hook-form';
 import {
   ActivityIndicator,
   ScrollView,
-  StatusBar,
   StyleSheet,
   Text,
   TextInput,
@@ -39,6 +38,8 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Toast from 'react-native-toast-message';
 import { z } from 'zod';
+import { ScreenState } from '@/components/ui/ScreenState';
+import { TopAppBar } from '@/components/ui/TopAppBar';
 
 type Role = ApiRole;
 type PermissionKey = keyof ApiPermissionMatrix;
@@ -399,15 +400,12 @@ export default function CreateUserScreen() {
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['top']}>
-      <StatusBar barStyle="light-content" backgroundColor="#0B5C36" />
       <View style={styles.pageContent}>
-        <View style={styles.header}>
-          <TouchableOpacity onPress={() => router.back()} style={styles.headerBack}>
-            <Ionicons name="arrow-back" size={24} color="#FFF" />
-          </TouchableOpacity>
-          <Text style={styles.headerTitle}>{isEditMode ? 'Edit User' : 'Create User'}</Text>
-          <View style={styles.headerSpacer} />
-        </View>
+        <TopAppBar
+          title={isEditMode ? 'Edit User' : 'Create User'}
+          subtitle="Role, permissions, farms, and security"
+          showBack
+        />
 
         <ScrollView
           contentContainerStyle={styles.container}
@@ -416,10 +414,7 @@ export default function CreateUserScreen() {
         >
           {error ? <Text style={styles.errorText}>{error}</Text> : null}
           {isLoadingUser ? (
-            <View style={styles.loadingState}>
-              <ActivityIndicator color={Colors.primary} />
-              <Text style={styles.helperText}>Loading user details...</Text>
-            </View>
+            <ScreenState title="Loading user details" message="Fetching selected user profile." loading compact />
           ) : null}
 
           <View style={styles.section}>
@@ -758,27 +753,6 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#F9FAFB',
   },
-  header: {
-    backgroundColor: '#0B5C36',
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-  },
-  headerBack: {
-    padding: 4,
-  },
-  headerTitle: {
-    flex: 1,
-    color: '#FFF',
-    fontSize: 18,
-    fontWeight: '600',
-    marginLeft: 12,
-  },
-  headerSpacer: {
-    width: 32,
-  },
   container: {
     padding: 16,
     paddingBottom: 36,
@@ -859,11 +833,6 @@ const styles = StyleSheet.create({
     color: Colors.tertiary,
     borderWidth: 1,
     borderColor: '#FECACA',
-  },
-  loadingState: {
-    alignItems: 'center',
-    paddingVertical: 20,
-    gap: 8,
   },
   dropdownButton: {
     minHeight: 46,

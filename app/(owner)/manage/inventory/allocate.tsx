@@ -1,12 +1,10 @@
 import { Ionicons } from "@expo/vector-icons";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useFocusEffect } from "@react-navigation/native";
-import { useRouter } from "expo-router";
 import React, { useCallback, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   ScrollView,
-  StatusBar,
   StyleSheet,
   Text,
   TextInput,
@@ -16,6 +14,8 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Controller, useForm } from "react-hook-form";
 import { z } from "zod";
+import { ScreenState } from "@/components/ui/ScreenState";
+import { TopAppBar } from "@/components/ui/TopAppBar";
 
 import { useAuth } from "@/context/AuthContext";
 import {
@@ -72,7 +72,6 @@ function formatReadableDate(value?: string | null) {
 }
 
 export default function AllocateStockScreen() {
-  const router = useRouter();
   const { accessToken } = useAuth();
   const [farms, setFarms] = useState<ApiFarm[]>([]);
   const [batches, setBatches] = useState<ApiBatch[]>([]);
@@ -154,23 +153,7 @@ export default function AllocateStockScreen() {
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['top']}>
-      <StatusBar barStyle="light-content" backgroundColor="#0B5C36" />
-      
-      {/* Header */}
-      <View style={styles.header}>
-        <View style={styles.headerLeft}>
-          <TouchableOpacity onPress={() => router.back()} style={styles.headerBtn}>
-            <Ionicons name="arrow-back" size={24} color="#FFF" />
-          </TouchableOpacity>
-          <Text style={styles.headerTitle}>Inventory Allocation</Text>
-        </View>
-        <TouchableOpacity style={styles.headerBtn}>
-          <View>
-            <Ionicons name="notifications-outline" size={24} color="#FFF" />
-            <View style={styles.notifDot} />
-          </View>
-        </TouchableOpacity>
-      </View>
+      <TopAppBar title="Inventory Allocation" subtitle="Assign stock to farms and batches" showBack />
 
       <ScrollView 
         contentContainerStyle={styles.scrollContainer} 
@@ -178,6 +161,10 @@ export default function AllocateStockScreen() {
         keyboardShouldPersistTaps="handled"
       >
         <View style={styles.form}>
+          {loading ? (
+            <ScreenState title="Loading inventory data" message="Fetching farms, batches, and catalog items." loading compact style={styles.stateSpacing} />
+          ) : null}
+
           {/* Date */}
           <View style={styles.inputGroup}>
             <Text style={styles.label}>Date</Text>
@@ -386,38 +373,7 @@ export default function AllocateStockScreen() {
 
 const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: "#0B5C36" },
-  header: {
-    backgroundColor: "#0B5C36",
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-  },
-  headerLeft: {
-    flexDirection: "row",
-    alignItems: "center",
-  },
-  headerBtn: {
-    padding: 4,
-  },
-  headerTitle: {
-    color: "#FFF",
-    fontSize: 18,
-    fontWeight: "700",
-    marginLeft: 12,
-  },
-  notifDot: {
-    position: "absolute",
-    top: 2,
-    right: 2,
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: "#EF4444",
-    borderWidth: 1.5,
-    borderColor: "#0B5C36",
-  },
+  stateSpacing: { marginBottom: 20 },
   scrollContainer: {
     flexGrow: 1,
     backgroundColor: "#FFF",

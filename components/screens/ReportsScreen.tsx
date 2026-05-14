@@ -2,18 +2,18 @@ import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useFocusEffect } from "@react-navigation/native";
 import React, { useCallback, useMemo, useState } from "react";
 import {
-  ActivityIndicator,
   RefreshControl,
   ScrollView,
-  StatusBar,
   StyleSheet,
   Text,
-  TouchableOpacity,
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { useAuth } from "@/context/AuthContext";
+import { ScreenState } from "@/components/ui/ScreenState";
+import { SurfaceCard } from "@/components/ui/SurfaceCard";
+import { TopAppBar } from "@/components/ui/TopAppBar";
 import {
   fetchBatchSummary,
   fetchExpenseReport,
@@ -127,14 +127,7 @@ export default function ReportsScreen() {
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['top']}>
-      <StatusBar barStyle="light-content" backgroundColor="#0B5C36" />
-
-      {/* Custom Header */}
-      <View style={styles.header}>
-
-        <Text style={styles.headerTitle}>Reports</Text>
-        <View style={{ width: 24 }} />
-      </View>
+      <TopAppBar title="Reports" subtitle="Business health, stock, and settlement snapshots" />
 
       <ScrollView
         contentContainerStyle={styles.scrollContainer}
@@ -142,17 +135,20 @@ export default function ReportsScreen() {
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => void loadReports(true)} colors={["#0B5C36"]} />}
       >
         {loading && !refreshing ? (
-          <View style={styles.loadingBox}>
-            <ActivityIndicator color="#0B5C36" />
-            <Text style={styles.loadingText}>Loading reports...</Text>
-          </View>
+          <ScreenState title="Loading reports" message="Fetching latest report data." loading compact style={styles.stateSpacing} />
         ) : null}
 
         {error ? (
-          <View style={styles.errorBox}>
-            <MaterialCommunityIcons name="alert-circle-outline" size={18} color="#B91C1C" />
-            <Text style={styles.errorText}>{error}</Text>
-          </View>
+          <ScreenState
+            title="Unable to load reports"
+            message={error}
+            icon="alert-circle-outline"
+            tone="error"
+            actionLabel="Retry"
+            onAction={() => void loadReports(true)}
+            compact
+            style={styles.stateSpacing}
+          />
         ) : null}
 
         {/* Business Reports Section */}
@@ -275,20 +271,20 @@ export default function ReportsScreen() {
 
 function ReportCard({ title, subtitle, icon, iconColor, bgColor, metric }: { title: string, subtitle: string, icon: string, iconColor: string, bgColor: string, metric?: string }) {
   return (
-    <TouchableOpacity style={styles.reportCard} activeOpacity={0.7}>
+    <SurfaceCard style={styles.reportCard}>
       <View style={[styles.cardIconBox, { backgroundColor: bgColor }]}>
         <MaterialCommunityIcons name={icon as any} size={24} color={iconColor} />
       </View>
       <Text style={styles.cardTitle}>{title}</Text>
       <Text style={styles.cardSubtitle}>{subtitle}</Text>
       {metric ? <Text style={[styles.cardMetric, { color: iconColor }]}>{metric}</Text> : null}
-    </TouchableOpacity>
+    </SurfaceCard>
   );
 }
 
 function ExportRow({ title, subtitle, icon, iconColor, bgColor }: { title: string, subtitle: string, icon: string, iconColor: string, bgColor: string }) {
   return (
-    <TouchableOpacity style={styles.exportRowItem} activeOpacity={0.7}>
+    <SurfaceCard style={styles.exportRowItem}>
       <View style={[styles.exportIconBox, { backgroundColor: bgColor }]}>
         <MaterialCommunityIcons name={icon as any} size={28} color={iconColor} />
       </View>
@@ -296,29 +292,14 @@ function ExportRow({ title, subtitle, icon, iconColor, bgColor }: { title: strin
         <Text style={styles.exportTitle}>{title}</Text>
         <Text style={styles.exportSubtitle}>{subtitle}</Text>
       </View>
-    </TouchableOpacity>
+    </SurfaceCard>
   );
 }
 
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: "#0B5C36"
-  },
-  header: {
-    backgroundColor: "#0B5C36",
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-  },
-  headerIcon: {
-    marginRight: 16
-  },
-  headerTitle: {
-    color: "#FFF",
-    fontSize: 20,
-    fontWeight: "700",
+    backgroundColor: "#00875A"
   },
   scrollContainer: {
     flexGrow: 1,
@@ -326,38 +307,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingTop: 24,
   },
-  loadingBox: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
-    backgroundColor: "#FFF",
-    borderRadius: 12,
-    padding: 14,
+  stateSpacing: {
     marginBottom: 16,
-    borderWidth: 1,
-    borderColor: "#E5E7EB",
-  },
-  loadingText: {
-    fontSize: 13,
-    color: "#6B7280",
-    fontWeight: "600",
-  },
-  errorBox: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-    backgroundColor: "#FEF2F2",
-    borderRadius: 12,
-    padding: 12,
-    marginBottom: 16,
-    borderWidth: 1,
-    borderColor: "#FECACA",
-  },
-  errorText: {
-    flex: 1,
-    color: "#B91C1C",
-    fontSize: 12,
-    fontWeight: "700",
   },
   section: {
     marginBottom: 32,
@@ -375,17 +326,7 @@ const styles = StyleSheet.create({
   },
   reportCard: {
     width: "47.5%",
-    backgroundColor: "#FFF",
-    borderRadius: 16,
-    padding: 16,
     marginBottom: 16,
-    borderWidth: 1,
-    borderColor: "#F3F4F6",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.02,
-    shadowRadius: 2,
-    elevation: 1,
   },
   cardIconBox: {
     width: 48,
@@ -414,17 +355,7 @@ const styles = StyleSheet.create({
   exportRowItem: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#FFF",
-    borderRadius: 16,
-    padding: 18,
     marginBottom: 14,
-    borderWidth: 1,
-    borderColor: "#F3F4F6",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.02,
-    shadowRadius: 2,
-    elevation: 1,
   },
   exportIconBox: {
     width: 56,

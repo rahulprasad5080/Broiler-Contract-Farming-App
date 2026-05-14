@@ -1,13 +1,15 @@
 import React, { useCallback, useState } from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, ActivityIndicator, RefreshControl, StatusBar } from 'react-native';
+import { View, Text, StyleSheet, FlatList, TouchableOpacity, RefreshControl } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Colors } from '@/constants/Colors';
 import { Layout } from '@/constants/Layout';
-import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useAuth } from '@/context/AuthContext';
 import { ApiFarm, listAllFarms } from '@/services/managementApi';
 import { useFocusEffect } from '@react-navigation/native';
+import { ScreenState } from '@/components/ui/ScreenState';
+import { TopAppBar } from '@/components/ui/TopAppBar';
 
 export default function FarmerFarmsScreen() {
   const router = useRouter();
@@ -76,23 +78,20 @@ export default function FarmerFarmsScreen() {
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['top']}>
-      <StatusBar barStyle="light-content" backgroundColor="#0B5C36" />
-      
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>My Assigned Farms</Text>
-      </View>
+      <TopAppBar title="My Assigned Farms" subtitle="Assigned farms and active batches" />
 
       <View style={styles.container}>
         {loading && !refreshing ? (
           <View style={styles.centerBox}>
-            <ActivityIndicator size="large" color={Colors.primary} />
-            <Text style={styles.loadingText}>Loading your farms...</Text>
+            <ScreenState title="Loading farms" message="Fetching your assigned farms." loading />
           </View>
         ) : farms.length === 0 ? (
           <View style={styles.centerBox}>
-            <MaterialCommunityIcons name="barn" size={64} color={Colors.border} />
-            <Text style={styles.emptyTitle}>No Farms Assigned</Text>
-            <Text style={styles.emptySub}>You have not been assigned to any farms yet.</Text>
+            <ScreenState
+              title="No farms assigned"
+              message="You have not been assigned to any farms yet."
+              icon="business-outline"
+            />
           </View>
         ) : (
           <FlatList
@@ -116,18 +115,6 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#0B5C36',
   },
-  header: {
-    backgroundColor: "#0B5C36",
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-  },
-  headerTitle: {
-    color: "#FFF",
-    fontSize: 20,
-    fontWeight: "700",
-  },
   container: {
     flex: 1,
     width: '100%',
@@ -145,26 +132,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: 20,
   },
-  loadingText: {
-    marginTop: 12,
-    fontSize: 14,
-    color: Colors.textSecondary,
-  },
-  emptyTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: Colors.text,
-    marginTop: 16,
-  },
-  emptySub: {
-    fontSize: 14,
-    color: Colors.textSecondary,
-    textAlign: 'center',
-    marginTop: 8,
-  },
   farmCard: {
     backgroundColor: '#FFF',
-    borderRadius: 14,
+    borderRadius: 8,
     padding: 16,
     marginBottom: 16,
     borderWidth: 1,
@@ -193,7 +163,7 @@ const styles = StyleSheet.create({
   iconBox: {
     width: 44,
     height: 44,
-    borderRadius: 22,
+    borderRadius: 8,
     backgroundColor: '#F1F8F4',
     justifyContent: 'center',
     alignItems: 'center',

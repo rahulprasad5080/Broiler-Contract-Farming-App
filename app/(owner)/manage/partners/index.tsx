@@ -11,6 +11,8 @@ import { z } from 'zod';
 import { Colors } from '@/constants/Colors';
 import { Layout } from '@/constants/Layout';
 import { useAuth } from '@/context/AuthContext';
+import { ScreenState } from '@/components/ui/ScreenState';
+import { TopAppBar } from '@/components/ui/TopAppBar';
 import {
   showRequestErrorToast,
   showSuccessToast,
@@ -135,16 +137,14 @@ export default function PartnerManagementScreen() {
   if (!canManagePartners) {
     return (
       <SafeAreaView style={styles.safeArea}>
-        <View style={styles.header}>
-          <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-            <Ionicons name="arrow-back" size={24} color={Colors.primary} />
-          </TouchableOpacity>
-          <Text style={styles.headerTitle}>Partners</Text>
-        </View>
+        <TopAppBar title="Partners" subtitle="Permission required" showBack />
         <View style={styles.lockedState}>
-          <MaterialCommunityIcons name="shield-lock-outline" size={54} color={Colors.textSecondary} />
-          <Text style={styles.lockedTitle}>Permission required</Text>
-          <Text style={styles.lockedText}>You do not have access to manage trader master data.</Text>
+          <ScreenState
+            title="Permission required"
+            message="You do not have access to manage trader master data."
+            icon="shield-outline"
+            tone="error"
+          />
         </View>
       </SafeAreaView>
     );
@@ -152,18 +152,16 @@ export default function PartnerManagementScreen() {
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-          <Ionicons name="arrow-back" size={24} color={Colors.primary} />
-        </TouchableOpacity>
-        <View style={styles.headerCopy}>
-          <Text style={styles.headerTitle}>Trader Master</Text>
-          <Text style={styles.headerSub}>Used by sale entry and settlement review</Text>
-        </View>
-        <TouchableOpacity style={styles.headerAction} onPress={() => setShowAddModal(true)}>
-          <Ionicons name="add" size={24} color="#FFF" />
-        </TouchableOpacity>
-      </View>
+      <TopAppBar
+        title="Trader Master"
+        subtitle="Used by sale entry and settlement review"
+        showBack
+        right={
+          <TouchableOpacity style={styles.headerAction} onPress={() => setShowAddModal(true)}>
+            <Ionicons name="add" size={24} color="#FFF" />
+          </TouchableOpacity>
+        }
+      />
 
       <FlatList
         data={loading ? [] : filteredTraders}
@@ -218,9 +216,9 @@ export default function PartnerManagementScreen() {
         )}
         ListEmptyComponent={
           loading ? (
-            <ActivityIndicator color={Colors.primary} style={styles.listLoader} />
+            <ScreenState title="Loading traders" message="Fetching trader master data." loading />
           ) : (
-            <Text style={styles.emptyText}>No traders found.</Text>
+            <ScreenState title="No traders found" message="Create a trader to use in sales and settlements." icon="people-outline" />
           )
         }
       />
@@ -293,35 +291,10 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: Colors.background,
   },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: Colors.surface,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.border,
-    paddingHorizontal: Layout.spacing.lg,
-    paddingVertical: 14,
-  },
-  backBtn: {
-    marginRight: 14,
-  },
-  headerCopy: {
-    flex: 1,
-  },
-  headerTitle: {
-    fontSize: 18,
-    fontWeight: '800',
-    color: Colors.text,
-  },
-  headerSub: {
-    fontSize: 12,
-    color: Colors.textSecondary,
-    marginTop: 2,
-  },
   headerAction: {
     width: 40,
     height: 40,
-    borderRadius: 20,
+    borderRadius: Layout.borderRadius.sm,
     backgroundColor: Colors.primary,
     justifyContent: 'center',
     alignItems: 'center',
@@ -445,31 +418,11 @@ const styles = StyleSheet.create({
     color: Colors.textSecondary,
     lineHeight: 17,
   },
-  emptyText: {
-    fontSize: 13,
-    color: Colors.textSecondary,
-  },
-  listLoader: {
-    marginVertical: 20,
-  },
   lockedState: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
     padding: 32,
-  },
-  lockedTitle: {
-    fontSize: 18,
-    fontWeight: '800',
-    color: Colors.text,
-    marginTop: 14,
-    marginBottom: 6,
-  },
-  lockedText: {
-    fontSize: 14,
-    color: Colors.textSecondary,
-    textAlign: 'center',
-    lineHeight: 20,
   },
   modalOverlay: {
     flex: 1,

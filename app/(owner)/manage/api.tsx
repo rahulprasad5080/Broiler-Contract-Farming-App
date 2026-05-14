@@ -13,6 +13,7 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
+import { TopAppBar } from "@/components/ui/TopAppBar";
 import { Colors } from "@/constants/Colors";
 import { Layout } from "@/constants/Layout";
 import { useAuth } from "@/context/AuthContext";
@@ -543,16 +544,12 @@ export default function ApiOperationsScreen() {
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.iconButton}>
-          <Ionicons name="arrow-back" size={22} color={Colors.primary} />
-        </TouchableOpacity>
-        <View style={styles.headerCopy}>
-          <Text style={styles.headerTitle}>API Operations</Text>
-          <Text style={styles.headerSub}>Backend actions from integration map</Text>
-        </View>
-        {busyKey ? <ActivityIndicator color={Colors.primary} /> : null}
-      </View>
+      <TopAppBar
+        title="API Operations"
+        subtitle="Backend actions from integration map"
+        showBack
+        right={busyKey ? <ActivityIndicator color="#FFF" /> : undefined}
+      />
 
       <ScrollView
         contentContainerStyle={styles.container}
@@ -1063,38 +1060,6 @@ const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
     backgroundColor: Colors.background,
-  },
-  header: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
-    paddingHorizontal: Layout.screenPadding,
-    paddingVertical: 14,
-    backgroundColor: Colors.surface,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.border,
-  },
-  iconButton: {
-    width: 38,
-    height: 38,
-    borderRadius: 8,
-    backgroundColor: "#E8F5E9",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  headerCopy: {
-    flex: 1,
-  },
-  headerTitle: {
-    fontSize: 19,
-    fontWeight: "900",
-    color: Colors.text,
-  },
-  headerSub: {
-    marginTop: 2,
-    fontSize: 12,
-    color: Colors.textSecondary,
-    fontWeight: "600",
   },
   container: {
     padding: Layout.screenPadding,

@@ -7,7 +7,6 @@ import {
   Modal,
   ScrollView,
   StyleSheet,
-  StatusBar,
   Text,
   TextInput,
   TouchableOpacity,
@@ -18,6 +17,7 @@ import { Colors } from '@/constants/Colors';
 import { Layout } from '@/constants/Layout';
 import { useAuth } from '@/context/AuthContext';
 import Toast from 'react-native-toast-message';
+import { TopAppBar } from '@/components/ui/TopAppBar';
 import {
   fetchFarm,
   listAllFarms,
@@ -496,23 +496,21 @@ export default function FarmListScreen() {
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['top']}>
-      <StatusBar barStyle="light-content" backgroundColor={THEME_GREEN} />
-      <View style={styles.header}>
-        <View style={styles.headerLeft}>
-          <TouchableOpacity onPress={() => router.back()} style={styles.headerBtn}>
-            <Ionicons name="arrow-back" size={24} color="#FFF" />
+      <TopAppBar
+        title="Farms"
+        subtitle="Farm directory and assignments"
+        showBack
+        right={
+          <TouchableOpacity
+            style={styles.headerBtn}
+            onPress={() => router.navigate('/(owner)/manage/farms/add')}
+            accessibilityRole="button"
+            accessibilityLabel="Add farm"
+          >
+            <Ionicons name="add" size={28} color="#FFF" />
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>Farms</Text>
-        </View>
-        <TouchableOpacity
-          style={styles.headerBtn}
-          onPress={() => router.navigate('/(owner)/manage/farms/add')}
-          accessibilityRole="button"
-          accessibilityLabel="Add farm"
-        >
-          <Ionicons name="add" size={28} color="#FFF" />
-        </TouchableOpacity>
-      </View>
+        }
+      />
 
       <FlatList
         data={isLoading ? [] : filtered}
@@ -1192,26 +1190,8 @@ export default function FarmListScreen() {
 const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: THEME_GREEN },
   contentArea: { flex: 1, backgroundColor: '#F9FAF9' },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    backgroundColor: THEME_GREEN,
-  },
-  headerLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
   headerBtn: {
     padding: 4,
-  },
-  headerTitle: {
-    color: '#FFF',
-    fontSize: 18,
-    fontWeight: '700',
-    marginLeft: 12,
   },
   container: {
     paddingHorizontal: 16,

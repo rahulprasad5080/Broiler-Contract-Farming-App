@@ -3,7 +3,6 @@ import { useRouter } from "expo-router";
 import React from "react";
 import {
   ScrollView,
-  StatusBar,
   StyleSheet,
   Text,
   TouchableOpacity,
@@ -12,6 +11,8 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
+import { ScreenState } from "@/components/ui/ScreenState";
+import { TopAppBar } from "@/components/ui/TopAppBar";
 import { useAuth, type Permission } from "@/context/AuthContext";
 
 const { width } = Dimensions.get("window");
@@ -98,36 +99,31 @@ export default function EntriesScreen() {
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['top']}>
-      <StatusBar barStyle="light-content" backgroundColor="#0B5C36" />
-      
-      {/* Header */}
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>Entries</Text>
-        <TouchableOpacity style={styles.headerBtn}>
-          <View>
-            <Ionicons name="notifications-outline" size={24} color="#FFF" />
-            <View style={styles.notifDot} />
-          </View>
-        </TouchableOpacity>
-      </View>
+      <TopAppBar title="Entries" subtitle="Create operational and financial records" />
 
       <ScrollView contentContainerStyle={styles.scrollContainer} showsVerticalScrollIndicator={false}>
-        <View style={styles.grid}>
-          {visibleItems.map((item, index) => (
-            <TouchableOpacity 
-              key={index} 
-              style={styles.card}
-              onPress={() => router.navigate(item.route)}
-              activeOpacity={0.7}
-            >
-              <View style={[styles.iconContainer, { backgroundColor: item.color + '15' }]}>
-                {renderIcon(item)}
-              </View>
-              <Text style={styles.cardTitle}>{item.title}</Text>
-              <Text style={styles.cardDesc}>{item.desc}</Text>
-            </TouchableOpacity>
-          ))}
-        </View>
+        {visibleItems.length === 0 ? (
+          <View style={styles.emptyWrap}>
+            <ScreenState title="No entries available" message="Your role does not have entry permissions." icon="lock-closed-outline" />
+          </View>
+        ) : (
+          <View style={styles.grid}>
+            {visibleItems.map((item, index) => (
+              <TouchableOpacity
+                key={index}
+                style={styles.card}
+                onPress={() => router.navigate(item.route)}
+                activeOpacity={0.7}
+              >
+                <View style={[styles.iconContainer, { backgroundColor: item.color + '15' }]}>
+                  {renderIcon(item)}
+                </View>
+                <Text style={styles.cardTitle}>{item.title}</Text>
+                <Text style={styles.cardDesc}>{item.desc}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        )}
         <View style={{ height: 40 }} />
       </ScrollView>
     </SafeAreaView>
@@ -136,26 +132,13 @@ export default function EntriesScreen() {
 
 const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: "#0B5C36" },
-  header: {
-    backgroundColor: "#0B5C36",
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-  },
-  headerTitle: { color: "#FFF", fontSize: 18, fontWeight: "700" },
-  headerBtn: { padding: 4 },
-  notifDot: {
-    position: "absolute", top: 2, right: 2, width: 8, height: 8, borderRadius: 4,
-    backgroundColor: "#EF4444", borderWidth: 1.5, borderColor: "#0B5C36",
-  },
   scrollContainer: { flexGrow: 1, backgroundColor: "#F9FAFB", paddingTop: 20 },
+  emptyWrap: { paddingHorizontal: 16 },
   grid: {
     flexDirection: "row", flexWrap: "wrap", paddingHorizontal: 16, justifyContent: "space-between",
   },
   card: {
-    width: CARD_WIDTH, backgroundColor: "#FFF", borderRadius: 16, padding: 20, marginBottom: 16,
+    width: CARD_WIDTH, backgroundColor: "#FFF", borderRadius: 8, padding: 20, marginBottom: 16,
     alignItems: "center", justifyContent: "center",
     // Shadow for iOS
     shadowColor: "#000", shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 8,
@@ -163,7 +146,7 @@ const styles = StyleSheet.create({
     elevation: 2,
   },
   iconContainer: {
-    width: 60, height: 60, borderRadius: 30, alignItems: "center", justifyContent: "center", marginBottom: 16,
+    width: 60, height: 60, borderRadius: 8, alignItems: "center", justifyContent: "center", marginBottom: 16,
   },
   cardTitle: { fontSize: 15, fontWeight: "700", color: "#111827", textAlign: "center", marginBottom: 6 },
   cardDesc: { fontSize: 12, color: "#6B7280", textAlign: "center", lineHeight: 18 },

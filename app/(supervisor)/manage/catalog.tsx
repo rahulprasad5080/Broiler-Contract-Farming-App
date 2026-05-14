@@ -14,14 +14,12 @@ import {
 } from '@/services/managementApi';
 import { Ionicons } from '@expo/vector-icons';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { useRouter } from 'expo-router';
 import React, { useEffect, useRef, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import {
   ActivityIndicator,
   Animated,
   FlatList,
-  StatusBar,
   StyleSheet,
   Text,
   TextInput,
@@ -30,6 +28,8 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { z } from 'zod';
+import { ScreenState } from '@/components/ui/ScreenState';
+import { TopAppBar } from '@/components/ui/TopAppBar';
 
 const CATALOG_TYPES = [
   'CHICKS',
@@ -57,7 +57,6 @@ const CATALOG_DEFAULTS = {
 } satisfies CatalogFormData;
 
 export default function SupervisorCatalogScreen() {
-  const router = useRouter();
   const { accessToken } = useAuth();
 
   const [items, setItems] = useState<ApiCatalogItem[]>([]);
@@ -138,13 +137,7 @@ export default function SupervisorCatalogScreen() {
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['top']}>
-      <StatusBar barStyle="light-content" backgroundColor="#0B5C36" />
-      <View style={styles.header}>
-        <View style={styles.headerCopy}>
-          <Text style={styles.headerTitle}>Catalog Master</Text>
-        </View>
-        <View style={{ width: 24 }} />
-      </View>
+      <TopAppBar title="Catalog Master" subtitle="Feed, medicine, vaccine, and equipment items" />
 
       <FlatList
         data={loading ? [] : items}
@@ -256,7 +249,7 @@ export default function SupervisorCatalogScreen() {
 
             <View style={styles.listHeaderCard}>
               <Text style={styles.sectionTitle}>Existing Items</Text>
-              {loading ? <ActivityIndicator color={Colors.primary} style={{ marginVertical: 20 }} /> : null}
+              {loading ? <ScreenState title="Loading catalog" message="Fetching catalog items." loading compact /> : null}
             </View>
           </>
         }
@@ -281,7 +274,9 @@ export default function SupervisorCatalogScreen() {
             </View>
           </View>
         )}
-        ListEmptyComponent={!loading ? <Text style={styles.emptyText}>No items found.</Text> : null}
+        ListEmptyComponent={!loading ? (
+          <ScreenState title="No items found" message="Add a catalog item to start tracking inventory." icon="cube-outline" />
+        ) : null}
       />
     </SafeAreaView>
   );
@@ -289,19 +284,6 @@ export default function SupervisorCatalogScreen() {
 
 const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: '#0B5C36' },
-  header: {
-    backgroundColor: "#0B5C36",
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: 20,
-    paddingVertical: 12,
-  },
-  headerCopy: { flex: 1 },
-  headerTitle: {
-    color: "#FFF",
-    fontSize: 20,
-    fontWeight: "700",
-  },
   container: { paddingHorizontal: 20, paddingTop: 10, paddingBottom: 100, maxWidth: Layout.contentMaxWidth, alignSelf: 'center', width: '100%' },
   mainScroll: { flex: 1, backgroundColor: '#F9FAFB' },
   draftBanner: {
@@ -322,13 +304,13 @@ const styles = StyleSheet.create({
     color: '#0B5C36',
   },
   card: {
-    backgroundColor: '#FFF', borderRadius: 16, padding: 20, marginBottom: 20,
+    backgroundColor: '#FFF', borderRadius: Layout.borderRadius.sm, padding: 20, marginBottom: 20,
     borderWidth: 1, borderColor: '#F3F4F6',
     shadowColor: "#000", shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.05, shadowRadius: 10, elevation: 2,
   },
   listHeaderCard: {
     backgroundColor: '#FFF',
-    borderRadius: 16,
+    borderRadius: Layout.borderRadius.sm,
     padding: 20,
     marginBottom: 12,
     borderWidth: 1,
@@ -363,14 +345,13 @@ const styles = StyleSheet.create({
     marginTop: 6,
     fontWeight: '600',
   },
-  emptyText: { fontSize: 15, color: "#6B7280", textAlign: 'center', paddingVertical: 30 },
   listItem: {
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
     paddingVertical: 16, borderBottomWidth: 1, borderBottomColor: '#F3F4F6',
   },
   listItemCard: {
     backgroundColor: '#FFF',
-    borderRadius: 14,
+    borderRadius: Layout.borderRadius.sm,
     borderWidth: 1,
     borderColor: '#F3F4F6',
     paddingHorizontal: 16,

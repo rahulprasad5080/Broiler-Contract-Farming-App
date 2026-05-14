@@ -4,7 +4,6 @@ import React from 'react';
 import {
   Alert,
   ScrollView,
-  StatusBar,
   StyleSheet,
   Text,
   TouchableOpacity,
@@ -12,6 +11,8 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { SurfaceCard } from '@/components/ui/SurfaceCard';
+import { TopAppBar } from '@/components/ui/TopAppBar';
 import { useAuth } from '@/context/AuthContext';
 
 type SettingItemProps = {
@@ -63,20 +64,11 @@ export default function ProfileScreen() {
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['top']}>
-      <StatusBar barStyle="light-content" backgroundColor="#0B5C36" />
-
-      {/* Header */}
-      <View style={styles.header}>
-        <View style={styles.headerLeft}>
-
-          <Text style={styles.headerTitle}>Profile & Settings</Text>
-        </View>
-
-      </View>
+      <TopAppBar title="Profile & Settings" subtitle={user?.role ? `${user.role} account` : "Account settings"} />
 
       <ScrollView contentContainerStyle={styles.scrollContainer} showsVerticalScrollIndicator={false}>
         {/* Profile Card */}
-        <View style={styles.profileCard}>
+        <SurfaceCard style={styles.profileCard}>
           <View style={styles.profileInfoRow}>
             <View style={styles.avatar}>
               <Text style={styles.avatarText}>{initials}</Text>
@@ -91,11 +83,11 @@ export default function ProfileScreen() {
               </TouchableOpacity>
             </View>
           </View>
-        </View>
+        </SurfaceCard>
 
         {/* Account Settings */}
         <Text style={styles.sectionTitle}>Account Settings</Text>
-        <View style={styles.settingsGroup}>
+        <SurfaceCard padded={false} style={styles.settingsGroup}>
           <SettingItem icon="person-outline" label="Personal Information" />
           <SettingItem icon="lock-closed-outline" label="Change Password" onPress={() => router.navigate('/(auth)/change-password' as any)} />
           <SettingItem icon="language-outline" label="Language" value="English" />
@@ -105,11 +97,11 @@ export default function ProfileScreen() {
             onPress={hasPermission('manage:users') ? () => router.navigate('/(owner)/manage/settings' as any) : undefined}
             isLast
           />
-        </View>
+        </SurfaceCard>
 
         {/* Business Settings */}
         <Text style={styles.sectionTitle}>Business Settings</Text>
-        <View style={styles.settingsGroup}>
+        <SurfaceCard padded={false} style={styles.settingsGroup}>
           <SettingItem
             icon="business-outline"
             label="Farm Details"
@@ -117,16 +109,16 @@ export default function ProfileScreen() {
           />
           <SettingItem icon="options-outline" label="Units & Measurements" />
           <SettingItem icon="calendar-outline" label="Financial Year" value="2024-25" isLast />
-        </View>
+        </SurfaceCard>
 
         {/* Support */}
         <Text style={styles.sectionTitle}>Support</Text>
-        <View style={styles.settingsGroup}>
+        <SurfaceCard padded={false} style={styles.settingsGroup}>
           <SettingItem icon="help-circle-outline" label="Help & Support" />
           <SettingItem icon="shield-outline" label="Privacy Policy" />
           <SettingItem icon="document-text-outline" label="Terms & Conditions" />
           <SettingItem icon="information-circle-outline" label="About PoultryFlow" value="Version 1.0.0" isLast />
-        </View>
+        </SurfaceCard>
 
         {/* Logout Button */}
         <TouchableOpacity style={styles.logoutBtn} onPress={handleLogout}>
@@ -142,26 +134,9 @@ export default function ProfileScreen() {
 
 const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: "#0B5C36" },
-  header: {
-    backgroundColor: "#0B5C36",
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-  },
-  headerLeft: { flexDirection: "row", alignItems: "center" },
-  headerBtn: { padding: 4 },
-  headerTitle: { color: "#FFF", fontSize: 18, fontWeight: "700", marginLeft: 12 },
-  notifDot: {
-    position: "absolute", top: 2, right: 2, width: 8, height: 8, borderRadius: 4,
-    backgroundColor: "#EF4444", borderWidth: 1.5, borderColor: "#0B5C36",
-  },
   scrollContainer: { flexGrow: 1, backgroundColor: "#F9FAFB", paddingHorizontal: 20, paddingTop: 24 },
   profileCard: {
-    backgroundColor: "#FFF", borderRadius: 16, padding: 20, marginBottom: 24,
-    borderWidth: 1, borderColor: "#E5E7EB",
-    elevation: 2, shadowColor: "#000", shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 8,
+    marginBottom: 24,
   },
   profileInfoRow: { flexDirection: "row", alignItems: "center" },
   avatar: {
@@ -185,7 +160,6 @@ const styles = StyleSheet.create({
   viewProfileText: { fontSize: 12, fontWeight: "600", color: "#0B5C36" },
   sectionTitle: { fontSize: 14, fontWeight: "700", color: "#0B5C36", marginBottom: 12, marginLeft: 4 },
   settingsGroup: {
-    backgroundColor: "#FFF", borderRadius: 16, borderWidth: 1, borderColor: "#E5E7EB",
     marginBottom: 24, overflow: "hidden",
   },
   settingItem: {

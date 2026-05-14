@@ -5,7 +5,6 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   ScrollView,
-  StatusBar,
   StyleSheet,
   Text,
   TouchableOpacity,
@@ -30,7 +29,8 @@ import {
   fetchBatchSettlement,
   listAllBatches,
 } from '@/services/managementApi';
-import { useRouter } from 'expo-router';
+import { ScreenState } from '@/components/ui/ScreenState';
+import { TopAppBar } from '@/components/ui/TopAppBar';
 
 const PAYOUT_UNITS = [
   'PER_BIRD_PLACED',
@@ -72,7 +72,6 @@ function formatINR(value?: number | null) {
 }
 
 export default function SettlementScreen() {
-  const router = useRouter();
   const { accessToken } = useAuth();
   const [batches, setBatches] = useState<ApiBatch[]>([]);
   const [selectedBatchId, setSelectedBatchId] = useState('');
@@ -158,31 +157,24 @@ export default function SettlementScreen() {
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['top']}>
-      <StatusBar barStyle="light-content" backgroundColor="#0B5C36" />
-      
-      {/* Header */}
-      <View style={styles.header}>
-        <View style={styles.headerLeft}>
-          <TouchableOpacity onPress={() => router.back()} style={styles.headerBtn}>
-            <Ionicons name="arrow-back" size={24} color="#FFF" />
-          </TouchableOpacity>
-          <Text style={styles.headerTitle}>Farmer Settlement</Text>
-        </View>
-        {/* Batch Selector (Simple) */}
-        {batches.length > 1 && (
+      <TopAppBar
+        title="Farmer Settlement"
+        subtitle="Review farmer payable and settlement status"
+        showBack
+        right={batches.length > 1 ? (
             <TouchableOpacity style={styles.batchSelector} onPress={() => { /* Open Batch Modal */ }}>
                <Text style={styles.batchSelectorText}>{selectedBatch?.code || "Select Batch"}</Text>
                <Ionicons name="chevron-down" size={14} color="#FFF" />
             </TouchableOpacity>
-        )}
-      </View>
+        ) : undefined}
+      />
 
       <ScrollView 
         contentContainerStyle={styles.scrollContainer} 
         showsVerticalScrollIndicator={false}
       >
         {loading || loadingSettlement ? (
-          <ActivityIndicator color="#0B5C36" style={{ marginTop: 40 }} />
+          <ScreenState title="Loading settlement" message="Fetching batch and settlement details." loading />
         ) : (
           <>
             {/* Farmer Info Card */}
@@ -306,27 +298,6 @@ function AmountRow({ label, value, isTotal, color }: { label: string; value: num
 
 const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: "#0B5C36" },
-  header: {
-    backgroundColor: "#0B5C36",
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-  },
-  headerLeft: {
-    flexDirection: "row",
-    alignItems: "center",
-  },
-  headerBtn: {
-    padding: 4,
-  },
-  headerTitle: {
-    color: "#FFF",
-    fontSize: 18,
-    fontWeight: "700",
-    marginLeft: 12,
-  },
   batchSelector: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -351,7 +322,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     backgroundColor: '#FFF',
-    borderRadius: 12,
+    borderRadius: 8,
     padding: 16,
     borderWidth: 1,
     borderColor: '#E5E7EB',

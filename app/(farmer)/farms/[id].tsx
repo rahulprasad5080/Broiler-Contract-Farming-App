@@ -7,8 +7,11 @@ import { useFocusEffect } from '@react-navigation/native';
 import { format } from 'date-fns';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useCallback, useState } from 'react';
-import { ActivityIndicator, FlatList, RefreshControl, StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { FlatList, RefreshControl, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+
+import { ScreenState } from '@/components/ui/ScreenState';
+import { TopAppBar } from '@/components/ui/TopAppBar';
 
 export default function FarmerFarmDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -57,17 +60,9 @@ export default function FarmerFarmDetailScreen() {
   if (loading && !refreshing) {
     return (
       <SafeAreaView style={styles.safeArea} edges={['top']}>
-        <StatusBar barStyle="light-content" backgroundColor="#0B5C36" />
-        <View style={styles.header}>
-          <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-            <Ionicons name="arrow-back" size={24} color="#FFFFFF" />
-          </TouchableOpacity>
-          <Text style={styles.headerTitle} numberOfLines={1}>Loading...</Text>
-          <View style={{ width: 40 }} />
-        </View>
+        <TopAppBar title="Farm Details" subtitle="Loading farm information" showBack />
         <View style={[styles.centerBox, { backgroundColor: '#F9FAFB' }]}>
-          <ActivityIndicator size="large" color={Colors.primary} />
-          <Text style={styles.loadingText}>Loading farm details...</Text>
+          <ScreenState title="Loading farm details" message="Fetching farm and batch records." loading />
         </View>
       </SafeAreaView>
     );
@@ -76,17 +71,14 @@ export default function FarmerFarmDetailScreen() {
   if (!farm) {
     return (
       <SafeAreaView style={styles.safeArea} edges={['top']}>
-        <StatusBar barStyle="light-content" backgroundColor="#0B5C36" />
-        <View style={styles.header}>
-          <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-            <Ionicons name="arrow-back" size={24} color="#FFFFFF" />
-          </TouchableOpacity>
-          <Text style={styles.headerTitle} numberOfLines={1}>Not Found</Text>
-          <View style={{ width: 40 }} />
-        </View>
+        <TopAppBar title="Farm Details" subtitle="Record not found" showBack />
         <View style={[styles.centerBox, { backgroundColor: '#F9FAFB' }]}>
-          <MaterialCommunityIcons name="alert-circle-outline" size={48} color={Colors.textSecondary} />
-          <Text style={styles.loadingText}>Farm not found.</Text>
+          <ScreenState
+            title="Farm not found"
+            message="This farm may have been removed or is not assigned to you."
+            icon="alert-circle-outline"
+            tone="error"
+          />
         </View>
       </SafeAreaView>
     );
@@ -94,14 +86,11 @@ export default function FarmerFarmDetailScreen() {
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['top']}>
-      <StatusBar barStyle="light-content" backgroundColor="#0B5C36" />
-
-      {/* Green Top App Bar */}
-      <View style={styles.header}>
-
-        <Text style={styles.headerTitle} numberOfLines={1}>{farm.name}</Text>
-        <View style={{ width: 40 }} />
-      </View>
+      <TopAppBar
+        title={farm.name}
+        subtitle={[farm.location, farm.village, farm.district].filter(Boolean).join(', ')}
+        showBack
+      />
 
       <FlatList
         data={activeBatches}
@@ -200,9 +189,11 @@ export default function FarmerFarmDetailScreen() {
             </View>
         )}
         ListEmptyComponent={
-          <View style={styles.emptyCard}>
-            <Text style={styles.emptyText}>No active batches at this farm.</Text>
-          </View>
+          <ScreenState
+            title="No active batches"
+            message="There are no active batches at this farm."
+            icon="file-tray-outline"
+          />
         }
       />
     </SafeAreaView>
@@ -213,27 +204,6 @@ const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
     backgroundColor: '#0B5C36',
-  },
-  header: {
-    backgroundColor: '#0B5C36',
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-  },
-  backBtn: {
-    width: 40,
-    height: 40,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  headerTitle: {
-    flex: 1,
-    color: '#FFFFFF',
-    fontSize: 20,
-    fontWeight: '700',
-    textAlign: 'left',
   },
   container: {
     padding: Layout.screenPadding,
@@ -251,14 +221,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  loadingText: {
-    marginTop: 12,
-    color: Colors.textSecondary,
-    fontSize: 14,
-  },
   summaryCard: {
     backgroundColor: '#FFF',
-    borderRadius: 14,
+    borderRadius: Layout.borderRadius.sm,
     padding: 16,
     marginBottom: 20,
     borderWidth: 1,
@@ -323,21 +288,9 @@ const styles = StyleSheet.create({
     color: Colors.text,
     marginBottom: 12,
   },
-  emptyCard: {
-    backgroundColor: '#FFF',
-    borderRadius: 12,
-    padding: 20,
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: Colors.border,
-  },
-  emptyText: {
-    color: Colors.textSecondary,
-    fontSize: 14,
-  },
   batchCard: {
     backgroundColor: '#FFF',
-    borderRadius: 12,
+    borderRadius: Layout.borderRadius.sm,
     padding: 16,
     marginBottom: 12,
     borderWidth: 1,

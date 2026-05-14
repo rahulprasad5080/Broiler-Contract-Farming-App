@@ -1,13 +1,11 @@
 import { Ionicons } from "@expo/vector-icons";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useFocusEffect } from "@react-navigation/native";
-import { useRouter } from "expo-router";
 import React, { useCallback, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 import {
   ActivityIndicator,
   ScrollView,
-  StatusBar,
   StyleSheet,
   Text,
   TextInput,
@@ -17,6 +15,7 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { z } from "zod";
 
+import { TopAppBar } from "@/components/ui/TopAppBar";
 import { useAuth } from "@/context/AuthContext";
 import {
   showRequestErrorToast,
@@ -72,8 +71,7 @@ type ExpenseEntryScreenProps = {
   subtitle?: string;
 };
 
-export function ExpenseEntryScreen({ title = "Expense Entry" }: ExpenseEntryScreenProps) {
-  const router = useRouter();
+export function ExpenseEntryScreen({ title = "Expense Entry", subtitle }: ExpenseEntryScreenProps) {
   const { accessToken } = useAuth();
   const [batches, setBatches] = useState<ApiBatch[]>([]);
   const [submitting, setSubmitting] = useState(false);
@@ -147,16 +145,7 @@ export function ExpenseEntryScreen({ title = "Expense Entry" }: ExpenseEntryScre
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['top']}>
-      <StatusBar barStyle="light-content" backgroundColor="#0B5C36" />
-
-      {/* Header */}
-      <View style={styles.header}>
-        <View style={styles.headerLeft}>
-
-          <Text style={styles.headerTitle}>{title}</Text>
-        </View>
-
-      </View>
+      <TopAppBar title={title} subtitle={subtitle} />
 
       <ScrollView contentContainerStyle={styles.scrollContainer} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
         <View style={styles.form}>
@@ -336,21 +325,6 @@ export function ExpenseEntryScreen({ title = "Expense Entry" }: ExpenseEntryScre
 
 const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: "#0B5C36" },
-  header: {
-    backgroundColor: "#0B5C36",
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-  },
-  headerLeft: { flexDirection: "row", alignItems: "center" },
-  headerBtn: { padding: 4 },
-  headerTitle: { color: "#FFF", fontSize: 18, fontWeight: "700", marginLeft: 12 },
-  notifDot: {
-    position: "absolute", top: 2, right: 2, width: 8, height: 8, borderRadius: 4,
-    backgroundColor: "#EF4444", borderWidth: 1.5, borderColor: "#0B5C36",
-  },
   scrollContainer: { flexGrow: 1, backgroundColor: "#FFF", paddingHorizontal: 20, paddingTop: 24 },
   form: { flex: 1 },
   inputGroup: { marginBottom: 20 },

@@ -5,30 +5,41 @@ import React from "react";
 import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
 
 import { Colors } from "@/constants/Colors";
-import { Layout } from "@/constants/Layout";
 
 type TopAppBarProps = {
   title: string;
   subtitle?: string;
   eyebrow?: string;
   showBack?: boolean;
+  showNotificationBell?: boolean;
   onBack?: () => void;
   right?: React.ReactNode;
 };
+
+const APP_BAR_GREEN = "#0B5C36";
 
 export function TopAppBar({
   title,
   subtitle,
   eyebrow,
   showBack = false,
+  showNotificationBell = false,
   onBack,
   right,
 }: TopAppBarProps) {
   const router = useRouter();
+  const rightContent =
+    right ??
+    (showNotificationBell ? (
+      <View style={styles.bellWrap}>
+        <Ionicons name="notifications-outline" size={28} color="#FFFFFF" />
+        <View style={styles.notificationDot} />
+      </View>
+    ) : null);
 
   return (
     <View style={styles.shell}>
-      <StatusBar style="light" backgroundColor={Colors.primary} />
+      <StatusBar style="light" backgroundColor={APP_BAR_GREEN} />
       {showBack ? (
         <TouchableOpacity
           style={styles.iconButton}
@@ -37,7 +48,7 @@ export function TopAppBar({
           accessibilityRole="button"
           accessibilityLabel="Go back"
         >
-          <Ionicons name="arrow-back" size={22} color="#FFFFFF" />
+          <Ionicons name="arrow-back" size={29} color="#FFFFFF" />
         </TouchableOpacity>
       ) : null}
 
@@ -53,38 +64,27 @@ export function TopAppBar({
         ) : null}
       </View>
 
-      {right ? <View style={styles.right}>{right}</View> : null}
+      {rightContent ? <View style={styles.right}>{rightContent}</View> : null}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   shell: {
-    minHeight: 64,
+    minHeight: 72,
     flexDirection: "row",
     alignItems: "center",
-    gap: 12,
-    paddingHorizontal: Layout.screenPadding,
-    paddingVertical: 12,
-    backgroundColor: Colors.primary,
-    borderBottomWidth: 1,
-    borderBottomColor: "rgba(255,255,255,0.16)",
-    shadowColor: "#003E2B",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.16,
-    shadowRadius: 10,
-    elevation: 4,
+    gap: 16,
+    paddingHorizontal: 24,
+    paddingVertical: 14,
+    backgroundColor: APP_BAR_GREEN,
     zIndex: 5,
   },
   iconButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 12,
+    width: 36,
+    height: 44,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "rgba(255,255,255,0.14)",
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.22)",
   },
   copy: {
     flex: 1,
@@ -100,9 +100,9 @@ const styles = StyleSheet.create({
   },
   title: {
     color: "#FFFFFF",
-    fontSize: 19,
+    fontSize: 20,
     fontWeight: "900",
-    lineHeight: 23,
+    lineHeight: 25,
   },
   subtitle: {
     marginTop: 2,
@@ -115,5 +115,20 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 8,
+  },
+  bellWrap: {
+    width: 44,
+    height: 44,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  notificationDot: {
+    position: "absolute",
+    right: 9,
+    top: 9,
+    width: 7,
+    height: 7,
+    borderRadius: 4,
+    backgroundColor: Colors.error,
   },
 });

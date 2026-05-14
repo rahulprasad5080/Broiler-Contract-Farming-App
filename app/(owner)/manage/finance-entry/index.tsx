@@ -1,11 +1,9 @@
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { useFocusEffect } from "@react-navigation/native";
-import { useRouter } from "expo-router";
 import React, { useCallback, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   FlatList,
-  StatusBar,
   StyleSheet,
   Text,
   TextInput,
@@ -27,6 +25,8 @@ import {
   type ApiFinanceEntryType,
   type ApiTransactionPaymentStatus,
 } from "@/services/managementApi";
+import { ScreenState } from "@/components/ui/ScreenState";
+import { TopAppBar } from "@/components/ui/TopAppBar";
 
 const ENTRY_TYPES: { key: ApiFinanceEntryType; label: string; icon: React.ComponentProps<typeof MaterialCommunityIcons>["name"] }[] = [
   { key: "INVESTMENT", label: "Investment", icon: "briefcase-outline" },
@@ -57,7 +57,6 @@ function labelize(value?: string | null) {
 }
 
 export default function FinanceEntryScreen() {
-  const router = useRouter();
   const { accessToken } = useAuth();
 
   const [entries, setEntries] = useState<ApiFinanceEntry[]>([]);
@@ -172,17 +171,16 @@ export default function FinanceEntryScreen() {
 
   return (
     <SafeAreaView style={styles.safeArea} edges={["top"]}>
-      <StatusBar barStyle="light-content" backgroundColor="#0B5C36" />
-
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.headerBtn}>
-          <Ionicons name="arrow-back" size={24} color="#FFF" />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Finance Entry</Text>
-        <TouchableOpacity onPress={() => void loadEntries()} style={styles.headerBtn}>
-          <Ionicons name="refresh-outline" size={22} color="#FFF" />
-        </TouchableOpacity>
-      </View>
+      <TopAppBar
+        title="Finance Entry"
+        subtitle="Record investment, income, and expense entries"
+        showBack
+        right={
+          <TouchableOpacity onPress={() => void loadEntries()} style={styles.headerBtn}>
+            <Ionicons name="refresh-outline" size={22} color="#FFF" />
+          </TouchableOpacity>
+        }
+      />
 
       <FlatList
         data={loading ? [] : entries}
@@ -296,15 +294,9 @@ export default function FinanceEntryScreen() {
         renderItem={renderEntry}
         ListEmptyComponent={
           loading ? (
-            <View style={styles.loadingState}>
-              <ActivityIndicator color={Colors.primary} />
-              <Text style={styles.loadingText}>Loading entries...</Text>
-            </View>
+            <ScreenState title="Loading entries" message="Fetching finance records." loading />
           ) : (
-            <View style={styles.emptyState}>
-              <MaterialCommunityIcons name="file-search-outline" size={42} color={Colors.border} />
-              <Text style={styles.emptyText}>No finance entries yet.</Text>
-            </View>
+            <ScreenState title="No finance entries yet" message="Saved entries will appear here." icon="document-text-outline" />
           )
         }
         ListFooterComponent={<View style={{ height: 60 }} />}
@@ -315,16 +307,7 @@ export default function FinanceEntryScreen() {
 
 const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: "#0B5C36" },
-  header: {
-    backgroundColor: "#0B5C36",
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-  },
   headerBtn: { padding: 4 },
-  headerTitle: { flex: 1, color: "#FFF", fontSize: 18, fontWeight: "800", marginLeft: 12 },
   container: {
     flexGrow: 1,
     backgroundColor: "#F9FAFB",
@@ -332,7 +315,7 @@ const styles = StyleSheet.create({
   },
   summaryCard: {
     backgroundColor: "#0B5C36",
-    borderRadius: 14,
+    borderRadius: 8,
     padding: 18,
     marginBottom: 16,
   },
@@ -341,7 +324,7 @@ const styles = StyleSheet.create({
   summaryHint: { color: "rgba(255,255,255,0.72)", fontSize: 11, marginTop: 6 },
   formCard: {
     backgroundColor: "#FFF",
-    borderRadius: 14,
+    borderRadius: 8,
     padding: 16,
     borderWidth: 1,
     borderColor: Colors.border,
@@ -424,8 +407,4 @@ const styles = StyleSheet.create({
   entryTitle: { fontSize: 14, fontWeight: "800", color: Colors.text },
   entryMeta: { fontSize: 11, color: Colors.textSecondary, marginTop: 3 },
   entryAmount: { fontSize: 13, fontWeight: "900", color: Colors.text },
-  loadingState: { alignItems: "center", paddingVertical: 24, gap: 8 },
-  loadingText: { fontSize: 13, color: Colors.textSecondary },
-  emptyState: { alignItems: "center", paddingVertical: 24, gap: 8 },
-  emptyText: { fontSize: 13, color: Colors.textSecondary },
 });

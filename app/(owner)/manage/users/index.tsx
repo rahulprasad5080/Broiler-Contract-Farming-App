@@ -20,7 +20,6 @@ import {
   ActivityIndicator,
   FlatList,
   ScrollView,
-  StatusBar,
   StyleSheet,
   Switch,
   Text,
@@ -29,6 +28,8 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { ScreenState } from '@/components/ui/ScreenState';
+import { TopAppBar } from '@/components/ui/TopAppBar';
 
 type Role = ApiRole;
 type Status = 'Active' | 'Invited' | 'Inactive';
@@ -336,17 +337,17 @@ export default function UserManagementScreen() {
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['top']}>
-      <StatusBar barStyle="light-content" backgroundColor="#0B5C36" />
       <View style={styles.pageContent}>
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.headerBack}>
-          <Ionicons name="arrow-back" size={24} color="#FFF" />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>User Management</Text>
-        <TouchableOpacity onPress={() => router.navigate('/(owner)/manage/users/create')}>
-          <Ionicons name="add" size={28} color="#FFF" />
-        </TouchableOpacity>
-      </View>
+        <TopAppBar
+          title="User Management"
+          subtitle="Roles, farms, status, and access"
+          showBack
+          right={
+            <TouchableOpacity onPress={() => router.navigate('/(owner)/manage/users/create')}>
+              <Ionicons name="add" size={28} color="#FFF" />
+            </TouchableOpacity>
+          }
+        />
 
         <FlatList
           data={isLoading ? [] : users}
@@ -383,15 +384,9 @@ export default function UserManagementScreen() {
           )}
           ListEmptyComponent={(
             isLoading ? (
-              <View style={styles.loadingState}>
-                <ActivityIndicator color={Colors.primary} />
-                <Text style={styles.loadingText}>Loading users...</Text>
-              </View>
+              <ScreenState title="Loading users" message="Fetching user accounts." loading />
             ) : (
-                <View style={styles.emptyState}>
-                  <MaterialCommunityIcons name="account-search-outline" size={48} color={Colors.border} />
-                  <Text style={styles.emptyText}>No users found</Text>
-                </View>
+              <ScreenState title="No users found" message="Try another search or create a new user." icon="people-outline" />
             )
           )}
           ListFooterComponent={(
@@ -414,22 +409,6 @@ export default function UserManagementScreen() {
 const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: '#0B5C36' },
   pageContent: { flex: 1, backgroundColor: '#F9FAFB' },
-  header: {
-    backgroundColor: '#0B5C36',
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-  },
-  headerBack: { padding: 4 },
-  headerTitle: {
-    flex: 1,
-    color: '#FFF',
-    fontSize: 18,
-    fontWeight: '600',
-    marginLeft: 12,
-  },
   container: { paddingHorizontal: 16, paddingTop: 16, paddingBottom: 40 },
   searchFilterRow: {
     flexDirection: 'row',
@@ -472,12 +451,6 @@ const styles = StyleSheet.create({
     fontSize: 12,
     marginTop: 4,
     marginLeft: 4,
-  },
-  // Loading indicators
-  loadingState: {
-    alignItems: 'center',
-    paddingVertical: 40,
-    gap: 8,
   },
   loadingMoreState: {
     alignItems: 'center',
@@ -626,8 +599,6 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   actionIcon: { paddingLeft: 4 },
-  emptyState: { alignItems: 'center', paddingVertical: 40, gap: 8 },
-  emptyText: { fontSize: 14, color: Colors.textSecondary },
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'flex-end' },
   modalSheet: {
     backgroundColor: '#FFF',

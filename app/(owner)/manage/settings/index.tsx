@@ -1,11 +1,9 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect } from "@react-navigation/native";
-import { useRouter } from "expo-router";
 import React, { useCallback, useState } from "react";
 import {
   ActivityIndicator,
   ScrollView,
-  StatusBar,
   StyleSheet,
   Switch,
   Text,
@@ -17,6 +15,8 @@ import { SafeAreaView } from "react-native-safe-area-context";
 
 import { Colors } from "@/constants/Colors";
 import { useAuth } from "@/context/AuthContext";
+import { ScreenState } from "@/components/ui/ScreenState";
+import { TopAppBar } from "@/components/ui/TopAppBar";
 import {
   showRequestErrorToast,
   showSuccessToast,
@@ -67,7 +67,6 @@ function toForm(settings: ApiOrganizationSettings): SettingsForm {
 }
 
 export default function OrganizationSettingsScreen() {
-  const router = useRouter();
   const { accessToken } = useAuth();
   const [form, setForm] = useState<SettingsForm | null>(null);
   const [loading, setLoading] = useState(true);
@@ -135,21 +134,20 @@ export default function OrganizationSettingsScreen() {
 
   return (
     <SafeAreaView style={styles.safeArea} edges={["top"]}>
-      <StatusBar barStyle="light-content" backgroundColor="#0B5C36" />
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.headerBtn}>
-          <Ionicons name="arrow-back" size={24} color="#FFF" />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Organization Settings</Text>
-        <TouchableOpacity onPress={() => void loadSettings()} style={styles.headerBtn}>
-          <Ionicons name="refresh-outline" size={22} color="#FFF" />
-        </TouchableOpacity>
-      </View>
+      <TopAppBar
+        title="Organization Settings"
+        subtitle="Payout, alert, and finance controls"
+        showBack
+        right={
+          <TouchableOpacity onPress={() => void loadSettings()} style={styles.headerBtn}>
+            <Ionicons name="refresh-outline" size={22} color="#FFF" />
+          </TouchableOpacity>
+        }
+      />
 
       {loading || !form ? (
         <View style={styles.centerBox}>
-          <ActivityIndicator color={Colors.primary} />
-          <Text style={styles.loadingText}>Loading settings...</Text>
+          <ScreenState title="Loading settings" message="Fetching organization configuration." loading />
         </View>
       ) : (
         <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
@@ -279,22 +277,12 @@ function ToggleRow({
 
 const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: "#0B5C36" },
-  header: {
-    backgroundColor: "#0B5C36",
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-  },
   headerBtn: { padding: 4 },
-  headerTitle: { flex: 1, marginLeft: 12, color: "#FFF", fontSize: 18, fontWeight: "800" },
   centerBox: { flex: 1, backgroundColor: "#F9FAFB", justifyContent: "center", alignItems: "center", gap: 10 },
-  loadingText: { color: Colors.textSecondary, fontSize: 13 },
   container: { flexGrow: 1, backgroundColor: "#F9FAFB", padding: 16 },
   card: {
     backgroundColor: "#FFF",
-    borderRadius: 14,
+    borderRadius: 8,
     borderWidth: 1,
     borderColor: Colors.border,
     padding: 16,

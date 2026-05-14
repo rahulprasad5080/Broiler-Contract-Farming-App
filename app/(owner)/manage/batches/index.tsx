@@ -9,17 +9,16 @@ import { useFocusEffect } from '@react-navigation/native';
 import { useRouter, type Href } from 'expo-router';
 import React, { useCallback, useMemo, useState } from 'react';
 import {
-  ActivityIndicator,
   FlatList,
   RefreshControl,
   ScrollView,
-  StatusBar,
   StyleSheet,
   Text,
   TouchableOpacity,
   View,
 } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { ScreenState } from '@/components/ui/ScreenState';
+import { TopAppBar } from '@/components/ui/TopAppBar';
 
 const THEME_GREEN = "#0B5C36";
 
@@ -69,7 +68,6 @@ function getBadgeStyle(status: ApiBatch['status']) {
 export default function BatchManagementScreen() {
   const router = useRouter();
   const { accessToken } = useAuth();
-  const insets = useSafeAreaInsets();
   const [batches, setBatches] = useState<ApiBatch[]>([]);
   const [activeFilter, setActiveFilter] = useState<FilterKey>('ALL');
   const [loading, setLoading] = useState(true);
@@ -120,24 +118,21 @@ export default function BatchManagementScreen() {
 
   return (
     <View style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor={THEME_GREEN} />
-      
-      <View style={[styles.header, { paddingTop: insets.top + 10 }]}>
-        <View style={styles.headerLeft}>
-          <TouchableOpacity onPress={() => router.back()}>
-            <Ionicons name="arrow-back" size={24} color="#FFF" />
+      <TopAppBar
+        title="Batches"
+        subtitle="Track active, sales-ready, and closed batches"
+        showBack
+        right={
+          <TouchableOpacity
+            style={styles.iconBtn}
+            onPress={() => router.navigate('/(owner)/manage/batches/create' as Href)}
+            accessibilityRole="button"
+            accessibilityLabel="Create new batch"
+          >
+            <Ionicons name="add" size={22} color="#FFF" />
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>Batches</Text>
-        </View>
-        <TouchableOpacity
-          style={styles.iconBtn}
-          onPress={() => router.navigate('/(owner)/manage/batches/create' as Href)}
-          accessibilityRole="button"
-          accessibilityLabel="Create new batch"
-        >
-          <Ionicons name="add" size={28} color="#FFF" />
-        </TouchableOpacity>
-      </View>
+        }
+      />
 
       <View style={styles.filterContainer}>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterScroll}>
@@ -160,8 +155,7 @@ export default function BatchManagementScreen() {
 
       {loading ? (
         <View style={styles.loadingBox}>
-          <ActivityIndicator color={THEME_GREEN} size="large" />
-          <Text style={styles.loadingText}>Loading batches...</Text>
+          <ScreenState title="Loading batches" message="Fetching latest batch records." loading />
         </View>
       ) : (
         <FlatList
@@ -174,7 +168,11 @@ export default function BatchManagementScreen() {
           }
           ListEmptyComponent={
             <View style={styles.loadingBox}>
-              <Text style={styles.emptyText}>No batches found.</Text>
+              <ScreenState
+                title="No batches found"
+                message="Create a batch or change the selected filter."
+                icon="layers-outline"
+              />
             </View>
           }
           renderItem={({ item: batch }) => {
@@ -251,30 +249,15 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#F9FAF9',
   },
-  header: {
-    backgroundColor: THEME_GREEN,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingBottom: 16,
-  },
-  headerLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  headerTitle: {
-    fontSize: 20,
-    color: '#FFF',
-    fontWeight: '600',
-    marginLeft: 16,
-  },
   iconBtn: {
-    minWidth: 32,
-    minHeight: 32,
+    width: 38,
+    height: 38,
+    borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
-    padding: 4,
+    backgroundColor: "rgba(255,255,255,0.14)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.22)",
   },
   filterContainer: {
     backgroundColor: '#FFF',
@@ -313,7 +296,7 @@ const styles = StyleSheet.create({
   },
   batchCard: {
     backgroundColor: '#FFF',
-    borderRadius: 12,
+    borderRadius: 8,
     borderWidth: 1,
     borderColor: '#EFEFEF',
     padding: 16,
@@ -396,16 +379,6 @@ const styles = StyleSheet.create({
     color: Colors.text,
   },
   loadingBox: {
-    paddingTop: 40,
-    alignItems: 'center',
-  },
-  loadingText: {
-    marginTop: 12,
-    color: Colors.textSecondary,
-    fontSize: 14,
-  },
-  emptyText: {
-    color: Colors.textSecondary,
-    fontSize: 14,
+    padding: 16,
   },
 });

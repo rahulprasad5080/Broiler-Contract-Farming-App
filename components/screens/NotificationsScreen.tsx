@@ -1,10 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
-import { useRouter } from "expo-router";
 import React, { useMemo, useState } from "react";
 import {
-  ActivityIndicator,
   SectionList,
-  StatusBar,
   StyleSheet,
   Text,
   TouchableOpacity,
@@ -12,6 +9,8 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
+import { ScreenState } from "@/components/ui/ScreenState";
+import { TopAppBar } from "@/components/ui/TopAppBar";
 import { useAuth } from "@/context/AuthContext";
 import { showRequestErrorToast } from "@/services/apiFeedback";
 import {
@@ -26,20 +25,22 @@ type NotificationGroup = {
 };
 
 export function NotificationsScreen() {
-  const router = useRouter();
   const { accessToken } = useAuth();
   const [selectedFilter, setSelectedFilter] = useState<"All" | "Unread" | "Important">("All");
   const [notifications, setNotifications] = useState<ApiNotification[]>([]);
   const [loading, setLoading] = useState(false);
   const [markingIds, setMarkingIds] = useState<Record<string, boolean>>({});
+  const [error, setError] = useState<string | null>(null);
 
   const loadNotifications = React.useCallback(async () => {
     if (!accessToken) return;
     setLoading(true);
+    setError(null);
     try {
       const response = await listNotifications(accessToken);
       setNotifications(response.data);
     } catch (err) {
+      setError(err instanceof Error ? err.message : "Unable to load notifications.");
       showRequestErrorToast(err, { title: "Unable to load notifications" });
     } finally {
       setLoading(false);
@@ -131,16 +132,7 @@ export function NotificationsScreen() {
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['top']}>
-      <StatusBar barStyle="light-content" backgroundColor="#0B5C36" />
-
-      {/* Header */}
-      <View style={styles.header}>
-        <View style={styles.headerLeft}>
-
-          <Text style={styles.headerTitle}>Notifications</Text>
-        </View>
-
-      </View>
+      <TopAppBar title="Notifications" subtitle={`${unreadCount} unread update${unreadCount === 1 ? "" : "s"}`} />
 
       <View style={styles.container}>
         {/* Filter Tabs */}
@@ -170,8 +162,21 @@ export function NotificationsScreen() {
           </TouchableOpacity>
         </View>
 
-        {loading ? (
-          <ActivityIndicator color="#0B5C36" style={{ marginTop: 40 }} />
+        {error ? (
+          <View style={styles.stateWrap}>
+            <ScreenState
+              title="Unable to load notifications"
+              message={error}
+              icon="alert-circle-outline"
+              tone="error"
+              actionLabel="Retry"
+              onAction={() => void loadNotifications()}
+            />
+          </View>
+        ) : loading ? (
+          <View style={styles.stateWrap}>
+            <ScreenState title="Loading notifications" message="Checking latest alerts." loading />
+          </View>
         ) : (
           <SectionList
             sections={sections}
@@ -202,6 +207,13 @@ export function NotificationsScreen() {
                 </TouchableOpacity>
               );
             }}
+            ListEmptyComponent={
+              <ScreenState
+                title="No notifications"
+                message="New alerts and updates will appear here."
+                icon="notifications-outline"
+              />
+            }
             contentContainerStyle={styles.listContent}
             showsVerticalScrollIndicator={false}
           />
@@ -213,17 +225,6 @@ export function NotificationsScreen() {
 
 const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: "#0B5C36" },
-  header: {
-    backgroundColor: "#0B5C36",
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-  },
-  headerLeft: { flexDirection: "row", alignItems: "center" },
-  headerBtn: { padding: 4 },
-  headerTitle: { color: "#FFF", fontSize: 18, fontWeight: "700", marginLeft: 12 },
   container: { flex: 1, backgroundColor: "#F9FAFB" },
   tabsRow: {
     flexDirection: "row", paddingHorizontal: 16, paddingVertical: 12, gap: 10,
@@ -240,14 +241,17 @@ const styles = StyleSheet.create({
     alignItems: "center", justifyContent: "center", marginLeft: 6, paddingHorizontal: 4,
   },
   tabBadgeText: { color: "#FFF", fontSize: 10, fontWeight: "700" },
-  listContent: { paddingHorizontal: 16, paddingBottom: 40 },
+  stateWrap: {
+    padding: 16,
+  },
+  listContent: { paddingHorizontal: 16, paddingBottom: 40, flexGrow: 1 },
   sectionHeader: {
     fontSize: 14, fontWeight: "700", color: "#111827", marginTop: 20, marginBottom: 12,
   },
   notifCard: {
     flexDirection: "row", alignItems: "center", backgroundColor: "#FFF",
     padding: 16, borderBottomWidth: 1, borderBottomColor: "#F3F4F6",
-    borderRadius: 12, marginBottom: 2, // Using minor margin for section grouped look
+    borderRadius: 8, marginBottom: 2,
   },
   iconBox: {
     width: 44, height: 44, borderRadius: 12, alignItems: "center", justifyContent: "center", marginRight: 16,

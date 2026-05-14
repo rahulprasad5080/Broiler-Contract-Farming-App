@@ -11,15 +11,15 @@ import {
   TextInput,
   TouchableOpacity,
   View,
-  StatusBar,
 } from 'react-native';
 import Toast from 'react-native-toast-message';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Controller, useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 
 import { DatePickerField } from '@/components/ui/DatePickerField';
+import { TopAppBar } from '@/components/ui/TopAppBar';
 import { Colors } from '@/constants/Colors';
 import { useAuth } from '@/context/AuthContext';
 import { getLocalDateValue } from '@/services/dateUtils';
@@ -354,16 +354,8 @@ export default function CreateBatchScreen() {
   };
 
   return (
-    <View style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor={THEME_GREEN} />
-      
-      {/* Header */}
-      <View style={[styles.header, { paddingTop: insets.top + 10 }]}>
-        <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>
-          <Ionicons name="arrow-back" size={24} color="#FFF" />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Create New Batch</Text>
-      </View>
+    <SafeAreaView style={styles.container} edges={['top']}>
+      <TopAppBar title="Create New Batch" subtitle="Placement, farm, and target details" showBack />
 
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
         
@@ -723,7 +715,7 @@ export default function CreateBatchScreen() {
           )}
         </TouchableOpacity>
       </View>
-    </View>
+    </SafeAreaView>
   );
 }
 
@@ -731,21 +723,6 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#FFF',
-  },
-  header: {
-    backgroundColor: THEME_GREEN,
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingBottom: 16,
-  },
-  backBtn: {
-    marginRight: 16,
-  },
-  headerTitle: {
-    fontSize: 18,
-    color: '#FFF',
-    fontWeight: '600',
   },
   scrollContent: {
     paddingHorizontal: 20,

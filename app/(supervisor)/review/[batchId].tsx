@@ -1,10 +1,10 @@
 import React, { useCallback, useState } from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, ActivityIndicator, RefreshControl, Modal, TextInput, StatusBar } from 'react-native';
+import { View, Text, StyleSheet, FlatList, TouchableOpacity, ActivityIndicator, RefreshControl, Modal, TextInput } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Colors } from '@/constants/Colors';
 import { Layout } from '@/constants/Layout';
-import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
-import { useLocalSearchParams, useRouter } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
+import { useLocalSearchParams } from 'expo-router';
 import { useAuth } from '@/context/AuthContext';
 import { ApiDailyLog, createBatchComment, listDailyLogs, updateDailyLog } from '@/services/managementApi';
 import { showRequestErrorToast, showSuccessToast } from '@/services/apiFeedback';
@@ -14,6 +14,8 @@ import { format } from 'date-fns';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
+import { ScreenState } from '@/components/ui/ScreenState';
+import { TopAppBar } from '@/components/ui/TopAppBar';
 
 const correctionSchema = z.object({
   mortality: z.string().optional().refine((val) => !val || !isNaN(Number(val)), {
@@ -32,7 +34,6 @@ type CorrectionFormData = z.infer<typeof correctionSchema>;
 
 export default function SupervisorReviewLogsScreen() {
   const { batchId } = useLocalSearchParams<{ batchId: string }>();
-  const router = useRouter();
   const { accessToken } = useAuth();
   
   const [logs, setLogs] = useState<ApiDailyLog[]>([]);
@@ -128,16 +129,7 @@ export default function SupervisorReviewLogsScreen() {
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['top']}>
-      <StatusBar barStyle="light-content" backgroundColor="#0B5C36" />
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-          <Ionicons name="arrow-back" size={24} color="#FFF" />
-        </TouchableOpacity>
-        <View style={styles.headerCopy}>
-          <Text style={styles.headerTitle}>Review Daily Logs</Text>
-        </View>
-        <View style={{ width: 24 }} />
-      </View>
+      <TopAppBar title="Review Daily Logs" subtitle="Check submitted daily records" showBack />
 
       <FlatList
         data={loading && !refreshing ? [] : logs}
@@ -179,13 +171,13 @@ export default function SupervisorReviewLogsScreen() {
         )}
         ListEmptyComponent={
           loading && !refreshing ? (
-            <ActivityIndicator color={Colors.primary} style={{ marginTop: 40 }} />
+            <ScreenState title="Loading daily logs" message="Fetching submitted entries." loading />
           ) : (
-            <View style={styles.emptyBox}>
-              <MaterialCommunityIcons name="clipboard-text-outline" size={64} color={Colors.border} />
-              <Text style={styles.emptyTitle}>No Logs Found</Text>
-              <Text style={styles.emptyText}>No daily logs have been submitted for this batch yet.</Text>
-            </View>
+            <ScreenState
+              title="No logs found"
+              message="No daily logs have been submitted for this batch yet."
+              icon="clipboard-outline"
+            />
           )
         }
       />
@@ -280,26 +272,9 @@ export default function SupervisorReviewLogsScreen() {
 
 const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: '#0B5C36' },
-  header: {
-    backgroundColor: "#0B5C36",
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: 20,
-    paddingVertical: 14,
-  },
-  backBtn: { marginRight: 16 },
-  headerCopy: { flex: 1 },
-  headerTitle: {
-    color: "#FFF",
-    fontSize: 20,
-    fontWeight: "700",
-  },
   container: { padding: Layout.screenPadding, paddingBottom: 100, maxWidth: Layout.contentMaxWidth, alignSelf: 'center', width: '100%', backgroundColor: '#F9FAFB' },
-  emptyBox: { alignItems: 'center', marginTop: 60 },
-  emptyTitle: { fontSize: 18, fontWeight: 'bold', color: Colors.text, marginTop: 16 },
-  emptyText: { fontSize: 14, color: Colors.textSecondary, marginTop: 8, textAlign: 'center' },
   logCard: {
-    backgroundColor: '#FFF', borderRadius: 12, padding: 16, marginBottom: 12,
+    backgroundColor: '#FFF', borderRadius: Layout.borderRadius.sm, padding: 16, marginBottom: 12,
     borderWidth: 1, borderColor: Colors.border, ...Layout.cardShadow,
   },
   logHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 },

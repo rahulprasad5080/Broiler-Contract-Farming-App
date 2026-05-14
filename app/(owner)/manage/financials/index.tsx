@@ -6,8 +6,11 @@ import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import { useRouter } from 'expo-router';
 import React, { useCallback, useState } from 'react';
-import { ActivityIndicator, FlatList, StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { FlatList, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+
+import { ScreenState } from '@/components/ui/ScreenState';
+import { TopAppBar } from '@/components/ui/TopAppBar';
 
 function formatINR(value?: number | null) {
   if (value === null || value === undefined) return '₹ 0';
@@ -49,23 +52,7 @@ export default function FinancialDashboardScreen() {
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['top']}>
-      <StatusBar barStyle="light-content" backgroundColor="#0B5C36" />
-      
-      {/* Header */}
-      <View style={styles.header}>
-        <View style={styles.headerLeft}>
-          <TouchableOpacity onPress={() => router.back()} style={styles.headerBtn}>
-            <Ionicons name="arrow-back" size={24} color="#FFF" />
-          </TouchableOpacity>
-          <Text style={styles.headerTitle}>Financials</Text>
-        </View>
-        <TouchableOpacity style={styles.headerBtn}>
-          <View>
-            <Ionicons name="notifications-outline" size={24} color="#FFF" />
-            <View style={styles.notifDot} />
-          </View>
-        </TouchableOpacity>
-      </View>
+      <TopAppBar title="Financials" subtitle="Cash flow, dues, and quick finance actions" showBack />
 
       <FlatList
         data={loading ? [] : dashboard?.recentTransactions ?? []}
@@ -179,13 +166,9 @@ export default function FinancialDashboardScreen() {
         )}
         ListEmptyComponent={
           loading ? (
-            <View style={styles.transactionsCard}>
-              <ActivityIndicator color="#0B5C36" style={{ marginVertical: 20 }} />
-            </View>
+            <ScreenState title="Loading transactions" message="Fetching latest financial activity." loading />
           ) : (
-            <View style={styles.transactionsCard}>
-              <Text style={styles.emptyText}>No recent transactions.</Text>
-            </View>
+            <ScreenState title="No recent transactions" message="Financial activity will appear here." icon="wallet-outline" />
           )
         }
         ListFooterComponent={<View style={{ height: 40 }} />}
@@ -244,38 +227,6 @@ function TransactionItem({ title, date, amount, type, direction, isLast }: { tit
 
 const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: '#0B5C36' },
-  header: {
-    backgroundColor: '#0B5C36',
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-  },
-  headerLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  headerBtn: {
-    padding: 4,
-  },
-  headerTitle: {
-    color: '#FFF',
-    fontSize: 18,
-    fontWeight: '700',
-    marginLeft: 12,
-  },
-  notifDot: {
-    position: 'absolute',
-    top: 2,
-    right: 2,
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: '#EF4444',
-    borderWidth: 1.5,
-    borderColor: '#0B5C36',
-  },
   scrollContainer: {
     flexGrow: 1,
     backgroundColor: '#F9FAFB',
@@ -317,7 +268,7 @@ const styles = StyleSheet.create({
   summaryCard: {
     width: '48.2%',
     padding: 16,
-    borderRadius: 12,
+    borderRadius: 8,
     height: 85,
     justifyContent: 'center',
     borderWidth: 1,

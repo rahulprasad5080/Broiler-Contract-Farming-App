@@ -2,16 +2,17 @@ import { Colors } from '@/constants/Colors';
 import { Layout } from '@/constants/Layout';
 import { useAuth } from '@/context/AuthContext';
 import { ApiBatch, ApiComment, listAllBatches, listBatchComments } from '@/services/managementApi';
-import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import { format } from 'date-fns';
-import { useRouter } from 'expo-router';
 import React, { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, FlatList, RefreshControl, ScrollView, StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { FlatList, RefreshControl, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { ScreenState } from '@/components/ui/ScreenState';
+import { TopAppBar } from '@/components/ui/TopAppBar';
+
 export default function FarmerCommentsScreen() {
-  const router = useRouter();
   const { accessToken } = useAuth();
 
   const [batches, setBatches] = useState<ApiBatch[]>([]);
@@ -89,26 +90,18 @@ export default function FarmerCommentsScreen() {
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['top']}>
-      <StatusBar barStyle="light-content" backgroundColor="#0B5C36" />
-
-      <View style={styles.header}>
-
-        <View style={styles.headerCopy}>
-          <Text style={styles.headerTitle}>Comments & Notes</Text>
-          <Text style={styles.headerSub}>Supervisor feedback</Text>
-        </View>
-        <View style={{ width: 24 }} />
-      </View>
+      <TopAppBar title="Comments & Notes" subtitle="Supervisor feedback" />
 
       <View style={styles.container}>
         {loadingBatches ? (
-          <View style={styles.centerBox}>
-            <ActivityIndicator size="large" color={Colors.primary} />
-          </View>
+          <ScreenState title="Loading batches" message="Fetching available batches." loading style={styles.stateBox} />
         ) : activeBatches.length === 0 ? (
-          <View style={styles.centerBox}>
-            <Text style={styles.emptyText}>No active batches available.</Text>
-          </View>
+          <ScreenState
+            title="No active batches"
+            message="Comments will appear once you have an active batch."
+            icon="file-tray-outline"
+            style={styles.stateBox}
+          />
         ) : (
           <>
             <View style={styles.batchSelectorRow}>
@@ -160,13 +153,14 @@ export default function FarmerCommentsScreen() {
               )}
               ListEmptyComponent={
                 loadingComments && !refreshing ? (
-                  <ActivityIndicator size="large" color={Colors.primary} />
+                  <ScreenState title="Loading comments" message="Fetching supervisor notes." loading compact />
                 ) : (
-                  <View style={styles.emptyListBox}>
-                    <MaterialCommunityIcons name="chat-outline" size={48} color={Colors.border} />
-                    <Text style={styles.emptyTitle}>No Comments</Text>
-                    <Text style={styles.emptySub}>There are no supervisor notes for this batch.</Text>
-                  </View>
+                  <ScreenState
+                    title="No comments"
+                    message="There are no supervisor notes for this batch."
+                    icon="chatbubbles-outline"
+                    compact
+                  />
                 )
               }
             />
@@ -179,26 +173,8 @@ export default function FarmerCommentsScreen() {
 
 const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: '#0B5C36' },
-  header: {
-    backgroundColor: "#0B5C36",
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-  },
-  backBtn: { marginRight: 16 },
-  headerCopy: { flex: 1 },
-  headerTitle: {
-    color: "#FFF",
-    fontSize: 20,
-    fontWeight: "700",
-  },
-  headerSub: { marginTop: 2, fontSize: 12, color: 'rgba(255,255,255,0.8)' },
   container: { flex: 1, width: '100%', maxWidth: Layout.contentMaxWidth, alignSelf: 'center', backgroundColor: '#F9FAFB' },
-  centerBox: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 20 },
-  emptyTitle: { fontSize: 16, fontWeight: 'bold', color: Colors.text, marginTop: 12 },
-  emptySub: { fontSize: 13, color: Colors.textSecondary, marginTop: 4, textAlign: 'center' },
-  emptyText: { color: Colors.textSecondary, fontSize: 14 },
+  stateBox: { margin: Layout.screenPadding },
   batchSelectorRow: {
     padding: Layout.screenPadding,
     backgroundColor: '#FFF',
@@ -217,7 +193,7 @@ const styles = StyleSheet.create({
   listContentCentered: { flexGrow: 1, justifyContent: 'center', alignItems: 'center' },
   emptyListBox: { alignItems: 'center', padding: 20 },
   commentCard: {
-    backgroundColor: '#FFF', borderRadius: 12, padding: 14, marginBottom: 12,
+    backgroundColor: '#FFF', borderRadius: Layout.borderRadius.sm, padding: 14, marginBottom: 12,
     borderWidth: 1, borderColor: Colors.border, ...Layout.cardShadow,
   },
   commentHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 },

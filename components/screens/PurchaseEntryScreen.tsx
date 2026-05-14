@@ -1,4 +1,3 @@
-import { Colors } from "@/constants/Colors";
 import { useAuth } from "@/context/AuthContext";
 import {
   ApiCatalogItem,
@@ -9,7 +8,6 @@ import {
 } from "@/services/managementApi";
 import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect } from "@react-navigation/native";
-import { useRouter } from "expo-router";
 import React, {
   useCallback,
   useMemo,
@@ -18,7 +16,6 @@ import React, {
 import {
   ActivityIndicator,
   ScrollView,
-  StatusBar,
   StyleSheet,
   Text,
   TextInput,
@@ -27,6 +24,7 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
+import { TopAppBar } from "@/components/ui/TopAppBar";
 import {
   showRequestErrorToast,
   showSuccessToast,
@@ -85,7 +83,6 @@ const PURCHASE_ENTRY_DEFAULTS: PurchaseEntryFormData = {
 };
 
 export function PurchaseEntryScreen() {
-  const router = useRouter();
   const { accessToken } = useAuth();
   const [traders, setTraders] = useState<ApiTrader[]>([]);
   const [catalogItems, setCatalogItems] = useState<ApiCatalogItem[]>([]);
@@ -181,23 +178,11 @@ export function PurchaseEntryScreen() {
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['top']}>
-      <StatusBar barStyle="light-content" backgroundColor="#0B5C36" />
-      
-      {/* Header */}
-      <View style={styles.header}>
-        <View style={styles.headerLeft}>
-          <TouchableOpacity onPress={() => router.back()} style={styles.headerBtn}>
-            <Ionicons name="arrow-back" size={24} color="#FFF" />
-          </TouchableOpacity>
-          <Text style={styles.headerTitle}>Purchase Entry</Text>
-        </View>
-        <TouchableOpacity style={styles.headerBtn}>
-          <View>
-            <Ionicons name="notifications-outline" size={24} color="#FFF" />
-            <View style={styles.notifDot} />
-          </View>
-        </TouchableOpacity>
-      </View>
+      <TopAppBar
+        title="Purchase Entry"
+        subtitle="Record inventory and supplier purchases"
+        showBack
+      />
 
       <ScrollView 
         contentContainerStyle={styles.scrollContainer} 
@@ -460,38 +445,6 @@ const styles = StyleSheet.create({
   safeArea: { 
     flex: 1, 
     backgroundColor: "#0B5C36" 
-  },
-  header: {
-    backgroundColor: "#0B5C36",
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-  },
-  headerLeft: {
-    flexDirection: "row",
-    alignItems: "center",
-  },
-  headerBtn: {
-    padding: 4,
-  },
-  headerTitle: {
-    color: "#FFF",
-    fontSize: 18,
-    fontWeight: "700",
-    marginLeft: 12,
-  },
-  notifDot: {
-    position: "absolute",
-    top: 2,
-    right: 2,
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: "#EF4444",
-    borderWidth: 1.5,
-    borderColor: "#0B5C36",
   },
   scrollContainer: {
     flexGrow: 1,

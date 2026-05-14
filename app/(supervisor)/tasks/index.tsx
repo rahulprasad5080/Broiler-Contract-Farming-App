@@ -3,7 +3,6 @@ import { useRouter } from "expo-router";
 import React from "react";
 import {
   ScrollView,
-  StatusBar,
   StyleSheet,
   Text,
   TouchableOpacity,
@@ -11,6 +10,8 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
+import { ScreenState } from "@/components/ui/ScreenState";
+import { TopAppBar } from "@/components/ui/TopAppBar";
 import { useAuth, type Permission } from "@/context/AuthContext";
 
 type MenuItem = {
@@ -69,37 +70,36 @@ export default function SupervisorTasksIndexScreen() {
 
   return (
     <SafeAreaView style={styles.safeArea} edges={["top"]}>
-      <StatusBar barStyle="light-content" backgroundColor="#0B5C36" />
-
-      {/* Custom Header - Matches ReportsScreen */}
-      <View style={styles.header}>
-
-        <Text style={styles.headerTitle}>Supervisor Actions</Text>
-        <View style={{ width: 40 }} />
-      </View>
+      <TopAppBar title="Supervisor Actions" subtitle="Review, log, and support farm work" />
 
       <ScrollView
         contentContainerStyle={styles.scrollContainer}
         showsVerticalScrollIndicator={false}
       >
 
-
-        {/* Menu Grid */}
-        <View style={styles.grid}>
-          {menuItems.map((item, index) => (
-            <TouchableOpacity
-              key={index}
-              style={styles.card}
-              onPress={() => router.navigate(item.route as any)}
-            >
-              <View style={styles.iconBox}>
-                <Ionicons name={item.icon} size={28} color="#0B5C36" />
-              </View>
-              <Text style={styles.cardTitle}>{item.title}</Text>
-              <Text style={styles.cardDesc}>{item.desc}</Text>
-            </TouchableOpacity>
-          ))}
-        </View>
+        {menuItems.length === 0 ? (
+          <ScreenState
+            title="No actions available"
+            message="Your current role does not have task permissions."
+            icon="lock-closed-outline"
+          />
+        ) : (
+          <View style={styles.grid}>
+            {menuItems.map((item, index) => (
+              <TouchableOpacity
+                key={index}
+                style={styles.card}
+                onPress={() => router.navigate(item.route as any)}
+              >
+                <View style={styles.iconBox}>
+                  <Ionicons name={item.icon} size={28} color="#0B5C36" />
+                </View>
+                <Text style={styles.cardTitle}>{item.title}</Text>
+                <Text style={styles.cardDesc}>{item.desc}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        )}
       </ScrollView>
     </SafeAreaView>
   );
@@ -109,25 +109,6 @@ const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
     backgroundColor: "#0B5C36", // Header color background
-  },
-  header: {
-    backgroundColor: "#0B5C36",
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-  },
-  backBtn: {
-    width: 40,
-    height: 40,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  headerTitle: {
-    color: "#FFF",
-    fontSize: 20,
-    fontWeight: "700",
   },
   scrollContainer: {
     flexGrow: 1,
@@ -160,7 +141,7 @@ const styles = StyleSheet.create({
   card: {
     width: "48%",
     backgroundColor: "#FFF",
-    borderRadius: 16,
+    borderRadius: 8,
     padding: 16,
     marginBottom: 16,
     borderWidth: 1,
@@ -175,7 +156,7 @@ const styles = StyleSheet.create({
   iconBox: {
     width: 56,
     height: 56,
-    borderRadius: 16,
+    borderRadius: 8,
     backgroundColor: "#E7F5ED",
     justifyContent: "center",
     alignItems: "center",

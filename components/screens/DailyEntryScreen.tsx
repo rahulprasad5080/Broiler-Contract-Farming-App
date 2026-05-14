@@ -19,7 +19,6 @@ import React, {
 import {
   ActivityIndicator,
   ScrollView,
-  StatusBar,
   StyleSheet,
   Text,
   TextInput,
@@ -28,6 +27,7 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
+import { TopAppBar } from "@/components/ui/TopAppBar";
 import {
   showRequestErrorToast,
   showSuccessToast,
@@ -126,7 +126,7 @@ function buildDailyLogPayload(data: DailyEntryFormData) {
   };
 }
 
-export function DailyEntryScreen({ title = "Daily Entry" }: DailyEntryScreenProps) {
+export function DailyEntryScreen({ title = "Daily Entry", subtitle }: DailyEntryScreenProps) {
   const router = useRouter();
   const { batchId: routeBatchId, dailyLogId } = useLocalSearchParams<{
     batchId?: string;
@@ -249,16 +249,10 @@ export function DailyEntryScreen({ title = "Daily Entry" }: DailyEntryScreenProp
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['top']}>
-      <StatusBar barStyle="light-content" backgroundColor="#0B5C36" />
-
-      {/* Header */}
-      <View style={styles.header}>
-        <View style={styles.headerLeft}>
-
-          <Text style={styles.headerTitle}>{isEditMode ? "Edit Daily Entry" : title}</Text>
-        </View>
-
-      </View>
+      <TopAppBar
+        title={isEditMode ? "Edit Daily Entry" : title}
+        subtitle={subtitle}
+      />
 
       <ScrollView
         contentContainerStyle={styles.scrollContainer}
@@ -509,38 +503,6 @@ const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
     backgroundColor: "#0B5C36"
-  },
-  header: {
-    backgroundColor: "#0B5C36",
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-  },
-  headerLeft: {
-    flexDirection: "row",
-    alignItems: "center",
-  },
-  headerBtn: {
-    padding: 4,
-  },
-  headerTitle: {
-    color: "#FFF",
-    fontSize: 18,
-    fontWeight: "700",
-    marginLeft: 12,
-  },
-  notifDot: {
-    position: "absolute",
-    top: 2,
-    right: 2,
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: "#EF4444",
-    borderWidth: 1.5,
-    borderColor: "#0B5C36",
   },
   scrollContainer: {
     flexGrow: 1,

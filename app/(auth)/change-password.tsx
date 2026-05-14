@@ -3,7 +3,6 @@ import { useRouter } from "expo-router";
 import React, { useState } from "react";
 import {
   ActivityIndicator,
-  StatusBar,
   StyleSheet,
   Text,
   TextInput,
@@ -12,6 +11,7 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
+import { TopAppBar } from "@/components/ui/TopAppBar";
 import { Colors } from "@/constants/Colors";
 import { useAuth } from "@/context/AuthContext";
 import {
@@ -65,14 +65,7 @@ export default function ChangePasswordScreen() {
 
   return (
     <SafeAreaView style={styles.safeArea} edges={["top"]}>
-      <StatusBar barStyle="light-content" backgroundColor="#0B5C36" />
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.headerBtn}>
-          <Ionicons name="arrow-back" size={24} color="#FFF" />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Change Password</Text>
-        <View style={{ width: 32 }} />
-      </View>
+      <TopAppBar title="Change Password" subtitle="Update account security" showBack />
 
       <View style={styles.container}>
         <View style={styles.card}>
@@ -120,19 +113,10 @@ function Field({
 
 const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: "#0B5C36" },
-  header: {
-    backgroundColor: "#0B5C36",
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-  },
-  headerBtn: { padding: 4, marginRight: 12 },
-  headerTitle: { flex: 1, color: "#FFF", fontSize: 18, fontWeight: "800" },
   container: { flex: 1, backgroundColor: "#F9FAFB", padding: 16 },
   card: {
     backgroundColor: "#FFF",
-    borderRadius: 14,
+    borderRadius: 8,
     borderWidth: 1,
     borderColor: Colors.border,
     padding: 18,

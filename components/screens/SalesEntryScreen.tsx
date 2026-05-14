@@ -8,7 +8,6 @@ import {
 } from "@/services/managementApi";
 import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect } from "@react-navigation/native";
-import { useRouter } from "expo-router";
 import React, {
   useCallback,
   useMemo,
@@ -17,7 +16,6 @@ import React, {
 import {
   ActivityIndicator,
   ScrollView,
-  StatusBar,
   StyleSheet,
   Text,
   TextInput,
@@ -26,6 +24,7 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
+import { TopAppBar } from "@/components/ui/TopAppBar";
 import {
   showRequestErrorToast,
   showSuccessToast,
@@ -91,7 +90,6 @@ interface SalesEntryScreenProps {
 }
 
 export function SalesEntryScreen({ title = "Sales Entry", subtitle }: SalesEntryScreenProps) {
-  const router = useRouter();
   const { accessToken } = useAuth();
   const [batches, setBatches] = useState<ApiBatch[]>([]);
   const [traders, setTraders] = useState<ApiTrader[]>([]);
@@ -194,26 +192,13 @@ export function SalesEntryScreen({ title = "Sales Entry", subtitle }: SalesEntry
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['top']}>
-      <StatusBar barStyle="light-content" backgroundColor="#0B5C36" />
-
-      {/* Header */}
-      <View style={styles.header}>
-        <View style={styles.headerLeft}>
-
-          <Text style={styles.headerTitle}>{title}</Text>
-        </View>
-      </View>
+      <TopAppBar title={title} subtitle={subtitle} />
 
       <ScrollView
         contentContainerStyle={styles.scrollContainer}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
       >
-        {subtitle && (
-          <View style={styles.subtitleContainer}>
-            <Text style={styles.subtitleText}>{subtitle}</Text>
-          </View>
-        )}
         <View style={styles.form}>
           {/* Date */}
           <View style={styles.inputGroup}>
@@ -429,26 +414,6 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: "#0B5C36"
   },
-  header: {
-    backgroundColor: "#0B5C36",
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-  },
-  headerLeft: {
-    flexDirection: "row",
-    alignItems: "center",
-  },
-  headerBtn: {
-    padding: 4,
-  },
-  headerTitle: {
-    color: "#FFF",
-    fontSize: 18,
-    fontWeight: "700",
-    marginLeft: 12,
-  },
   scrollContainer: {
     flexGrow: 1,
     backgroundColor: "#FFF",
@@ -457,15 +422,6 @@ const styles = StyleSheet.create({
   },
   form: {
     flex: 1,
-  },
-  subtitleContainer: {
-    marginBottom: 20,
-    paddingHorizontal: 4,
-  },
-  subtitleText: {
-    fontSize: 14,
-    color: "#6B7280",
-    lineHeight: 20,
   },
   inputGroup: {
     marginBottom: 20,

@@ -1,5 +1,5 @@
 import React, { useCallback, useState } from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, ActivityIndicator, RefreshControl, StatusBar } from 'react-native';
+import { View, Text, StyleSheet, FlatList, TouchableOpacity, RefreshControl } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Colors } from '@/constants/Colors';
 import { Layout } from '@/constants/Layout';
@@ -8,6 +8,8 @@ import { useRouter } from 'expo-router';
 import { useAuth } from '@/context/AuthContext';
 import { ApiBatch, listAllBatches } from '@/services/managementApi';
 import { useFocusEffect } from '@react-navigation/native';
+import { ScreenState } from '@/components/ui/ScreenState';
+import { TopAppBar } from '@/components/ui/TopAppBar';
 
 export default function SupervisorReviewScreen() {
   const router = useRouter();
@@ -73,25 +75,20 @@ export default function SupervisorReviewScreen() {
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['top']}>
-      <StatusBar barStyle="light-content" backgroundColor="#0B5C36" />
-      <View style={styles.header}>
-        <View style={styles.headerCopy}>
-          <Text style={styles.headerTitle}>Review & Corrections</Text>
-        </View>
-        <View style={{ width: 24 }} />
-      </View>
+      <TopAppBar title="Review & Corrections" subtitle="Check active batch logs and corrections" />
 
       <View style={styles.container}>
         {loading && !refreshing ? (
           <View style={styles.centerBox}>
-            <ActivityIndicator size="large" color={Colors.primary} />
-            <Text style={styles.loadingText}>Loading batches...</Text>
+            <ScreenState title="Loading batches" message="Fetching batches for review." loading />
           </View>
         ) : batches.length === 0 ? (
           <View style={styles.centerBox}>
-            <MaterialCommunityIcons name="shield-check-outline" size={64} color={Colors.border} />
-            <Text style={styles.emptyTitle}>All Caught Up!</Text>
-            <Text style={styles.emptySub}>No active batches require review at the moment.</Text>
+            <ScreenState
+              title="All caught up"
+              message="No active batches require review at the moment."
+              icon="shield-checkmark-outline"
+            />
           </View>
         ) : (
           <FlatList
@@ -112,27 +109,11 @@ export default function SupervisorReviewScreen() {
 
 const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: '#0B5C36' },
-  header: {
-    backgroundColor: "#0B5C36",
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: 20,
-    paddingVertical: 14,
-  },
-  headerCopy: { flex: 1 },
-  headerTitle: {
-    color: "#FFF",
-    fontSize: 20,
-    fontWeight: "700",
-  },
   container: { flex: 1, width: '100%', maxWidth: Layout.contentMaxWidth, alignSelf: 'center', backgroundColor: '#F9FAFB' },
   listContent: { padding: Layout.screenPadding, paddingBottom: 100 },
   centerBox: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 20 },
-  loadingText: { marginTop: 12, fontSize: 14, color: Colors.textSecondary },
-  emptyTitle: { fontSize: 18, fontWeight: 'bold', color: Colors.text, marginTop: 16 },
-  emptySub: { fontSize: 14, color: Colors.textSecondary, textAlign: 'center', marginTop: 8 },
   batchCard: {
-    backgroundColor: '#FFF', borderRadius: 14, padding: 16, marginBottom: 16,
+    backgroundColor: '#FFF', borderRadius: 8, padding: 16, marginBottom: 16,
     borderWidth: 1, borderColor: Colors.border, ...Layout.cardShadow,
   },
   cardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },

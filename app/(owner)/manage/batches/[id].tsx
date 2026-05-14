@@ -26,13 +26,13 @@ import {
   ActivityIndicator,
   Linking,
   ScrollView,
-  StatusBar,
   StyleSheet,
   Text,
   TouchableOpacity,
   View,
 } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { TopAppBar } from '@/components/ui/TopAppBar';
 
 type TabKey = 'overview' | 'daily' | 'expenses' | 'sales' | 'pnl' | 'comments';
 
@@ -97,7 +97,6 @@ export default function BatchDetailsScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const { accessToken } = useAuth();
-  const insets = useSafeAreaInsets();
 
   const [activeTab, setActiveTab] = useState<TabKey>('daily');
   const [activeExpenseTab, setActiveExpenseTab] = useState<'company' | 'farmer'>('company');
@@ -191,24 +190,22 @@ export default function BatchDetailsScreen() {
   );
 
   return (
-    <View style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor={THEME_GREEN} />
-
-      {/* Header */}
-      <View style={[styles.header, { paddingTop: insets.top + 10 }]}>
-        <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>
-          <Ionicons name="arrow-back" size={24} color="#FFF" />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Batch Details</Text>
-        <View style={styles.headerRight}>
-          <TouchableOpacity style={styles.headerIcon}>
-            <Ionicons name="share-social-outline" size={22} color="#FFF" />
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.headerIcon}>
-            <Ionicons name="ellipsis-vertical" size={22} color="#FFF" />
-          </TouchableOpacity>
-        </View>
-      </View>
+    <SafeAreaView style={styles.container} edges={['top']}>
+      <TopAppBar
+        title="Batch Details"
+        subtitle={batch?.code ? `${batch.code} | ${batch.farmName ?? 'Farm not loaded'}` : 'Batch performance and records'}
+        showBack
+        right={
+          <>
+            <TouchableOpacity style={styles.headerIcon}>
+              <Ionicons name="share-social-outline" size={22} color="#FFF" />
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.headerIcon}>
+              <Ionicons name="ellipsis-vertical" size={22} color="#FFF" />
+            </TouchableOpacity>
+          </>
+        }
+      />
 
       {/* Top Info Hero */}
       <View style={styles.heroBox}>
@@ -325,7 +322,7 @@ export default function BatchDetailsScreen() {
           </>
         )}
       </ScrollView>
-    </View>
+    </SafeAreaView>
   );
 }
 
@@ -563,27 +560,6 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#F9FAFB',
-  },
-  header: {
-    backgroundColor: THEME_GREEN,
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingBottom: 16,
-  },
-  backBtn: {
-    marginRight: 16,
-  },
-  headerTitle: {
-    flex: 1,
-    fontSize: 18,
-    color: '#FFF',
-    fontWeight: '600',
-  },
-  headerRight: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 16,
   },
   headerIcon: {
     padding: 2,

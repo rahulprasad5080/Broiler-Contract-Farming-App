@@ -13,7 +13,6 @@ import {
   Modal,
   ScrollView,
   StyleSheet,
-  StatusBar,
   Text,
   TextInput,
   TouchableOpacity,
@@ -22,6 +21,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Toast from 'react-native-toast-message';
 
+import { TopAppBar } from '@/components/ui/TopAppBar';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Controller, useForm } from 'react-hook-form';
 import { z } from 'zod';
@@ -299,28 +299,26 @@ export default function AddFarmScreen() {
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['top']}>
-      <StatusBar barStyle="light-content" backgroundColor={THEME_GREEN} />
-      <View style={styles.header}>
-        <View style={styles.headerLeft}>
-          <TouchableOpacity onPress={() => router.back()} style={styles.headerBtn}>
-            <Ionicons name="arrow-back" size={24} color="#FFF" />
+      <TopAppBar
+        title="Add Farm"
+        subtitle="Create farm profile and assignments"
+        showBack
+        right={
+          <TouchableOpacity
+            style={[styles.headerBtn, isSubmitting && styles.buttonDisabled]}
+            onPress={handleSubmit(handleCreateFarm)}
+            disabled={isSubmitting}
+            accessibilityRole="button"
+            accessibilityLabel="Create farm"
+          >
+            {isSubmitting ? (
+              <ActivityIndicator color="#FFF" size="small" />
+            ) : (
+              <Ionicons name="checkmark" size={27} color="#FFF" />
+            )}
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>Add Farm</Text>
-        </View>
-        <TouchableOpacity
-          style={[styles.headerBtn, isSubmitting && styles.buttonDisabled]}
-          onPress={handleSubmit(handleCreateFarm)}
-          disabled={isSubmitting}
-          accessibilityRole="button"
-          accessibilityLabel="Create farm"
-        >
-          {isSubmitting ? (
-            <ActivityIndicator color="#FFF" size="small" />
-          ) : (
-            <Ionicons name="checkmark" size={27} color="#FFF" />
-          )}
-        </TouchableOpacity>
-      </View>
+        }
+      />
 
       <ScrollView
         style={styles.contentArea}
@@ -765,30 +763,12 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: THEME_GREEN,
   },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    backgroundColor: THEME_GREEN,
-  },
-  headerLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
   headerBtn: {
     minWidth: 32,
     minHeight: 32,
     alignItems: 'center',
     justifyContent: 'center',
     padding: 4,
-  },
-  headerTitle: {
-    color: '#FFF',
-    fontSize: 18,
-    fontWeight: '700',
-    marginLeft: 12,
   },
   container: {
     paddingHorizontal: 20,
