@@ -1,15 +1,14 @@
-import { useState, useEffect, useRef } from 'react';
-import Toast from 'react-native-toast-message';
+import { useEffect, useRef, useState } from 'react';
 import { Platform } from 'react-native';
 import * as Device from 'expo-device';
 import * as Notifications from 'expo-notifications';
-import Constants from 'expo-constants';
+import Toast from 'react-native-toast-message';
 
 import { useAuth } from '@/context/AuthContext';
 import { updateFcmToken } from '@/services/authApi';
 
 export interface PushNotificationState {
-  expoPushToken?: Notifications.ExpoPushToken;
+  fcmToken?: string;
   notification?: Notifications.Notification;
 }
 
@@ -23,78 +22,80 @@ Notifications.setNotificationHandler({
   }),
 });
 
+async function ensureAndroidNotificationChannel() {
+  if (Platform.OS !== 'android') {
+    return;
+  }
+
+  await Notifications.setNotificationChannelAsync('default', {
+    name: 'default',
+    importance: Notifications.AndroidImportance.MAX,
+    vibrationPattern: [0, 250, 250, 250],
+    lightColor: '#0B5C36',
+  });
+}
+
 export const usePushNotifications = (): PushNotificationState => {
   const { accessToken, user } = useAuth();
-  const [expoPushToken, setExpoPushToken] = useState<Notifications.ExpoPushToken | undefined>();
+  const [fcmToken, setFcmToken] = useState<string | undefined>();
   const [notification, setNotification] = useState<Notifications.Notification | undefined>();
 
-  const notificationListener = useRef<any>(null);
-  const responseListener = useRef<any>(null);
+  const notificationListener = useRef<Notifications.EventSubscription | null>(null);
+  const responseListener = useRef<Notifications.EventSubscription | null>(null);
+  const pushTokenListener = useRef<Notifications.EventSubscription | null>(null);
   const syncedTokenRef = useRef<string | null>(null);
+  const canRegisterPushToken = Boolean(accessToken && user?.id);
 
   async function registerForPushNotificationsAsync() {
-    let token;
-
-    if (Platform.OS === 'android') {
-      await Notifications.setNotificationChannelAsync('default', {
-        name: 'default',
-        importance: Notifications.AndroidImportance.MAX,
-        vibrationPattern: [0, 250, 250, 250],
-        lightColor: '#0B5C36',
-      });
+    if (!canRegisterPushToken) {
+      return undefined;
     }
 
-    if (Device.isDevice) {
-      const { status: existingStatus } = await Notifications.getPermissionsAsync();
-      let finalStatus = existingStatus;
-      if (existingStatus !== 'granted') {
-        const { status } = await Notifications.requestPermissionsAsync();
-        finalStatus = status;
-      }
-      if (finalStatus !== 'granted') {
-        console.log('Failed to get push token for push notification!');
-        return;
-      }
-      
-      const projectId =
-        Constants?.expoConfig?.extra?.eas?.projectId ?? Constants?.easConfig?.projectId;
-        
-      if (!projectId) {
-        console.error('❌ TEST FAILED: "projectId" missing. Aapko terminal mein `npx eas init` run karna hoga apna project ID generate karne ke liye.');
-        return;
-      }
-        
-      try {
-        console.log('--- TEST: Fetching Expo Push Token ---');
-        token = await Notifications.getExpoPushTokenAsync({
-          projectId,
-        });
-        console.log('✅ TEST SUCCESS! Expo Push Token: ', token.data);
-      } catch (e) {
-        console.error('❌ TEST FAILED: Error getting push token', e);
-      }
-    } else {
-      console.log('Must use physical device for Push Notifications');
+    await ensureAndroidNotificationChannel();
+
+    if (!Device.isDevice) {
+      console.log('Must use physical device for push notifications.');
+      return undefined;
     }
 
-    return token;
+    const { status: existingStatus } = await Notifications.getPermissionsAsync();
+    let finalStatus = existingStatus;
+
+    if (existingStatus !== 'granted') {
+      const { status } = await Notifications.requestPermissionsAsync();
+      finalStatus = status;
+    }
+
+    if (finalStatus !== 'granted') {
+      console.log('Push notification permission was not granted.');
+      return undefined;
+    }
+
+    try {
+      const token = await Notifications.getDevicePushTokenAsync();
+
+      if (token.type !== 'android' || typeof token.data !== 'string') {
+        console.warn(`Unsupported token type for fcmToken sync: ${token.type}`);
+        return undefined;
+      }
+
+      return token.data;
+    } catch (error) {
+      console.error('Failed to get native FCM push token:', error);
+      return undefined;
+    }
   }
 
   useEffect(() => {
-    registerForPushNotificationsAsync().then((token) => {
-      if (token) setExpoPushToken(token);
-    });
-
     notificationListener.current = Notifications.addNotificationReceivedListener((notification) => {
       setNotification(notification);
-      
-      // Beautiful In-App Notification UI when app is open
+
       const title = notification.request.content.title;
       const body = notification.request.content.body;
-      
+
       if (title || body) {
         Toast.show({
-          type: 'success', // Or 'info' based on your toast config
+          type: 'success',
           text1: title || 'New Notification',
           text2: body || '',
           position: 'top',
@@ -102,58 +103,76 @@ export const usePushNotifications = (): PushNotificationState => {
           autoHide: true,
           topOffset: 50,
           props: {
-            // Can pass custom props if you have a custom toast component
-            icon: 'bell-outline' 
-          }
+            icon: 'bell-outline',
+          },
         });
       }
     });
 
     responseListener.current = Notifications.addNotificationResponseReceivedListener((response) => {
-      console.log('Notification Response:', response);
+      console.log('Notification response:', response);
+    });
+
+    pushTokenListener.current = Notifications.addPushTokenListener((token) => {
+      if (token.type === 'android' && typeof token.data === 'string') {
+        setFcmToken(token.data);
+      }
     });
 
     return () => {
-      if (notificationListener.current) {
-        notificationListener.current.remove();
-      }
-      if (responseListener.current) {
-        responseListener.current.remove();
-      }
+      notificationListener.current?.remove();
+      responseListener.current?.remove();
+      pushTokenListener.current?.remove();
     };
   }, []);
 
   useEffect(() => {
-    const tokenValue = expoPushToken?.data;
-
-    if (!accessToken || !user?.id || !tokenValue) {
+    if (!canRegisterPushToken) {
       return;
     }
 
-    const syncKey = `${user.id}:${tokenValue}`;
+    let cancelled = false;
+
+    registerForPushNotificationsAsync().then((token) => {
+      if (!cancelled && token) {
+        setFcmToken(token);
+      }
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [canRegisterPushToken]);
+
+  useEffect(() => {
+    if (!accessToken || !user?.id || !fcmToken) {
+      return;
+    }
+
+    const syncKey = `${user.id}:${fcmToken}`;
     if (syncedTokenRef.current === syncKey) {
       return;
     }
 
     let cancelled = false;
 
-    updateFcmToken(accessToken, { fcmToken: tokenValue })
+    updateFcmToken(accessToken, { fcmToken })
       .then(() => {
         if (!cancelled) {
           syncedTokenRef.current = syncKey;
         }
       })
       .catch((error) => {
-        console.warn('Failed to sync push token with server:', error);
+        console.warn('Failed to sync FCM token with server:', error);
       });
 
     return () => {
       cancelled = true;
     };
-  }, [accessToken, expoPushToken?.data, user?.id]);
+  }, [accessToken, fcmToken, user?.id]);
 
   return {
-    expoPushToken,
+    fcmToken,
     notification,
   };
 };

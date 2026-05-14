@@ -11,6 +11,7 @@ import {
   refreshAuth,
   changePassword as changeAccountPassword,
   setServerPin,
+  updateFcmToken,
   updateServerBiometric,
   type ApiRole,
   type RegisterOwnerRequest,
@@ -810,6 +811,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   );
 
   const signOut = React.useCallback(async () => {
+    try {
+      if (tokens?.accessToken) {
+        await updateFcmToken(tokens.accessToken, { fcmToken: null });
+      }
+    } catch (error) {
+      console.warn("Server FCM token cleanup failed, continuing logout:", error);
+    }
+
     try {
       if (tokens?.refreshToken) {
         await logout(tokens.refreshToken);
