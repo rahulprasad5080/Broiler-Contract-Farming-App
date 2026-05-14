@@ -1,4 +1,5 @@
 import type { Href } from "expo-router";
+import { canShowForPermissions, type AppPermission } from "./permissionRules";
 
 export type AppRole = "OWNER" | "ACCOUNTS" | "SUPERVISOR" | "FARMER" | null;
 
@@ -11,7 +12,7 @@ const ROLE_ROUTE_GROUPS = {
 
 const PROTECTED_ROUTE_GROUPS = new Set<string>(Object.values(ROLE_ROUTE_GROUPS));
 
-const OWNER_MANAGE_INDEX_PERMISSIONS = [
+const OWNER_MANAGE_INDEX_PERMISSIONS: AppPermission[] = [
   "create:daily-entry",
   "manage:partners",
   "manage:farms",
@@ -25,7 +26,7 @@ const OWNER_MANAGE_INDEX_PERMISSIONS = [
   "manage:users",
 ];
 
-const OWNER_MANAGE_ROUTE_PERMISSIONS: Record<string, string> = {
+const OWNER_MANAGE_ROUTE_PERMISSIONS: Record<string, AppPermission> = {
   partners: "manage:partners",
   farms: "manage:farms",
   batches: "manage:batches",
@@ -42,7 +43,7 @@ const OWNER_MANAGE_ROUTE_PERMISSIONS: Record<string, string> = {
   api: "manage:users",
 };
 
-const TASK_INDEX_PERMISSIONS = [
+const TASK_INDEX_PERMISSIONS: AppPermission[] = [
   "create:daily-entry",
   "create:treatments",
   "view:comments",
@@ -50,7 +51,7 @@ const TASK_INDEX_PERMISSIONS = [
   "create:sales",
 ];
 
-const TASK_ROUTE_PERMISSIONS: Record<string, string> = {
+const TASK_ROUTE_PERMISSIONS: Record<string, AppPermission> = {
   daily: "create:daily-entry",
   treatments: "create:treatments",
   comments: "view:comments",
@@ -58,14 +59,14 @@ const TASK_ROUTE_PERMISSIONS: Record<string, string> = {
   sales: "create:sales",
 };
 
-const SUPERVISOR_MANAGE_INDEX_PERMISSIONS = [
+const SUPERVISOR_MANAGE_INDEX_PERMISSIONS: AppPermission[] = [
   "manage:farms",
   "manage:batches",
   "manage:catalog",
   "manage:traders",
 ];
 
-const SUPERVISOR_MANAGE_ROUTE_PERMISSIONS: Record<string, string> = {
+const SUPERVISOR_MANAGE_ROUTE_PERMISSIONS: Record<string, AppPermission> = {
   catalog: "manage:catalog",
   traders: "manage:traders",
 };
@@ -183,4 +184,16 @@ export function getRouteRequiredPermission(segments: string[]) {
   }
 
   return null;
+}
+
+export function canAccessRoute(
+  role: AppRole,
+  permissions: readonly AppPermission[],
+  segments: string[],
+) {
+  if (!isRouteAllowedForRole(role, segments)) {
+    return false;
+  }
+
+  return canShowForPermissions(permissions, getRouteRequiredPermission(segments) ?? undefined);
 }

@@ -199,8 +199,22 @@ export {
   getDashboardRoute,
   isRouteAllowedForRole,
   getRouteRequiredPermission,
+  canAccessRoute,
 } from "./routeGuards";
 export type { AppRole } from "./routeGuards";
+
+// ── Permission visibility rules ──
+export {
+  BOTTOM_TAB_PERMISSIONS,
+  OWNER_MANAGE_PERMISSION_REQUIREMENTS,
+  TASK_PERMISSION_REQUIREMENTS,
+  canShowForPermissions,
+  getVisibleBottomTabNames,
+} from "./permissionRules";
+export type {
+  AppPermission,
+  PermissionRequirement,
+} from "./permissionRules";
 
 // ── Date utilities ──
 export * from "./dateUtils";

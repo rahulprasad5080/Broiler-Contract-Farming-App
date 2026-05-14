@@ -5,37 +5,16 @@ import { BottomTabBarProps } from '@react-navigation/bottom-tabs';
 import { CommonActions } from '@react-navigation/native';
 import { Colors } from '../../constants/Colors';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useAuth, type Permission } from '../../context/AuthContext';
+import { useAuth } from '../../context/AuthContext';
+import { BOTTOM_TAB_PERMISSIONS, canShowForPermissions } from '../../services/permissionRules';
 
 type BottomTabsProps = BottomTabBarProps & {
   hiddenTabs?: string[];
 };
 
-const TAB_PERMISSIONS: Partial<Record<string, Permission | Permission[]>> = {
-  farms: 'view:farms',
-  tasks: ['create:daily-entry', 'create:treatments', 'view:comments', 'create:expenses', 'create:sales'],
-  review: 'review:entries',
-  manage: [
-    'create:daily-entry',
-    'create:expenses',
-    'create:purchase',
-    'create:sales',
-    'manage:partners',
-    'manage:farms',
-    'manage:batches',
-    'manage:inventory',
-    'manage:settlements',
-    'manage:users',
-    'manage:catalog',
-    'manage:traders',
-    'view:financial-dashboard',
-  ],
-  reports: 'view:reports',
-};
-
 export function BottomTabs({ state, descriptors, navigation, hiddenTabs = [] }: BottomTabsProps) {
   const insets = useSafeAreaInsets();
-  const { hasPermission } = useAuth();
+  const { user } = useAuth();
   
   // Navigation states se data nikalna
   const tabs: { name: string; label: string; icon: keyof typeof Ionicons.glyphMap }[] = [
@@ -59,12 +38,8 @@ export function BottomTabs({ state, descriptors, navigation, hiddenTabs = [] }: 
       {tabs.map((tab) => {
         if (hiddenTabs.includes(tab.name)) return null;
 
-        const requiredPermission = TAB_PERMISSIONS[tab.name];
-        if (Array.isArray(requiredPermission)) {
-          if (!requiredPermission.some((permission) => hasPermission(permission))) {
-            return null;
-          }
-        } else if (requiredPermission && !hasPermission(requiredPermission)) {
+        const requiredPermission = BOTTOM_TAB_PERMISSIONS[tab.name];
+        if (!canShowForPermissions(user?.permissions ?? [], requiredPermission)) {
           return null;
         }
 

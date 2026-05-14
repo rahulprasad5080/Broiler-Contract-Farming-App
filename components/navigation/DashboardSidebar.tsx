@@ -14,9 +14,11 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { Colors } from "@/constants/Colors";
-import { useAuth, type Permission } from "@/context/AuthContext";
-
-type PermissionRequirement = Permission | Permission[];
+import { useAuth } from "@/context/AuthContext";
+import {
+  canShowForPermissions,
+  type PermissionRequirement,
+} from "@/services/permissionRules";
 
 export type DashboardSidebarAction = {
   title: string;
@@ -402,7 +404,7 @@ export function DashboardSidebar({
 }: DashboardSidebarProps) {
   const router = useRouter();
   const pathname = usePathname();
-  const { hasPermission, signOut, user } = useAuth();
+  const { signOut, user } = useAuth();
   const { width } = useWindowDimensions();
   const insets = useSafeAreaInsets();
 
@@ -414,13 +416,9 @@ export function DashboardSidebar({
 
   const canShow = React.useCallback(
     (permission?: PermissionRequirement) => {
-      if (!permission) return true;
-      if (Array.isArray(permission)) {
-        return permission.some((item) => hasPermission(item));
-      }
-      return hasPermission(permission);
+      return canShowForPermissions(user?.permissions ?? [], permission);
     },
-    [hasPermission],
+    [user?.permissions],
   );
 
   const visibleItems = [

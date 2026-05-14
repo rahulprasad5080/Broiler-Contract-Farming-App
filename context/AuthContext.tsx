@@ -40,32 +40,10 @@ import {
   getRouteRequiredPermission,
   isRouteAllowedForRole,
 } from "../services/routeGuards";
+import type { AppPermission } from "../services/permissionRules";
 
 export type UserRole = ApiRole | null;
-export type Permission =
-  | "create:daily-entry"
-  | "create:sales"
-  | "finalize:sales"
-  | "manage:partners"
-  | "manage:users"
-  | "manage:farms"
-  | "manage:batches"
-  | "manage:inventory"
-  | "manage:settlements"
-  | "create:expenses"
-  | "create:company-expense"
-  | "approve:farmer-expense"
-  | "create:purchase"
-  | "view:inventory-cost"
-  | "view:reports"
-  | "view:financial-dashboard"
-  | "view:notifications"
-  | "view:farms"
-  | "create:treatments"
-  | "view:comments"
-  | "review:entries"
-  | "manage:catalog"
-  | "manage:traders";
+export type Permission = AppPermission;
 
 interface User {
   id: string;

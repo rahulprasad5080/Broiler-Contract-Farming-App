@@ -11,6 +11,7 @@
   "include": [
     "__tests__/**/*.ts",
     "services/dateUtils.ts",
+    "services/permissionRules.ts",
     "services/routeGuards.ts",
     "hooks/formPersistenceController.ts"
   ]
