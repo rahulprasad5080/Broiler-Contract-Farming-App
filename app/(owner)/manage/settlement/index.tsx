@@ -192,13 +192,15 @@ export default function SettlementScreen() {
                   <Ionicons name="person" size={24} color="#374151" />
                 </View>
                 <View>
-                  <Text style={styles.farmerName}>{settlement?.farmerName || "Ramesh Kumar"}</Text>
-                  <Text style={styles.farmerPhone}>9876543210</Text>
+                  <Text style={styles.farmerName}>{settlement?.farmerName || "Farmer not assigned"}</Text>
+                  <Text style={styles.farmerPhone}>
+                    {settlement ? `Payment ${settlement.paymentStatus ?? 'PENDING'}` : 'No settlement loaded'}
+                  </Text>
                 </View>
               </View>
               <View style={styles.farmSection}>
                 <Text style={styles.farmLabel}>Farm</Text>
-                <Text style={styles.farmValue}>{selectedBatch?.farmName || "Green Valley Farm"}</Text>
+                <Text style={styles.farmValue}>{selectedBatch?.farmName || "Not set"}</Text>
               </View>
             </View>
 
@@ -207,7 +209,7 @@ export default function SettlementScreen() {
               <View style={styles.detailsHeader}>
                 <View>
                   <Text style={styles.labelSmall}>Batch</Text>
-                  <Text style={styles.batchCode}>{selectedBatch?.code || "GV-B-2307 (Shed 1)"}</Text>
+                  <Text style={styles.batchCode}>{selectedBatch?.code || "Select batch"}</Text>
                 </View>
                 <View style={styles.statusTag}>
                    <Text style={styles.statusText}>{selectedBatch?.status === 'CLOSED' ? 'Settled' : 'Pending'}</Text>
@@ -218,54 +220,61 @@ export default function SettlementScreen() {
 
               <MetricRow label="Batch Duration" value="28 Feb 2024 - 20 May 2024" />
               <MetricRow label="Total Birds Placed" value={Number(selectedBatch?.placementCount || 10000).toLocaleString()} />
-              <MetricRow label="Total Birds Sold" value={Number(selectedBatch?.summary?.soldBirds || 9500).toLocaleString()} />
-              <MetricRow label="Mortality" value={`${selectedBatch?.summary?.mortalityCount || 500} (${selectedBatch?.summary?.mortalityPercent || "5.00"}%)`} />
-              <MetricRow label="FCR" value={selectedBatch?.summary?.fcr?.toFixed(2) || "1.62"} />
-              <MetricRow label="Avg. Weight" value={`${selectedBatch?.summary?.averageWeightGrams ? (selectedBatch.summary.averageWeightGrams/1000).toFixed(3) : "2.150"} kg`} />
+              <MetricRow label="Total Birds Sold" value={Number(selectedBatch?.summary?.soldBirds ?? 0).toLocaleString()} />
+              <MetricRow label="Mortality" value={`${selectedBatch?.summary?.mortalityCount ?? 0} (${selectedBatch?.summary?.mortalityPercent ?? 0}%)`} />
+              <MetricRow label="FCR" value={selectedBatch?.summary?.fcr?.toFixed(2) || "0.00"} />
+              <MetricRow label="Avg. Weight" value={`${selectedBatch?.summary?.averageWeightGrams ? (selectedBatch.summary.averageWeightGrams/1000).toFixed(3) : "0.000"} kg`} />
             </View>
 
             {/* Earnings Section */}
             <View style={[styles.sectionCard, { backgroundColor: '#F0FDF4' }]}>
               <Text style={[styles.sectionTitle, { color: '#166534' }]}>Earnings</Text>
               <View style={styles.dividerCompact} />
-              <AmountRow label="Growing Charges" value={settlement?.growingCharges || 180000} />
-              <AmountRow label="Performance Bonus" value={settlement?.performanceBonus || 12000} />
-              <AmountRow label="Other Incentives" value={settlement?.incentiveAmount || 8000} />
+              <AmountRow label="Growing Charges" value={settlement?.growingCharges ?? 0} />
+              <AmountRow label="Performance Bonus" value={settlement?.performanceBonus ?? 0} />
+              <AmountRow label="Other Incentives" value={settlement?.incentiveAmount ?? 0} />
               <View style={styles.dividerCompact} />
-              <AmountRow label="Total Earnings" value={200000} isTotal color="#059669" />
+              <AmountRow
+                label="Total Earnings"
+                value={Number(settlement?.growingCharges ?? 0) + Number(settlement?.performanceBonus ?? 0) + Number(settlement?.incentiveAmount ?? 0)}
+                isTotal
+                color="#059669"
+              />
             </View>
 
             {/* Expenses Section */}
             <View style={[styles.sectionCard, { backgroundColor: '#FEF2F2' }]}>
               <Text style={[styles.sectionTitle, { color: '#991B1B' }]}>Expenses (Farmer)</Text>
               <View style={styles.dividerCompact} />
-              <AmountRow label="Electricity" value={850} />
-              <AmountRow label="Labour" value={2500} />
-              <AmountRow label="Coco Pith" value={1200} />
-              <AmountRow label="Water" value={700} />
-              <AmountRow label="Other Expenses" value={800} />
+              <AmountRow label="Approved farmer expenses" value={settlement?.farmerExpenseTotal ?? 0} />
+              <AmountRow label="Other deductions" value={settlement?.otherDeductions ?? 0} />
               <View style={styles.dividerCompact} />
-              <AmountRow label="Total Expenses" value={settlement?.farmerExpenseTotal || 6050} isTotal color="#111827" />
+              <AmountRow
+                label="Total Deductions"
+                value={Number(settlement?.farmerExpenseTotal ?? 0) + Number(settlement?.otherDeductions ?? 0)}
+                isTotal
+                color="#111827"
+              />
             </View>
 
             {/* Net Payable Card */}
             <View style={styles.netPayableCard}>
               <Text style={styles.netPayableLabel}>Net Payable to Farmer</Text>
-              <Text style={styles.netPayableValue}>{formatINR(settlement?.netPayable || 193950)}</Text>
+              <Text style={styles.netPayableValue}>{formatINR(settlement?.netPayable ?? 0)}</Text>
             </View>
 
             {/* Action Button */}
             <TouchableOpacity 
-              style={[styles.actionBtn, saving && styles.btnDisabled]} 
+              style={[styles.actionBtn, (saving || !settlement) && styles.btnDisabled]} 
               onPress={onMarkAsPaid}
-              disabled={saving}
+              disabled={saving || !settlement}
             >
               {saving ? (
                 <ActivityIndicator color="#FFF" />
               ) : (
                 <>
                   <Ionicons name="person-outline" size={20} color="#FFF" />
-                  <Text style={styles.actionBtnText}>Mark as Paid</Text>
+                  <Text style={styles.actionBtnText}>{settlement ? 'Mark as Paid' : 'No settlement to mark paid'}</Text>
                 </>
               )}
             </TouchableOpacity>

@@ -87,28 +87,28 @@ export default function FinancialDashboardScreen() {
             <View style={styles.summaryGrid}>
               <SummaryCard 
                 label="Total Inflow" 
-                value={summary?.sales || 3680000} 
+                value={summary?.sales ?? 0} 
                 color="#059669" 
                 bgColor="#ECFDF5" 
                 icon="trending-up"
               />
               <SummaryCard 
                 label="Total Outflow" 
-                value={summary?.expenses || 2745000} 
+                value={summary?.expenses ?? 0} 
                 color="#DC2626" 
                 bgColor="#FEF2F2" 
                 icon="trending-down"
               />
               <SummaryCard 
                 label="Net Cash Flow" 
-                value={summary?.netProfitOrLoss || 935000} 
+                value={summary?.netProfitOrLoss ?? 0} 
                 color="#2563EB" 
                 bgColor="#EFF6FF" 
                 icon="wallet-outline"
               />
               <SummaryCard 
                 label="Outstanding" 
-                value={summary?.investment || 1875000} 
+                value={summary?.investment ?? 0} 
                 color="#D97706" 
                 bgColor="#FFFBEB" 
                 icon="alert-circle-outline"

@@ -3,7 +3,6 @@ import { useRouter } from 'expo-router';
 import React from 'react';
 import {
   Alert,
-  Image,
   ScrollView,
   StatusBar,
   StyleSheet,
@@ -46,6 +45,14 @@ const SettingItem = ({ icon, label, value, onPress, isLast, color = "#4B5563" }:
 export default function ProfileScreen() {
   const { signOut, user } = useAuth();
   const router = useRouter();
+  const initials =
+    user?.name
+      ?.split(' ')
+      .filter(Boolean)
+      .map((part) => part[0])
+      .join('')
+      .toUpperCase()
+      .slice(0, 2) || 'U';
 
   const handleLogout = () => {
     Alert.alert('Logout', 'Are you sure you want to sign out?', [
@@ -71,14 +78,13 @@ export default function ProfileScreen() {
         {/* Profile Card */}
         <View style={styles.profileCard}>
           <View style={styles.profileInfoRow}>
-            <Image
-              source={{ uri: 'https://i.pravatar.cc/150?u=ramesh' }}
-              style={styles.avatar}
-            />
+            <View style={styles.avatar}>
+              <Text style={styles.avatarText}>{initials}</Text>
+            </View>
             <View style={styles.profileDetails}>
-              <Text style={styles.name}>{user?.name || 'Ramesh Kumar'}</Text>
-              <Text style={styles.role}>{user?.role === 'OWNER' ? 'Admin' : 'Staff'}</Text>
-              <Text style={styles.email}>{user?.email || 'ramesh@greenvalley.com'}</Text>
+              <Text style={styles.name}>{user?.name || 'User'}</Text>
+              <Text style={styles.role}>{user?.role === 'OWNER' ? 'Admin' : user?.role ? user.role : 'Staff'}</Text>
+              <Text style={styles.email}>{user?.email || user?.phone || 'Contact not available'}</Text>
 
               <TouchableOpacity style={styles.viewProfileBtn}>
                 <Text style={styles.viewProfileText}>View Profile</Text>
@@ -158,7 +164,16 @@ const styles = StyleSheet.create({
     elevation: 2, shadowColor: "#000", shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 8,
   },
   profileInfoRow: { flexDirection: "row", alignItems: "center" },
-  avatar: { width: 70, height: 70, borderRadius: 35, marginRight: 16 },
+  avatar: {
+    width: 70,
+    height: 70,
+    borderRadius: 35,
+    marginRight: 16,
+    backgroundColor: '#E8F5E9',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  avatarText: { fontSize: 22, fontWeight: '900', color: '#0B5C36' },
   profileDetails: { flex: 1 },
   name: { fontSize: 18, fontWeight: "700", color: "#111827", marginBottom: 2 },
   role: { fontSize: 13, color: "#6B7280", marginBottom: 1 },

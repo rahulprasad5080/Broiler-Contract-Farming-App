@@ -155,13 +155,12 @@ export default function BatchDetailsScreen() {
 
   const summary = batch?.summary;
 
-  // Dummy or derived data for UI match
-  const chicksPlaced = batch?.placementCount ?? 10000;
-  const liveBirds = summary?.liveBirds ?? 8250;
-  const mortality = summary?.mortalityPercent ? formatNumber(summary.mortalityPercent, '%') : '3.12%';
-  const fcr = summary?.fcr ? formatNumber(summary.fcr) : '1.62';
-  const avgWeight = summary?.averageWeightGrams ? formatNumber(summary.averageWeightGrams / 1000, ' kg') : '1.320 kg';
-  const feedConsumed = summary?.totalFeedConsumedKg ? formatNumber(summary.totalFeedConsumedKg, ' kg') : '420 kg';
+  const chicksPlaced = batch?.placementCount ?? 0;
+  const liveBirds = summary?.liveBirds ?? 0;
+  const mortality = summary?.mortalityPercent ? formatNumber(summary.mortalityPercent, '%') : '0%';
+  const fcr = summary?.fcr ? formatNumber(summary.fcr) : '0';
+  const avgWeight = summary?.averageWeightGrams ? formatNumber(summary.averageWeightGrams / 1000, ' kg') : '0 kg';
+  const feedConsumed = summary?.totalFeedConsumedKg ? formatNumber(summary.totalFeedConsumedKg, ' kg') : '0 kg';
   const ageDays = summary?.currentAgeDays ?? 28;
   const expectedAge = 45;
   const toGo = expectedAge - ageDays > 0 ? expectedAge - ageDays : 0;
@@ -214,14 +213,14 @@ export default function BatchDetailsScreen() {
       {/* Top Info Hero */}
       <View style={styles.heroBox}>
         <View style={styles.heroTop}>
-          <Text style={styles.heroTitle}>{batch?.code ?? 'GV-B-2307'} (Shed 1)</Text>
+          <Text style={styles.heroTitle}>{batch?.code ?? 'Batch not loaded'}</Text>
           <View style={styles.statusBadge}>
             <Text style={styles.statusText}>Active</Text>
           </View>
         </View>
-        <Text style={styles.heroFarm}>{batch?.farmName ?? 'Green Valley Farm'}</Text>
+        <Text style={styles.heroFarm}>{batch?.farmName ?? 'Farm not loaded'}</Text>
         <View style={styles.heroMetaRow}>
-          <Text style={styles.heroMetaText}>Placed On: {formatDate(batch?.placementDate) ?? '28 Feb 2024'}</Text>
+          <Text style={styles.heroMetaText}>Placed On: {formatDate(batch?.placementDate)}</Text>
           <Text style={styles.heroMetaDivider}>|</Text>
           <Text style={styles.heroMetaText}>Age: {ageDays} Days</Text>
         </View>
