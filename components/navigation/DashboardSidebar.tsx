@@ -2,6 +2,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { usePathname, useRouter, type Href } from "expo-router";
 import React from "react";
 import {
+  Animated,
   Modal,
   ScrollView,
   StyleSheet,
@@ -13,7 +14,6 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { Colors } from "@/constants/Colors";
-import { Layout } from "@/constants/Layout";
 import { useAuth, type Permission } from "@/context/AuthContext";
 
 type PermissionRequirement = Permission | Permission[];
@@ -255,7 +255,6 @@ const supervisorRoutes: DashboardSidebarRoute[] = [
     section: "Entries",
     requiredPermission: "view:comments",
   },
-
   {
     title: "Catalog Master",
     icon: "archive-outline",
@@ -371,6 +370,30 @@ const farmerRoutes: DashboardSidebarRoute[] = [
 
 const sectionOrder = ["Main", "Entries", "Management", "Finance", "More"];
 
+const sectionIcons: Record<string, React.ComponentProps<typeof Ionicons>["name"]> = {
+  Main: "home-outline",
+  Entries: "create-outline",
+  Management: "settings-outline",
+  Finance: "bar-chart-outline",
+  More: "ellipsis-horizontal-outline",
+};
+
+function getInitials(name?: string | null): string {
+  if (!name) return "?";
+  const parts = name.trim().split(" ");
+  if (parts.length === 1) return parts[0][0].toUpperCase();
+  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+}
+
+function getRoleBadgeColor(role?: string | null): string {
+  switch (role) {
+    case "OWNER": return "#F59E0B";
+    case "ACCOUNTS": return "#6366F1";
+    case "SUPERVISOR": return "#3B82F6";
+    default: return "#10B981";
+  }
+}
+
 export function DashboardSidebar({
   visible,
   onClose,
@@ -414,9 +437,51 @@ export function DashboardSidebar({
     action.onPress();
   };
 
+  const roleBadgeColor = getRoleBadgeColor(user?.role);
+  const initials = getInitials(user?.name);
+  const drawerWidth = Math.min(width * 0.84, 320);
+
+  // Keep modal mounted until close animation finishes
+  const [isRendered, setIsRendered] = React.useState(visible);
+  const slideAnim = React.useRef(new Animated.Value(-drawerWidth)).current;
+  const fadeAnim = React.useRef(new Animated.Value(0)).current;
+
+  React.useEffect(() => {
+    if (visible) {
+      setIsRendered(true);
+      // Open: slide in from left + backdrop fade in
+      Animated.parallel([
+        Animated.timing(slideAnim, {
+          toValue: 0,
+          duration: 280,
+          useNativeDriver: true,
+        }),
+        Animated.timing(fadeAnim, {
+          toValue: 1,
+          duration: 280,
+          useNativeDriver: true,
+        }),
+      ]).start();
+    } else {
+      // Close: slide out to left + backdrop fade out, then unmount
+      Animated.parallel([
+        Animated.timing(slideAnim, {
+          toValue: -drawerWidth,
+          duration: 240,
+          useNativeDriver: true,
+        }),
+        Animated.timing(fadeAnim, {
+          toValue: 0,
+          duration: 240,
+          useNativeDriver: true,
+        }),
+      ]).start(() => setIsRendered(false));
+    }
+  }, [visible]);
+
   return (
-    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
-      <View style={styles.overlay}>
+    <Modal visible={isRendered} transparent animationType="none" onRequestClose={onClose}>
+      <Animated.View style={[styles.overlay, { opacity: fadeAnim }]}>
         <TouchableOpacity
           style={styles.backdrop}
           activeOpacity={1}
@@ -424,36 +489,50 @@ export function DashboardSidebar({
           accessibilityRole="button"
           accessibilityLabel="Close menu"
         />
-        <SafeAreaView
-          style={[
-            styles.drawer,
-            {
-              width: Math.min(width * 0.84, 340),
-              borderRightColor: `${themeColor}24`,
-            },
-          ]}
-        >
+        <Animated.View style={{ transform: [{ translateX: slideAnim }] }}>
+          <SafeAreaView
+            style={[
+              styles.drawer,
+              { width: drawerWidth },
+            ]}
+            edges={["top", "bottom", "left"]}
+          >
+          {/* ── Header / Brand Block ── */}
           <View style={[styles.brandBlock, { backgroundColor: themeColor }]}>
-            <View style={styles.brandTopRow}>
-              <View style={styles.logoMark}>
-                <Ionicons name="leaf-outline" size={22} color={themeColor} />
+            {/* User row */}
+            <View style={styles.userRow}>
+              {/* Avatar */}
+              <View style={[styles.avatar, { borderColor: "rgba(255,255,255,0.4)" }]}>
+                <Text style={styles.avatarText}>{initials}</Text>
               </View>
-              <TouchableOpacity
-                style={styles.closeButton}
-                onPress={onClose}
-                activeOpacity={0.82}
-                accessibilityRole="button"
-                accessibilityLabel="Close sidebar"
-              >
-                <Ionicons name="close" size={20} color="#FFFFFF" />
-              </TouchableOpacity>
+              {/* Info */}
+              <View style={styles.userInfo}>
+                {/* Name + Badge */}
+                <View style={styles.userTextBlock}>
+                  <Text style={styles.userName} numberOfLines={1}>
+                    {user?.name ?? "User"}
+                  </Text>
+                  <View style={[styles.roleBadge, { backgroundColor: roleBadgeColor }]}>
+                    <Text style={styles.roleBadgeText}>
+                      {user?.role ?? "STAFF"}
+                    </Text>
+                  </View>
+                </View>
+                {/* Close Button — right side */}
+                <TouchableOpacity
+                  style={styles.closeButton}
+                  onPress={onClose}
+                  activeOpacity={0.8}
+                  accessibilityRole="button"
+                  accessibilityLabel="Close sidebar"
+                >
+                  <Ionicons name="close" size={18} color="#FFFFFF" />
+                </TouchableOpacity>
+              </View>
             </View>
-            <Text style={styles.brandTitle}>PoultryFlow</Text>
-            <Text style={styles.brandSubtitle} numberOfLines={1}>
-              {user?.name ?? "Dashboard"} {user?.role ? `- ${user.role}` : ""}
-            </Text>
           </View>
 
+          {/* ── Menu Items ── */}
           <ScrollView
             contentContainerStyle={styles.menuContent}
             showsVerticalScrollIndicator={false}
@@ -462,12 +541,21 @@ export function DashboardSidebar({
               const items = visibleItems.filter(
                 (item) => (item.section ?? "More") === section,
               );
-
               if (!items.length) return null;
 
               return (
                 <View key={section} style={styles.section}>
-                  <Text style={styles.sectionLabel}>{section}</Text>
+                  {/* Section header */}
+                  <View style={styles.sectionHeader}>
+                    <Ionicons
+                      name={sectionIcons[section] ?? "ellipsis-horizontal-outline"}
+                      size={12}
+                      color={Colors.textSecondary}
+                    />
+                    <Text style={styles.sectionLabel}>{section}</Text>
+                  </View>
+
+                  {/* Items */}
                   {items.map((item) => {
                     const isRouteItem = "route" in item;
                     const active =
@@ -479,31 +567,43 @@ export function DashboardSidebar({
                         style={[
                           styles.menuItem,
                           active && {
-                            backgroundColor: `${themeColor}12`,
-                            borderColor: `${themeColor}38`,
+                            backgroundColor: `${themeColor}14`,
                           },
                         ]}
-                        activeOpacity={0.82}
+                        activeOpacity={0.75}
                         onPress={() =>
                           isRouteItem
                             ? navigateTo(item.route)
                             : runAction(item as DashboardSidebarAction)
                         }
                       >
+                        {/* Active pill */}
+                        <View
+                          style={[
+                            styles.activePill,
+                            { backgroundColor: active ? themeColor : "transparent" },
+                          ]}
+                        />
+
+                        {/* Icon */}
                         <View
                           style={[
                             styles.menuIcon,
                             {
-                              backgroundColor: active ? themeColor : `${themeColor}14`,
+                              backgroundColor: active
+                                ? themeColor
+                                : `${themeColor}18`,
                             },
                           ]}
                         >
                           <Ionicons
                             name={item.icon}
-                            size={18}
+                            size={17}
                             color={active ? "#FFFFFF" : themeColor}
                           />
                         </View>
+
+                        {/* Text */}
                         <View style={styles.menuCopy}>
                           <Text
                             style={[
@@ -520,10 +620,13 @@ export function DashboardSidebar({
                             </Text>
                           ) : null}
                         </View>
+
+                        {/* Chevron */}
                         <Ionicons
-                          name="chevron-forward"
-                          size={16}
-                          color={Colors.textSecondary}
+                          name={active ? "chevron-forward" : "chevron-forward"}
+                          size={14}
+                          color={active ? themeColor : Colors.textSecondary}
+                          style={{ opacity: active ? 1 : 0.4 }}
                         />
                       </TouchableOpacity>
                     );
@@ -533,6 +636,7 @@ export function DashboardSidebar({
             })}
           </ScrollView>
 
+          {/* ── Footer ── */}
           <View style={styles.footer}>
             <TouchableOpacity
               style={styles.signOutButton}
@@ -540,21 +644,26 @@ export function DashboardSidebar({
                 onClose();
                 void signOut();
               }}
-              activeOpacity={0.82}
+              activeOpacity={0.8}
             >
-              <Ionicons name="log-out-outline" size={19} color={Colors.error} />
-              <Text style={styles.signOutText}>Logout</Text>
+              <View style={styles.signOutIcon}>
+                <Ionicons name="log-out-outline" size={18} color={Colors.error} />
+              </View>
+              <Text style={styles.signOutText}>Sign Out</Text>
+              <Ionicons name="chevron-forward" size={14} color={Colors.error} style={{ opacity: 0.6 }} />
             </TouchableOpacity>
+
+            <Text style={styles.versionText}>PoultryFlow v1.0</Text>
           </View>
-        </SafeAreaView>
-      </View>
+          </SafeAreaView>
+        </Animated.View>
+      </Animated.View>
     </Modal>
   );
 }
 
 function isRouteActive(pathname: string, route: string) {
   const normalizedRoute = route.replace(/\/\([^)]*\)/g, "") || "/";
-
   return pathname === normalizedRoute || pathname.startsWith(`${normalizedRoute}/`);
 }
 
@@ -562,93 +671,156 @@ const styles = StyleSheet.create({
   overlay: {
     flex: 1,
     flexDirection: "row",
-    backgroundColor: "rgba(0,0,0,0.42)",
+    backgroundColor: "rgba(0,0,0,0.5)",
   },
   backdrop: {
     ...StyleSheet.absoluteFillObject,
   },
   drawer: {
     height: "100%",
-    backgroundColor: Colors.surface,
-    borderRightWidth: 1,
+    backgroundColor: "#FFFFFF",
     shadowColor: "#000",
-    shadowOffset: { width: 4, height: 0 },
-    shadowOpacity: 0.18,
-    shadowRadius: 12,
-    elevation: 12,
+    shadowOffset: { width: 6, height: 0 },
+    shadowOpacity: 0.22,
+    shadowRadius: 20,
+    elevation: 20,
   },
+
+  // ── Brand Block ──
   brandBlock: {
-    paddingHorizontal: Layout.spacing.lg,
-    paddingTop: Layout.spacing.md,
-    paddingBottom: Layout.spacing.lg,
+    paddingHorizontal: 20,
+    paddingTop: 14,
+    paddingBottom: 20,
   },
   brandTopRow: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    marginBottom: Layout.spacing.lg,
+    marginBottom: 14,
   },
   logoMark: {
-    width: 42,
-    height: 42,
-    borderRadius: 12,
+    width: 38,
+    height: 38,
+    borderRadius: 10,
     alignItems: "center",
     justifyContent: "center",
     backgroundColor: "#FFFFFF",
   },
   closeButton: {
-    width: 36,
-    height: 36,
+    width: 34,
+    height: 34,
     borderRadius: 10,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "rgba(255,255,255,0.16)",
+    backgroundColor: "rgba(255,255,255,0.18)",
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.24)",
+    borderColor: "rgba(255,255,255,0.28)",
   },
   brandTitle: {
     color: "#FFFFFF",
-    fontSize: 23,
+    fontSize: 22,
     fontWeight: "900",
+    letterSpacing: 0.3,
+    marginBottom: 14,
   },
-  brandSubtitle: {
-    marginTop: 5,
-    color: "rgba(255,255,255,0.78)",
-    fontSize: 12,
-    fontWeight: "700",
+  brandDivider: {
+    height: 1,
+    backgroundColor: "rgba(255,255,255,0.2)",
+    marginBottom: 14,
   },
+  userRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+  },
+  avatar: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: "rgba(255,255,255,0.22)",
+    borderWidth: 2,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  avatarText: {
+    color: "#FFFFFF",
+    fontSize: 16,
+    fontWeight: "900",
+    letterSpacing: 0.5,
+  },
+  userInfo: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  userTextBlock: {
+    flex: 1,
+    gap: 5,
+    marginRight: 8,
+  },
+  userName: {
+    color: "#FFFFFF",
+    fontSize: 15,
+    fontWeight: "800",
+  },
+  roleBadge: {
+    alignSelf: "flex-start",
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 20,
+  },
+  roleBadgeText: {
+    color: "#FFFFFF",
+    fontSize: 10,
+    fontWeight: "900",
+    letterSpacing: 0.8,
+  },
+
+  // ── Menu ──
   menuContent: {
-    paddingHorizontal: Layout.spacing.md,
-    paddingTop: Layout.spacing.md,
-    paddingBottom: Layout.spacing.lg,
+    paddingHorizontal: 12,
+    paddingTop: 14,
+    paddingBottom: 16,
   },
   section: {
-    marginBottom: Layout.spacing.md,
+    marginBottom: 6,
+  },
+  sectionHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+    paddingHorizontal: 8,
+    paddingVertical: 6,
+    marginBottom: 2,
   },
   sectionLabel: {
-    marginBottom: 8,
-    paddingHorizontal: 8,
     color: Colors.textSecondary,
-    fontSize: 11,
+    fontSize: 10,
     fontWeight: "900",
-    letterSpacing: 0,
+    letterSpacing: 1,
     textTransform: "uppercase",
   },
   menuItem: {
-    minHeight: 54,
     flexDirection: "row",
     alignItems: "center",
     gap: 10,
-    paddingHorizontal: 10,
-    paddingVertical: 8,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: "transparent",
+    paddingVertical: 9,
+    paddingRight: 10,
+    borderRadius: 10,
+    marginBottom: 2,
+    overflow: "hidden",
+  },
+  activePill: {
+    width: 3,
+    height: 28,
+    borderRadius: 2,
+    marginLeft: 2,
   },
   menuIcon: {
-    width: 36,
-    height: 36,
-    borderRadius: 8,
+    width: 34,
+    height: 34,
+    borderRadius: 9,
     alignItems: "center",
     justifyContent: "center",
   },
@@ -658,35 +830,56 @@ const styles = StyleSheet.create({
   },
   menuTitle: {
     color: Colors.text,
+    fontSize: 13.5,
+    fontWeight: "700",
+  },
+  menuSubtitle: {
+    marginTop: 1,
+    color: Colors.textSecondary,
+    fontSize: 11,
+    fontWeight: "500",
+  },
+
+  // ── Footer ──
+  footer: {
+    paddingHorizontal: 12,
+    paddingTop: 10,
+    paddingBottom: 12,
+    borderTopWidth: 1,
+    borderTopColor: "#F0F0F0",
+    backgroundColor: "#FAFAFA",
+    gap: 8,
+  },
+  signOutButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    height: 48,
+    paddingHorizontal: 12,
+    borderRadius: 12,
+    backgroundColor: "#FFF5F5",
+    borderWidth: 1,
+    borderColor: "#FFE4E4",
+  },
+  signOutIcon: {
+    width: 32,
+    height: 32,
+    borderRadius: 8,
+    backgroundColor: "#FFE4E4",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  signOutText: {
+    flex: 1,
+    color: Colors.error,
     fontSize: 14,
     fontWeight: "800",
   },
-  menuSubtitle: {
-    marginTop: 2,
+  versionText: {
+    textAlign: "center",
     color: Colors.textSecondary,
     fontSize: 11,
-    fontWeight: "600",
-  },
-  footer: {
-    padding: Layout.spacing.md,
-    borderTopWidth: 1,
-    borderTopColor: Colors.border,
-    backgroundColor: "#FAFBFA",
-  },
-  signOutButton: {
-    height: 46,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 8,
-    borderRadius: 8,
-    backgroundColor: "#FFF5F5",
-    borderWidth: 1,
-    borderColor: "#F8D3D2",
-  },
-  signOutText: {
-    color: Colors.error,
-    fontSize: 14,
-    fontWeight: "900",
+    fontWeight: "500",
+    opacity: 0.6,
   },
 });
