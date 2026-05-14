@@ -1,5 +1,6 @@
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
+import * as Location from 'expo-location';
 import { useRouter } from 'expo-router';
 import React from 'react';
 import {
@@ -19,8 +20,31 @@ import { fetchDashboard, type ApiDashboardSummary } from '../../services/dashboa
 
 const THEME_GREEN = '#0B5C36';
 
+type WeatherState = {
+  temperature: number | null;
+  humidity: number | null;
+  status: string;
+};
+
+type OpenMeteoResponse = {
+  current?: {
+    temperature_2m?: number;
+    relative_humidity_2m?: number;
+  };
+};
+
 function formatNumber(value?: number | null) {
   return Number(value ?? 0).toLocaleString('en-IN');
+}
+
+function buildWeatherUrl(latitude: number, longitude: number) {
+  const params = new URLSearchParams({
+    latitude: String(latitude),
+    longitude: String(longitude),
+    current: 'temperature_2m,relative_humidity_2m',
+  });
+
+  return `https://api.open-meteo.com/v1/forecast?${params.toString()}`;
 }
 
 export default function FarmerDashboard() {
@@ -29,6 +53,11 @@ export default function FarmerDashboard() {
   const insets = useSafeAreaInsets();
   const [showSidebar, setShowSidebar] = React.useState(false);
   const [dashboard, setDashboard] = React.useState<ApiDashboardSummary | null>(null);
+  const [weather, setWeather] = React.useState<WeatherState>({
+    temperature: null,
+    humidity: null,
+    status: 'Current location',
+  });
   const [loading, setLoading] = React.useState(true);
 
   const loadDashboard = React.useCallback(async () => {
@@ -43,10 +72,39 @@ export default function FarmerDashboard() {
     }
   }, [accessToken]);
 
+  const loadWeather = React.useCallback(async () => {
+    try {
+      const permission = await Location.requestForegroundPermissionsAsync();
+      if (permission.status !== Location.PermissionStatus.GRANTED) {
+        setWeather({ temperature: null, humidity: null, status: 'Location off' });
+        return;
+      }
+
+      const currentLocation = await Location.getCurrentPositionAsync({
+        accuracy: Location.Accuracy.Balanced,
+      });
+      const { latitude, longitude } = currentLocation.coords;
+      const response = await fetch(buildWeatherUrl(latitude, longitude));
+      if (!response.ok) {
+        throw new Error(`Weather request failed: ${response.status}`);
+      }
+      const data = (await response.json()) as OpenMeteoResponse;
+      setWeather({
+        temperature: data.current?.temperature_2m ?? null,
+        humidity: data.current?.relative_humidity_2m ?? null,
+        status: 'Current location',
+      });
+    } catch (error) {
+      console.warn('Failed to load weather:', error);
+      setWeather({ temperature: null, humidity: null, status: 'Unavailable' });
+    }
+  }, []);
+
   useFocusEffect(
     React.useCallback(() => {
       void loadDashboard();
-    }, [loadDashboard]),
+      void loadWeather();
+    }, [loadDashboard, loadWeather]),
   );
 
   const activeBatch = dashboard?.activeBatches?.[0] ?? null;
@@ -180,18 +238,18 @@ export default function FarmerDashboard() {
 
         <View style={styles.envGrid}>
           <StatusCard
-            icon="bird"
-            value={formatNumber(dashboard?.today.liveBirds)}
-            label="Live Birds"
-            status="Current"
+            icon="thermometer"
+            value={weather.temperature === null ? '--' : `${weather.temperature.toFixed(1)}°C`}
+            label="Temperature"
+            status={weather.status}
             color={THEME_GREEN}
             bg="#E7F5ED"
           />
           <StatusCard
-            icon="alert-circle-outline"
-            value={formatNumber(dashboard?.today.mortalityToday)}
-            label="Mortality Today"
-            status="Reported"
+            icon="water-percent"
+            value={weather.humidity === null ? '--' : `${weather.humidity}%`}
+            label="Humidity"
+            status={weather.status}
             color="#00695C"
             bg="#E0F2F1"
           />
