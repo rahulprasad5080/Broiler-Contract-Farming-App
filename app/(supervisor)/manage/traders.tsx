@@ -13,7 +13,7 @@ import {
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import React, { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, Modal, ScrollView, StatusBar, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, FlatList, Modal, StatusBar, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -104,22 +104,14 @@ export default function SupervisorTradersScreen() {
         </TouchableOpacity>
       </View>
 
-      <ScrollView
-        style={styles.mainScroll}
+      <FlatList
+        data={loading ? [] : traders}
+        keyExtractor={(item) => item.id}
         contentContainerStyle={styles.container}
+        style={styles.mainList}
         showsVerticalScrollIndicator={false}
-      >
-        {loading ? (
-          <ActivityIndicator color={Colors.primary} style={{ marginTop: 40 }} />
-        ) : traders.length === 0 ? (
-          <View style={styles.emptyBox}>
-            <MaterialCommunityIcons name="account-group-outline" size={64} color={Colors.border} />
-            <Text style={styles.emptyTitle}>No Traders Found</Text>
-            <Text style={styles.emptyText}>Tap the + icon to add a new trader.</Text>
-          </View>
-        ) : (
-          traders.map((trader) => (
-            <View key={trader.id} style={styles.traderCard}>
+        renderItem={({ item: trader }) => (
+          <View style={styles.traderCard}>
               <View style={styles.avatarBox}>
                 <Ionicons name="person" size={20} color={Colors.primary} />
               </View>
@@ -139,9 +131,19 @@ export default function SupervisorTradersScreen() {
                 ) : null}
               </View>
             </View>
-          ))
         )}
-      </ScrollView>
+        ListEmptyComponent={
+          loading ? (
+            <ActivityIndicator color={Colors.primary} style={{ marginTop: 40 }} />
+          ) : (
+            <View style={styles.emptyBox}>
+              <MaterialCommunityIcons name="account-group-outline" size={64} color={Colors.border} />
+              <Text style={styles.emptyTitle}>No Traders Found</Text>
+              <Text style={styles.emptyText}>Tap the + icon to add a new trader.</Text>
+            </View>
+          )
+        }
+      />
 
       <Modal visible={showAddModal} transparent animationType="slide">
         <TouchableOpacity style={styles.modalOverlay} activeOpacity={1} onPress={() => setShowAddModal(false)}>
@@ -236,7 +238,7 @@ const styles = StyleSheet.create({
   },
   headerAction: { width: 36, height: 36, borderRadius: 18, backgroundColor: "#FFF", justifyContent: 'center', alignItems: 'center' },
   container: { paddingHorizontal: 20, paddingTop: 10, paddingBottom: 100, maxWidth: Layout.contentMaxWidth, alignSelf: 'center', width: '100%' },
-  mainScroll: { flex: 1, backgroundColor: '#F9FAFB' },
+  mainList: { flex: 1, backgroundColor: '#F9FAFB' },
   emptyBox: { alignItems: 'center', marginTop: 80 },
   emptyTitle: { fontSize: 18, fontWeight: '700', color: "#111827", marginTop: 16 },
   emptyText: { fontSize: 14, color: "#6B7280", marginTop: 8, textAlign: 'center' },

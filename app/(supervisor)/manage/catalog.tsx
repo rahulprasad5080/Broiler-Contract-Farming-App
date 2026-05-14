@@ -20,7 +20,7 @@ import { Controller, useForm } from 'react-hook-form';
 import {
   ActivityIndicator,
   Animated,
-  ScrollView,
+  FlatList,
   StatusBar,
   StyleSheet,
   Text,
@@ -146,142 +146,143 @@ export default function SupervisorCatalogScreen() {
         <View style={{ width: 24 }} />
       </View>
 
-      <ScrollView 
+      <FlatList
+        data={loading ? [] : items}
+        keyExtractor={(item) => item.id}
         style={styles.mainScroll}
         contentContainerStyle={styles.container} 
         showsVerticalScrollIndicator={false} 
         keyboardShouldPersistTaps="handled"
-      >
-        <View style={styles.card}>
-          {/* Draft restored banner */}
-          {showBanner && (
-            <Animated.View style={[styles.draftBanner, { opacity: draftBannerOpacity }]} pointerEvents="none">
-              <Ionicons name="cloud-done-outline" size={16} color="#0B5C36" />
-              <Text style={styles.draftBannerText}>Draft restored</Text>
-            </Animated.View>
-          )}
+        ListHeaderComponent={
+          <>
+            <View style={styles.card}>
+              {/* Draft restored banner */}
+              {showBanner && (
+                <Animated.View style={[styles.draftBanner, { opacity: draftBannerOpacity }]} pointerEvents="none">
+                  <Ionicons name="cloud-done-outline" size={16} color="#0B5C36" />
+                  <Text style={styles.draftBannerText}>Draft restored</Text>
+                </Animated.View>
+              )}
 
-          <Text style={styles.sectionTitle}>Add New Item</Text>
+              <Text style={styles.sectionTitle}>Add New Item</Text>
 
-          <Controller
-            control={control}
-            name="name"
-            render={({ field: { onChange, value } }) => (
-              <>
-                <Text style={styles.label}>Name *</Text>
-                <View style={[styles.inputBox, formErrors.name && { borderColor: Colors.tertiary }]}>
-                  <TextInput
-                    style={styles.input}
-                    value={value}
-                    onChangeText={onChange}
-                    placeholder="e.g., Pre-starter Feed"
-                    placeholderTextColor={Colors.textSecondary}
-                  />
-                </View>
-                {formErrors.name && <Text style={styles.fieldErrorText}>{formErrors.name.message}</Text>}
-              </>
-            )}
-          />
+              <Controller
+                control={control}
+                name="name"
+                render={({ field: { onChange, value } }) => (
+                  <>
+                    <Text style={styles.label}>Name *</Text>
+                    <View style={[styles.inputBox, formErrors.name && { borderColor: Colors.tertiary }]}>
+                      <TextInput
+                        style={styles.input}
+                        value={value}
+                        onChangeText={onChange}
+                        placeholder="e.g., Pre-starter Feed"
+                        placeholderTextColor={Colors.textSecondary}
+                      />
+                    </View>
+                    {formErrors.name && <Text style={styles.fieldErrorText}>{formErrors.name.message}</Text>}
+                  </>
+                )}
+              />
 
-          <Controller
-            control={control}
-            name="type"
-            render={({ field: { onChange, value } }) => (
-              <>
-                <Text style={styles.label}>Type *</Text>
-                <View style={styles.chipRow}>
-                  {CATALOG_TYPES.map((type) => (
-                    <TouchableOpacity
-                      key={type}
-                      style={[styles.chip, value === type && styles.chipActive]}
-                      onPress={() => onChange(type)}
-                    >
-                      <Text style={[styles.chipText, value === type && styles.chipTextActive]}>{type}</Text>
-                    </TouchableOpacity>
-                  ))}
-                </View>
-                {formErrors.type && <Text style={styles.fieldErrorText}>{formErrors.type.message}</Text>}
-              </>
-            )}
-          />
+              <Controller
+                control={control}
+                name="type"
+                render={({ field: { onChange, value } }) => (
+                  <>
+                    <Text style={styles.label}>Type *</Text>
+                    <View style={styles.chipRow}>
+                      {CATALOG_TYPES.map((type) => (
+                        <TouchableOpacity
+                          key={type}
+                          style={[styles.chip, value === type && styles.chipActive]}
+                          onPress={() => onChange(type)}
+                        >
+                          <Text style={[styles.chipText, value === type && styles.chipTextActive]}>{type}</Text>
+                        </TouchableOpacity>
+                      ))}
+                    </View>
+                    {formErrors.type && <Text style={styles.fieldErrorText}>{formErrors.type.message}</Text>}
+                  </>
+                )}
+              />
 
-          <Controller
-            control={control}
-            name="unit"
-            render={({ field: { onChange, value } }) => (
-              <>
-                <Text style={styles.label}>Unit *</Text>
-                <View style={[styles.inputBox, formErrors.unit && { borderColor: Colors.tertiary }]}>
-                  <TextInput
-                    style={styles.input}
-                    value={value}
-                    onChangeText={onChange}
-                    placeholder="e.g., kg, ml, pieces"
-                    placeholderTextColor={Colors.textSecondary}
-                  />
-                </View>
-                {formErrors.unit && <Text style={styles.fieldErrorText}>{formErrors.unit.message}</Text>}
-              </>
-            )}
-          />
+              <Controller
+                control={control}
+                name="unit"
+                render={({ field: { onChange, value } }) => (
+                  <>
+                    <Text style={styles.label}>Unit *</Text>
+                    <View style={[styles.inputBox, formErrors.unit && { borderColor: Colors.tertiary }]}>
+                      <TextInput
+                        style={styles.input}
+                        value={value}
+                        onChangeText={onChange}
+                        placeholder="e.g., kg, ml, pieces"
+                        placeholderTextColor={Colors.textSecondary}
+                      />
+                    </View>
+                    {formErrors.unit && <Text style={styles.fieldErrorText}>{formErrors.unit.message}</Text>}
+                  </>
+                )}
+              />
 
-          <Controller
-            control={control}
-            name="manufacturer"
-            render={({ field: { onChange, value } }) => (
-              <>
-                <Text style={styles.label}>Manufacturer</Text>
-                <View style={[styles.inputBox, styles.textArea, formErrors.manufacturer && { borderColor: Colors.tertiary }]}>
-                  <TextInput
-                    style={[styles.input, styles.multiLine]}
-                    value={value}
-                    onChangeText={onChange}
-                    placeholder="Optional brand or manufacturer"
-                    placeholderTextColor={Colors.textSecondary}
-                    multiline
-                  />
-                </View>
-                {formErrors.manufacturer && <Text style={styles.fieldErrorText}>{formErrors.manufacturer.message}</Text>}
-              </>
-            )}
-          />
+              <Controller
+                control={control}
+                name="manufacturer"
+                render={({ field: { onChange, value } }) => (
+                  <>
+                    <Text style={styles.label}>Manufacturer</Text>
+                    <View style={[styles.inputBox, styles.textArea, formErrors.manufacturer && { borderColor: Colors.tertiary }]}>
+                      <TextInput
+                        style={[styles.input, styles.multiLine]}
+                        value={value}
+                        onChangeText={onChange}
+                        placeholder="Optional brand or manufacturer"
+                        placeholderTextColor={Colors.textSecondary}
+                        multiline
+                      />
+                    </View>
+                    {formErrors.manufacturer && <Text style={styles.fieldErrorText}>{formErrors.manufacturer.message}</Text>}
+                  </>
+                )}
+              />
 
-          <TouchableOpacity style={styles.submitBtn} onPress={handleSubmit(handleSave)} disabled={saving}>
-            {saving ? <ActivityIndicator color="#FFF" /> : <Text style={styles.submitBtnText}>Add Item</Text>}
-          </TouchableOpacity>
-        </View>
+              <TouchableOpacity style={styles.submitBtn} onPress={handleSubmit(handleSave)} disabled={saving}>
+                {saving ? <ActivityIndicator color="#FFF" /> : <Text style={styles.submitBtnText}>Add Item</Text>}
+              </TouchableOpacity>
+            </View>
 
-        <View style={styles.card}>
-          <Text style={styles.sectionTitle}>Existing Items</Text>
-          {loading ? (
-            <ActivityIndicator color={Colors.primary} style={{ marginVertical: 20 }} />
-          ) : items.length === 0 ? (
-            <Text style={styles.emptyText}>No items found.</Text>
-          ) : (
-            items.map((item) => (
-              <View key={item.id} style={styles.listItem}>
-                <View>
-                  <Text style={styles.itemName}>{item.name}</Text>
-                  <Text style={styles.itemMeta}>
-                    {item.type}
-                    {item.unit ? ` | ${item.unit}` : ''}
-                    {item.manufacturer ? ` | ${item.manufacturer}` : ''}
-                  </Text>
-                  <Text style={styles.itemMeta}>
-                    Stock {Number(item.currentStock ?? 0).toLocaleString('en-IN')}
-                    {item.reorderLevel ? ` | Reorder ${item.reorderLevel}` : ''}
-                  </Text>
-                </View>
-                <View style={[styles.statusBadge, { backgroundColor: item.isActive ? '#E8F5E9' : '#FFEBEE' }]}>
-                  <Text style={[styles.statusText, { color: item.isActive ? '#2E7D32' : '#C62828' }]}>
-                    {item.isActive ? 'Active' : 'Inactive'}
-                  </Text>
-                </View>
-              </View>
-            ))
-          )}
-        </View>
-      </ScrollView>
+            <View style={styles.listHeaderCard}>
+              <Text style={styles.sectionTitle}>Existing Items</Text>
+              {loading ? <ActivityIndicator color={Colors.primary} style={{ marginVertical: 20 }} /> : null}
+            </View>
+          </>
+        }
+        renderItem={({ item }) => (
+          <View style={[styles.listItem, styles.listItemCard]}>
+            <View style={styles.itemCopy}>
+              <Text style={styles.itemName}>{item.name}</Text>
+              <Text style={styles.itemMeta}>
+                {item.type}
+                {item.unit ? ` | ${item.unit}` : ''}
+                {item.manufacturer ? ` | ${item.manufacturer}` : ''}
+              </Text>
+              <Text style={styles.itemMeta}>
+                Stock {Number(item.currentStock ?? 0).toLocaleString('en-IN')}
+                {item.reorderLevel ? ` | Reorder ${item.reorderLevel}` : ''}
+              </Text>
+            </View>
+            <View style={[styles.statusBadge, { backgroundColor: item.isActive ? '#E8F5E9' : '#FFEBEE' }]}>
+              <Text style={[styles.statusText, { color: item.isActive ? '#2E7D32' : '#C62828' }]}>
+                {item.isActive ? 'Active' : 'Inactive'}
+              </Text>
+            </View>
+          </View>
+        )}
+        ListEmptyComponent={!loading ? <Text style={styles.emptyText}>No items found.</Text> : null}
+      />
     </SafeAreaView>
   );
 }
@@ -325,6 +326,14 @@ const styles = StyleSheet.create({
     borderWidth: 1, borderColor: '#F3F4F6',
     shadowColor: "#000", shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.05, shadowRadius: 10, elevation: 2,
   },
+  listHeaderCard: {
+    backgroundColor: '#FFF',
+    borderRadius: 16,
+    padding: 20,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: '#F3F4F6',
+  },
   sectionTitle: { fontSize: 18, fontWeight: '700', color: "#111827", marginBottom: 20 },
   label: { fontSize: 14, fontWeight: '600', color: "#374151", marginBottom: 8, marginTop: 14 },
   inputBox: {
@@ -359,6 +368,15 @@ const styles = StyleSheet.create({
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
     paddingVertical: 16, borderBottomWidth: 1, borderBottomColor: '#F3F4F6',
   },
+  listItemCard: {
+    backgroundColor: '#FFF',
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: '#F3F4F6',
+    paddingHorizontal: 16,
+    marginBottom: 10,
+  },
+  itemCopy: { flex: 1, paddingRight: 12 },
   itemName: { fontSize: 16, fontWeight: '700', color: "#111827" },
   itemMeta: { fontSize: 13, color: "#6B7280", marginTop: 4 },
   statusBadge: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8 },

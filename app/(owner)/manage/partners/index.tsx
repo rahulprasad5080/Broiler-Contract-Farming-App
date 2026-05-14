@@ -3,7 +3,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { useFocusEffect } from '@react-navigation/native';
 import { useRouter } from 'expo-router';
 import React, { useCallback, useMemo, useState } from 'react';
-import { ActivityIndicator, Modal, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, FlatList, Modal, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Controller, useForm } from 'react-hook-form';
 import { z } from 'zod';
@@ -165,39 +165,45 @@ export default function PartnerManagementScreen() {
         </TouchableOpacity>
       </View>
 
-      <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
-        {message ? <Text style={styles.messageText}>{message}</Text> : null}
+      <FlatList
+        data={loading ? [] : filteredTraders}
+        keyExtractor={(item) => item.id}
+        contentContainerStyle={styles.container}
+        showsVerticalScrollIndicator={false}
+        ListHeaderComponent={
+          <>
+            {message ? <Text style={styles.messageText}>{message}</Text> : null}
 
-        <View style={styles.summaryPanel}>
-          <View>
-            <Text style={styles.kicker}>MASTER DATA</Text>
-            <Text style={styles.summaryTitle}>Traders</Text>
-          </View>
-          {loading ? <ActivityIndicator color={Colors.primary} /> : <Text style={styles.summaryCount}>{traders.length}</Text>}
-        </View>
+            <View style={styles.summaryPanel}>
+              <View>
+                <Text style={styles.kicker}>MASTER DATA</Text>
+                <Text style={styles.summaryTitle}>Traders</Text>
+              </View>
+              {loading ? <ActivityIndicator color={Colors.primary} /> : <Text style={styles.summaryCount}>{traders.length}</Text>}
+            </View>
 
-        <View style={styles.searchBox}>
-          <Ionicons name="search-outline" size={18} color={Colors.textSecondary} />
-          <TextInput
-            style={styles.searchInput}
-            value={search}
-            onChangeText={setSearch}
-            placeholder="Search name, phone, email"
-            placeholderTextColor={Colors.textSecondary}
-          />
-        </View>
+            <View style={styles.searchBox}>
+              <Ionicons name="search-outline" size={18} color={Colors.textSecondary} />
+              <TextInput
+                style={styles.searchInput}
+                value={search}
+                onChangeText={setSearch}
+                placeholder="Search name, phone, email"
+                placeholderTextColor={Colors.textSecondary}
+              />
+            </View>
 
-        <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>Trader Directory</Text>
-          <TouchableOpacity style={styles.textAction} onPress={() => void loadTraders()}>
-            <Text style={styles.textActionLabel}>Refresh</Text>
-            <Ionicons name="refresh-outline" size={16} color={Colors.primary} />
-          </TouchableOpacity>
-        </View>
-
-        {filteredTraders.length ? (
-          filteredTraders.map((trader) => (
-            <View key={trader.id} style={styles.partnerCard}>
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>Trader Directory</Text>
+              <TouchableOpacity style={styles.textAction} onPress={() => void loadTraders()}>
+                <Text style={styles.textActionLabel}>Refresh</Text>
+                <Ionicons name="refresh-outline" size={16} color={Colors.primary} />
+              </TouchableOpacity>
+            </View>
+          </>
+        }
+        renderItem={({ item: trader }) => (
+          <View style={styles.partnerCard}>
               <View style={styles.avatarBox}>
                 <MaterialCommunityIcons name="account-cash-outline" size={24} color={Colors.primary} />
               </View>
@@ -209,11 +215,15 @@ export default function PartnerManagementScreen() {
                 {trader.address ? <Text style={styles.partnerMeta}>{trader.address}</Text> : null}
               </View>
             </View>
-          ))
-        ) : (
-          <Text style={styles.emptyText}>No traders found.</Text>
         )}
-      </ScrollView>
+        ListEmptyComponent={
+          loading ? (
+            <ActivityIndicator color={Colors.primary} style={styles.listLoader} />
+          ) : (
+            <Text style={styles.emptyText}>No traders found.</Text>
+          )
+        }
+      />
 
       <Modal visible={showAddModal} transparent animationType="slide">
         <TouchableOpacity style={styles.modalOverlay} activeOpacity={1} onPress={() => setShowAddModal(false)}>
@@ -438,6 +448,9 @@ const styles = StyleSheet.create({
   emptyText: {
     fontSize: 13,
     color: Colors.textSecondary,
+  },
+  listLoader: {
+    marginVertical: 20,
   },
   lockedState: {
     flex: 1,

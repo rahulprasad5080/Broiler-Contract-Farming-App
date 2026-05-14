@@ -19,6 +19,7 @@ import { useRouter, type Href } from "expo-router";
 import React, { useCallback, useEffect, useState } from "react";
 import {
   ActivityIndicator,
+  FlatList,
   Image,
   Modal,
   ScrollView,
@@ -562,22 +563,18 @@ export default function OwnerDashboard() {
               <Text style={styles.errorText}>{settingsError}</Text>
             ) : null}
 
-            <ScrollView
+            <FlatList
+              data={loadingUsers ? [] : filteredUsers}
+              keyExtractor={(item) => item.id}
+              style={styles.settingsUserList}
               showsVerticalScrollIndicator={false}
               keyboardShouldPersistTaps="handled"
-            >
-              {loadingUsers ? (
-                <View style={styles.loadingState}>
-                  <ActivityIndicator color={THEME_GREEN} />
-                  <Text style={styles.loadingText}>Loading users...</Text>
-                </View>
-              ) : filteredUsers.length ? (
-                filteredUsers.map((item) => {
+              renderItem={({ item }) => {
                   const isActive = item.status === "ACTIVE";
                   const isSaving = savingUserId === item.id;
 
                   return (
-                    <View key={item.id} style={styles.userRow}>
+                    <View style={styles.userRow}>
                       <View style={styles.userMeta}>
                         <View style={styles.userAvatar}>
                           <Text style={styles.userAvatarText}>
@@ -625,18 +622,25 @@ export default function OwnerDashboard() {
                       </View>
                     </View>
                   );
-                })
-              ) : (
-                <View style={styles.emptyState}>
-                  <MaterialCommunityIcons
-                    name="account-search-outline"
-                    size={42}
-                    color={Colors.border}
-                  />
-                  <Text style={styles.emptyText}>No users found</Text>
-                </View>
-              )}
-            </ScrollView>
+                }}
+              ListEmptyComponent={
+                loadingUsers ? (
+                  <View style={styles.loadingState}>
+                    <ActivityIndicator color={THEME_GREEN} />
+                    <Text style={styles.loadingText}>Loading users...</Text>
+                  </View>
+                ) : (
+                  <View style={styles.emptyState}>
+                    <MaterialCommunityIcons
+                      name="account-search-outline"
+                      size={42}
+                      color={Colors.border}
+                    />
+                    <Text style={styles.emptyText}>No users found</Text>
+                  </View>
+                )
+              }
+            />
           </View>
         </TouchableOpacity>
       </Modal>
@@ -1084,6 +1088,7 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   searchInput: { flex: 1, fontSize: 14, color: Colors.text, padding: 0 },
+  settingsUserList: { flexGrow: 0 },
   errorText: {
     marginBottom: 12,
     padding: 10,

@@ -1,5 +1,5 @@
 import React, { useCallback, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, RefreshControl, Modal, TextInput, StatusBar } from 'react-native';
+import { View, Text, StyleSheet, FlatList, TouchableOpacity, ActivityIndicator, RefreshControl, Modal, TextInput, StatusBar } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Colors } from '@/constants/Colors';
 import { Layout } from '@/constants/Layout';
@@ -139,21 +139,13 @@ export default function SupervisorReviewLogsScreen() {
         <View style={{ width: 24 }} />
       </View>
 
-      <ScrollView 
+      <FlatList
+        data={loading && !refreshing ? [] : logs}
+        keyExtractor={(item) => item.id}
         contentContainerStyle={styles.container}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[Colors.primary]} />}
-      >
-        {loading && !refreshing ? (
-          <ActivityIndicator color={Colors.primary} style={{ marginTop: 40 }} />
-        ) : logs.length === 0 ? (
-          <View style={styles.emptyBox}>
-            <MaterialCommunityIcons name="clipboard-text-outline" size={64} color={Colors.border} />
-            <Text style={styles.emptyTitle}>No Logs Found</Text>
-            <Text style={styles.emptyText}>No daily logs have been submitted for this batch yet.</Text>
-          </View>
-        ) : (
-          logs.map(log => (
-            <TouchableOpacity key={log.id} style={styles.logCard} onPress={() => handleEditLog(log)}>
+        renderItem={({ item: log }) => (
+          <TouchableOpacity style={styles.logCard} onPress={() => handleEditLog(log)}>
               <View style={styles.logHeader}>
                 <Text style={styles.logDate}>{format(new Date(log.logDate), 'dd MMM yyyy')}</Text>
                 {log.correctedById ? (
@@ -183,10 +175,20 @@ export default function SupervisorReviewLogsScreen() {
                   <Text style={styles.notesText} numberOfLines={2}>Farmer notes: {log.notes}</Text>
                 </View>
               ) : null}
-            </TouchableOpacity>
-          ))
+          </TouchableOpacity>
         )}
-      </ScrollView>
+        ListEmptyComponent={
+          loading && !refreshing ? (
+            <ActivityIndicator color={Colors.primary} style={{ marginTop: 40 }} />
+          ) : (
+            <View style={styles.emptyBox}>
+              <MaterialCommunityIcons name="clipboard-text-outline" size={64} color={Colors.border} />
+              <Text style={styles.emptyTitle}>No Logs Found</Text>
+              <Text style={styles.emptyText}>No daily logs have been submitted for this batch yet.</Text>
+            </View>
+          )
+        }
+      />
 
       <Modal visible={!!selectedLog} transparent animationType="slide">
         <TouchableOpacity style={styles.modalOverlay} activeOpacity={1} onPress={() => setSelectedLog(null)}>

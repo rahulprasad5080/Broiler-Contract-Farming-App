@@ -9,6 +9,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Animated,
+  FlatList,
   Modal,
   ScrollView,
   StyleSheet,
@@ -671,14 +672,13 @@ export default function AddFarmScreen() {
               />
             </View>
 
-            <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
-              {isLoading ? (
-                <View style={styles.loadingState}>
-                  <ActivityIndicator color={Colors.primary} />
-                  <Text style={styles.loadingText}>Loading users...</Text>
-                </View>
-              ) : roleFilteredUsers.length ? (
-                roleFilteredUsers.map((user) => {
+            <FlatList
+              data={isLoading ? [] : roleFilteredUsers}
+              keyExtractor={(item) => item.id}
+              style={styles.assignmentList}
+              showsVerticalScrollIndicator={false}
+              keyboardShouldPersistTaps="handled"
+              renderItem={({ item: user }) => {
                   const selected =
                     assignmentField === 'assignmentUserIds'
                       ? assignmentUserIds.includes(user.id)
@@ -688,7 +688,6 @@ export default function AddFarmScreen() {
 
                   return (
                     <TouchableOpacity
-                      key={user.id}
                       style={[styles.userOption, selected && styles.userOptionSelected]}
                       onPress={() => handlePickUser(user.id)}
                     >
@@ -718,14 +717,21 @@ export default function AddFarmScreen() {
                       </View>
                     </TouchableOpacity>
                   );
-                })
-              ) : (
-                <View style={styles.emptyPickerState}>
-                  <MaterialCommunityIcons name="account-search-outline" size={40} color={Colors.border} />
-                  <Text style={styles.emptyText}>No matching users</Text>
-                </View>
-              )}
-            </ScrollView>
+                }}
+              ListEmptyComponent={
+                isLoading ? (
+                  <View style={styles.loadingState}>
+                    <ActivityIndicator color={Colors.primary} />
+                    <Text style={styles.loadingText}>Loading users...</Text>
+                  </View>
+                ) : (
+                  <View style={styles.emptyPickerState}>
+                    <MaterialCommunityIcons name="account-search-outline" size={40} color={Colors.border} />
+                    <Text style={styles.emptyText}>No matching users</Text>
+                  </View>
+                )
+              }
+            />
 
             {assignmentField === 'assignmentUserIds' ? (
               <TouchableOpacity style={styles.doneButton} onPress={closeAssignmentPicker}>
@@ -1242,6 +1248,7 @@ const styles = StyleSheet.create({
   },
   modalTitle: { fontSize: 18, fontWeight: 'bold', color: Colors.text, marginBottom: 16 },
   filterRow: { gap: 8, paddingBottom: 12 },
+  assignmentList: { flexGrow: 0 },
   filterChip: {
     borderWidth: 1,
     borderColor: Colors.border,

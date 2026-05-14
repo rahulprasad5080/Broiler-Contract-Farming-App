@@ -7,7 +7,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import { format } from 'date-fns';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useCallback, useState } from 'react';
-import { ActivityIndicator, RefreshControl, ScrollView, StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, FlatList, RefreshControl, StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 export default function FarmerFarmDetailScreen() {
@@ -103,49 +103,49 @@ export default function FarmerFarmDetailScreen() {
         <View style={{ width: 40 }} />
       </View>
 
-      <ScrollView 
+      <FlatList
+        data={activeBatches}
+        keyExtractor={(item) => item.id}
         style={styles.scrollView}
         contentContainerStyle={styles.container}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[Colors.primary]} />}
         showsVerticalScrollIndicator={false}
-      >
-        <View style={styles.summaryCard}>
-          <View style={styles.summaryTop}>
-            <View>
-              <Text style={styles.farmCode}>{farm.code}</Text>
-              <Text style={styles.locationText}>
-                {[farm.location, farm.village, farm.district].filter(Boolean).join(', ')}
-              </Text>
+        ListHeaderComponent={
+          <>
+            <View style={styles.summaryCard}>
+              <View style={styles.summaryTop}>
+                <View>
+                  <Text style={styles.farmCode}>{farm.code}</Text>
+                  <Text style={styles.locationText}>
+                    {[farm.location, farm.village, farm.district].filter(Boolean).join(', ')}
+                  </Text>
+                </View>
+                <View style={styles.badge}>
+                  <Text style={styles.badgeText}>{farm.status}</Text>
+                </View>
+              </View>
+              
+              <View style={styles.summaryStatsRow}>
+                <View style={styles.statBox}>
+                  <Text style={styles.statValue}>{farm.capacity ? farm.capacity.toLocaleString() : 'N/A'}</Text>
+                  <Text style={styles.statLabel}>Capacity</Text>
+                </View>
+                <View style={styles.statBox}>
+                  <Text style={styles.statValue}>{activeBatches.length}</Text>
+                  <Text style={styles.statLabel}>Active Batches</Text>
+                </View>
+                <View style={styles.statBox}>
+                  <Text style={styles.statValue}>{pastBatches.length}</Text>
+                  <Text style={styles.statLabel}>Past Batches</Text>
+                </View>
+              </View>
             </View>
-            <View style={styles.badge}>
-              <Text style={styles.badgeText}>{farm.status}</Text>
-            </View>
-          </View>
-          
-          <View style={styles.summaryStatsRow}>
-            <View style={styles.statBox}>
-              <Text style={styles.statValue}>{farm.capacity ? farm.capacity.toLocaleString() : 'N/A'}</Text>
-              <Text style={styles.statLabel}>Capacity</Text>
-            </View>
-            <View style={styles.statBox}>
-              <Text style={styles.statValue}>{activeBatches.length}</Text>
-              <Text style={styles.statLabel}>Active Batches</Text>
-            </View>
-            <View style={styles.statBox}>
-              <Text style={styles.statValue}>{pastBatches.length}</Text>
-              <Text style={styles.statLabel}>Past Batches</Text>
-            </View>
-          </View>
-        </View>
 
-        <Text style={styles.sectionTitle}>Active Batches</Text>
-        {activeBatches.length === 0 ? (
-          <View style={styles.emptyCard}>
-            <Text style={styles.emptyText}>No active batches at this farm.</Text>
-          </View>
-        ) : (
-          activeBatches.map(batch => (
-            <View key={batch.id} style={styles.batchCard}>
+            <Text style={styles.sectionTitle}>Active Batches</Text>
+          </>
+        }
+        renderItem={({ item: batch }) => (
+          <View style={styles.batchCard}>
               <View style={styles.batchHeader}>
                 <Text style={styles.batchCode}>{batch.code}</Text>
                 <View style={[styles.batchBadge, batch.status === 'SALES_RUNNING' && styles.badgeReady]}>
@@ -198,10 +198,13 @@ export default function FarmerFarmDetailScreen() {
                 ) : null}
               </View>
             </View>
-          ))
         )}
-
-      </ScrollView>
+        ListEmptyComponent={
+          <View style={styles.emptyCard}>
+            <Text style={styles.emptyText}>No active batches at this farm.</Text>
+          </View>
+        }
+      />
     </SafeAreaView>
   );
 }

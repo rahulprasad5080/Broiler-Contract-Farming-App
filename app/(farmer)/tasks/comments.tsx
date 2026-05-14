@@ -7,7 +7,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import { format } from 'date-fns';
 import { useRouter } from 'expo-router';
 import React, { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, RefreshControl, ScrollView, StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, FlatList, RefreshControl, ScrollView, StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 export default function FarmerCommentsScreen() {
@@ -127,27 +127,17 @@ export default function FarmerCommentsScreen() {
               </ScrollView>
             </View>
 
-            {loadingComments && !refreshing ? (
-              <View style={styles.centerBox}>
-                <ActivityIndicator size="large" color={Colors.primary} />
-              </View>
-            ) : comments.length === 0 ? (
-              <ScrollView
-                contentContainerStyle={styles.centerBox}
-                refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[Colors.primary]} />}
-              >
-                <MaterialCommunityIcons name="chat-outline" size={48} color={Colors.border} />
-                <Text style={styles.emptyTitle}>No Comments</Text>
-                <Text style={styles.emptySub}>There are no supervisor notes for this batch.</Text>
-              </ScrollView>
-            ) : (
-              <ScrollView
-                contentContainerStyle={styles.listContent}
-                refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[Colors.primary]} />}
-                showsVerticalScrollIndicator={false}
-              >
-                {comments.map(comment => (
-                  <View key={comment.id} style={styles.commentCard}>
+            <FlatList
+              data={loadingComments && !refreshing ? [] : comments}
+              keyExtractor={(item) => item.id}
+              contentContainerStyle={[
+                styles.listContent,
+                (loadingComments && !refreshing) || comments.length === 0 ? styles.listContentCentered : null,
+              ]}
+              refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[Colors.primary]} />}
+              showsVerticalScrollIndicator={false}
+              renderItem={({ item: comment }) => (
+                <View style={styles.commentCard}>
                     <View style={styles.commentHeader}>
                       <View style={styles.targetBadge}>
                         <Ionicons name={getTargetIcon(comment.targetType)} size={12} color={Colors.primary} />
@@ -167,9 +157,19 @@ export default function FarmerCommentsScreen() {
                       </View>
                     ) : null}
                   </View>
-                ))}
-              </ScrollView>
-            )}
+              )}
+              ListEmptyComponent={
+                loadingComments && !refreshing ? (
+                  <ActivityIndicator size="large" color={Colors.primary} />
+                ) : (
+                  <View style={styles.emptyListBox}>
+                    <MaterialCommunityIcons name="chat-outline" size={48} color={Colors.border} />
+                    <Text style={styles.emptyTitle}>No Comments</Text>
+                    <Text style={styles.emptySub}>There are no supervisor notes for this batch.</Text>
+                  </View>
+                )
+              }
+            />
           </>
         )}
       </View>
@@ -214,6 +214,8 @@ const styles = StyleSheet.create({
   batchChipText: { fontSize: 13, fontWeight: '600', color: Colors.text },
   batchChipTextActive: { color: '#FFF' },
   listContent: { padding: Layout.screenPadding, paddingBottom: 100 },
+  listContentCentered: { flexGrow: 1, justifyContent: 'center', alignItems: 'center' },
+  emptyListBox: { alignItems: 'center', padding: 20 },
   commentCard: {
     backgroundColor: '#FFF', borderRadius: 12, padding: 14, marginBottom: 12,
     borderWidth: 1, borderColor: Colors.border, ...Layout.cardShadow,

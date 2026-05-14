@@ -3,6 +3,7 @@ import { useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
+  FlatList,
   Modal,
   ScrollView,
   StyleSheet,
@@ -513,115 +514,113 @@ export default function FarmListScreen() {
         </TouchableOpacity>
       </View>
 
-      <ScrollView
+      <FlatList
+        data={isLoading ? [] : filtered}
+        keyExtractor={(item) => item.id}
         style={styles.contentArea}
         contentContainerStyle={styles.container}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
-      >
-        {error ? <Text style={styles.errorText}>{error}</Text> : null}
+        ListHeaderComponent={
+          <>
+            {error ? <Text style={styles.errorText}>{error}</Text> : null}
 
-        <View style={styles.heroPanel}>
-          <View style={styles.heroHeaderRow}>
-            <View>
-              <Text style={styles.heroEyebrow}>Farm Directory</Text>
-              <Text style={styles.heroTitle}>{totalFarms} Farms</Text>
-              <Text style={styles.heroSubtitle}>
-                {totalCapacity.toLocaleString()} bird capacity
-              </Text>
-            </View>
-            <View style={styles.heroIconBox}>
-              <Ionicons name="business-outline" size={24} color="#FFF" />
-            </View>
-          </View>
-
-          <View style={styles.heroMetrics}>
-            <View style={styles.heroMetric}>
-              <Text style={styles.heroMetricValue}>{activeFarms}</Text>
-              <Text style={styles.heroMetricLabel}>Active</Text>
-            </View>
-            <View style={styles.heroMetric}>
-              <Text style={styles.heroMetricValue}>{assignedFarms}</Text>
-              <Text style={styles.heroMetricLabel}>Assigned</Text>
-            </View>
-            <View style={styles.heroMetric}>
-              <Text style={[styles.heroMetricValue, unassigned > 0 && styles.heroMetricAlert]}>
-                {unassigned}
-              </Text>
-              <Text style={styles.heroMetricLabel}>Pending</Text>
-            </View>
-          </View>
-        </View>
-
-        <View style={styles.searchRow}>
-          <View style={styles.searchBox}>
-            <Ionicons name="search-outline" size={18} color={Colors.textSecondary} />
-            <TextInput
-              style={styles.searchInput}
-              placeholder="Search farms..."
-              placeholderTextColor={Colors.textSecondary}
-              value={searchQuery}
-              onChangeText={setSearchQuery}
-            />
-          </View>
-          <TouchableOpacity style={styles.filterBtn} onPress={loadFarms}>
-            <Ionicons name="refresh-outline" size={20} color={THEME_GREEN} />
-          </TouchableOpacity>
-        </View>
-
-        <View style={styles.statusFilterPanel}>
-          {statusFilterOptions.map((filter) => {
-            const isActive = statusFilter === filter.key;
-
-            return (
-            <TouchableOpacity
-              key={filter.key}
-              style={[
-                styles.statusFilterChip,
-                isActive && styles.statusFilterChipActive,
-              ]}
-              onPress={() => setStatusFilter(filter.key)}
-              activeOpacity={0.86}
-            >
-              <Text
-                style={[
-                  styles.statusFilterText,
-                  isActive && styles.statusFilterTextActive,
-                ]}
-                numberOfLines={1}
-              >
-                {filter.label}
-              </Text>
-              <View style={[styles.statusFilterCount, isActive && styles.statusFilterCountActive]}>
-                <Text
-                  style={[
-                    styles.statusFilterCountText,
-                    isActive && styles.statusFilterCountTextActive,
-                  ]}
-                >
-                  {filter.count}
-                </Text>
+            <View style={styles.heroPanel}>
+              <View style={styles.heroHeaderRow}>
+                <View>
+                  <Text style={styles.heroEyebrow}>Farm Directory</Text>
+                  <Text style={styles.heroTitle}>{totalFarms} Farms</Text>
+                  <Text style={styles.heroSubtitle}>
+                    {totalCapacity.toLocaleString()} bird capacity
+                  </Text>
+                </View>
+                <View style={styles.heroIconBox}>
+                  <Ionicons name="business-outline" size={24} color="#FFF" />
+                </View>
               </View>
-            </TouchableOpacity>
-            );
-          })}
-        </View>
 
-        <View style={styles.listHeader}>
-          <Text style={styles.listTitle}>Farm List</Text>
-          <Text style={styles.listCount}>{filtered.length} shown</Text>
-        </View>
+              <View style={styles.heroMetrics}>
+                <View style={styles.heroMetric}>
+                  <Text style={styles.heroMetricValue}>{activeFarms}</Text>
+                  <Text style={styles.heroMetricLabel}>Active</Text>
+                </View>
+                <View style={styles.heroMetric}>
+                  <Text style={styles.heroMetricValue}>{assignedFarms}</Text>
+                  <Text style={styles.heroMetricLabel}>Assigned</Text>
+                </View>
+                <View style={styles.heroMetric}>
+                  <Text style={[styles.heroMetricValue, unassigned > 0 && styles.heroMetricAlert]}>
+                    {unassigned}
+                  </Text>
+                  <Text style={styles.heroMetricLabel}>Pending</Text>
+                </View>
+              </View>
+            </View>
 
-        {isLoading ? (
-          <View style={styles.loadingState}>
-            <ActivityIndicator color={Colors.primary} />
-            <Text style={styles.loadingText}>Loading farms...</Text>
-          </View>
-        ) : (
-          filtered.map((farm) => {
-            const sc = statusColor(farm.status);
-            return (
-              <View key={farm.id} style={styles.farmCard}>
+            <View style={styles.searchRow}>
+              <View style={styles.searchBox}>
+                <Ionicons name="search-outline" size={18} color={Colors.textSecondary} />
+                <TextInput
+                  style={styles.searchInput}
+                  placeholder="Search farms..."
+                  placeholderTextColor={Colors.textSecondary}
+                  value={searchQuery}
+                  onChangeText={setSearchQuery}
+                />
+              </View>
+              <TouchableOpacity style={styles.filterBtn} onPress={loadFarms}>
+                <Ionicons name="refresh-outline" size={20} color={THEME_GREEN} />
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.statusFilterPanel}>
+              {statusFilterOptions.map((filter) => {
+                const isActive = statusFilter === filter.key;
+
+                return (
+                  <TouchableOpacity
+                    key={filter.key}
+                    style={[
+                      styles.statusFilterChip,
+                      isActive && styles.statusFilterChipActive,
+                    ]}
+                    onPress={() => setStatusFilter(filter.key)}
+                    activeOpacity={0.86}
+                  >
+                    <Text
+                      style={[
+                        styles.statusFilterText,
+                        isActive && styles.statusFilterTextActive,
+                      ]}
+                      numberOfLines={1}
+                    >
+                      {filter.label}
+                    </Text>
+                    <View style={[styles.statusFilterCount, isActive && styles.statusFilterCountActive]}>
+                      <Text
+                        style={[
+                          styles.statusFilterCountText,
+                          isActive && styles.statusFilterCountTextActive,
+                        ]}
+                      >
+                        {filter.count}
+                      </Text>
+                    </View>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+
+            <View style={styles.listHeader}>
+              <Text style={styles.listTitle}>Farm List</Text>
+              <Text style={styles.listCount}>{filtered.length} shown</Text>
+            </View>
+          </>
+        }
+        renderItem={({ item: farm }) => {
+          const sc = statusColor(farm.status);
+          return (
+            <View style={styles.farmCard}>
                 <View style={styles.cardTop}>
                   <View style={styles.farmTitleRow}>
                     <View style={styles.farmIcon}>
@@ -718,19 +717,23 @@ export default function FarmListScreen() {
                   </Text>
                 </View>
               </View>
-            );
-          })
-        )}
-
-        {!isLoading && filtered.length === 0 ? (
-          <View style={styles.emptyState}>
-            <MaterialCommunityIcons name="home-search-outline" size={48} color={Colors.border} />
-            <Text style={styles.emptyText}>No farms found</Text>
-          </View>
-        ) : null}
-
-        <View style={{ height: 100 }} />
-      </ScrollView>
+          );
+        }}
+        ListEmptyComponent={
+          isLoading ? (
+            <View style={styles.loadingState}>
+              <ActivityIndicator color={Colors.primary} />
+              <Text style={styles.loadingText}>Loading farms...</Text>
+            </View>
+          ) : (
+            <View style={styles.emptyState}>
+              <MaterialCommunityIcons name="home-search-outline" size={48} color={Colors.border} />
+              <Text style={styles.emptyText}>No farms found</Text>
+            </View>
+          )
+        }
+        ListFooterComponent={<View style={{ height: 100 }} />}
+      />
 
       <Modal visible={showEditModal} transparent animationType="slide">
         <TouchableOpacity
@@ -1108,9 +1111,13 @@ export default function FarmListScreen() {
               />
             </View>
 
-            <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
-              {roleFilteredUsers.length ? (
-                roleFilteredUsers.map((user) => {
+            <FlatList
+              data={roleFilteredUsers}
+              keyExtractor={(item) => item.id}
+              style={styles.assignmentList}
+              showsVerticalScrollIndicator={false}
+              keyboardShouldPersistTaps="handled"
+              renderItem={({ item: user }) => {
                   const selected =
                     assignmentField === 'assignmentUserIds'
                       ? selectedUserIds.includes(user.id)
@@ -1120,7 +1127,6 @@ export default function FarmListScreen() {
 
                   return (
                     <TouchableOpacity
-                      key={user.id}
                       style={[styles.userOption, selected && styles.userOptionSelected]}
                       onPress={() => handlePickUser(user.id)}
                       disabled={isSavingAssignment}
@@ -1157,14 +1163,14 @@ export default function FarmListScreen() {
                       </View>
                     </TouchableOpacity>
                   );
-                })
-              ) : (
+                }}
+              ListEmptyComponent={
                 <View style={styles.emptyPickerState}>
                   <MaterialCommunityIcons name="account-search-outline" size={40} color={Colors.border} />
                   <Text style={styles.emptyText}>No matching users</Text>
                 </View>
-              )}
-            </ScrollView>
+              }
+            />
 
             {assignmentField === 'assignmentUserIds' ? (
               <TouchableOpacity
@@ -1700,6 +1706,7 @@ const styles = StyleSheet.create({
     maxHeight: '88%',
   },
   filterRow: { gap: 8, paddingBottom: 12 },
+  assignmentList: { flexGrow: 0 },
   filterChip: {
     borderWidth: 1,
     borderColor: Colors.border,

@@ -6,7 +6,7 @@ import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import { useRouter } from 'expo-router';
 import React, { useCallback, useState } from 'react';
-import { ActivityIndicator, ScrollView, StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, FlatList, StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 function formatINR(value?: number | null) {
@@ -67,110 +67,121 @@ export default function FinancialDashboardScreen() {
         </TouchableOpacity>
       </View>
 
-      <ScrollView contentContainerStyle={styles.scrollContainer} showsVerticalScrollIndicator={false}>
-        {/* Financial Overview Header */}
-        <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>Financial Overview</Text>
-          <TouchableOpacity style={styles.dropdown}>
-            <Text style={styles.dropdownText}>This Month</Text>
-            <Ionicons name="chevron-down" size={16} color="#374151" />
-          </TouchableOpacity>
-        </View>
+      <FlatList
+        data={loading ? [] : dashboard?.recentTransactions ?? []}
+        keyExtractor={(item, index) => item.id || `${item.type}-${item.date}-${index}`}
+        contentContainerStyle={styles.scrollContainer}
+        showsVerticalScrollIndicator={false}
+        ListHeaderComponent={
+          <>
+            {/* Financial Overview Header */}
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>Financial Overview</Text>
+              <TouchableOpacity style={styles.dropdown}>
+                <Text style={styles.dropdownText}>This Month</Text>
+                <Ionicons name="chevron-down" size={16} color="#374151" />
+              </TouchableOpacity>
+            </View>
 
-        {/* Summary Grid */}
-        <View style={styles.summaryGrid}>
-          <SummaryCard 
-            label="Total Inflow" 
-            value={summary?.sales || 3680000} 
-            color="#059669" 
-            bgColor="#ECFDF5" 
-            icon="trending-up"
-          />
-          <SummaryCard 
-            label="Total Outflow" 
-            value={summary?.expenses || 2745000} 
-            color="#DC2626" 
-            bgColor="#FEF2F2" 
-            icon="trending-down"
-          />
-          <SummaryCard 
-            label="Net Cash Flow" 
-            value={summary?.netProfitOrLoss || 935000} 
-            color="#2563EB" 
-            bgColor="#EFF6FF" 
-            icon="wallet-outline"
-          />
-          <SummaryCard 
-            label="Outstanding" 
-            value={summary?.investment || 1875000} 
-            color="#D97706" 
-            bgColor="#FFFBEB" 
-            icon="alert-circle-outline"
-          />
-        </View>
-
-        {/* Quick Actions */}
-        <Text style={styles.sectionTitle}>Quick Actions</Text>
-        <View style={styles.quickActionsGrid}>
-          <QuickAction 
-            label="Purchase Entry" 
-            icon="cart-outline" 
-            iconColor="#4F46E5" 
-            bgColor="#EEF2FF"
-            onPress={() => router.navigate('/(owner)/manage/inventory/purchase')}
-          />
-          <QuickAction 
-            label="Investment Entry" 
-            icon="briefcase-outline" 
-            iconColor="#D97706" 
-            bgColor="#FFFBEB"
-            onPress={() => {}} 
-          />
-          <QuickAction 
-            label="Payment Entry" 
-            icon="wallet-outline" 
-            iconColor="#7C3AED" 
-            bgColor="#F5F3FF"
-            onPress={() => router.navigate('/(owner)/manage/payments')}
-          />
-          <QuickAction 
-            label="View Settlements" 
-            icon="list-outline" 
-            iconColor="#2563EB" 
-            bgColor="#EFF6FF"
-            onPress={() => router.navigate('/(owner)/manage/settlement')}
-          />
-        </View>
-
-        {/* Recent Transactions */}
-        <View style={styles.transactionsHeader}>
-          <Text style={styles.sectionTitle}>Recent Transactions</Text>
-          <TouchableOpacity>
-            <Text style={styles.viewAllText}>View All</Text>
-          </TouchableOpacity>
-        </View>
-
-        <View style={styles.transactionsCard}>
-          {loading ? (
-            <ActivityIndicator color="#0B5C36" style={{ marginVertical: 20 }} />
-          ) : dashboard?.recentTransactions?.length ? (
-            dashboard.recentTransactions.map((tx, index) => (
-              <TransactionItem 
-                key={tx.id || index} 
-                title={tx.description || tx.type}
-                date={formatDate(tx.date)}
-                amount={tx.amount}
-                type={tx.type}
-                direction={tx.direction}
-                isLast={index === dashboard.recentTransactions.length - 1}
+            {/* Summary Grid */}
+            <View style={styles.summaryGrid}>
+              <SummaryCard 
+                label="Total Inflow" 
+                value={summary?.sales || 3680000} 
+                color="#059669" 
+                bgColor="#ECFDF5" 
+                icon="trending-up"
               />
-            ))
+              <SummaryCard 
+                label="Total Outflow" 
+                value={summary?.expenses || 2745000} 
+                color="#DC2626" 
+                bgColor="#FEF2F2" 
+                icon="trending-down"
+              />
+              <SummaryCard 
+                label="Net Cash Flow" 
+                value={summary?.netProfitOrLoss || 935000} 
+                color="#2563EB" 
+                bgColor="#EFF6FF" 
+                icon="wallet-outline"
+              />
+              <SummaryCard 
+                label="Outstanding" 
+                value={summary?.investment || 1875000} 
+                color="#D97706" 
+                bgColor="#FFFBEB" 
+                icon="alert-circle-outline"
+              />
+            </View>
+
+            {/* Quick Actions */}
+            <Text style={styles.sectionTitle}>Quick Actions</Text>
+            <View style={styles.quickActionsGrid}>
+              <QuickAction 
+                label="Purchase Entry" 
+                icon="cart-outline" 
+                iconColor="#4F46E5" 
+                bgColor="#EEF2FF"
+                onPress={() => router.navigate('/(owner)/manage/inventory/purchase')}
+              />
+              <QuickAction 
+                label="Investment Entry" 
+                icon="briefcase-outline" 
+                iconColor="#D97706" 
+                bgColor="#FFFBEB"
+                onPress={() => {}} 
+              />
+              <QuickAction 
+                label="Payment Entry" 
+                icon="wallet-outline" 
+                iconColor="#7C3AED" 
+                bgColor="#F5F3FF"
+                onPress={() => router.navigate('/(owner)/manage/payments')}
+              />
+              <QuickAction 
+                label="View Settlements" 
+                icon="list-outline" 
+                iconColor="#2563EB" 
+                bgColor="#EFF6FF"
+                onPress={() => router.navigate('/(owner)/manage/settlement')}
+              />
+            </View>
+
+            {/* Recent Transactions */}
+            <View style={styles.transactionsHeader}>
+              <Text style={styles.sectionTitle}>Recent Transactions</Text>
+              <TouchableOpacity>
+                <Text style={styles.viewAllText}>View All</Text>
+              </TouchableOpacity>
+            </View>
+          </>
+        }
+        renderItem={({ item: tx }) => (
+          <View style={styles.transactionsCard}>
+            <TransactionItem 
+              title={tx.description || tx.type}
+              date={formatDate(tx.date)}
+              amount={tx.amount}
+              type={tx.type}
+              direction={tx.direction}
+              isLast
+            />
+          </View>
+        )}
+        ListEmptyComponent={
+          loading ? (
+            <View style={styles.transactionsCard}>
+              <ActivityIndicator color="#0B5C36" style={{ marginVertical: 20 }} />
+            </View>
           ) : (
-            <Text style={styles.emptyText}>No recent transactions.</Text>
-          )}
-        </View>
-        <View style={{ height: 40 }} />
-      </ScrollView>
+            <View style={styles.transactionsCard}>
+              <Text style={styles.emptyText}>No recent transactions.</Text>
+            </View>
+          )
+        }
+        ListFooterComponent={<View style={{ height: 40 }} />}
+      />
     </SafeAreaView>
   );
 }
