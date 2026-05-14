@@ -11,7 +11,7 @@ import {
   View,
   useWindowDimensions,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { Colors } from "@/constants/Colors";
 import { useAuth, type Permission } from "@/context/AuthContext";
@@ -404,6 +404,7 @@ export function DashboardSidebar({
   const pathname = usePathname();
   const { hasPermission, signOut, user } = useAuth();
   const { width } = useWindowDimensions();
+  const insets = useSafeAreaInsets();
 
   const routeItems = React.useMemo(() => {
     if (user?.role === "OWNER" || user?.role === "ACCOUNTS") return ownerRoutes;
@@ -490,15 +491,14 @@ export function DashboardSidebar({
           accessibilityLabel="Close menu"
         />
         <Animated.View style={{ transform: [{ translateX: slideAnim }] }}>
-          <SafeAreaView
+          <View
             style={[
               styles.drawer,
               { width: drawerWidth },
             ]}
-            edges={["top", "bottom", "left"]}
           >
           {/* ── Header / Brand Block ── */}
-          <View style={[styles.brandBlock, { backgroundColor: themeColor }]}>
+          <View style={[styles.brandBlock, { backgroundColor: themeColor, paddingTop: Math.max(insets.top, 14) + 10 }]}>
             {/* User row */}
             <View style={styles.userRow}>
               {/* Avatar */}
@@ -637,7 +637,7 @@ export function DashboardSidebar({
           </ScrollView>
 
           {/* ── Footer ── */}
-          <View style={styles.footer}>
+          <View style={[styles.footer, { paddingBottom: Math.max(insets.bottom, 16) + 10 }]}>
             <TouchableOpacity
               style={styles.signOutButton}
               onPress={() => {
@@ -655,7 +655,7 @@ export function DashboardSidebar({
 
             <Text style={styles.versionText}>PoultryFlow v1.0</Text>
           </View>
-          </SafeAreaView>
+          </View>
         </Animated.View>
       </Animated.View>
     </Modal>
