@@ -73,6 +73,16 @@ export default function SupervisorDashboard() {
 
   const alertCount = dashboard?.alerts?.length ?? 0;
 
+  const mortalityTodayPercent =
+    dashboard?.today?.liveBirds && dashboard.today.liveBirds > 0
+      ? ((dashboard?.today?.mortalityToday ?? 0) / dashboard.today.liveBirds) * 100
+      : 0;
+
+  const mortalityTotalPercent =
+    dashboard?.today?.liveBirds && dashboard.today.liveBirds > 0
+      ? ((dashboard?.today?.mortalityTotal ?? 0) / dashboard.today.liveBirds) * 100
+      : 0;
+
   return (
     <View style={styles.safeArea}>
       <StatusBar barStyle="light-content" backgroundColor={THEME_GREEN} />
@@ -105,8 +115,8 @@ export default function SupervisorDashboard() {
         </TouchableOpacity>
       </View>
 
-      <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
-        {/* Profile Section Added to match style */}
+      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+        {/* Profile Section */}
         <View style={styles.profileSection}>
           <View style={styles.profileLeft}>
             <Image
@@ -130,6 +140,7 @@ export default function SupervisorDashboard() {
             </Text>
           </View>
         </View>
+
         {message ? (
           <View style={styles.messageBox}>
             <Ionicons name="information-circle-outline" size={18} color={Colors.primary} />
@@ -137,15 +148,64 @@ export default function SupervisorDashboard() {
           </View>
         ) : null}
 
-        <View style={styles.summaryRow}>
-          <SummaryCard label="Total Farms" value={formatNumber(dashboard?.farmCount)} color={Colors.primary} />
-          <SummaryCard label="Pending Entries" value={formatNumber(dashboard?.today.pendingEntries)} color={Colors.tertiary} />
+        {/* Today at a Glance - Grid Style from Admin */}
+        <Text style={styles.sectionTitle}>Today at a Glance</Text>
+        <View style={styles.glanceGrid}>
+          <View style={styles.glanceCard}>
+            <Text style={styles.glanceValue}>{formatNumber(dashboard?.today?.activeBatches)}</Text>
+            <Text style={styles.glanceLabel}>Active Batches</Text>
+          </View>
+          <View style={styles.glanceCard}>
+            <Text style={styles.glanceValue}>{formatNumber(dashboard?.today?.liveBirds)}</Text>
+            <Text style={styles.glanceLabel}>Total Live Birds</Text>
+          </View>
+          <View style={styles.glanceCard}>
+            <View style={styles.glanceRow}>
+              <Text style={styles.glanceValueSmall}>{formatNumber(dashboard?.today?.mortalityToday)}</Text>
+              <Text style={styles.glancePercentBold}>{mortalityTodayPercent.toFixed(2)}%</Text>
+            </View>
+            <Text style={styles.glanceLabel}>Mortality (Today)</Text>
+          </View>
+          <View style={styles.glanceCard}>
+            <View style={styles.glanceRow}>
+              <Text style={styles.glanceValueSmall}>{formatNumber(dashboard?.today?.mortalityTotal)}</Text>
+              <Text style={styles.glancePercentBold}>{mortalityTotalPercent.toFixed(2)}%</Text>
+            </View>
+            <Text style={styles.glanceLabel}>Mortality (Total)</Text>
+          </View>
         </View>
 
-        <View style={styles.summaryRow}>
-          <SummaryCard label="Active Batches" value={formatNumber(dashboard?.today.activeBatches)} color={Colors.text} />
-          <SummaryCard label="Live Birds" value={formatNumber(dashboard?.today.liveBirds)} color={Colors.text} />
-        </View>
+        {/* Alert Pills - Horizontal Scroll from Admin */}
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.alertPillsContainer}
+        >
+          <View style={styles.alertPill}>
+            <Text style={[styles.alertPillValue, { color: THEME_GREEN }]}>
+              {formatNumber(dashboard?.today?.salesReady)}
+            </Text>
+            <Text style={styles.alertPillLabel}>Sales Ready</Text>
+          </View>
+          <View style={styles.alertPill}>
+            <Text style={[styles.alertPillValue, { color: "#1976D2" }]}>
+              {formatNumber(dashboard?.today?.pendingEntries)}
+            </Text>
+            <Text style={styles.alertPillLabel}>Pending{"\n"}Entries</Text>
+          </View>
+          <View style={styles.alertPill}>
+            <Text style={[styles.alertPillValue, { color: "#F57C00" }]}>
+              {formatNumber(dashboard?.today?.feedAlert)}
+            </Text>
+            <Text style={styles.alertPillLabel}>Feed Alert</Text>
+          </View>
+          <View style={styles.alertPill}>
+            <Text style={[styles.alertPillValue, { color: "#D32F2F" }]}>
+              {formatNumber(dashboard?.today?.fcrAlert)}
+            </Text>
+            <Text style={styles.alertPillLabel}>FCR Alert</Text>
+          </View>
+        </ScrollView>
 
         <View style={styles.searchRow}>
           <View style={styles.searchWrapper}>
@@ -168,6 +228,7 @@ export default function SupervisorDashboard() {
         </View>
 
         <View style={styles.farmList}>
+          <Text style={styles.sectionTitle}>My Farms & Batches</Text>
           {loading && !dashboard ? (
             <View style={styles.loadingBox}>
               <ActivityIndicator color={Colors.primary} />
@@ -179,7 +240,19 @@ export default function SupervisorDashboard() {
             <Text style={styles.emptyText}>No active batches found.</Text>
           )}
         </View>
+        
+        {/* Bottom spacing for FAB */}
+        <View style={{ height: 80 }} />
       </ScrollView>
+
+      {/* Floating Action Button for Daily Entry */}
+      <TouchableOpacity
+        style={[styles.fab, { bottom: 20 + (insets.bottom > 0 ? insets.bottom : 0) }]}
+        onPress={() => router.navigate('/(supervisor)/manage/daily-entry' as Href)}
+      >
+        <Feather name="plus" size={28} color="#FFF" />
+      </TouchableOpacity>
+
       <DashboardSidebar
         visible={showSidebar}
         onClose={() => setShowSidebar(false)}
@@ -189,18 +262,16 @@ export default function SupervisorDashboard() {
   );
 }
 
-function SummaryCard({ label, value, color }: { label: string; value: string; color: string }) {
-  return (
-    <View style={styles.summaryCard}>
-      <Text style={styles.summaryLabel}>{label}</Text>
-      <Text style={[styles.summaryValue, { color }]}>{value}</Text>
-    </View>
-  );
-}
-
 function BatchCard({ batch }: { batch: ApiDashboardBatch }) {
+  const router = useRouter();
   return (
-    <View style={styles.farmCard}>
+    <TouchableOpacity 
+      style={styles.farmCard}
+      onPress={() => router.navigate({
+        pathname: '/(supervisor)/manage/daily-entry',
+        params: { batchId: batch.batchId, farmName: batch.farmName }
+      } as any)}
+    >
       <View style={styles.cardHeader}>
         <View style={styles.cardTitleCopy}>
           <Text style={styles.batchFarmName}>{batch.farmName ?? 'Farm'}</Text>
@@ -230,7 +301,7 @@ function BatchCard({ batch }: { batch: ApiDashboardBatch }) {
           <Text style={styles.metricValue}>{formatNumber(batch.mortalityPercent)}%</Text>
         </View>
       </View>
-    </View>
+    </TouchableOpacity>
   );
 }
 
@@ -353,6 +424,7 @@ const styles = StyleSheet.create({
     borderColor: '#C8E6C9',
     backgroundColor: '#E8F5E9',
     padding: 12,
+    marginHorizontal: 20,
     marginBottom: 12,
   },
   messageText: {
@@ -361,33 +433,88 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: Colors.primary,
   },
-  summaryRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    gap: 10,
+  sectionTitle: {
+    fontSize: 16,
+    fontWeight: "bold",
+    color: Colors.text,
+    paddingHorizontal: 20,
     marginBottom: 12,
+    marginTop: 8,
   },
-  summaryCard: {
-    flex: 1,
-    backgroundColor: '#FFF',
-    borderRadius: 8,
+  glanceGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    paddingHorizontal: 20,
+    justifyContent: "space-between",
+    marginBottom: 16,
+  },
+  glanceCard: {
+    width: "48%",
+    backgroundColor: "#F0F9F3",
+    borderRadius: 12,
     padding: 16,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: '#E1F0E6',
+  },
+  glanceValue: {
+    fontSize: 24,
+    fontWeight: "bold",
+    color: THEME_GREEN,
+    marginBottom: 4,
+  },
+  glanceValueSmall: {
+    fontSize: 20,
+    fontWeight: "bold",
+    color: THEME_GREEN,
+  },
+  glanceRow: {
+    flexDirection: "row",
+    alignItems: "baseline",
+    justifyContent: "space-between",
+    marginBottom: 4,
+  },
+  glancePercentBold: {
+    fontSize: 12,
+    fontWeight: "700",
+    color: "#D32F2F",
+  },
+  glanceLabel: {
+    fontSize: 12,
+    color: Colors.textSecondary,
+    fontWeight: "500",
+  },
+  alertPillsContainer: {
+    paddingHorizontal: 20,
+    paddingBottom: 20,
+    gap: 12,
+  },
+  alertPill: {
+    backgroundColor: "#FFF",
+    borderRadius: 12,
+    padding: 12,
+    minWidth: 100,
     borderWidth: 1,
     borderColor: Colors.border,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
     ...Layout.cardShadow,
   },
-  summaryLabel: {
-    fontSize: 13,
-    color: Colors.textSecondary,
-    marginBottom: 8,
+  alertPillValue: {
+    fontSize: 20,
+    fontWeight: "bold",
   },
-  summaryValue: {
-    fontSize: 25,
-    fontWeight: 'bold',
+  alertPillLabel: {
+    fontSize: 11,
+    fontWeight: "600",
+    color: Colors.textSecondary,
+    lineHeight: 14,
   },
   searchRow: {
     flexDirection: 'row',
     alignItems: 'center',
+    paddingHorizontal: 20,
     marginBottom: Layout.spacing.lg,
   },
   searchWrapper: {
@@ -437,12 +564,14 @@ const styles = StyleSheet.create({
   emptyText: {
     fontSize: 13,
     color: Colors.textSecondary,
+    paddingHorizontal: 20,
   },
   farmCard: {
     backgroundColor: '#FFF',
-    borderRadius: 8,
+    borderRadius: 12,
     padding: 16,
     marginBottom: 12,
+    marginHorizontal: 20,
     borderWidth: 1,
     borderColor: Colors.border,
     ...Layout.cardShadow,
@@ -502,5 +631,20 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: 'bold',
     color: Colors.text,
+  },
+  fab: {
+    position: 'absolute',
+    right: 20,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: THEME_GREEN,
+    justifyContent: 'center',
+    alignItems: 'center',
+    elevation: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4.65,
   },
 });

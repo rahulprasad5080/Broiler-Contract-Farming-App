@@ -3,13 +3,13 @@ import { useRouter } from 'expo-router';
 import React from 'react';
 import {
   Alert,
+  Image,
   ScrollView,
   StatusBar,
   StyleSheet,
   Text,
   TouchableOpacity,
   View,
-  Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -25,8 +25,8 @@ type SettingItemProps = {
 };
 
 const SettingItem = ({ icon, label, value, onPress, isLast, color = "#4B5563" }: SettingItemProps) => (
-  <TouchableOpacity 
-    style={[styles.settingItem, isLast && { borderBottomWidth: 0 }]} 
+  <TouchableOpacity
+    style={[styles.settingItem, isLast && { borderBottomWidth: 0 }]}
     onPress={onPress}
     activeOpacity={0.7}
   >
@@ -57,34 +57,29 @@ export default function ProfileScreen() {
   return (
     <SafeAreaView style={styles.safeArea} edges={['top']}>
       <StatusBar barStyle="light-content" backgroundColor="#0B5C36" />
-      
+
       {/* Header */}
       <View style={styles.header}>
         <View style={styles.headerLeft}>
-          <TouchableOpacity onPress={() => router.back()} style={styles.headerBtn}>
-            <Ionicons name="arrow-back" size={24} color="#FFF" />
-          </TouchableOpacity>
+
           <Text style={styles.headerTitle}>Profile & Settings</Text>
         </View>
-        <TouchableOpacity style={styles.headerBtn}>
-          <Ionicons name="notifications-outline" size={24} color="#FFF" />
-          <View style={styles.notifDot} />
-        </TouchableOpacity>
+
       </View>
 
       <ScrollView contentContainerStyle={styles.scrollContainer} showsVerticalScrollIndicator={false}>
         {/* Profile Card */}
         <View style={styles.profileCard}>
           <View style={styles.profileInfoRow}>
-            <Image 
-              source={{ uri: 'https://i.pravatar.cc/150?u=ramesh' }} 
+            <Image
+              source={{ uri: 'https://i.pravatar.cc/150?u=ramesh' }}
               style={styles.avatar}
             />
             <View style={styles.profileDetails}>
               <Text style={styles.name}>{user?.name || 'Ramesh Kumar'}</Text>
               <Text style={styles.role}>{user?.role === 'OWNER' ? 'Admin' : 'Staff'}</Text>
               <Text style={styles.email}>{user?.email || 'ramesh@greenvalley.com'}</Text>
-              
+
               <TouchableOpacity style={styles.viewProfileBtn}>
                 <Text style={styles.viewProfileText}>View Profile</Text>
               </TouchableOpacity>

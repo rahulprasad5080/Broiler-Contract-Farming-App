@@ -1,25 +1,23 @@
-import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
+import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import React, { useMemo, useState } from "react";
 import {
   ActivityIndicator,
-  ScrollView,
   SectionList,
   StatusBar,
   StyleSheet,
   Text,
   TouchableOpacity,
-  View,
+  View
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { useAuth } from "@/context/AuthContext";
+import { showRequestErrorToast } from "@/services/apiFeedback";
 import {
   listNotifications,
-  markNotificationRead,
-  type ApiNotification,
+  type ApiNotification
 } from "@/services/notificationApi";
-import { showRequestErrorToast } from "@/services/apiFeedback";
 
 type NotificationGroup = {
   title: string;
@@ -99,30 +97,26 @@ export function NotificationsScreen() {
   return (
     <SafeAreaView style={styles.safeArea} edges={['top']}>
       <StatusBar barStyle="light-content" backgroundColor="#0B5C36" />
-      
+
       {/* Header */}
       <View style={styles.header}>
         <View style={styles.headerLeft}>
-          <TouchableOpacity style={styles.headerBtn}>
-            <Ionicons name="menu-outline" size={26} color="#FFF" />
-          </TouchableOpacity>
+
           <Text style={styles.headerTitle}>Notifications</Text>
         </View>
-        <TouchableOpacity style={styles.headerBtn}>
-          <Ionicons name="checkmark-done-outline" size={24} color="#FFF" />
-        </TouchableOpacity>
+
       </View>
 
       <View style={styles.container}>
         {/* Filter Tabs */}
         <View style={styles.tabsRow}>
-          <TouchableOpacity 
+          <TouchableOpacity
             style={[styles.tab, selectedFilter === "All" && styles.tabActive]}
             onPress={() => setSelectedFilter("All")}
           >
             <Text style={[styles.tabText, selectedFilter === "All" && styles.tabTextActive]}>All</Text>
           </TouchableOpacity>
-          <TouchableOpacity 
+          <TouchableOpacity
             style={[styles.tab, selectedFilter === "Unread" && styles.tabActive]}
             onPress={() => setSelectedFilter("Unread")}
           >
@@ -133,7 +127,7 @@ export function NotificationsScreen() {
               </View>
             )}
           </TouchableOpacity>
-          <TouchableOpacity 
+          <TouchableOpacity
             style={[styles.tab, selectedFilter === "Important" && styles.tabActive]}
             onPress={() => setSelectedFilter("Important")}
           >
@@ -154,7 +148,7 @@ export function NotificationsScreen() {
               const meta = getIconMeta(item.type);
               const isLast = index === section.data.length - 1;
               return (
-                <TouchableOpacity 
+                <TouchableOpacity
                   style={[styles.notifCard, isLast && { borderBottomWidth: 0 }]}
                   activeOpacity={0.7}
                 >

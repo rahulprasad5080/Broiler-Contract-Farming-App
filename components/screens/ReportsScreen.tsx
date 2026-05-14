@@ -1,4 +1,4 @@
-import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
+import { MaterialCommunityIcons } from "@expo/vector-icons";
 import React from "react";
 import {
   ScrollView,
@@ -14,12 +14,10 @@ export default function ReportsScreen() {
   return (
     <SafeAreaView style={styles.safeArea} edges={['top']}>
       <StatusBar barStyle="light-content" backgroundColor="#0B5C36" />
-      
+
       {/* Custom Header */}
       <View style={styles.header}>
-        <TouchableOpacity style={styles.headerIcon}>
-          <Ionicons name="menu" size={26} color="#FFF" />
-        </TouchableOpacity>
+
         <Text style={styles.headerTitle}>Reports</Text>
         <View style={{ width: 24 }} />
       </View>
@@ -29,61 +27,61 @@ export default function ReportsScreen() {
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Business Reports</Text>
           <View style={styles.grid}>
-            <ReportCard 
-              title="Batch Performance" 
-              subtitle="Detailed batch analysis" 
-              icon="chart-areaspline" 
-              iconColor="#0B5C36" 
-              bgColor="#E7F5ED" 
+            <ReportCard
+              title="Batch Performance"
+              subtitle="Detailed batch analysis"
+              icon="chart-areaspline"
+              iconColor="#0B5C36"
+              bgColor="#E7F5ED"
             />
-            <ReportCard 
-              title="P&L Report" 
-              subtitle="Profit & loss statement" 
-              icon="file-document-outline" 
-              iconColor="#7C3AED" 
-              bgColor="#F3E8FF" 
+            <ReportCard
+              title="P&L Report"
+              subtitle="Profit & loss statement"
+              icon="file-document-outline"
+              iconColor="#7C3AED"
+              bgColor="#F3E8FF"
             />
-            <ReportCard 
-              title="Settlement Report" 
-              subtitle="Farmer settlements" 
-              icon="account-cash-outline" 
-              iconColor="#D97706" 
-              bgColor="#FFF7ED" 
+            <ReportCard
+              title="Settlement Report"
+              subtitle="Farmer settlements"
+              icon="account-cash-outline"
+              iconColor="#D97706"
+              bgColor="#FFF7ED"
             />
-            <ReportCard 
-              title="Expense Report" 
-              subtitle="Company & farmer expenses" 
-              icon="receipt-outline" 
-              iconColor="#EF4444" 
-              bgColor="#FEF2F2" 
+            <ReportCard
+              title="Expense Report"
+              subtitle="Company & farmer expenses"
+              icon="receipt-outline"
+              iconColor="#EF4444"
+              bgColor="#FEF2F2"
             />
-            <ReportCard 
-              title="Sales Report" 
-              subtitle="Sales & revenue analysis" 
-              icon="cart-outline" 
-              iconColor="#2563EB" 
-              bgColor="#EFF6FF" 
+            <ReportCard
+              title="Sales Report"
+              subtitle="Sales & revenue analysis"
+              icon="cart-outline"
+              iconColor="#2563EB"
+              bgColor="#EFF6FF"
             />
-            <ReportCard 
-              title="Mortality Report" 
-              subtitle="Mortality analysis" 
-              icon="medical-bag" 
-              iconColor="#78350F" 
-              bgColor="#FAFAF9" 
+            <ReportCard
+              title="Mortality Report"
+              subtitle="Mortality analysis"
+              icon="medical-bag"
+              iconColor="#78350F"
+              bgColor="#FAFAF9"
             />
-            <ReportCard 
-              title="Inventory Report" 
-              subtitle="Stock & ledger report" 
-              icon="package-variant-closed" 
-              iconColor="#0D9488" 
-              bgColor="#F0FDFA" 
+            <ReportCard
+              title="Inventory Report"
+              subtitle="Stock & ledger report"
+              icon="package-variant-closed"
+              iconColor="#0D9488"
+              bgColor="#F0FDFA"
             />
-            <ReportCard 
-              title="Payment Report" 
-              subtitle="Payments & receipts" 
-              icon="cash-multiple" 
-              iconColor="#166534" 
-              bgColor="#F0FDF4" 
+            <ReportCard
+              title="Payment Report"
+              subtitle="Payments & receipts"
+              icon="cash-multiple"
+              iconColor="#166534"
+              bgColor="#F0FDF4"
             />
           </View>
         </View>
@@ -91,22 +89,22 @@ export default function ReportsScreen() {
         {/* Export Data Section */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Export Data</Text>
-          <ExportRow 
-            title="Export to Excel" 
-            subtitle="Download report as Excel file" 
-            icon="file-excel-outline" 
-            iconColor="#10B981" 
-            bgColor="#ECFDF5" 
+          <ExportRow
+            title="Export to Excel"
+            subtitle="Download report as Excel file"
+            icon="file-excel-outline"
+            iconColor="#10B981"
+            bgColor="#ECFDF5"
           />
-          <ExportRow 
-            title="Export to PDF" 
-            subtitle="Download report as PDF file" 
-            icon="file-pdf-box" 
-            iconColor="#EF4444" 
-            bgColor="#FEF2F2" 
+          <ExportRow
+            title="Export to PDF"
+            subtitle="Download report as PDF file"
+            icon="file-pdf-box"
+            iconColor="#EF4444"
+            bgColor="#FEF2F2"
           />
         </View>
-        
+
         <View style={{ height: 40 }} />
       </ScrollView>
     </SafeAreaView>
@@ -140,9 +138,9 @@ function ExportRow({ title, subtitle, icon, iconColor, bgColor }: { title: strin
 }
 
 const styles = StyleSheet.create({
-  safeArea: { 
-    flex: 1, 
-    backgroundColor: "#0B5C36" 
+  safeArea: {
+    flex: 1,
+    backgroundColor: "#0B5C36"
   },
   header: {
     backgroundColor: "#0B5C36",
@@ -151,8 +149,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 14,
   },
-  headerIcon: { 
-    marginRight: 16 
+  headerIcon: {
+    marginRight: 16
   },
   headerTitle: {
     color: "#FFF",
