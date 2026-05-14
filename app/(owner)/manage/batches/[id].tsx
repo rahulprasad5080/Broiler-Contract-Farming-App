@@ -16,6 +16,11 @@ import {
 import { Feather, Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
+import { OverviewTab } from '@/components/batches/tabs/OverviewTab';
+import { DailyEntriesTab } from '@/components/batches/tabs/DailyEntriesTab';
+import { ExpensesTab } from '@/components/batches/tabs/ExpensesTab';
+import { SalesTab } from '@/components/batches/tabs/SalesTab';
+import { PnlTab } from '@/components/batches/tabs/PnlTab';
 import React, { useCallback, useState } from 'react';
 import {
   ActivityIndicator,
@@ -245,493 +250,54 @@ export default function BatchDetailsScreen() {
           <ActivityIndicator color={THEME_GREEN} style={{ marginTop: 40 }} />
         ) : (
           <>
+            
             {activeTab === 'overview' && (
-              <>
-                {/* Batch Overview Grid */}
-                <View style={styles.section}>
-                  <Text style={styles.sectionTitle}>Batch Overview</Text>
-                  <View style={styles.grid}>
-                    <GridCard value={formatNumber(chicksPlaced)} label="Chicks Placed" valColor="#3B82F6" />
-                    <GridCard value={formatNumber(liveBirds)} label="Live Birds" valColor="#10B981" />
-                    <GridCard value={mortality} label="Mortality" valColor="#EF4444" bgHighlight="#FEF2F2" />
-
-                    <GridCard value={fcr} label="FCR" valColor="#8B5CF6" />
-                    <GridCard value={avgWeight} label="Avg. Weight" valColor="#F97316" />
-                    <GridCard value={feedConsumed} label="Feed Consumed" valColor="#3B82F6" />
-
-                    <GridCard value={ageDays.toString()} label="Age (Days)" valColor="#10B981" />
-                    <GridCard value={expectedAge.toString()} label="Expected Sale Age" valColor="#111827" />
-                    <GridCard value={`${toGo} Days`} label="To Go" valColor="#10B981" />
-                  </View>
-                </View>
-
-                {/* Performance Trend Mock */}
-                <View style={styles.section}>
-                  <Text style={styles.sectionTitle}>Performance Trend</Text>
-                  <View style={styles.chartCard}>
-                    <View style={styles.chartLegend}>
-                      <View style={styles.legendItem}>
-                        <View style={[styles.legendDot, { backgroundColor: '#10B981' }]} />
-                        <Text style={styles.legendText}>FCR</Text>
-                      </View>
-                      <View style={styles.legendItem}>
-                        <View style={[styles.legendDot, { backgroundColor: '#EF4444' }]} />
-                        <Text style={styles.legendText}>Mortality %</Text>
-                      </View>
-                    </View>
-
-                    <View style={styles.chartBox}>
-                      <View style={styles.yAxisLabelsLeft}>
-                        <Text style={styles.yText}>2.0</Text>
-                        <Text style={styles.yText}>1.5</Text>
-                        <Text style={styles.yText}>1.0</Text>
-                        <Text style={styles.yText}>0.5</Text>
-                        <Text style={styles.yText}>0</Text>
-                      </View>
-
-                      <View style={styles.chartArea}>
-                        <View style={styles.gridLine}><Text></Text></View>
-                        <View style={styles.gridLine}><Text></Text></View>
-                        <View style={styles.gridLine}><Text></Text></View>
-                        <View style={styles.gridLine}><Text></Text></View>
-                        <View style={styles.gridLine}><Text></Text></View>
-
-                        <View style={styles.mockPathGreen} />
-                        <View style={styles.mockPathRed} />
-                      </View>
-
-                      <View style={styles.yAxisLabelsRight}>
-                        <Text style={styles.yText}>6%</Text>
-                        <Text style={styles.yText}>4%</Text>
-                        <Text style={styles.yText}>2%</Text>
-                        <Text style={styles.yText}>0%</Text>
-                        <Text style={styles.yText}></Text>
-                      </View>
-                    </View>
-                    <View style={styles.xAxisLabels}>
-                      <Text style={styles.xText}>1 May</Text>
-                      <Text style={styles.xText}>8 May</Text>
-                      <Text style={styles.xText}>15 May</Text>
-                      <Text style={styles.xText}>20 May</Text>
-                    </View>
-                  </View>
-                </View>
-
-                {/* Recent Activities */}
-                <View style={styles.section}>
-                  <View style={styles.sectionHeader}>
-                    <Text style={styles.sectionTitle}>Recent Activities</Text>
-                    <TouchableOpacity>
-                      <Text style={styles.viewAllText}>View All</Text>
-                    </TouchableOpacity>
-                  </View>
-
-                  <View style={styles.activityCard}>
-                    <View style={[styles.activityIconBox, { backgroundColor: '#EFF6FF' }]}>
-                      <Ionicons name="document-text-outline" size={20} color="#3B82F6" />
-                    </View>
-                    <View style={styles.activityBody}>
-                      <Text style={styles.activityTitle}>Daily Entry Added</Text>
-                      <Text style={styles.activityTime}>Today, 08:30 AM</Text>
-                    </View>
-                    <Text style={styles.activityAuthor}>By Ramesh</Text>
-                  </View>
-
-                  <View style={styles.activityCard}>
-                    <View style={[styles.activityIconBox, { backgroundColor: '#F3E8FF' }]}>
-                      <Ionicons name="cart-outline" size={20} color="#A855F7" />
-                    </View>
-                    <View style={styles.activityBody}>
-                      <Text style={styles.activityTitle}>Feed Allocated</Text>
-                      <Text style={styles.activityTime}>Today, 07:45 AM</Text>
-                    </View>
-                    <Text style={styles.activityAuthor}>By Supervisor</Text>
-                  </View>
-                </View>
-
-                <View style={{ height: 40 }} />
-              </>
+              <OverviewTab
+                chicksPlaced={chicksPlaced}
+                liveBirds={liveBirds}
+                mortality={mortality}
+                fcr={fcr}
+                avgWeight={avgWeight}
+                feedConsumed={feedConsumed}
+                ageDays={ageDays}
+                expectedAge={expectedAge}
+                toGo={toGo}
+              />
             )}
-
+            
             {activeTab === 'daily' && (
-              <View style={styles.section}>
-                <View style={styles.sectionHeader}>
-                  <Text style={styles.sectionTitle}>Daily Flock History</Text>
-                  <TouchableOpacity style={styles.addExpenseBtn} onPress={() => openDailyEntry()}>
-                    <Feather name="plus" size={16} color={THEME_GREEN} />
-                    <Text style={styles.addExpenseText}>Add Entry</Text>
-                  </TouchableOpacity>
-                </View>
-
-                {dailyLogs.length === 0 ? (
-                  <View style={styles.emptyStateCard}>
-                    <Ionicons name="document-text-outline" size={28} color="#9CA3AF" />
-                    <Text style={styles.emptyStateTitle}>No daily entries yet</Text>
-                    <Text style={styles.emptyStateText}>
-                      Record the first flock update for this batch.
-                    </Text>
-                  </View>
-                ) : (
-                  dailyLogs.map((log) => (
-                    <TouchableOpacity
-                      key={log.id}
-                      style={styles.dailyLogCard}
-                      activeOpacity={0.75}
-                      onPress={() => openDailyEntry(log.id)}
-                    >
-                      <View style={styles.dailyLogHeader}>
-                        <View>
-                          <Text style={styles.dailyLogDate}>{formatDate(log.logDate)}</Text>
-                          <Text style={styles.dailyLogSub}>Opening: {formatNumber(log.openingBirdCount)} birds</Text>
-                        </View>
-                        <View style={styles.editBadge}>
-                          <Feather name="edit-2" size={14} color={THEME_GREEN} />
-                          <Text style={styles.editBadgeText}>Edit</Text>
-                        </View>
-                      </View>
-
-                      <View style={styles.dailyMetricGrid}>
-                        <DailyMetric label="Mortality" value={formatNumber(log.mortalityCount)} tone="#EF4444" />
-                        <DailyMetric label="Cull" value={formatNumber(log.cullCount)} tone="#F97316" />
-                        <DailyMetric label="Feed" value={formatNumber(log.feedConsumedKg, ' kg')} tone="#3B82F6" />
-                        <DailyMetric label="Water" value={formatNumber(log.waterConsumedLtr, ' L')} tone="#0891B2" />
-                        <DailyMetric label="Avg Weight" value={formatNumber(log.avgWeightGrams, ' g')} tone="#10B981" />
-                      </View>
-
-                      {log.notes ? <Text style={styles.dailyNotes} numberOfLines={2}>{log.notes}</Text> : null}
-                    </TouchableOpacity>
-                  ))
-                )}
-
-                <View style={{ height: 40 }} />
-              </View>
+              <DailyEntriesTab dailyLogs={dailyLogs} openDailyEntry={openDailyEntry} />
             )}
 
             {activeTab === 'expenses' && (
-              <View style={styles.section}>
-                {/* Expense Toggle */}
-                <View style={styles.expenseToggleBox}>
-                  <TouchableOpacity
-                    style={[styles.expenseToggleBtn, activeExpenseTab === 'company' && styles.expenseToggleBtnActive]}
-                    onPress={() => setActiveExpenseTab('company')}
-                  >
-                    <Text style={[styles.expenseToggleText, activeExpenseTab === 'company' && styles.expenseToggleTextActive]}>
-                      Company Expenses
-                    </Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={[styles.expenseToggleBtn, activeExpenseTab === 'farmer' && styles.expenseToggleBtnActive]}
-                    onPress={() => setActiveExpenseTab('farmer')}
-                  >
-                    <Text style={[styles.expenseToggleText, activeExpenseTab === 'farmer' && styles.expenseToggleTextActive]}>
-                      Farmer Expenses
-                    </Text>
-                  </TouchableOpacity>
-                </View>
-
-                <View style={styles.expenseSummaryCard}>
-                  <View style={styles.expenseSummaryHeader}>
-                    <Text style={styles.expenseSummaryTitle}>{activeExpenseTitle} Summary</Text>
-                  </View>
-                  <View style={styles.expenseSummaryBody}>
-                    <View style={styles.expenseRow}>
-                      <View>
-                        <Text style={styles.expenseRowLabel}>Total Expenses</Text>
-                        <Text style={styles.expenseRowSub}>This Batch</Text>
-                      </View>
-                      <Text style={styles.expenseTotalVal}>{formatMoney(activeExpenseTotal)}</Text>
-                    </View>
-                    <View style={styles.expenseDivider} />
-                    <View style={[styles.expenseRow, { marginBottom: 0 }]}>
-                      <Text style={styles.expenseRowLabel}>Today Expenses</Text>
-                      <Text style={styles.expenseTotalVal}>{formatMoney(todayExpenseTotal)}</Text>
-                    </View>
-                  </View>
-                </View>
-
-                <View style={styles.sectionHeader}>
-                  <Text style={styles.sectionTitle}>{activeExpenseTitle}</Text>
-                  <TouchableOpacity style={styles.addExpenseBtn}>
-                    <Feather name="plus" size={16} color={THEME_GREEN} />
-                    <Text style={styles.addExpenseText}>Add Expense</Text>
-                  </TouchableOpacity>
-                </View>
-
-                {activeExpenses.length === 0 ? (
-                  <View style={styles.emptyStateCard}>
-                    <Ionicons name="receipt-outline" size={28} color="#9CA3AF" />
-                    <Text style={styles.emptyStateTitle}>No {activeExpenseTitle.toLowerCase()} yet</Text>
-                    <Text style={styles.emptyStateText}>
-                      Expenses recorded against this batch will appear here.
-                    </Text>
-                  </View>
-                ) : (
-                  activeExpenses.map((expense) => (
-                    <ExpenseHistoryCard key={expense.id} expense={expense} />
-                  ))
-                )}
-
-                <View style={styles.noteBox}>
-                  <Text style={styles.noteText}>
-                    Company and farmer ledgers are loaded separately from the batch expenses API.
-                  </Text>
-                </View>
-
-                {activeExpenses.length < 0 ? (
-                  <>
-
-                {/* Summary Card */}
-                <View style={styles.expenseSummaryCard}>
-                  <View style={styles.expenseSummaryHeader}>
-                    <Text style={styles.expenseSummaryTitle}>Company Expenses Summary</Text>
-                  </View>
-                  <View style={styles.expenseSummaryBody}>
-                    <View style={styles.expenseRow}>
-                      <View>
-                        <Text style={styles.expenseRowLabel}>Total Expenses</Text>
-                        <Text style={styles.expenseRowSub}>This Batch</Text>
-                      </View>
-                      <Text style={styles.expenseTotalVal}>₹ 3,28,000</Text>
-                    </View>
-                    <View style={styles.expenseDivider} />
-                    <View style={[styles.expenseRow, { marginBottom: 0 }]}>
-                      <Text style={styles.expenseRowLabel}>Today Expenses</Text>
-                      <Text style={styles.expenseTotalVal}>₹ 12,500</Text>
-                    </View>
-                  </View>
-                </View>
-
-                {/* List Header */}
-                <View style={styles.sectionHeader}>
-                  <Text style={styles.sectionTitle}>Company Expenses</Text>
-                  <TouchableOpacity style={styles.addExpenseBtn}>
-                    <Feather name="plus" size={16} color={THEME_GREEN} />
-                    <Text style={styles.addExpenseText}>Add Expense</Text>
-                  </TouchableOpacity>
-                </View>
-
-                {/* Expenses Table */}
-                <View style={styles.expenseTable}>
-                  <View style={styles.tableHeader}>
-                    <Text style={[styles.tableColTitle, { flex: 2 }]}>Expense Type</Text>
-                    <Text style={[styles.tableColTitle, { flex: 1.5, textAlign: 'right' }]}>Amount (₹)</Text>
-                    <Text style={[styles.tableColTitle, { flex: 1.5, textAlign: 'right', paddingRight: 16 }]}>Date</Text>
-                  </View>
-
-                  <ExpenseRow type="Feed" amount="2,25,000" date="18 May 2024" />
-                  <ExpenseRow type="Medicine" amount="25,000" date="16 May 2024" />
-                  <ExpenseRow type="Chicks" amount="48,000" date="01 May 2024" />
-                  <ExpenseRow type="Transport" amount="12,000" date="02 May 2024" />
-                  <ExpenseRow type="Supervisor Salary" amount="2,500" date="10 May 2024" />
-                  <ExpenseRow type="Other Expenses" amount="18,000" date="15 May 2024" isLast />
-
-                  <View style={styles.tableFooter}>
-                    <Text style={styles.tableFooterLabel}>Total Company Expenses</Text>
-                    <Text style={styles.tableFooterVal}>₹ 3,28,000</Text>
-                  </View>
-                </View>
-
-                <View style={styles.noteBox}>
-                  <Text style={styles.noteText}>Note: Farmer expenses are not included in company P&L</Text>
-                </View>
-                  </>
-                ) : null}
-
-                <View style={{ height: 40 }} />
-              </View>
+              <ExpensesTab
+                activeExpenseTab={activeExpenseTab}
+                setActiveExpenseTab={setActiveExpenseTab}
+                activeExpenseTitle={activeExpenseTitle}
+                activeExpenses={activeExpenses}
+                activeExpenseTotal={activeExpenseTotal}
+                todayExpenseTotal={todayExpenseTotal}
+              />
             )}
 
             {activeTab === 'sales' && (
-              <View style={styles.section}>
-                <View style={styles.expenseSummaryCard}>
-                  <View style={styles.expenseSummaryHeader}>
-                    <Text style={styles.expenseSummaryTitle}>Sales Summary</Text>
-                  </View>
-                  <View style={styles.expenseSummaryBody}>
-                    <View style={styles.expenseRow}>
-                      <View>
-                        <Text style={styles.expenseRowLabel}>Total Sales</Text>
-                        <Text style={styles.expenseRowSub}>This Batch</Text>
-                      </View>
-                      <Text style={styles.expenseTotalVal}>{formatMoney(totalSalesAmount)}</Text>
-                    </View>
-                    <View style={styles.expenseDivider} />
-                    <View style={styles.salesSummaryGrid}>
-                      <InfoPill label="Today" value={formatMoney(todaySalesAmount)} />
-                      <InfoPill label="Birds Sold" value={formatNumber(totalSoldBirds)} />
-                      <InfoPill label="Weight" value={formatNumber(totalSoldWeight, ' kg')} />
-                    </View>
-                  </View>
-                </View>
-
-                <View style={styles.sectionHeader}>
-                  <Text style={styles.sectionTitle}>Sales History</Text>
-                  <TouchableOpacity
-                    style={styles.addExpenseBtn}
-                    onPress={() => router.push('/(owner)/manage/sales')}
-                  >
-                    <Feather name="plus" size={16} color={THEME_GREEN} />
-                    <Text style={styles.addExpenseText}>Add Sale</Text>
-                  </TouchableOpacity>
-                </View>
-
-                {sales.length === 0 ? (
-                  <View style={styles.emptyStateCard}>
-                    <Ionicons name="receipt-outline" size={28} color="#9CA3AF" />
-                    <Text style={styles.emptyStateTitle}>No sales yet</Text>
-                    <Text style={styles.emptyStateText}>
-                      Sales recorded against this batch will appear here.
-                    </Text>
-                  </View>
-                ) : (
-                  sales.map((sale) => <SaleHistoryCard key={sale.id} sale={sale} />)
-                )}
-
-                <View style={{ height: 40 }} />
-              </View>
+              <SalesTab
+                sales={sales}
+                totalSalesAmount={totalSalesAmount}
+                todaySalesAmount={todaySalesAmount}
+                totalSoldBirds={totalSoldBirds}
+                totalSoldWeight={totalSoldWeight}
+              />
             )}
 
             {activeTab === 'pnl' && (
-              <View style={styles.section}>
-                {/* P&L Toggle */}
-                <View style={styles.expenseToggleBox}>
-                  <TouchableOpacity
-                    style={[styles.expenseToggleBtn, activePnlTab === 'company' && styles.expenseToggleBtnActive]}
-                    onPress={() => setActivePnlTab('company')}
-                  >
-                    <Text style={[styles.expenseToggleText, activePnlTab === 'company' && styles.expenseToggleTextActive]}>
-                      Company View
-                    </Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={[styles.expenseToggleBtn, activePnlTab === 'farmer' && styles.expenseToggleBtnActive]}
-                    onPress={() => setActivePnlTab('farmer')}
-                  >
-                    <Text style={[styles.expenseToggleText, activePnlTab === 'farmer' && styles.expenseToggleTextActive]}>
-                      Farmer View
-                    </Text>
-                  </TouchableOpacity>
-                </View>
-
-                {activePnlTab === 'company' ? (
-                  <View>
-                    <View style={styles.expenseSummaryCard}>
-                      <View style={styles.expenseSummaryHeader}>
-                        <Text style={styles.expenseSummaryTitle}>Company P&L</Text>
-                      </View>
-                      <View style={styles.expenseSummaryBody}>
-                        <PnlRow label="Sales Revenue" value={formatMoney(batchPnl?.company.salesRevenue)} />
-                        <PnlRow label="Company Expenses" value={formatMoney(batchPnl?.company.expenses)} />
-                        <View style={styles.expenseDivider} />
-                        <PnlRow
-                          label={companyProfitLoss >= 0 ? 'Company Profit' : 'Company Loss'}
-                          value={formatMoney(companyProfitLoss)}
-                          valueColor={companyResultColor}
-                          emphasis
-                        />
-                      </View>
-                    </View>
-                    <View style={styles.noteBox}>
-                      <Text style={styles.noteText}>
-                        Company P&L uses only company-side sales revenue and expense values.
-                      </Text>
-                    </View>
-                  </View>
-                ) : (
-                  <View>
-                    <View style={styles.farmerPnlCard}>
-                      <View style={styles.farmerPnlHeader}>
-                        <Text style={styles.farmerPnlTitle}>Farmer Earnings</Text>
-                      </View>
-                      <View style={styles.expenseSummaryBody}>
-                        <PnlRow label="Growing Income" value={formatMoney(batchPnl?.farmer.growingIncome)} />
-                        <PnlRow label="Incentives" value={formatMoney(batchPnl?.farmer.incentives)} />
-                        <PnlRow label="Farmer Expenses" value={formatMoney(batchPnl?.farmer.expenses)} />
-                        <View style={styles.expenseDivider} />
-                        <PnlRow
-                          label="Farmer Net Earnings"
-                          value={formatMoney(batchPnl?.farmer.netEarnings)}
-                          valueColor="#EA580C"
-                          emphasis
-                        />
-                      </View>
-                    </View>
-                    <View style={[styles.noteBox, { backgroundColor: '#F8FAFC', borderColor: '#E2E8F0' }]}>
-                      <Text style={styles.noteText}>
-                        Farmer earnings are kept separate from company profitability.
-                      </Text>
-                    </View>
-                  </View>
-                )}
-
-                {false && activePnlTab === 'company' && (
-                  <View>
-                    {/* Company P&L Card */}
-                    <View style={styles.expenseSummaryCard}>
-                      <View style={styles.expenseSummaryHeader}>
-                        <Text style={styles.expenseSummaryTitle}>Company P&L (Company View)</Text>
-                      </View>
-                      <View style={styles.expenseSummaryBody}>
-                        <View style={styles.expenseRow}>
-                          <Text style={styles.expenseRowLabel}>Sales Revenue</Text>
-                          <Text style={styles.expenseTotalVal}>₹ 12,04,000</Text>
-                        </View>
-                        <View style={styles.expenseRow}>
-                          <Text style={styles.expenseRowLabel}>(-) Company Expenses</Text>
-                          <Text style={styles.expenseTotalVal}>₹ 3,28,000</Text>
-                        </View>
-                        <View style={styles.expenseDivider} />
-                        <View style={[styles.expenseRow, { marginBottom: 0 }]}>
-                          <Text style={[styles.expenseRowLabel, { color: THEME_GREEN, fontWeight: '800' }]}>Company Profit</Text>
-                          <Text style={[styles.expenseTotalVal, { color: THEME_GREEN, fontSize: 18 }]}>₹ 8,76,000</Text>
-                        </View>
-                      </View>
-                    </View>
-                    <View style={styles.noteBox}>
-                      <Text style={styles.noteText}>Note: Farmer expenses are excluded from company P&L</Text>
-                    </View>
-                  </View>
-                )}
-
-                {false && activePnlTab === 'farmer' && (
-                  <View>
-                    {/* Farmer P&L Card */}
-                    <View style={styles.farmerPnlCard}>
-                      <View style={styles.farmerPnlHeader}>
-                        <Text style={styles.farmerPnlTitle}>Farmer P&L (Farmer View)</Text>
-                      </View>
-                      <View style={styles.expenseSummaryBody}>
-                        <View style={styles.expenseRow}>
-                          <Text style={styles.expenseRowLabel}>Growing Income</Text>
-                          <Text style={styles.expenseTotalVal}>₹ 1,80,000</Text>
-                        </View>
-                        <View style={styles.expenseRow}>
-                          <Text style={styles.expenseRowLabel}>Performance Bonus</Text>
-                          <Text style={styles.expenseTotalVal}>₹ 12,000</Text>
-                        </View>
-                        <View style={styles.expenseRow}>
-                          <Text style={styles.expenseRowLabel}>Other Incentives</Text>
-                          <Text style={styles.expenseTotalVal}>₹ 8,000</Text>
-                        </View>
-                        <View style={styles.expenseRow}>
-                          <Text style={styles.expenseRowLabel}>(-) Farmer Expenses</Text>
-                          <Text style={styles.expenseTotalVal}>₹ 6,050</Text>
-                        </View>
-                        <View style={styles.expenseDivider} />
-                        <View style={[styles.expenseRow, { marginBottom: 0 }]}>
-                          <Text style={[styles.expenseRowLabel, { color: '#EA580C', fontWeight: '800' }]}>Farmer Net Earnings</Text>
-                          <Text style={[styles.expenseTotalVal, { color: '#EA580C', fontSize: 18 }]}>₹ 1,93,950</Text>
-                        </View>
-                      </View>
-                    </View>
-                    <View style={[styles.noteBox, { backgroundColor: '#F8FAFC', borderColor: '#E2E8F0' }]}>
-                      <Text style={styles.noteText}>Company expenses are excluded from farmer P&L</Text>
-                    </View>
-                  </View>
-                )}
-                
-                <View style={{ height: 40 }} />
-              </View>
+              <PnlTab
+                activePnlTab={activePnlTab}
+                setActivePnlTab={setActivePnlTab}
+                batchPnl={batchPnl}
+                companyProfitLoss={companyProfitLoss}
+                companyResultColor={companyResultColor}
+              />
             )}
 
             {activeTab === 'comments' && (

@@ -10,6 +10,8 @@ import { useRouter, type Href } from 'expo-router';
 import React, { useCallback, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
+  FlatList,
+  RefreshControl,
   ScrollView,
   StatusBar,
   StyleSheet,
@@ -71,11 +73,17 @@ export default function BatchManagementScreen() {
   const [batches, setBatches] = useState<ApiBatch[]>([]);
   const [activeFilter, setActiveFilter] = useState<FilterKey>('ALL');
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
 
-  const loadBatches = useCallback(async () => {
+  const loadBatches = useCallback(async (isRefresh = false) => {
     if (!accessToken) return;
 
-    setLoading(true);
+    if (isRefresh) {
+      setRefreshing(true);
+    } else {
+      setLoading(true);
+    }
+
     try {
       const response = await listAllBatches(accessToken);
       setBatches(response.data);
@@ -83,8 +91,13 @@ export default function BatchManagementScreen() {
       console.warn('Failed to load batches:', error);
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
   }, [accessToken]);
+
+  const onRefresh = useCallback(() => {
+    void loadBatches(true);
+  }, [loadBatches]);
 
   useFocusEffect(
     useCallback(() => {
@@ -145,23 +158,30 @@ export default function BatchManagementScreen() {
         </ScrollView>
       </View>
 
-      <ScrollView contentContainerStyle={styles.listContainer} showsVerticalScrollIndicator={false}>
-        {loading ? (
-          <View style={styles.loadingBox}>
-            <ActivityIndicator color={THEME_GREEN} size="large" />
-            <Text style={styles.loadingText}>Loading batches...</Text>
-          </View>
-        ) : filteredBatches.length === 0 ? (
-          <View style={styles.loadingBox}>
-            <Text style={styles.emptyText}>No batches found.</Text>
-          </View>
-        ) : (
-          filteredBatches.map((batch) => {
+      {loading ? (
+        <View style={styles.loadingBox}>
+          <ActivityIndicator color={THEME_GREEN} size="large" />
+          <Text style={styles.loadingText}>Loading batches...</Text>
+        </View>
+      ) : (
+        <FlatList
+          data={filteredBatches}
+          keyExtractor={(item) => item.id}
+          contentContainerStyle={styles.listContainer}
+          showsVerticalScrollIndicator={false}
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[THEME_GREEN]} />
+          }
+          ListEmptyComponent={
+            <View style={styles.loadingBox}>
+              <Text style={styles.emptyText}>No batches found.</Text>
+            </View>
+          }
+          renderItem={({ item: batch }) => {
             const badge = getBadgeStyle(batch.status);
             
             return (
               <TouchableOpacity
-                key={batch.id}
                 style={styles.batchCard}
                 activeOpacity={0.9}
                 onPress={() =>
@@ -218,9 +238,9 @@ export default function BatchManagementScreen() {
                 </View>
               </TouchableOpacity>
             );
-          })
-        )}
-      </ScrollView>
+          }}
+        />
+      )}
 
     </View>
   );
