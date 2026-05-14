@@ -9,8 +9,8 @@ import { DashboardSidebar } from '../../components/navigation/DashboardSidebar';
 import { Colors } from '../../constants/Colors';
 import { Layout } from '../../constants/Layout';
 import { useAuth } from '../../context/AuthContext';
-import { fetchDashboard, type ApiDashboardBatch, type ApiDashboardSummary } from '../../services/dashboardApi';
 import { showRequestErrorToast } from '../../services/apiFeedback';
+import { fetchDashboard, type ApiDashboardBatch, type ApiDashboardSummary } from '../../services/dashboardApi';
 
 // Using a custom deeper green based on the owner dashboard
 const THEME_GREEN = '#0B5C36';
@@ -240,18 +240,12 @@ export default function SupervisorDashboard() {
             <Text style={styles.emptyText}>No active batches found.</Text>
           )}
         </View>
-        
+
         {/* Bottom spacing for FAB */}
         <View style={{ height: 80 }} />
       </ScrollView>
 
-      {/* Floating Action Button for Daily Entry */}
-      <TouchableOpacity
-        style={[styles.fab, { bottom: 20 + (insets.bottom > 0 ? insets.bottom : 0) }]}
-        onPress={() => router.navigate('/(supervisor)/manage/daily-entry' as Href)}
-      >
-        <Feather name="plus" size={28} color="#FFF" />
-      </TouchableOpacity>
+
 
       <DashboardSidebar
         visible={showSidebar}
@@ -265,7 +259,7 @@ export default function SupervisorDashboard() {
 function BatchCard({ batch }: { batch: ApiDashboardBatch }) {
   const router = useRouter();
   return (
-    <TouchableOpacity 
+    <TouchableOpacity
       style={styles.farmCard}
       onPress={() => router.navigate({
         pathname: '/(supervisor)/manage/daily-entry',
