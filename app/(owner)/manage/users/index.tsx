@@ -39,6 +39,7 @@ interface UserCard {
   name: string;
   role: Role;
   farm: string;
+  email?: string;
   status: Status;
   hasAvatar: boolean;
 }
@@ -74,6 +75,7 @@ function toUserCard(user: ApiUser, farms: ApiFarm[]): UserCard {
     name: user.name,
     role: user.role,
     farm: getAssignedFarm(user, farms),
+    email: user.email ?? undefined,
     status: toStatus(user.status),
     hasAvatar: Boolean(user.email),
   };
@@ -201,9 +203,7 @@ export default function UserManagementScreen() {
   const renderUserItem = ({ item: user, index }: { item: UserCard; index: number }) => {
     const isInactive = user.status === 'Inactive';
     const roleDisplay = user.role === 'OWNER' ? 'Admin' : ROLE_LABELS[user.role];
-    const emailDisplay = user.hasAvatar
-      ? `${user.name.toLowerCase().split(' ')[0]}@greenvalley.com`
-      : 'user@greenvalley.com';
+    const emailDisplay = user.email || '';
     const isFirst = index === 0;
     const isLast = index === users.length - 1;
 
