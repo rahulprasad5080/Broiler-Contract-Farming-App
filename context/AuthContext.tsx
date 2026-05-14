@@ -130,6 +130,19 @@ const UNLOCK_SCREENS = [
 ];
 const BACKGROUND_LOCK_TIMEOUT_MS = 5 * 60 * 1000;
 const QUICK_PIN_PATTERN = /^\d{4}$/;
+const API_PERMISSION_KEYS: (keyof ApiPermissionMatrix)[] = [
+  "dailyEntry",
+  "salesEntry",
+  "expenseEntry",
+  "inventoryView",
+  "costVisibility",
+  "reportAccess",
+  "companyExpenseEntry",
+  "farmerExpenseApproval",
+  "purchaseEntry",
+  "settlementEntry",
+  "financialDashboard",
+];
 
 function getPermissionsForRole(role: UserRole): Permission[] {
   if (role === "OWNER") {
@@ -210,6 +223,52 @@ function getPermissionsForRole(role: UserRole): Permission[] {
   return [];
 }
 
+function getStructuralPermissionsForRole(role: UserRole): Permission[] {
+  if (role === "OWNER") {
+    return [
+      "finalize:sales",
+      "manage:partners",
+      "manage:users",
+      "manage:farms",
+      "manage:batches",
+      "view:notifications",
+      "view:farms",
+    ];
+  }
+
+  if (role === "SUPERVISOR") {
+    return [
+      "view:notifications",
+      "view:farms",
+      "create:treatments",
+      "view:comments",
+      "review:entries",
+      "manage:catalog",
+      "manage:traders",
+    ];
+  }
+
+  if (role === "FARMER") {
+    return [
+      "view:notifications",
+      "view:farms",
+      "create:treatments",
+      "view:comments",
+    ];
+  }
+
+  return [];
+}
+
+function hasCompleteApiPermissionMatrix(
+  permissions?: ApiPermissionMatrix | null,
+): permissions is ApiPermissionMatrix {
+  return Boolean(
+    permissions &&
+      API_PERMISSION_KEYS.every((key) => typeof permissions[key] === "boolean"),
+  );
+}
+
 function getPermissionsFromApi(permissions?: ApiPermissionMatrix): Permission[] {
   if (!permissions) return [];
 
@@ -238,10 +297,13 @@ function normalizeUser(user: UserLike): User {
     user.role === "FARMER"
       ? user.role
       : null;
+  const configurablePermissions = hasCompleteApiPermissionMatrix(user.permissions)
+    ? getPermissionsFromApi(user.permissions)
+    : getPermissionsForRole(role);
   const permissions = Array.from(
     new Set([
-      ...getPermissionsForRole(role),
-      ...getPermissionsFromApi(user.permissions ?? undefined),
+      ...getStructuralPermissionsForRole(role),
+      ...configurablePermissions,
     ]),
   );
 

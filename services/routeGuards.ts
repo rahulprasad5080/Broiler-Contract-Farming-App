@@ -12,10 +12,12 @@ const ROLE_ROUTE_GROUPS = {
 const PROTECTED_ROUTE_GROUPS = new Set<string>(Object.values(ROLE_ROUTE_GROUPS));
 
 const OWNER_MANAGE_INDEX_PERMISSIONS = [
+  "create:daily-entry",
   "manage:partners",
   "manage:farms",
   "manage:batches",
   "manage:inventory",
+  "create:purchase",
   "create:expenses",
   "view:financial-dashboard",
   "manage:settlements",
@@ -29,11 +31,13 @@ const OWNER_MANAGE_ROUTE_PERMISSIONS: Record<string, string> = {
   batches: "manage:batches",
   inventory: "manage:inventory",
   financials: "view:financial-dashboard",
+  "finance-entry": "view:financial-dashboard",
   payments: "manage:settlements",
   expenses: "create:expenses",
   "daily-entry": "create:daily-entry",
   sales: "create:sales",
   settlement: "manage:settlements",
+  settings: "manage:users",
   users: "manage:users",
   api: "manage:users",
 };

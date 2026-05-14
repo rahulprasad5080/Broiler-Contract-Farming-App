@@ -12,6 +12,8 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
+import { useAuth, type Permission } from "@/context/AuthContext";
+
 const { width } = Dimensions.get("window");
 const CARD_WIDTH = (width - 48) / 2;
 
@@ -22,6 +24,7 @@ type EntryItem = {
   iconType: "Ionicons" | "MaterialCommunityIcons";
   color: string;
   route: any;
+  requiredPermission: Permission;
 };
 
 const ENTRY_ITEMS: EntryItem[] = [
@@ -32,6 +35,7 @@ const ENTRY_ITEMS: EntryItem[] = [
     iconType: "Ionicons",
     color: "#3B82F6",
     route: "/(owner)/manage/daily-entry",
+    requiredPermission: "create:daily-entry",
   },
   {
     title: "Inventory Allocation",
@@ -40,6 +44,7 @@ const ENTRY_ITEMS: EntryItem[] = [
     iconType: "Ionicons",
     color: "#8B5CF6",
     route: "/(owner)/manage/inventory/allocate",
+    requiredPermission: "manage:inventory",
   },
   {
     title: "Expense Entry",
@@ -48,6 +53,7 @@ const ENTRY_ITEMS: EntryItem[] = [
     iconType: "Ionicons",
     color: "#10B981",
     route: "/(owner)/manage/expenses",
+    requiredPermission: "create:expenses",
   },
   {
     title: "Sales Entry",
@@ -56,6 +62,7 @@ const ENTRY_ITEMS: EntryItem[] = [
     iconType: "Ionicons",
     color: "#EF4444",
     route: "/(owner)/manage/sales",
+    requiredPermission: "create:sales",
   },
   {
     title: "Purchase Entry",
@@ -64,6 +71,7 @@ const ENTRY_ITEMS: EntryItem[] = [
     iconType: "Ionicons",
     color: "#F59E0B",
     route: "/(owner)/manage/inventory/purchase",
+    requiredPermission: "create:purchase",
   },
   {
     title: "Investment Entry",
@@ -72,11 +80,14 @@ const ENTRY_ITEMS: EntryItem[] = [
     iconType: "Ionicons",
     color: "#6366F1",
     route: "/(owner)/manage/finance-entry",
+    requiredPermission: "view:financial-dashboard",
   },
 ];
 
 export default function EntriesScreen() {
   const router = useRouter();
+  const { hasPermission } = useAuth();
+  const visibleItems = ENTRY_ITEMS.filter((item) => hasPermission(item.requiredPermission));
 
   const renderIcon = (item: EntryItem) => {
     if (item.iconType === "Ionicons") {
@@ -102,7 +113,7 @@ export default function EntriesScreen() {
 
       <ScrollView contentContainerStyle={styles.scrollContainer} showsVerticalScrollIndicator={false}>
         <View style={styles.grid}>
-          {ENTRY_ITEMS.map((item, index) => (
+          {visibleItems.map((item, index) => (
             <TouchableOpacity 
               key={index} 
               style={styles.card}

@@ -7,6 +7,7 @@ export default function ManageLayout() {
       <Stack.Screen name="farms" />
       <Stack.Screen name="batches" />
       <Stack.Screen name="inventory" />
+      <Stack.Screen name="finance-entry" />
       <Stack.Screen name="financials" />
       <Stack.Screen name="payments" />
       <Stack.Screen name="expenses" />
@@ -15,6 +16,7 @@ export default function ManageLayout() {
       <Stack.Screen name="partners" />
       <Stack.Screen name="sales" />
       <Stack.Screen name="settlement" />
+      <Stack.Screen name="settings" />
       <Stack.Screen name="api" />
     </Stack>
   );

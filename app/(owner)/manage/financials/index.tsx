@@ -23,7 +23,7 @@ function formatDate(value?: string | null) {
 
 export default function FinancialDashboardScreen() {
   const router = useRouter();
-  const { accessToken } = useAuth();
+  const { accessToken, hasPermission } = useAuth();
   const [dashboard, setDashboard] = useState<ApiFinancialDashboard | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -118,34 +118,42 @@ export default function FinancialDashboardScreen() {
             {/* Quick Actions */}
             <Text style={styles.sectionTitle}>Quick Actions</Text>
             <View style={styles.quickActionsGrid}>
-              <QuickAction 
-                label="Purchase Entry" 
-                icon="cart-outline" 
-                iconColor="#4F46E5" 
-                bgColor="#EEF2FF"
-                onPress={() => router.navigate('/(owner)/manage/inventory/purchase')}
-              />
-              <QuickAction 
-                label="Investment Entry" 
-                icon="briefcase-outline" 
-                iconColor="#D97706" 
-                bgColor="#FFFBEB"
-                onPress={() => router.navigate('/(owner)/manage/finance-entry' as any)} 
-              />
-              <QuickAction 
-                label="Payment Entry" 
-                icon="wallet-outline" 
-                iconColor="#7C3AED" 
-                bgColor="#F5F3FF"
-                onPress={() => router.navigate('/(owner)/manage/payments')}
-              />
-              <QuickAction 
-                label="View Settlements" 
-                icon="list-outline" 
-                iconColor="#2563EB" 
-                bgColor="#EFF6FF"
-                onPress={() => router.navigate('/(owner)/manage/settlement')}
-              />
+              {hasPermission('create:purchase') ? (
+                <QuickAction
+                  label="Purchase Entry"
+                  icon="cart-outline"
+                  iconColor="#4F46E5"
+                  bgColor="#EEF2FF"
+                  onPress={() => router.navigate('/(owner)/manage/inventory/purchase')}
+                />
+              ) : null}
+              {hasPermission('view:financial-dashboard') ? (
+                <QuickAction
+                  label="Investment Entry"
+                  icon="briefcase-outline"
+                  iconColor="#D97706"
+                  bgColor="#FFFBEB"
+                  onPress={() => router.navigate('/(owner)/manage/finance-entry' as any)}
+                />
+              ) : null}
+              {hasPermission('manage:settlements') ? (
+                <>
+                  <QuickAction
+                    label="Payment Entry"
+                    icon="wallet-outline"
+                    iconColor="#7C3AED"
+                    bgColor="#F5F3FF"
+                    onPress={() => router.navigate('/(owner)/manage/payments')}
+                  />
+                  <QuickAction
+                    label="View Settlements"
+                    icon="list-outline"
+                    iconColor="#2563EB"
+                    bgColor="#EFF6FF"
+                    onPress={() => router.navigate('/(owner)/manage/settlement')}
+                  />
+                </>
+              ) : null}
             </View>
 
             {/* Recent Transactions */}

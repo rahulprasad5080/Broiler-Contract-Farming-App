@@ -56,6 +56,18 @@ test("getRouteRequiredPermission gates core admin screens", () => {
     getRouteRequiredPermission(["(owner)", "manage", "users"]),
     "manage:users",
   );
+  assert.equal(
+    getRouteRequiredPermission(["(owner)", "manage", "settings"]),
+    "manage:users",
+  );
+  assert.equal(
+    getRouteRequiredPermission(["(owner)", "manage", "finance-entry"]),
+    "view:financial-dashboard",
+  );
+  assert.equal(
+    getRouteRequiredPermission(["(owner)", "manage", "inventory", "purchase"]),
+    "create:purchase",
+  );
 });
 
 test("getRouteRequiredPermission gates role task screens", () => {

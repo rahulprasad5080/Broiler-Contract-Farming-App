@@ -43,7 +43,7 @@ const SettingItem = ({ icon, label, value, onPress, isLast, color = "#4B5563" }:
 );
 
 export default function ProfileScreen() {
-  const { signOut, user } = useAuth();
+  const { hasPermission, signOut, user } = useAuth();
   const router = useRouter();
   const initials =
     user?.name
@@ -102,7 +102,7 @@ export default function ProfileScreen() {
           <SettingItem
             icon="settings-outline"
             label="App Settings"
-            onPress={user?.role === 'OWNER' ? () => router.navigate('/(owner)/manage/settings' as any) : undefined}
+            onPress={hasPermission('manage:users') ? () => router.navigate('/(owner)/manage/settings' as any) : undefined}
             isLast
           />
         </View>
@@ -113,7 +113,7 @@ export default function ProfileScreen() {
           <SettingItem
             icon="business-outline"
             label="Farm Details"
-            onPress={user?.role === 'OWNER' ? () => router.navigate('/(owner)/manage/farms') : undefined}
+            onPress={hasPermission('manage:farms') ? () => router.navigate('/(owner)/manage/farms') : undefined}
           />
           <SettingItem icon="options-outline" label="Units & Measurements" />
           <SettingItem icon="calendar-outline" label="Financial Year" value="2024-25" isLast />

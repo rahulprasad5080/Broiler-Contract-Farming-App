@@ -13,9 +13,13 @@ type BottomTabsProps = BottomTabBarProps & {
 
 const TAB_PERMISSIONS: Partial<Record<string, Permission | Permission[]>> = {
   farms: 'view:farms',
-  tasks: ['create:daily-entry', 'create:treatments', 'view:comments', 'create:sales'],
+  tasks: ['create:daily-entry', 'create:treatments', 'view:comments', 'create:expenses', 'create:sales'],
   review: 'review:entries',
   manage: [
+    'create:daily-entry',
+    'create:expenses',
+    'create:purchase',
+    'create:sales',
     'manage:partners',
     'manage:farms',
     'manage:batches',
@@ -24,6 +28,7 @@ const TAB_PERMISSIONS: Partial<Record<string, Permission | Permission[]>> = {
     'manage:users',
     'manage:catalog',
     'manage:traders',
+    'view:financial-dashboard',
   ],
   reports: 'view:reports',
 };
