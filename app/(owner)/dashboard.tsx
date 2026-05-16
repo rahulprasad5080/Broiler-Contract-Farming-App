@@ -22,7 +22,9 @@ import {
   ActivityIndicator,
   FlatList,
   Image,
+  KeyboardAvoidingView,
   Modal,
+  Platform,
   ScrollView,
   StatusBar,
   StyleSheet,
@@ -32,6 +34,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Colors } from "../../constants/Colors";
 import { useAuth } from "../../context/AuthContext";
 import {
@@ -61,6 +64,7 @@ function formatPercent(value?: number | null) {
 export default function OwnerDashboard() {
   const { hasPermission, user, accessToken } = useAuth();
   const router = useRouter();
+  const insets = useSafeAreaInsets();
 
   // Settings Panel State
   const [showSettingsPanel, setShowSettingsPanel] = useState(false);
@@ -253,7 +257,11 @@ export default function OwnerDashboard() {
 
   return (
     <View style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor={THEME_GREEN} />
+      <StatusBar barStyle="light-content" backgroundColor="#0B5C36" />
+      <KeyboardAvoidingView
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        style={{ flex: 1 }}
+      >
 
       {/* Global Top App Bar */}
       <TopAppBar
@@ -685,6 +693,7 @@ export default function OwnerDashboard() {
           </View>
         </TouchableOpacity>
       </Modal>
+      </KeyboardAvoidingView>
     </View>
   );
 }

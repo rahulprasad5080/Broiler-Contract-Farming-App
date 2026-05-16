@@ -20,6 +20,8 @@ import React, { useCallback, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   FlatList,
+  KeyboardAvoidingView,
+  Platform,
   ScrollView,
   StyleSheet,
   Switch,
@@ -347,6 +349,10 @@ export default function UserManagementScreen() {
             </TouchableOpacity>
           }
         />
+        <KeyboardAvoidingView
+          behavior={Platform.OS === "ios" ? "padding" : "height"}
+          style={{ flex: 1 }}
+        >
 
         <FlatList
           data={isLoading ? [] : users}
@@ -399,6 +405,7 @@ export default function UserManagementScreen() {
             )
           )}
         />
+        </KeyboardAvoidingView>
       </View>
 
     </View>

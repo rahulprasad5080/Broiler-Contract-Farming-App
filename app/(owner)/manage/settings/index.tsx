@@ -3,6 +3,8 @@ import { useFocusEffect } from "@react-navigation/native";
 import React, { useCallback, useState } from "react";
 import {
   ActivityIndicator,
+  KeyboardAvoidingView,
+  Platform,
   ScrollView,
   StyleSheet,
   Switch,
@@ -142,6 +144,10 @@ export default function OrganizationSettingsScreen() {
           </TouchableOpacity>
         }
       />
+      <KeyboardAvoidingView
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        style={{ flex: 1 }}
+      >
 
       {loading || !form ? (
         <View style={styles.centerBox}>
@@ -218,6 +224,7 @@ export default function OrganizationSettingsScreen() {
           <View style={{ height: 40 }} />
         </ScrollView>
       )}
+      </KeyboardAvoidingView>
     </View>
   );
 }

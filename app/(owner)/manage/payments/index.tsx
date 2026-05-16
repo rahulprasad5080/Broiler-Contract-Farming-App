@@ -17,6 +17,8 @@ import { useFocusEffect } from '@react-navigation/native';
 import React, { useCallback, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
+  KeyboardAvoidingView,
+  Platform,
   ScrollView,
   StyleSheet,
   Text,
@@ -154,6 +156,10 @@ export default function PaymentEntryScreen() {
   return (
     <View style={styles.safeArea}>
       <TopAppBar title="Payment Entry" subtitle="Record payment made or received" />
+      <KeyboardAvoidingView
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        style={{ flex: 1 }}
+      >
 
       <ScrollView 
         contentContainerStyle={styles.scrollContainer} 
@@ -345,6 +351,7 @@ export default function PaymentEntryScreen() {
         </View>
         <View style={{ height: 40 }} />
       </ScrollView>
+      </KeyboardAvoidingView>
     </View>
   );
 }

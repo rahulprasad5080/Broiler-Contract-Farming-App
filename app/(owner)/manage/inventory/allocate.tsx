@@ -2,8 +2,9 @@ import { Ionicons } from "@expo/vector-icons";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useFocusEffect } from "@react-navigation/native";
 import React, { useCallback, useMemo, useState } from "react";
-import {
   ActivityIndicator,
+  KeyboardAvoidingView,
+  Platform,
   ScrollView,
   StyleSheet,
   Text,
@@ -180,6 +181,10 @@ export default function AllocateStockScreen() {
   return (
     <View style={styles.safeArea}>
       <TopAppBar title="Inventory Allocation" subtitle="Assign stock to farms and batches" />
+      <KeyboardAvoidingView
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        style={{ flex: 1 }}
+      >
 
       <ScrollView 
         contentContainerStyle={styles.scrollContainer} 
@@ -336,6 +341,7 @@ export default function AllocateStockScreen() {
         </View>
         <View style={{ height: 40 }} />
       </ScrollView>
+      </KeyboardAvoidingView>
     </View>
   );
 }

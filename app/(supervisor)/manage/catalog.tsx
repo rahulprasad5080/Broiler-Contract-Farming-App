@@ -16,10 +16,11 @@ import { Ionicons } from '@expo/vector-icons';
 import { zodResolver } from '@hookform/resolvers/zod';
 import React, { useEffect, useRef, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
-import {
   ActivityIndicator,
   Animated,
   FlatList,
+  KeyboardAvoidingView,
+  Platform,
   StyleSheet,
   Text,
   TextInput,
@@ -135,6 +136,10 @@ export default function SupervisorCatalogScreen() {
   return (
     <View style={styles.safeArea}>
       <TopAppBar title="Catalog Master" subtitle="Feed, medicine, vaccine, and equipment items" />
+      <KeyboardAvoidingView
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        style={{ flex: 1 }}
+      >
 
       <FlatList
         data={loading ? [] : items}
@@ -275,6 +280,7 @@ export default function SupervisorCatalogScreen() {
           <ScreenState title="No items found" message="Add a catalog item to start tracking inventory." icon="cube-outline" />
         ) : null}
       />
+      </KeyboardAvoidingView>
     </View>
   );
 }

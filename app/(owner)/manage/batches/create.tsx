@@ -2,8 +2,9 @@ import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import { useRouter } from 'expo-router';
 import React, { useCallback, useState } from 'react';
-import {
   ActivityIndicator,
+  KeyboardAvoidingView,
+  Platform,
   ScrollView,
   StyleSheet,
   Text,
@@ -312,10 +313,17 @@ export default function CreateBatchScreen() {
   };
 
   return (
-    <View style={styles.container}>
-      <TopAppBar title="Create New Batch" subtitle="Placement, farm, and target details" />
-
-      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+    <View style={styles.safeArea}>
+      <TopAppBar title="Create New Batch" subtitle="Configure batch settings and starting inventory" />
+      <KeyboardAvoidingView
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        style={{ flex: 1 }}
+      >
+      <ScrollView
+        contentContainerStyle={styles.scrollContent}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+      >
         {loadError ? (
           <ScreenState
             title="Unable to load farms"
@@ -672,8 +680,9 @@ export default function CreateBatchScreen() {
             />
           )}
         />
-
+        <View style={{ height: 40 }} />
       </ScrollView>
+      </KeyboardAvoidingView>
 
       {/* Bottom Button */}
       <View style={[styles.bottomContainer, { paddingBottom: Math.max(insets.bottom, 16) }]}>
@@ -695,6 +704,10 @@ export default function CreateBatchScreen() {
 }
 
 const styles = StyleSheet.create({
+  safeArea: {
+    flex: 1,
+    backgroundColor: '#FFF',
+  },
   container: {
     flex: 1,
     backgroundColor: '#FFF',

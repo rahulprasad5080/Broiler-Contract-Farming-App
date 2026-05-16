@@ -29,6 +29,8 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Controller, useForm } from 'react-hook-form';
 import {
   ActivityIndicator,
+  KeyboardAvoidingView,
+  Platform,
   ScrollView,
   StyleSheet,
   Text,
@@ -411,12 +413,14 @@ export default function CreateUserScreen() {
 
   return (
     <View style={styles.safeArea}>
-      <View style={styles.pageContent}>
-        <TopAppBar
-          title={isEditMode ? 'Edit User' : 'Create User'}
-          subtitle="Role, permissions, farms, and security"
-        />
-
+      <TopAppBar
+        title={isEditMode ? 'Edit User' : 'Create User'}
+        subtitle="Role, permissions, farms, and security"
+      />
+      <KeyboardAvoidingView
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        style={{ flex: 1 }}
+      >
         <ScrollView
           contentContainerStyle={styles.container}
           keyboardShouldPersistTaps="handled"
@@ -769,7 +773,7 @@ export default function CreateUserScreen() {
             )}
           </TouchableOpacity>
         </ScrollView>
-      </View>
+      </KeyboardAvoidingView>
       <Toast position="bottom" bottomOffset={90} />
     </View>
   );

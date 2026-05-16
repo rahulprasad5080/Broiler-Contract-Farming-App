@@ -2,7 +2,19 @@ import { Feather, Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import { useRouter, type Href } from 'expo-router';
 import React, { useCallback, useMemo, useState } from 'react';
-import { ActivityIndicator, Image, ScrollView, StatusBar, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import {
+  ActivityIndicator,
+  Image,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+  StatusBar,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View
+} from 'react-native';
 
 import { TopAppBar } from '@/components/ui/TopAppBar';
 import { Colors } from '../../constants/Colors';
@@ -91,6 +103,10 @@ export default function SupervisorDashboard() {
   return (
     <View style={styles.safeArea}>
       <StatusBar barStyle="light-content" backgroundColor={THEME_GREEN} />
+      <KeyboardAvoidingView
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        style={{ flex: 1 }}
+      >
 
       {/* Global Top App Bar */}
       <TopAppBar
@@ -260,12 +276,9 @@ export default function SupervisorDashboard() {
         </View>
 
         {/* Bottom spacing for FAB */}
-        <View style={{ height: 80 }} />
+        <View style={{ height: 40 }} />
       </ScrollView>
-
-
-
-      {/* DashboardSidebar is rendered by GlobalSidebarOverlay in _layout.tsx */}
+      </KeyboardAvoidingView>
     </View>
   );
 }

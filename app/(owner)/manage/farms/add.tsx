@@ -10,7 +10,9 @@ import {
   ActivityIndicator,
   Animated,
   FlatList,
+  KeyboardAvoidingView,
   Modal,
+  Platform,
   ScrollView,
   StyleSheet,
   Text,
@@ -319,6 +321,10 @@ export default function AddFarmScreen() {
         }
       />
 
+      <KeyboardAvoidingView
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        style={{ flex: 1 }}
+      >
       <ScrollView
         style={styles.contentArea}
         contentContainerStyle={styles.container}
@@ -630,9 +636,14 @@ export default function AddFarmScreen() {
           )}
         </TouchableOpacity>
       </ScrollView>
+      </KeyboardAvoidingView>
 
       <Modal visible={showAssignmentPicker} transparent animationType="slide">
         <TouchableOpacity style={styles.modalOverlay} onPress={closeAssignmentPicker} activeOpacity={1}>
+          <KeyboardAvoidingView
+            behavior={Platform.OS === "ios" ? "padding" : "height"}
+            style={{ width: '100%' }}
+          >
           <View style={styles.pickerSheet} onStartShouldSetResponder={() => true}>
             <Text style={styles.modalTitle}>{pickerTitle}</Text>
 
@@ -736,6 +747,7 @@ export default function AddFarmScreen() {
               </TouchableOpacity>
             ) : null}
           </View>
+          </KeyboardAvoidingView>
         </TouchableOpacity>
       </Modal>
     </View>

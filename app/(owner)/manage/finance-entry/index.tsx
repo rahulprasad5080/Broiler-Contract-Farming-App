@@ -4,6 +4,8 @@ import React, { useCallback, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   FlatList,
+  KeyboardAvoidingView,
+  Platform,
   StyleSheet,
   Text,
   TextInput,
@@ -179,6 +181,10 @@ export default function FinanceEntryScreen() {
           </TouchableOpacity>
         }
       />
+      <KeyboardAvoidingView
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        style={{ flex: 1 }}
+      >
 
       <FlatList
         data={loading ? [] : entries}
@@ -299,6 +305,7 @@ export default function FinanceEntryScreen() {
         }
         ListFooterComponent={<View style={{ height: 60 }} />}
       />
+      </KeyboardAvoidingView>
     </View>
   );
 }

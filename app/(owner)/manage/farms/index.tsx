@@ -4,7 +4,9 @@ import React, { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   FlatList,
+  KeyboardAvoidingView,
   Modal,
+  Platform,
   ScrollView,
   StyleSheet,
   Text,
@@ -497,8 +499,8 @@ export default function FarmListScreen() {
   return (
     <View style={styles.safeArea}>
       <TopAppBar
-        title="Farms"
-        subtitle="Farm directory and assignments"
+        title="Farm Management"
+        subtitle="Operational status and assignments"
         right={
           <TouchableOpacity
             style={styles.headerBtn}
@@ -510,7 +512,10 @@ export default function FarmListScreen() {
           </TouchableOpacity>
         }
       />
-
+      <KeyboardAvoidingView
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        style={{ flex: 1 }}
+      >
       <FlatList
         data={isLoading ? [] : filtered}
         keyExtractor={(item) => item.id}
@@ -731,6 +736,7 @@ export default function FarmListScreen() {
         }
         ListFooterComponent={<View style={{ height: 100 }} />}
       />
+      </KeyboardAvoidingView>
 
       <Modal visible={showEditModal} transparent animationType="slide">
         <TouchableOpacity
@@ -738,6 +744,10 @@ export default function FarmListScreen() {
           onPress={() => setShowEditModal(false)}
           activeOpacity={1}
         >
+          <KeyboardAvoidingView
+            behavior={Platform.OS === "ios" ? "padding" : "height"}
+            style={{ width: '100%' }}
+          >
           <View style={styles.editSheet} onStartShouldSetResponder={() => true}>
             <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
               <Text style={styles.modalTitle}>Edit Farm</Text>
@@ -1052,6 +1062,7 @@ export default function FarmListScreen() {
               </TouchableOpacity>
             </ScrollView>
           </View>
+          </KeyboardAvoidingView>
           <Toast position="bottom" bottomOffset={100} />
         </TouchableOpacity>
       </Modal>

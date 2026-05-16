@@ -6,7 +6,10 @@ import {
   ActivityIndicator,
   Image,
   Keyboard,
+  KeyboardAvoidingView,
+  Platform,
   Pressable,
+  ScrollView,
   StyleSheet,
   Text,
   TextInput,
@@ -105,9 +108,11 @@ export default function QuickUnlockScreen() {
       }
 
       if (result.error) {
-        Toast.show({type: "error",
+        Toast.show({
+          type: "error",
           text1: "Unlock failed",
-          text2: result.error, position: 'bottom'});
+          text2: result.error, position: 'bottom'
+        });
       }
     } finally {
       setIsAuthenticating(false);
@@ -196,9 +201,11 @@ export default function QuickUnlockScreen() {
         return;
       }
 
-      Toast.show({type: "info",
+      Toast.show({
+        type: "info",
         text1: "Biometric not enabled",
-        text2: "Use PIN or password to continue.", position: 'bottom'});
+        text2: "Use PIN or password to continue.", position: 'bottom'
+      });
       return;
     }
 
@@ -216,9 +223,11 @@ export default function QuickUnlockScreen() {
 
     if (errorMessage) {
       setFormError('password', { message: errorMessage });
-      Toast.show({type: "error",
+      Toast.show({
+        type: "error",
         text1: "Unlock failed",
-        text2: errorMessage, position: 'bottom'});
+        text2: errorMessage, position: 'bottom'
+      });
     }
   };
 
@@ -340,9 +349,16 @@ export default function QuickUnlockScreen() {
     );
   };
 
-  return (
-    <SafeAreaView style={styles.safeArea}>
-      <View style={styles.container}>
+  <SafeAreaView style={styles.safeArea}>
+    <KeyboardAvoidingView
+      behavior={Platform.OS === "ios" ? "padding" : "height"}
+      style={{ flex: 1 }}
+    >
+      <ScrollView
+        contentContainerStyle={styles.container}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+      >
         <Image source={require("../../assets/logo.jpeg")} style={styles.logo} resizeMode="cover" />
         <Text style={styles.title}>Welcome Back{user?.name ? `, ${user.name.split(' ')[0]}` : ''}</Text>
         <Text style={styles.subtitle}>Continue as {maskMobileNumber(user?.phone ?? undefined)}</Text>
@@ -355,9 +371,10 @@ export default function QuickUnlockScreen() {
             <Text style={styles.passwordButtonText}>Use Password</Text>
           </TouchableOpacity>
         ) : null}
-      </View>
-    </SafeAreaView>
-  );
+      </ScrollView>
+    </KeyboardAvoidingView>
+  </SafeAreaView>
+
 }
 
 const styles = StyleSheet.create({

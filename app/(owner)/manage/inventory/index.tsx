@@ -20,6 +20,8 @@ import { useRouter } from "expo-router";
 import React, { useCallback, useMemo, useState } from "react";
 import {
   ActivityIndicator,
+  KeyboardAvoidingView,
+  Platform,
   ScrollView,
   StyleSheet,
   Text,
@@ -365,6 +367,10 @@ export default function InventoryScreen() {
           </>
         }
       />
+      <KeyboardAvoidingView
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        style={{ flex: 1 }}
+      >
 
       <ScrollView
         contentContainerStyle={styles.container}
@@ -494,6 +500,7 @@ export default function InventoryScreen() {
         )}
 <View style={{ height: 24 }} />
       </ScrollView>
+      </KeyboardAvoidingView>
     </View>
   );
 }

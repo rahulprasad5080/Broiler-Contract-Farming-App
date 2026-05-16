@@ -3,7 +3,10 @@ import React from "react";
 import {
   ActivityIndicator,
   Keyboard,
+  KeyboardAvoidingView,
+  Platform,
   Pressable,
+  ScrollView,
   StyleSheet,
   Switch,
   Text,
@@ -13,9 +16,9 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
+import Toast from 'react-native-toast-message';
 import { Colors } from "../../constants/Colors";
 import { useAuth } from "../../context/AuthContext";
-import Toast from 'react-native-toast-message';
 import { authenticateWithBiometrics } from "../../services/authSecurity";
 
 function PinDots({ value, hasError }: { value: string; hasError: boolean }) {
@@ -116,9 +119,16 @@ export default function SetupSecurityScreen() {
     }
   };
 
-  return (
-    <SafeAreaView style={styles.safeArea}>
-      <View style={styles.container}>
+  <SafeAreaView style={styles.safeArea}>
+    <KeyboardAvoidingView
+      behavior={Platform.OS === "ios" ? "padding" : "height"}
+      style={{ flex: 1 }}
+    >
+      <ScrollView
+        contentContainerStyle={styles.container}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+      >
         <View style={styles.headerIcon}>
           <Ionicons name="shield-checkmark-outline" size={38} color={Colors.primary} />
         </View>
@@ -223,9 +233,9 @@ export default function SetupSecurityScreen() {
         <TouchableOpacity style={styles.skipButton} onPress={unlockApp} activeOpacity={0.72}>
           <Text style={styles.skipText}>Skip</Text>
         </TouchableOpacity>
-      </View>
-    </SafeAreaView>
-  );
+      </ScrollView>
+    </KeyboardAvoidingView>
+  </SafeAreaView>
 }
 
 const styles = StyleSheet.create({
