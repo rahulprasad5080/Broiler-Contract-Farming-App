@@ -11,6 +11,7 @@ import { SidebarProvider } from "../context/SidebarContext";
 
 import { usePushNotifications } from "@/hooks/usePushNotifications";
 import { useOfflineSyncQueue } from "@/hooks/useOfflineSyncQueue";
+import { NetworkInspector } from "@/components/debug/NetworkInspector";
 
 function RootContent() {
   const { accessToken, isReady } = useAuth();
@@ -51,6 +52,7 @@ export default function RootLayout() {
           >
             <RootContent />
             <NetworkStatus />
+            <NetworkInspector />
           </KeyboardAvoidingView>
         </SidebarProvider>
       </AuthProvider>

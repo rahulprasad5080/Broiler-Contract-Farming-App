@@ -12,6 +12,7 @@ import axios, {
   type AxiosResponse,
   type Method,
 } from "axios";
+import { debugLogger } from "./debugLogger";
 
 export const API_BASE_URL =
   process.env.EXPO_PUBLIC_API_BASE_URL ??
@@ -95,6 +96,37 @@ apiClient.interceptors.request.use((config) => {
 
   return config;
 });
+
+apiClient.interceptors.response.use(
+  (response) => {
+    try {
+      debugLogger.log({
+        url: response.config.url ?? "",
+        method: response.config.method?.toUpperCase() ?? "GET",
+        requestPayload: response.config.data ? (typeof response.config.data === 'string' ? JSON.parse(response.config.data) : response.config.data) : null,
+        responsePayload: response.data,
+        status: response.status,
+        timestamp: new Date().toLocaleTimeString(),
+      });
+    } catch (e) { /* ignore log errors */ }
+    return response;
+  },
+  (error) => {
+    try {
+      if (axios.isAxiosError(error)) {
+        debugLogger.log({
+          url: error.config?.url ?? "",
+          method: error.config?.method?.toUpperCase() ?? "UNKNOWN",
+          requestPayload: error.config?.data ? (typeof error.config.data === 'string' ? JSON.parse(error.config.data) : error.config.data) : null,
+          responsePayload: error.response?.data ?? error.message,
+          status: error.response?.status ?? 0,
+          timestamp: new Date().toLocaleTimeString(),
+        });
+      }
+    } catch (e) { /* ignore log errors */ }
+    return Promise.reject(error);
+  }
+);
 
 function collectTextMessages(value: unknown): string[] {
   if (typeof value === "string") {
