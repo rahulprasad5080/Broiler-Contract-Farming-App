@@ -1,3 +1,5 @@
+import { ScreenState } from '@/components/ui/ScreenState';
+import { TopAppBar } from '@/components/ui/TopAppBar';
 import { Colors } from '@/constants/Colors';
 import { Layout } from '@/constants/Layout';
 import { useAuth } from '@/context/AuthContext';
@@ -16,6 +18,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { zodResolver } from '@hookform/resolvers/zod';
 import React, { useEffect, useRef, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
+import {
   ActivityIndicator,
   Animated,
   FlatList,
@@ -28,8 +31,6 @@ import { Controller, useForm } from 'react-hook-form';
   View,
 } from 'react-native';
 import { z } from 'zod';
-import { ScreenState } from '@/components/ui/ScreenState';
-import { TopAppBar } from '@/components/ui/TopAppBar';
 
 const CATALOG_TYPES = [
   'CHICKS',
@@ -141,145 +142,145 @@ export default function SupervisorCatalogScreen() {
         style={{ flex: 1 }}
       >
 
-      <FlatList
-        data={loading ? [] : items}
-        keyExtractor={(item) => item.id}
-        style={styles.mainScroll}
-        contentContainerStyle={styles.container} 
-        showsVerticalScrollIndicator={false} 
-        keyboardShouldPersistTaps="handled"
-        ListHeaderComponent={
-          <>
-            <View style={styles.card}>
-              {/* Draft restored banner */}
-              {showBanner && (
-                <Animated.View style={[styles.draftBanner, { opacity: draftBannerOpacity }]} pointerEvents="none">
-                  <Ionicons name="cloud-done-outline" size={16} color="#0B5C36" />
-                  <Text style={styles.draftBannerText}>Draft restored</Text>
-                </Animated.View>
-              )}
-
-              <Text style={styles.sectionTitle}>Add New Item</Text>
-
-              <Controller
-                control={control}
-                name="name"
-                render={({ field: { onChange, value } }) => (
-                  <>
-                    <Text style={styles.label}>Name *</Text>
-                    <View style={[styles.inputBox, formErrors.name && { borderColor: Colors.tertiary }]}>
-                      <TextInput
-                        style={styles.input}
-                        value={value}
-                        onChangeText={onChange}
-                        placeholder="e.g., Pre-starter Feed"
-                        placeholderTextColor={Colors.textSecondary}
-                      />
-                    </View>
-                    {formErrors.name && <Text style={styles.fieldErrorText}>{formErrors.name.message}</Text>}
-                  </>
+        <FlatList
+          data={loading ? [] : items}
+          keyExtractor={(item) => item.id}
+          style={styles.mainScroll}
+          contentContainerStyle={styles.container}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+          ListHeaderComponent={
+            <>
+              <View style={styles.card}>
+                {/* Draft restored banner */}
+                {showBanner && (
+                  <Animated.View style={[styles.draftBanner, { opacity: draftBannerOpacity }]} pointerEvents="none">
+                    <Ionicons name="cloud-done-outline" size={16} color="#0B5C36" />
+                    <Text style={styles.draftBannerText}>Draft restored</Text>
+                  </Animated.View>
                 )}
-              />
 
-              <Controller
-                control={control}
-                name="type"
-                render={({ field: { onChange, value } }) => (
-                  <>
-                    <Text style={styles.label}>Type *</Text>
-                    <View style={styles.chipRow}>
-                      {CATALOG_TYPES.map((type) => (
-                        <TouchableOpacity
-                          key={type}
-                          style={[styles.chip, value === type && styles.chipActive]}
-                          onPress={() => onChange(type)}
-                        >
-                          <Text style={[styles.chipText, value === type && styles.chipTextActive]}>{type}</Text>
-                        </TouchableOpacity>
-                      ))}
-                    </View>
-                    {formErrors.type && <Text style={styles.fieldErrorText}>{formErrors.type.message}</Text>}
-                  </>
-                )}
-              />
+                <Text style={styles.sectionTitle}>Add New Item</Text>
 
-              <Controller
-                control={control}
-                name="unit"
-                render={({ field: { onChange, value } }) => (
-                  <>
-                    <Text style={styles.label}>Unit *</Text>
-                    <View style={[styles.inputBox, formErrors.unit && { borderColor: Colors.tertiary }]}>
-                      <TextInput
-                        style={styles.input}
-                        value={value}
-                        onChangeText={onChange}
-                        placeholder="e.g., kg, ml, pieces"
-                        placeholderTextColor={Colors.textSecondary}
-                      />
-                    </View>
-                    {formErrors.unit && <Text style={styles.fieldErrorText}>{formErrors.unit.message}</Text>}
-                  </>
-                )}
-              />
+                <Controller
+                  control={control}
+                  name="name"
+                  render={({ field: { onChange, value } }) => (
+                    <>
+                      <Text style={styles.label}>Name *</Text>
+                      <View style={[styles.inputBox, formErrors.name && { borderColor: Colors.tertiary }]}>
+                        <TextInput
+                          style={styles.input}
+                          value={value}
+                          onChangeText={onChange}
+                          placeholder="e.g., Pre-starter Feed"
+                          placeholderTextColor={Colors.textSecondary}
+                        />
+                      </View>
+                      {formErrors.name && <Text style={styles.fieldErrorText}>{formErrors.name.message}</Text>}
+                    </>
+                  )}
+                />
 
-              <Controller
-                control={control}
-                name="manufacturer"
-                render={({ field: { onChange, value } }) => (
-                  <>
-                    <Text style={styles.label}>Manufacturer</Text>
-                    <View style={[styles.inputBox, styles.textArea, formErrors.manufacturer && { borderColor: Colors.tertiary }]}>
-                      <TextInput
-                        style={[styles.input, styles.multiLine]}
-                        value={value}
-                        onChangeText={onChange}
-                        placeholder="Optional brand or manufacturer"
-                        placeholderTextColor={Colors.textSecondary}
-                        multiline
-                      />
-                    </View>
-                    {formErrors.manufacturer && <Text style={styles.fieldErrorText}>{formErrors.manufacturer.message}</Text>}
-                  </>
-                )}
-              />
+                <Controller
+                  control={control}
+                  name="type"
+                  render={({ field: { onChange, value } }) => (
+                    <>
+                      <Text style={styles.label}>Type *</Text>
+                      <View style={styles.chipRow}>
+                        {CATALOG_TYPES.map((type) => (
+                          <TouchableOpacity
+                            key={type}
+                            style={[styles.chip, value === type && styles.chipActive]}
+                            onPress={() => onChange(type)}
+                          >
+                            <Text style={[styles.chipText, value === type && styles.chipTextActive]}>{type}</Text>
+                          </TouchableOpacity>
+                        ))}
+                      </View>
+                      {formErrors.type && <Text style={styles.fieldErrorText}>{formErrors.type.message}</Text>}
+                    </>
+                  )}
+                />
 
-              <TouchableOpacity style={styles.submitBtn} onPress={handleSubmit(handleSave)} disabled={saving}>
-                {saving ? <ActivityIndicator color="#FFF" /> : <Text style={styles.submitBtnText}>Add Item</Text>}
-              </TouchableOpacity>
+                <Controller
+                  control={control}
+                  name="unit"
+                  render={({ field: { onChange, value } }) => (
+                    <>
+                      <Text style={styles.label}>Unit *</Text>
+                      <View style={[styles.inputBox, formErrors.unit && { borderColor: Colors.tertiary }]}>
+                        <TextInput
+                          style={styles.input}
+                          value={value}
+                          onChangeText={onChange}
+                          placeholder="e.g., kg, ml, pieces"
+                          placeholderTextColor={Colors.textSecondary}
+                        />
+                      </View>
+                      {formErrors.unit && <Text style={styles.fieldErrorText}>{formErrors.unit.message}</Text>}
+                    </>
+                  )}
+                />
+
+                <Controller
+                  control={control}
+                  name="manufacturer"
+                  render={({ field: { onChange, value } }) => (
+                    <>
+                      <Text style={styles.label}>Manufacturer</Text>
+                      <View style={[styles.inputBox, styles.textArea, formErrors.manufacturer && { borderColor: Colors.tertiary }]}>
+                        <TextInput
+                          style={[styles.input, styles.multiLine]}
+                          value={value}
+                          onChangeText={onChange}
+                          placeholder="Optional brand or manufacturer"
+                          placeholderTextColor={Colors.textSecondary}
+                          multiline
+                        />
+                      </View>
+                      {formErrors.manufacturer && <Text style={styles.fieldErrorText}>{formErrors.manufacturer.message}</Text>}
+                    </>
+                  )}
+                />
+
+                <TouchableOpacity style={styles.submitBtn} onPress={handleSubmit(handleSave)} disabled={saving}>
+                  {saving ? <ActivityIndicator color="#FFF" /> : <Text style={styles.submitBtnText}>Add Item</Text>}
+                </TouchableOpacity>
+              </View>
+
+              <View style={styles.listHeaderCard}>
+                <Text style={styles.sectionTitle}>Existing Items</Text>
+                {loading ? <ScreenState title="Loading catalog" message="Fetching catalog items." loading compact /> : null}
+              </View>
+            </>
+          }
+          renderItem={({ item }) => (
+            <View style={[styles.listItem, styles.listItemCard]}>
+              <View style={styles.itemCopy}>
+                <Text style={styles.itemName}>{item.name}</Text>
+                <Text style={styles.itemMeta}>
+                  {item.type}
+                  {item.unit ? ` | ${item.unit}` : ''}
+                  {item.manufacturer ? ` | ${item.manufacturer}` : ''}
+                </Text>
+                <Text style={styles.itemMeta}>
+                  Stock {Number(item.currentStock ?? 0).toLocaleString('en-IN')}
+                  {item.reorderLevel ? ` | Reorder ${item.reorderLevel}` : ''}
+                </Text>
+              </View>
+              <View style={[styles.statusBadge, { backgroundColor: item.isActive ? '#E8F5E9' : '#FFEBEE' }]}>
+                <Text style={[styles.statusText, { color: item.isActive ? '#2E7D32' : '#C62828' }]}>
+                  {item.isActive ? 'Active' : 'Inactive'}
+                </Text>
+              </View>
             </View>
-
-            <View style={styles.listHeaderCard}>
-              <Text style={styles.sectionTitle}>Existing Items</Text>
-              {loading ? <ScreenState title="Loading catalog" message="Fetching catalog items." loading compact /> : null}
-            </View>
-          </>
-        }
-        renderItem={({ item }) => (
-          <View style={[styles.listItem, styles.listItemCard]}>
-            <View style={styles.itemCopy}>
-              <Text style={styles.itemName}>{item.name}</Text>
-              <Text style={styles.itemMeta}>
-                {item.type}
-                {item.unit ? ` | ${item.unit}` : ''}
-                {item.manufacturer ? ` | ${item.manufacturer}` : ''}
-              </Text>
-              <Text style={styles.itemMeta}>
-                Stock {Number(item.currentStock ?? 0).toLocaleString('en-IN')}
-                {item.reorderLevel ? ` | Reorder ${item.reorderLevel}` : ''}
-              </Text>
-            </View>
-            <View style={[styles.statusBadge, { backgroundColor: item.isActive ? '#E8F5E9' : '#FFEBEE' }]}>
-              <Text style={[styles.statusText, { color: item.isActive ? '#2E7D32' : '#C62828' }]}>
-                {item.isActive ? 'Active' : 'Inactive'}
-              </Text>
-            </View>
-          </View>
-        )}
-        ListEmptyComponent={!loading ? (
-          <ScreenState title="No items found" message="Add a catalog item to start tracking inventory." icon="cube-outline" />
-        ) : null}
-      />
+          )}
+          ListEmptyComponent={!loading ? (
+            <ScreenState title="No items found" message="Add a catalog item to start tracking inventory." icon="cube-outline" />
+          ) : null}
+        />
       </KeyboardAvoidingView>
     </View>
   );

@@ -517,6 +517,7 @@ export function TreatmentEntryScreen({
           )}
         </TouchableOpacity>
       </ScrollView>
+      </KeyboardAvoidingView>
     </View>
   );
 }
