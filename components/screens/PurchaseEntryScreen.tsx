@@ -15,6 +15,8 @@ import React, {
 } from "react";
 import {
   ActivityIndicator,
+  KeyboardAvoidingView,
+  Platform,
   ScrollView,
   StyleSheet,
   Text,
@@ -197,215 +199,220 @@ export function PurchaseEntryScreen() {
         title="Purchase Entry"
         subtitle="Record inventory and supplier purchases"
       />
-
-      <ScrollView
-        contentContainerStyle={styles.scrollContainer}
-        showsVerticalScrollIndicator={false}
-        keyboardShouldPersistTaps="handled"
+      <KeyboardAvoidingView
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        style={{ flex: 1 }}
       >
-        <View style={styles.form}>
-          {savedMessage ? (
-            <ScreenState
-              title={savedMessage}
-              message="Form is ready for the next purchase."
-              compact
-              style={styles.stateSpacing}
-            />
-          ) : null}
-          {/* Date */}
-          <Controller
-            control={control}
-            name="purchaseDate"
-            render={({ field: { value, onChange } }) => (
-              <DatePickerField
-                label="Date"
-                value={value}
-                onChange={onChange}
-                error={errors.purchaseDate?.message}
-                disableFuture
+
+        <ScrollView
+          contentContainerStyle={styles.scrollContainer}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+        >
+          <View style={styles.form}>
+            {savedMessage ? (
+              <ScreenState
+                title={savedMessage}
+                message="Form is ready for the next purchase."
+                compact
+                style={styles.stateSpacing}
               />
-            )}
-          />
-
-          {/* Purchase Type */}
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Purchase Type</Text>
-            <View style={styles.toggleContainer}>
-              <TouchableOpacity
-                style={[styles.toggleBtn, purchaseType === 'INVENTORY' && styles.toggleBtnActive]}
-                onPress={() => setValue("purchaseType", "INVENTORY")}
-              >
-                <Text style={[styles.toggleBtnText, purchaseType === 'INVENTORY' && styles.toggleBtnTextActive]}>Inventory Purchase</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.toggleBtn, purchaseType === 'OTHER' && styles.toggleBtnActive]}
-                onPress={() => setValue("purchaseType", "OTHER")}
-              >
-                <Text style={[styles.toggleBtnText, purchaseType === 'OTHER' && styles.toggleBtnTextActive]}>Other Purchase</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-
-          {/* Supplier */}
-          <SearchableSelectField
-            label="Supplier"
-            value={selectedTraderId}
-            options={traderOptions}
-            onSelect={(value) => setValue("traderId", value, { shouldDirty: true, shouldValidate: true })}
-            placeholder="Select Supplier"
-            searchPlaceholder="Search supplier"
-            emptyMessage="No suppliers found"
-            error={errors.traderId?.message}
-          />
-
-          {/* Item */}
-          <SearchableSelectField
-            label="Item"
-            value={selectedCatalogItemId}
-            options={catalogOptions}
-            onSelect={(value) => setValue("catalogItemId", value, { shouldDirty: true, shouldValidate: true })}
-            placeholder="Select Item"
-            searchPlaceholder="Search catalog item"
-            emptyMessage="No catalog items found"
-            error={errors.catalogItemId?.message}
-          />
-
-          {/* Quantity */}
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Quantity</Text>
+            ) : null}
+            {/* Date */}
             <Controller
               control={control}
-              name="quantity"
+              name="purchaseDate"
               render={({ field: { value, onChange } }) => (
-                <View style={styles.inputContainer}>
+                <DatePickerField
+                  label="Date"
+                  value={value}
+                  onChange={onChange}
+                  error={errors.purchaseDate?.message}
+                  disableFuture
+                />
+              )}
+            />
+
+            {/* Purchase Type */}
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Purchase Type</Text>
+              <View style={styles.toggleContainer}>
+                <TouchableOpacity
+                  style={[styles.toggleBtn, purchaseType === 'INVENTORY' && styles.toggleBtnActive]}
+                  onPress={() => setValue("purchaseType", "INVENTORY")}
+                >
+                  <Text style={[styles.toggleBtnText, purchaseType === 'INVENTORY' && styles.toggleBtnTextActive]}>Inventory Purchase</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.toggleBtn, purchaseType === 'OTHER' && styles.toggleBtnActive]}
+                  onPress={() => setValue("purchaseType", "OTHER")}
+                >
+                  <Text style={[styles.toggleBtnText, purchaseType === 'OTHER' && styles.toggleBtnTextActive]}>Other Purchase</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+
+            {/* Supplier */}
+            <SearchableSelectField
+              label="Supplier"
+              value={selectedTraderId}
+              options={traderOptions}
+              onSelect={(value) => setValue("traderId", value, { shouldDirty: true, shouldValidate: true })}
+              placeholder="Select Supplier"
+              searchPlaceholder="Search supplier"
+              emptyMessage="No suppliers found"
+              error={errors.traderId?.message}
+            />
+
+            {/* Item */}
+            <SearchableSelectField
+              label="Item"
+              value={selectedCatalogItemId}
+              options={catalogOptions}
+              onSelect={(value) => setValue("catalogItemId", value, { shouldDirty: true, shouldValidate: true })}
+              placeholder="Select Item"
+              searchPlaceholder="Search catalog item"
+              emptyMessage="No catalog items found"
+              error={errors.catalogItemId?.message}
+            />
+
+            {/* Quantity */}
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Quantity</Text>
+              <Controller
+                control={control}
+                name="quantity"
+                render={({ field: { value, onChange } }) => (
+                  <View style={styles.inputContainer}>
+                    <TextInput
+                      style={styles.inputWithSuffix}
+                      value={value}
+                      onChangeText={onChange}
+                      keyboardType="numeric"
+                      placeholder="1,000"
+                      placeholderTextColor="#9CA3AF"
+                    />
+                    <Text style={styles.suffix}>{selectedCatalogItem?.unit || "kg"}</Text>
+                  </View>
+                )}
+              />
+              {errors.quantity && <Text style={styles.errorText}>{errors.quantity.message}</Text>}
+            </View>
+
+            {/* Rate */}
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Rate (₹ / unit)</Text>
+              <Controller
+                control={control}
+                name="ratePerUnit"
+                render={({ field: { value, onChange } }) => (
                   <TextInput
-                    style={styles.inputWithSuffix}
+                    style={styles.input}
                     value={value}
                     onChangeText={onChange}
                     keyboardType="numeric"
-                    placeholder="1,000"
+                    placeholder="25"
                     placeholderTextColor="#9CA3AF"
                   />
-                  <Text style={styles.suffix}>{selectedCatalogItem?.unit || "kg"}</Text>
-                </View>
-              )}
-            />
-            {errors.quantity && <Text style={styles.errorText}>{errors.quantity.message}</Text>}
-          </View>
-
-          {/* Rate */}
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Rate (₹ / unit)</Text>
-            <Controller
-              control={control}
-              name="ratePerUnit"
-              render={({ field: { value, onChange } }) => (
-                <TextInput
-                  style={styles.input}
-                  value={value}
-                  onChangeText={onChange}
-                  keyboardType="numeric"
-                  placeholder="25"
-                  placeholderTextColor="#9CA3AF"
-                />
-              )}
-            />
-            {errors.ratePerUnit && <Text style={styles.errorText}>{errors.ratePerUnit.message}</Text>}
-          </View>
-
-          {/* Total Amount */}
-          <View style={styles.inputGroup}>
-            <View style={styles.totalRow}>
-              <Text style={styles.label}>Total Amount (₹)</Text>
-              <Text style={styles.totalAmountText}>₹ {totalAmount.toLocaleString('en-IN')}</Text>
+                )}
+              />
+              {errors.ratePerUnit && <Text style={styles.errorText}>{errors.ratePerUnit.message}</Text>}
             </View>
-          </View>
 
-          {/* Store / Godown */}
-          <SearchableSelectField
-            label="Store / Godown"
-            value={store}
-            options={storeOptions}
-            onSelect={(value) => setValue("store", value, { shouldDirty: true, shouldValidate: true })}
-            placeholder="Select Store"
-            searchPlaceholder="Search store"
-            emptyMessage="No stores found"
-            error={errors.store?.message}
-          />
-
-          {/* Payment Type */}
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Payment Type</Text>
-            <View style={styles.toggleRow}>
-              {["CASH", "UPI", "BANK", "CREDIT"].map((type) => (
-                <TouchableOpacity
-                  key={type}
-                  style={[styles.smallToggleBtn, paymentType === type && styles.toggleBtnActive]}
-                  onPress={() => setValue("paymentType", type as any)}
-                >
-                  <Text style={[styles.smallToggleBtnText, paymentType === type && styles.toggleBtnTextActive]}>{type}</Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-          </View>
-
-          {/* Remarks */}
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Remarks (Optional)</Text>
-            <Controller
-              control={control}
-              name="remarks"
-              render={({ field: { value, onChange } }) => (
-                <TextInput
-                  style={[styles.input, styles.textArea]}
-                  value={value}
-                  onChangeText={onChange}
-                  placeholder="Feed purchase for batches"
-                  placeholderTextColor="#9CA3AF"
-                  multiline
-                />
-              )}
-            />
-          </View>
-
-          {/* Bill Photo */}
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Bill / Invoice Photo (Optional)</Text>
-            {attachmentUrl ? (
-              <View style={styles.attachmentBox}>
-                <View style={styles.attachmentInfo}>
-                  <Ionicons name="document-text-outline" size={20} color="#0B5C36" />
-                  <Text style={styles.attachmentName} numberOfLines={1}>{attachmentUrl}</Text>
-                </View>
-                <TouchableOpacity onPress={() => setValue("attachmentUrl", "")}>
-                  <Ionicons name="trash-outline" size={20} color="#EF4444" />
-                </TouchableOpacity>
+            {/* Total Amount */}
+            <View style={styles.inputGroup}>
+              <View style={styles.totalRow}>
+                <Text style={styles.label}>Total Amount (₹)</Text>
+                <Text style={styles.totalAmountText}>₹ {totalAmount.toLocaleString('en-IN')}</Text>
               </View>
-            ) : (
-              <TouchableOpacity
-                style={styles.uploadBtn}
-                onPress={() => setValue("attachmentUrl", "invoice_20052024.jpg")} // Simulation
-              >
-                <Ionicons name="camera-outline" size={24} color="#6B7280" />
-                <Text style={styles.uploadBtnText}>Upload Photo</Text>
-              </TouchableOpacity>
-            )}
-          </View>
+            </View>
 
-          <TouchableOpacity
-            style={[styles.submitBtn, submitting && styles.btnDisabled]}
-            onPress={handleSubmit(onSubmit)}
-            disabled={submitting}
-          >
-            {submitting ? (
-              <ActivityIndicator color="#FFF" />
-            ) : (
-              <Text style={styles.submitBtnText}>Save Purchase</Text>
-            )}
-          </TouchableOpacity>
-        </View>
-        <View style={{ height: 40 }} />
-      </ScrollView>
+            {/* Store / Godown */}
+            <SearchableSelectField
+              label="Store / Godown"
+              value={store}
+              options={storeOptions}
+              onSelect={(value) => setValue("store", value, { shouldDirty: true, shouldValidate: true })}
+              placeholder="Select Store"
+              searchPlaceholder="Search store"
+              emptyMessage="No stores found"
+              error={errors.store?.message}
+            />
+
+            {/* Payment Type */}
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Payment Type</Text>
+              <View style={styles.toggleRow}>
+                {["CASH", "UPI", "BANK", "CREDIT"].map((type) => (
+                  <TouchableOpacity
+                    key={type}
+                    style={[styles.smallToggleBtn, paymentType === type && styles.toggleBtnActive]}
+                    onPress={() => setValue("paymentType", type as any)}
+                  >
+                    <Text style={[styles.smallToggleBtnText, paymentType === type && styles.toggleBtnTextActive]}>{type}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </View>
+
+            {/* Remarks */}
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Remarks (Optional)</Text>
+              <Controller
+                control={control}
+                name="remarks"
+                render={({ field: { value, onChange } }) => (
+                  <TextInput
+                    style={[styles.input, styles.textArea]}
+                    value={value}
+                    onChangeText={onChange}
+                    placeholder="Feed purchase for batches"
+                    placeholderTextColor="#9CA3AF"
+                    multiline
+                  />
+                )}
+              />
+            </View>
+
+            {/* Bill Photo */}
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Bill / Invoice Photo (Optional)</Text>
+              {attachmentUrl ? (
+                <View style={styles.attachmentBox}>
+                  <View style={styles.attachmentInfo}>
+                    <Ionicons name="document-text-outline" size={20} color="#0B5C36" />
+                    <Text style={styles.attachmentName} numberOfLines={1}>{attachmentUrl}</Text>
+                  </View>
+                  <TouchableOpacity onPress={() => setValue("attachmentUrl", "")}>
+                    <Ionicons name="trash-outline" size={20} color="#EF4444" />
+                  </TouchableOpacity>
+                </View>
+              ) : (
+                <TouchableOpacity
+                  style={styles.uploadBtn}
+                  onPress={() => setValue("attachmentUrl", "invoice_20052024.jpg")} // Simulation
+                >
+                  <Ionicons name="camera-outline" size={24} color="#6B7280" />
+                  <Text style={styles.uploadBtnText}>Upload Photo</Text>
+                </TouchableOpacity>
+              )}
+            </View>
+
+            <TouchableOpacity
+              style={[styles.submitBtn, submitting && styles.btnDisabled]}
+              onPress={handleSubmit(onSubmit)}
+              disabled={submitting}
+            >
+              {submitting ? (
+                <ActivityIndicator color="#FFF" />
+              ) : (
+                <Text style={styles.submitBtnText}>Save Purchase</Text>
+              )}
+            </TouchableOpacity>
+          </View>
+          <View style={{ height: 40 }} />
+        </ScrollView>
+      </KeyboardAvoidingView>
     </View>
   );
 }

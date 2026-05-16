@@ -1,5 +1,5 @@
-import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Platform } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, Platform, Keyboard } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { BottomTabBarProps } from '@react-navigation/bottom-tabs';
 import { CommonActions } from '@react-navigation/native';
@@ -15,7 +15,26 @@ type BottomTabsProps = BottomTabBarProps & {
 export function BottomTabs({ state, descriptors, navigation, hiddenTabs = [] }: BottomTabsProps) {
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
+  const [isKeyboardVisible, setIsKeyboardVisible] = useState(false);
   
+  useEffect(() => {
+    const showSubscription = Keyboard.addListener(
+      Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow',
+      () => setIsKeyboardVisible(true)
+    );
+    const hideSubscription = Keyboard.addListener(
+      Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide',
+      () => setIsKeyboardVisible(false)
+    );
+
+    return () => {
+      showSubscription.remove();
+      hideSubscription.remove();
+    };
+  }, []);
+
+  if (isKeyboardVisible) return null;
+
   const tabs: { name: string; label: string; activeIcon: keyof typeof Ionicons.glyphMap; inactiveIcon: keyof typeof Ionicons.glyphMap }[] = [
     { name: 'dashboard', label: 'Dashboard', activeIcon: 'grid', inactiveIcon: 'grid-outline' },
     { name: 'farms', label: 'Farms', activeIcon: 'business', inactiveIcon: 'business-outline' },
@@ -26,8 +45,8 @@ export function BottomTabs({ state, descriptors, navigation, hiddenTabs = [] }: 
     { name: 'profile', label: 'Profile', activeIcon: 'person', inactiveIcon: 'person-outline' },
   ];
 
-  const bottomPadding = insets.bottom > 0 ? insets.bottom : 8;
-  const tabHeight = 54 + bottomPadding;
+  const bottomPadding = insets.bottom > 0 ? insets.bottom : 6;
+  const tabHeight = 52 + bottomPadding;
 
   return (
     <View style={[styles.tabBar, { paddingBottom: bottomPadding, height: tabHeight }]}>

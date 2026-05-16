@@ -4,6 +4,8 @@ import React, { useCallback, useMemo, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 import {
   ActivityIndicator,
+  KeyboardAvoidingView,
+  Platform,
   ScrollView,
   StyleSheet,
   Text,
@@ -198,174 +200,179 @@ export function ExpenseEntryScreen({ title = "Expense Entry", subtitle }: Expens
   return (
     <View style={styles.safeArea}>
       <TopAppBar title={title} subtitle={subtitle} />
+      <KeyboardAvoidingView
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        style={{ flex: 1 }}
+      >
 
-      <ScrollView contentContainerStyle={styles.scrollContainer} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
-        <View style={styles.form}>
-          {isRestored ? (
-            <ScreenState
-              title="Draft restored"
-              message="Your unsaved expense entry was restored."
-              compact
-              style={styles.stateSpacing}
-            />
-          ) : null}
-          {savedMessage ? (
-            <ScreenState
-              title={savedMessage}
-              message="Form is ready for the next expense."
-              compact
-              style={styles.stateSpacing}
-            />
-          ) : null}
-
-          {/* Expense For Segmented Control */}
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Expense For</Text>
-            <View style={styles.ledgerTabs}>
-              <TouchableOpacity
-                style={[styles.ledgerTab, selectedLedger === "COMPANY" && styles.ledgerTabActive]}
-                onPress={() => {
-                  setValue("ledger", "COMPANY");
-                  setValue("category", COMPANY_CATEGORIES[0]);
-                }}
-              >
-                <Text style={[styles.ledgerTabText, selectedLedger === "COMPANY" && styles.ledgerTabTextActive]}>Company Expense</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.ledgerTab, selectedLedger === "FARMER" && styles.ledgerTabActive]}
-                onPress={() => {
-                  setValue("ledger", "FARMER");
-                  setValue("category", FARMER_CATEGORIES[0]);
-                }}
-              >
-                <Text style={[styles.ledgerTabText, selectedLedger === "FARMER" && styles.ledgerTabTextActive]}>Farmer Expense</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-
-          {/* Date */}
-          <Controller
-            control={control}
-            name="expenseDate"
-            render={({ field: { value, onChange } }) => (
-              <DatePickerField
-                label="Date"
-                value={value}
-                onChange={onChange}
-                error={errors.expenseDate?.message}
-                disableFuture
+        <ScrollView contentContainerStyle={styles.scrollContainer} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+          <View style={styles.form}>
+            {isRestored ? (
+              <ScreenState
+                title="Draft restored"
+                message="Your unsaved expense entry was restored."
+                compact
+                style={styles.stateSpacing}
               />
-            )}
-          />
+            ) : null}
+            {savedMessage ? (
+              <ScreenState
+                title={savedMessage}
+                message="Form is ready for the next expense."
+                compact
+                style={styles.stateSpacing}
+              />
+            ) : null}
 
-          {/* Farm Select */}
-          <SearchableSelectField
-            label="Farm"
-            value={selectedFarmId}
-            options={farmOptions}
-            onSelect={(farmId) => {
-              const nextBatch = batches.find((batch) => batch.farmId === farmId);
-              if (nextBatch) {
-                setValue("batchId", nextBatch.id, { shouldDirty: true, shouldValidate: true });
-              }
-            }}
-            placeholder="Select Farm"
-            searchPlaceholder="Search farm"
-            emptyMessage="No farms found"
-          />
+            {/* Expense For Segmented Control */}
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Expense For</Text>
+              <View style={styles.ledgerTabs}>
+                <TouchableOpacity
+                  style={[styles.ledgerTab, selectedLedger === "COMPANY" && styles.ledgerTabActive]}
+                  onPress={() => {
+                    setValue("ledger", "COMPANY");
+                    setValue("category", COMPANY_CATEGORIES[0]);
+                  }}
+                >
+                  <Text style={[styles.ledgerTabText, selectedLedger === "COMPANY" && styles.ledgerTabTextActive]}>Company Expense</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.ledgerTab, selectedLedger === "FARMER" && styles.ledgerTabActive]}
+                  onPress={() => {
+                    setValue("ledger", "FARMER");
+                    setValue("category", FARMER_CATEGORIES[0]);
+                  }}
+                >
+                  <Text style={[styles.ledgerTabText, selectedLedger === "FARMER" && styles.ledgerTabTextActive]}>Farmer Expense</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
 
-          {/* Batch Select */}
-          <SearchableSelectField
-            label="Batch"
-            value={selectedBatchId}
-            options={batchOptions}
-            onSelect={(value) => setValue("batchId", value, { shouldDirty: true, shouldValidate: true })}
-            placeholder="Select Batch"
-            searchPlaceholder="Search batch"
-            emptyMessage="No batches found"
-            error={errors.batchId?.message}
-          />
-
-          {/* Expense Category Select */}
-          <SearchableSelectField
-            label="Expense Category"
-            value={watch("category")}
-            options={categoryOptions}
-            onSelect={(value) => setValue("category", value, { shouldDirty: true, shouldValidate: true })}
-            placeholder="Select Category"
-            searchPlaceholder="Search category"
-            emptyMessage="No categories found"
-            error={errors.category?.message}
-          />
-
-          {/* Amount Input */}
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Amount (₹)</Text>
+            {/* Date */}
             <Controller
               control={control}
-              name="totalAmount"
+              name="expenseDate"
               render={({ field: { value, onChange } }) => (
-                <TextInput
-                  style={styles.input}
+                <DatePickerField
+                  label="Date"
                   value={value}
-                  onChangeText={onChange}
-                  keyboardType="numeric"
-                  placeholder="850"
-                  placeholderTextColor="#9CA3AF"
+                  onChange={onChange}
+                  error={errors.expenseDate?.message}
+                  disableFuture
                 />
               )}
             />
-          </View>
 
-          {/* Payment Type Selection Chips */}
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Payment Type</Text>
-            <View style={styles.chipsRow}>
+            {/* Farm Select */}
+            <SearchableSelectField
+              label="Farm"
+              value={selectedFarmId}
+              options={farmOptions}
+              onSelect={(farmId) => {
+                const nextBatch = batches.find((batch) => batch.farmId === farmId);
+                if (nextBatch) {
+                  setValue("batchId", nextBatch.id, { shouldDirty: true, shouldValidate: true });
+                }
+              }}
+              placeholder="Select Farm"
+              searchPlaceholder="Search farm"
+              emptyMessage="No farms found"
+            />
+
+            {/* Batch Select */}
+            <SearchableSelectField
+              label="Batch"
+              value={selectedBatchId}
+              options={batchOptions}
+              onSelect={(value) => setValue("batchId", value, { shouldDirty: true, shouldValidate: true })}
+              placeholder="Select Batch"
+              searchPlaceholder="Search batch"
+              emptyMessage="No batches found"
+              error={errors.batchId?.message}
+            />
+
+            {/* Expense Category Select */}
+            <SearchableSelectField
+              label="Expense Category"
+              value={watch("category")}
+              options={categoryOptions}
+              onSelect={(value) => setValue("category", value, { shouldDirty: true, shouldValidate: true })}
+              placeholder="Select Category"
+              searchPlaceholder="Search category"
+              emptyMessage="No categories found"
+              error={errors.category?.message}
+            />
+
+            {/* Amount Input */}
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Amount (₹)</Text>
               <Controller
                 control={control}
-                name="paymentType"
+                name="totalAmount"
                 render={({ field: { value, onChange } }) => (
-                  <>
-                    {PAYMENT_TYPES.map((type) => (
-                      <TouchableOpacity
-                        key={type}
-                        style={[styles.chip, value === type && styles.chipActive]}
-                        onPress={() => onChange(type)}
-                      >
-                        <Text style={[styles.chipText, value === type && styles.chipTextActive]}>{type}</Text>
-                      </TouchableOpacity>
-                    ))}
-                  </>
+                  <TextInput
+                    style={styles.input}
+                    value={value}
+                    onChangeText={onChange}
+                    keyboardType="numeric"
+                    placeholder="850"
+                    placeholderTextColor="#9CA3AF"
+                  />
                 )}
               />
             </View>
-          </View>
 
-          {/* Remarks */}
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Remarks (Optional)</Text>
-            <Controller
-              control={control}
-              name="notes"
-              render={({ field: { value, onChange } }) => (
-                <TextInput
-                  style={[styles.input, styles.textArea]}
-                  value={value}
-                  onChangeText={onChange}
-                  placeholder="May electricity bill"
-                  placeholderTextColor="#9CA3AF"
-                  multiline
+            {/* Payment Type Selection Chips */}
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Payment Type</Text>
+              <View style={styles.chipsRow}>
+                <Controller
+                  control={control}
+                  name="paymentType"
+                  render={({ field: { value, onChange } }) => (
+                    <>
+                      {PAYMENT_TYPES.map((type) => (
+                        <TouchableOpacity
+                          key={type}
+                          style={[styles.chip, value === type && styles.chipActive]}
+                          onPress={() => onChange(type)}
+                        >
+                          <Text style={[styles.chipText, value === type && styles.chipTextActive]}>{type}</Text>
+                        </TouchableOpacity>
+                      ))}
+                    </>
+                  )}
                 />
-              )}
-            />
-          </View>
+              </View>
+            </View>
 
-          <TouchableOpacity style={[styles.submitBtn, submitting && styles.btnDisabled]} onPress={handleSubmit(onSubmit)} disabled={submitting}>
-            {submitting ? <ActivityIndicator color="#FFF" /> : <Text style={styles.submitBtnText}>Save Expense</Text>}
-          </TouchableOpacity>
-        </View>
-        <View style={{ height: 40 }} />
-      </ScrollView>
+            {/* Remarks */}
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Remarks (Optional)</Text>
+              <Controller
+                control={control}
+                name="notes"
+                render={({ field: { value, onChange } }) => (
+                  <TextInput
+                    style={[styles.input, styles.textArea]}
+                    value={value}
+                    onChangeText={onChange}
+                    placeholder="May electricity bill"
+                    placeholderTextColor="#9CA3AF"
+                    multiline
+                  />
+                )}
+              />
+            </View>
+
+            <TouchableOpacity style={[styles.submitBtn, submitting && styles.btnDisabled]} onPress={handleSubmit(onSubmit)} disabled={submitting}>
+              {submitting ? <ActivityIndicator color="#FFF" /> : <Text style={styles.submitBtnText}>Save Expense</Text>}
+            </TouchableOpacity>
+          </View>
+          <View style={{ height: 40 }} />
+        </ScrollView>
+      </KeyboardAvoidingView>
     </View>
   );
 }

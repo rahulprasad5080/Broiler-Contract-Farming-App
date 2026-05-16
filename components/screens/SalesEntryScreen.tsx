@@ -15,6 +15,8 @@ import React, {
 } from "react";
 import {
   ActivityIndicator,
+  KeyboardAvoidingView,
+  Platform,
   ScrollView,
   StyleSheet,
   Text,
@@ -22,7 +24,6 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
 
 import { DatePickerField } from "@/components/ui/DatePickerField";
 import { ScreenState } from "@/components/ui/ScreenState";
@@ -227,198 +228,203 @@ export function SalesEntryScreen({ title = "Sales Entry", subtitle }: SalesEntry
   return (
     <View style={styles.safeArea}>
       <TopAppBar title={title} subtitle={subtitle} />
-
-      <ScrollView
-        contentContainerStyle={styles.scrollContainer}
-        showsVerticalScrollIndicator={false}
-        keyboardShouldPersistTaps="handled"
+      <KeyboardAvoidingView
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        style={{ flex: 1 }}
       >
-        <View style={styles.form}>
-          {isRestored ? (
-            <ScreenState
-              title="Draft restored"
-              message="Your unsaved sales entry was restored."
-              compact
-              style={styles.stateSpacing}
-            />
-          ) : null}
-          {savedMessage ? (
-            <ScreenState
-              title={savedMessage}
-              message="Form is ready for the next sale."
-              compact
-              style={styles.stateSpacing}
-            />
-          ) : null}
-          {/* Date */}
-          <Controller
-            control={control}
-            name="saleDate"
-            render={({ field: { value, onChange } }) => (
-              <DatePickerField
-                label="Date"
-                value={value}
-                onChange={onChange}
-                error={errors.saleDate?.message}
-                disableFuture
+
+        <ScrollView
+          contentContainerStyle={styles.scrollContainer}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+        >
+          <View style={styles.form}>
+            {isRestored ? (
+              <ScreenState
+                title="Draft restored"
+                message="Your unsaved sales entry was restored."
+                compact
+                style={styles.stateSpacing}
               />
-            )}
-          />
-
-          {/* Farm */}
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Farm</Text>
-            <View style={styles.inputMock}>
-              <Text style={styles.inputValue}>{selectedBatch?.farmName || "Select Farm"}</Text>
-              <Ionicons name="chevron-down" size={20} color="#E5E7EB" />
-            </View>
-          </View>
-
-          {/* Batch */}
-          <SearchableSelectField
-            label="Batch"
-            value={selectedBatchId}
-            options={batchOptions}
-            onSelect={(value) => setValue("batchId", value, { shouldDirty: true, shouldValidate: true })}
-            placeholder="Select Batch"
-            searchPlaceholder="Search batch or farm"
-            emptyMessage="No sales-ready batches found"
-            error={errors.batchId?.message}
-          />
-
-          {/* Customer / Buyer */}
-          <SearchableSelectField
-            label="Customer / Buyer"
-            value={selectedTraderId}
-            options={traderOptions}
-            onSelect={(value) => setValue("traderId", value, { shouldDirty: true, shouldValidate: true })}
-            placeholder="Select Customer"
-            searchPlaceholder="Search customer"
-            emptyMessage="No customers found"
-            error={errors.traderId?.message}
-          />
-
-          {/* Quantity Sold */}
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Quantity Sold</Text>
+            ) : null}
+            {savedMessage ? (
+              <ScreenState
+                title={savedMessage}
+                message="Form is ready for the next sale."
+                compact
+                style={styles.stateSpacing}
+              />
+            ) : null}
+            {/* Date */}
             <Controller
               control={control}
-              name="birdCount"
+              name="saleDate"
               render={({ field: { value, onChange } }) => (
-                <View style={styles.inputContainer}>
+                <DatePickerField
+                  label="Date"
+                  value={value}
+                  onChange={onChange}
+                  error={errors.saleDate?.message}
+                  disableFuture
+                />
+              )}
+            />
+
+            {/* Farm */}
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Farm</Text>
+              <View style={styles.inputMock}>
+                <Text style={styles.inputValue}>{selectedBatch?.farmName || "Select Farm"}</Text>
+                <Ionicons name="chevron-down" size={20} color="#E5E7EB" />
+              </View>
+            </View>
+
+            {/* Batch */}
+            <SearchableSelectField
+              label="Batch"
+              value={selectedBatchId}
+              options={batchOptions}
+              onSelect={(value) => setValue("batchId", value, { shouldDirty: true, shouldValidate: true })}
+              placeholder="Select Batch"
+              searchPlaceholder="Search batch or farm"
+              emptyMessage="No sales-ready batches found"
+              error={errors.batchId?.message}
+            />
+
+            {/* Customer / Buyer */}
+            <SearchableSelectField
+              label="Customer / Buyer"
+              value={selectedTraderId}
+              options={traderOptions}
+              onSelect={(value) => setValue("traderId", value, { shouldDirty: true, shouldValidate: true })}
+              placeholder="Select Customer"
+              searchPlaceholder="Search customer"
+              emptyMessage="No customers found"
+              error={errors.traderId?.message}
+            />
+
+            {/* Quantity Sold */}
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Quantity Sold</Text>
+              <Controller
+                control={control}
+                name="birdCount"
+                render={({ field: { value, onChange } }) => (
+                  <View style={styles.inputContainer}>
+                    <TextInput
+                      style={styles.inputWithSuffix}
+                      value={value}
+                      onChangeText={onChange}
+                      keyboardType="numeric"
+                      placeholder="5,000"
+                      placeholderTextColor="#9CA3AF"
+                    />
+                    <Text style={styles.suffix}>birds</Text>
+                  </View>
+                )}
+              />
+              {errors.birdCount && <Text style={styles.errorText}>{errors.birdCount.message}</Text>}
+            </View>
+
+            {/* Average Weight */}
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Average Weight (kg)</Text>
+              <Controller
+                control={control}
+                name="averageWeightKg"
+                render={({ field: { value, onChange } }) => (
                   <TextInput
-                    style={styles.inputWithSuffix}
+                    style={styles.input}
                     value={value}
                     onChangeText={onChange}
                     keyboardType="numeric"
-                    placeholder="5,000"
+                    placeholder="2.150"
                     placeholderTextColor="#9CA3AF"
                   />
-                  <Text style={styles.suffix}>birds</Text>
-                </View>
-              )}
-            />
-            {errors.birdCount && <Text style={styles.errorText}>{errors.birdCount.message}</Text>}
-          </View>
-
-          {/* Average Weight */}
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Average Weight (kg)</Text>
-            <Controller
-              control={control}
-              name="averageWeightKg"
-              render={({ field: { value, onChange } }) => (
-                <TextInput
-                  style={styles.input}
-                  value={value}
-                  onChangeText={onChange}
-                  keyboardType="numeric"
-                  placeholder="2.150"
-                  placeholderTextColor="#9CA3AF"
-                />
-              )}
-            />
-            {errors.averageWeightKg && <Text style={styles.errorText}>{errors.averageWeightKg.message}</Text>}
-          </View>
-
-          {/* Rate Type */}
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Rate Type</Text>
-            <View style={styles.toggleContainer}>
-              <TouchableOpacity
-                style={[styles.toggleBtn, rateType === 'LIVE' && styles.toggleBtnActive]}
-                onPress={() => setValue("rateType", "LIVE")}
-              >
-                <Text style={[styles.toggleBtnText, rateType === 'LIVE' && styles.toggleBtnTextActive]}>Live Rate</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.toggleBtn, rateType === 'DRESSED' && styles.toggleBtnActive]}
-                onPress={() => setValue("rateType", "DRESSED")}
-              >
-                <Text style={[styles.toggleBtnText, rateType === 'DRESSED' && styles.toggleBtnTextActive]}>Dressed Rate</Text>
-              </TouchableOpacity>
+                )}
+              />
+              {errors.averageWeightKg && <Text style={styles.errorText}>{errors.averageWeightKg.message}</Text>}
             </View>
-          </View>
 
-          {/* Rate */}
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>{rateType === 'LIVE' ? 'Live Rate' : 'Dressed Rate'} (₹ / kg)</Text>
-            <Controller
-              control={control}
-              name="ratePerKg"
-              render={({ field: { value, onChange } }) => (
-                <TextInput
-                  style={styles.input}
-                  value={value}
-                  onChangeText={onChange}
-                  keyboardType="numeric"
-                  placeholder="112"
-                  placeholderTextColor="#9CA3AF"
-                />
+            {/* Rate Type */}
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Rate Type</Text>
+              <View style={styles.toggleContainer}>
+                <TouchableOpacity
+                  style={[styles.toggleBtn, rateType === 'LIVE' && styles.toggleBtnActive]}
+                  onPress={() => setValue("rateType", "LIVE")}
+                >
+                  <Text style={[styles.toggleBtnText, rateType === 'LIVE' && styles.toggleBtnTextActive]}>Live Rate</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.toggleBtn, rateType === 'DRESSED' && styles.toggleBtnActive]}
+                  onPress={() => setValue("rateType", "DRESSED")}
+                >
+                  <Text style={[styles.toggleBtnText, rateType === 'DRESSED' && styles.toggleBtnTextActive]}>Dressed Rate</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+
+            {/* Rate */}
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>{rateType === 'LIVE' ? 'Live Rate' : 'Dressed Rate'} (₹ / kg)</Text>
+              <Controller
+                control={control}
+                name="ratePerKg"
+                render={({ field: { value, onChange } }) => (
+                  <TextInput
+                    style={styles.input}
+                    value={value}
+                    onChangeText={onChange}
+                    keyboardType="numeric"
+                    placeholder="112"
+                    placeholderTextColor="#9CA3AF"
+                  />
+                )}
+              />
+              {errors.ratePerKg && <Text style={styles.errorText}>{errors.ratePerKg.message}</Text>}
+            </View>
+
+            {/* Total Amount */}
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Total Amount (₹)</Text>
+              <Text style={styles.totalAmountText}>₹ {totalAmount.toLocaleString('en-IN')}</Text>
+            </View>
+
+            {/* Remarks */}
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Remarks (Optional)</Text>
+              <Controller
+                control={control}
+                name="notes"
+                render={({ field: { value, onChange } }) => (
+                  <TextInput
+                    style={[styles.input, styles.textArea]}
+                    value={value}
+                    onChangeText={onChange}
+                    placeholder="Morning sale completed"
+                    placeholderTextColor="#9CA3AF"
+                    multiline
+                  />
+                )}
+              />
+            </View>
+
+            <TouchableOpacity
+              style={[styles.submitBtn, submitting && styles.btnDisabled]}
+              onPress={handleSubmit(onSubmit)}
+              disabled={submitting}
+            >
+              {submitting ? (
+                <ActivityIndicator color="#FFF" />
+              ) : (
+                <Text style={styles.submitBtnText}>Save Sales Entry</Text>
               )}
-            />
-            {errors.ratePerKg && <Text style={styles.errorText}>{errors.ratePerKg.message}</Text>}
+            </TouchableOpacity>
           </View>
-
-          {/* Total Amount */}
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Total Amount (₹)</Text>
-            <Text style={styles.totalAmountText}>₹ {totalAmount.toLocaleString('en-IN')}</Text>
-          </View>
-
-          {/* Remarks */}
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Remarks (Optional)</Text>
-            <Controller
-              control={control}
-              name="notes"
-              render={({ field: { value, onChange } }) => (
-                <TextInput
-                  style={[styles.input, styles.textArea]}
-                  value={value}
-                  onChangeText={onChange}
-                  placeholder="Morning sale completed"
-                  placeholderTextColor="#9CA3AF"
-                  multiline
-                />
-              )}
-            />
-          </View>
-
-          <TouchableOpacity
-            style={[styles.submitBtn, submitting && styles.btnDisabled]}
-            onPress={handleSubmit(onSubmit)}
-            disabled={submitting}
-          >
-            {submitting ? (
-              <ActivityIndicator color="#FFF" />
-            ) : (
-              <Text style={styles.submitBtnText}>Save Sales Entry</Text>
-            )}
-          </TouchableOpacity>
-        </View>
-        <View style={{ height: 40 }} />
-      </ScrollView>
+          <View style={{ height: 40 }} />
+        </ScrollView>
+      </KeyboardAvoidingView>
     </View>
   );
 }
