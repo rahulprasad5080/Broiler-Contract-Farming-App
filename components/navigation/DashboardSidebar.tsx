@@ -472,7 +472,7 @@ export function DashboardSidebar({
   }, [visible]);
 
   return (
-    <Modal visible={isRendered} transparent animationType="none" onRequestClose={onClose}>
+    <Modal visible={isRendered} transparent animationType="none" onRequestClose={onClose} statusBarTranslucent>
       <Animated.View style={[styles.overlay, { opacity: fadeAnim }]}>
         <TouchableOpacity
           style={styles.backdrop}
@@ -488,164 +488,164 @@ export function DashboardSidebar({
               { width: drawerWidth },
             ]}
           >
-          {/* ── Header / Brand Block ── */}
-          <View style={[styles.brandBlock, { backgroundColor: themeColor, paddingTop: Math.max(insets.top, 14) + 10 }]}>
-            {/* User row */}
-            <View style={styles.userRow}>
-              {/* Avatar */}
-              <View style={[styles.avatar, { borderColor: "rgba(255,255,255,0.4)" }]}>
-                <Text style={styles.avatarText}>{initials}</Text>
-              </View>
-              {/* Info */}
-              <View style={styles.userInfo}>
-                {/* Name + Badge */}
-                <View style={styles.userTextBlock}>
-                  <Text style={styles.userName} numberOfLines={1}>
-                    {user?.name ?? "User"}
-                  </Text>
-                  <View style={[styles.roleBadge, { backgroundColor: roleBadgeColor }]}>
-                    <Text style={styles.roleBadgeText}>
-                      {user?.role ?? "STAFF"}
-                    </Text>
-                  </View>
-                </View>
-                {/* Close Button — right side */}
+            <View style={[styles.brandBlock, { backgroundColor: themeColor, paddingTop: insets.top + 12 }]}>
+              {/* Decorative background element */}
+              <View style={styles.headerDecorativeCircle} />
+
+              <View style={styles.headerTopRow}>
+                <Text style={styles.brandName}>Broiler Flow</Text>
                 <TouchableOpacity
                   style={styles.closeButton}
                   onPress={onClose}
-                  activeOpacity={0.8}
-                  accessibilityRole="button"
-                  accessibilityLabel="Close sidebar"
+                  activeOpacity={0.7}
                 >
-                  <Ionicons name="close" size={18} color="#FFFFFF" />
+                  <Ionicons name="close" size={20} color="#FFFFFF" />
                 </TouchableOpacity>
               </View>
-            </View>
-          </View>
 
-          {/* ── Menu Items ── */}
-          <ScrollView
-            contentContainerStyle={styles.menuContent}
-            showsVerticalScrollIndicator={false}
-          >
-            {sectionOrder.map((section) => {
-              const items = visibleItems.filter(
-                (item) => (item.section ?? "More") === section,
-              );
-              if (!items.length) return null;
+              <View style={styles.userProfileSection}>
+                <View style={[styles.avatar, { borderColor: "rgba(255,255,255,0.35)" }]}>
+                  <Text style={styles.avatarText}>{initials}</Text>
+                  <View style={styles.statusIndicator} />
+                </View>
 
-              return (
-                <View key={section} style={styles.section}>
-                  {/* Section header */}
-                  <View style={styles.sectionHeader}>
-                    <Ionicons
-                      name={sectionIcons[section] ?? "ellipsis-horizontal-outline"}
-                      size={12}
-                      color={Colors.textSecondary}
-                    />
-                    <Text style={styles.sectionLabel}>{section}</Text>
+                <View style={styles.userTextContainer}>
+                  <Text style={styles.userName} numberOfLines={1}>
+                    {user?.name ?? "User"}
+                  </Text>
+                  <View style={styles.roleContainer}>
+                    <View style={[styles.roleBadge, { backgroundColor: roleBadgeColor }]}>
+                      <Text style={styles.roleBadgeText}>{user?.role ?? "STAFF"}</Text>
+                    </View>
+                    <Text style={styles.userPhone} numberOfLines={1}>{user?.phone || user?.email || ""}</Text>
                   </View>
+                </View>
+              </View>
+            </View>
 
-                  {/* Items */}
-                  {items.map((item) => {
-                    const isRouteItem = "route" in item;
-                    const active =
-                      isRouteItem && isRouteActive(pathname, item.route.toString());
+            {/* ── Menu Items ── */}
+            <ScrollView
+              contentContainerStyle={styles.menuContent}
+              showsVerticalScrollIndicator={false}
+            >
+              {sectionOrder.map((section) => {
+                const items = visibleItems.filter(
+                  (item) => (item.section ?? "More") === section,
+                );
+                if (!items.length) return null;
 
-                    return (
-                      <TouchableOpacity
-                        key={`${section}-${item.title}`}
-                        style={[
-                          styles.menuItem,
-                          active && {
-                            backgroundColor: `${themeColor}14`,
-                          },
-                        ]}
-                        activeOpacity={0.75}
-                        onPress={() =>
-                          isRouteItem
-                            ? navigateTo(item.route)
-                            : runAction(item as DashboardSidebarAction)
-                        }
-                      >
-                        {/* Active pill */}
-                        <View
+                return (
+                  <View key={section} style={styles.section}>
+                    {/* Section header */}
+                    <View style={styles.sectionHeader}>
+                      <Ionicons
+                        name={sectionIcons[section] ?? "ellipsis-horizontal-outline"}
+                        size={12}
+                        color={Colors.textSecondary}
+                      />
+                      <Text style={styles.sectionLabel}>{section}</Text>
+                    </View>
+
+                    {/* Items */}
+                    {items.map((item) => {
+                      const isRouteItem = "route" in item;
+                      const active =
+                        isRouteItem && isRouteActive(pathname, item.route.toString());
+
+                      return (
+                        <TouchableOpacity
+                          key={`${section}-${item.title}`}
                           style={[
-                            styles.activePill,
-                            { backgroundColor: active ? themeColor : "transparent" },
-                          ]}
-                        />
-
-                        {/* Icon */}
-                        <View
-                          style={[
-                            styles.menuIcon,
-                            {
-                              backgroundColor: active
-                                ? themeColor
-                                : `${themeColor}18`,
+                            styles.menuItem,
+                            active && {
+                              backgroundColor: `${themeColor}14`,
                             },
                           ]}
+                          activeOpacity={0.75}
+                          onPress={() =>
+                            isRouteItem
+                              ? navigateTo(item.route)
+                              : runAction(item as DashboardSidebarAction)
+                          }
                         >
-                          <Ionicons
-                            name={item.icon}
-                            size={17}
-                            color={active ? "#FFFFFF" : themeColor}
-                          />
-                        </View>
-
-                        {/* Text */}
-                        <View style={styles.menuCopy}>
-                          <Text
+                          {/* Active pill */}
+                          <View
                             style={[
-                              styles.menuTitle,
-                              active && { color: themeColor },
+                              styles.activePill,
+                              { backgroundColor: active ? themeColor : "transparent" },
                             ]}
-                            numberOfLines={1}
+                          />
+
+                          {/* Icon */}
+                          <View
+                            style={[
+                              styles.menuIcon,
+                              {
+                                backgroundColor: active
+                                  ? themeColor
+                                  : `${themeColor}18`,
+                              },
+                            ]}
                           >
-                            {item.title}
-                          </Text>
-                          {item.subtitle ? (
-                            <Text style={styles.menuSubtitle} numberOfLines={1}>
-                              {item.subtitle}
+                            <Ionicons
+                              name={item.icon}
+                              size={17}
+                              color={active ? "#FFFFFF" : themeColor}
+                            />
+                          </View>
+
+                          {/* Text */}
+                          <View style={styles.menuCopy}>
+                            <Text
+                              style={[
+                                styles.menuTitle,
+                                active && { color: themeColor },
+                              ]}
+                              numberOfLines={1}
+                            >
+                              {item.title}
                             </Text>
-                          ) : null}
-                        </View>
+                            {item.subtitle ? (
+                              <Text style={styles.menuSubtitle} numberOfLines={1}>
+                                {item.subtitle}
+                              </Text>
+                            ) : null}
+                          </View>
 
-                        {/* Chevron */}
-                        <Ionicons
-                          name={active ? "chevron-forward" : "chevron-forward"}
-                          size={14}
-                          color={active ? themeColor : Colors.textSecondary}
-                          style={{ opacity: active ? 1 : 0.4 }}
-                        />
-                      </TouchableOpacity>
-                    );
-                  })}
+                          {/* Chevron */}
+                          <Ionicons
+                            name={active ? "chevron-forward" : "chevron-forward"}
+                            size={14}
+                            color={active ? themeColor : Colors.textSecondary}
+                            style={{ opacity: active ? 1 : 0.4 }}
+                          />
+                        </TouchableOpacity>
+                      );
+                    })}
+                  </View>
+                );
+              })}
+            </ScrollView>
+
+            {/* ── Footer ── */}
+            <View style={[styles.footer, { paddingBottom: Math.max(insets.bottom, 16) + 10 }]}>
+              <TouchableOpacity
+                style={styles.signOutButton}
+                onPress={() => {
+                  onClose();
+                  void signOut();
+                }}
+                activeOpacity={0.8}
+              >
+                <View style={styles.signOutIcon}>
+                  <Ionicons name="log-out-outline" size={18} color={Colors.error} />
                 </View>
-              );
-            })}
-          </ScrollView>
+                <Text style={styles.signOutText}>Sign Out</Text>
+                <Ionicons name="chevron-forward" size={14} color={Colors.error} style={{ opacity: 0.6 }} />
+              </TouchableOpacity>
 
-          {/* ── Footer ── */}
-          <View style={[styles.footer, { paddingBottom: Math.max(insets.bottom, 16) + 10 }]}>
-            <TouchableOpacity
-              style={styles.signOutButton}
-              onPress={() => {
-                onClose();
-                void signOut();
-              }}
-              activeOpacity={0.8}
-            >
-              <View style={styles.signOutIcon}>
-                <Ionicons name="log-out-outline" size={18} color={Colors.error} />
-              </View>
-              <Text style={styles.signOutText}>Sign Out</Text>
-              <Ionicons name="chevron-forward" size={14} color={Colors.error} style={{ opacity: 0.6 }} />
-            </TouchableOpacity>
-
-            <Text style={styles.versionText}>PoultryFlow v1.0</Text>
-          </View>
+              <Text style={styles.versionText}>PoultryFlow v1.0</Text>
+            </View>
           </View>
         </Animated.View>
       </Animated.View>
@@ -680,92 +680,99 @@ const styles = StyleSheet.create({
   // ── Brand Block ──
   brandBlock: {
     paddingHorizontal: 20,
-    paddingTop: 14,
-    paddingBottom: 20,
+    paddingBottom: 24,
+    overflow: "hidden",
   },
-  brandTopRow: {
+  headerDecorativeCircle: {
+    position: "absolute",
+    top: -40,
+    right: -40,
+    width: 140,
+    height: 140,
+    borderRadius: 70,
+    backgroundColor: "rgba(255,255,255,0.08)",
+  },
+  headerTopRow: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    marginBottom: 14,
+    marginBottom: 20,
   },
-  logoMark: {
-    width: 38,
-    height: 38,
-    borderRadius: 10,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: "#FFFFFF",
+  brandName: {
+    color: "#FFFFFF",
+    fontSize: 18,
+    fontWeight: "900",
+    letterSpacing: 0.5,
+    opacity: 0.9,
   },
   closeButton: {
-    width: 34,
-    height: 34,
+    width: 32,
+    height: 32,
     borderRadius: 10,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "rgba(255,255,255,0.18)",
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.28)",
+    backgroundColor: "rgba(255,255,255,0.15)",
   },
-  brandTitle: {
-    color: "#FFFFFF",
-    fontSize: 22,
-    fontWeight: "900",
-    letterSpacing: 0.3,
-    marginBottom: 14,
-  },
-  brandDivider: {
-    height: 1,
-    backgroundColor: "rgba(255,255,255,0.2)",
-    marginBottom: 14,
-  },
-  userRow: {
+  userProfileSection: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 12,
+    gap: 16,
   },
   avatar: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: "rgba(255,255,255,0.22)",
+    width: 60,
+    height: 60,
+    borderRadius: 18,
+    backgroundColor: "rgba(255,255,255,0.2)",
     borderWidth: 2,
     alignItems: "center",
     justifyContent: "center",
   },
+  statusIndicator: {
+    position: "absolute",
+    bottom: -2,
+    right: -2,
+    width: 14,
+    height: 14,
+    borderRadius: 7,
+    backgroundColor: "#10B981",
+    borderWidth: 2,
+    borderColor: "#0B5C36",
+  },
   avatarText: {
     color: "#FFFFFF",
-    fontSize: 16,
+    fontSize: 22,
     fontWeight: "900",
-    letterSpacing: 0.5,
   },
-  userInfo: {
+  userTextContainer: {
     flex: 1,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-  },
-  userTextBlock: {
-    flex: 1,
-    gap: 5,
-    marginRight: 8,
+    gap: 4,
   },
   userName: {
     color: "#FFFFFF",
-    fontSize: 15,
+    fontSize: 18,
     fontWeight: "800",
+    letterSpacing: -0.5,
+  },
+  roleContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
   },
   roleBadge: {
-    alignSelf: "flex-start",
     paddingHorizontal: 8,
     paddingVertical: 2,
-    borderRadius: 20,
+    borderRadius: 6,
   },
   roleBadgeText: {
     color: "#FFFFFF",
     fontSize: 10,
     fontWeight: "900",
-    letterSpacing: 0.8,
+    letterSpacing: 0.5,
+  },
+  userPhone: {
+    color: "rgba(255,255,255,0.7)",
+    fontSize: 12,
+    fontWeight: "500",
   },
 
   // ── Menu ──
