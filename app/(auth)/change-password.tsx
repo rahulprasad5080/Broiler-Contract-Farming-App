@@ -3,6 +3,8 @@ import { useRouter } from "expo-router";
 import React, { useState } from "react";
 import {
   ActivityIndicator,
+  KeyboardAvoidingView,
+  Platform,
   StyleSheet,
   Text,
   TextInput,
@@ -85,6 +87,10 @@ export default function ChangePasswordScreen() {
         }
       />
 
+      <KeyboardAvoidingView
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        style={{ flex: 1 }}
+      >
       <View style={styles.container}>
         <View style={styles.card}>
           <Text style={styles.title}>
@@ -101,6 +107,7 @@ export default function ChangePasswordScreen() {
           </TouchableOpacity>
         </View>
       </View>
+      </KeyboardAvoidingView>
     </View>
   );
 }

@@ -3,6 +3,8 @@ import { useRouter } from 'expo-router';
 import React from 'react';
 import {
   Alert,
+  KeyboardAvoidingView,
+  Platform,
   ScrollView,
   StyleSheet,
   Text,
@@ -67,6 +69,10 @@ export default function ProfileScreen() {
     <View style={styles.safeArea}>
       <TopAppBar title="Profile & Settings" subtitle={user?.role ? `${user.role} account` : "Account settings"} />
 
+      <KeyboardAvoidingView
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        style={{ flex: 1 }}
+      >
       <ScrollView contentContainerStyle={styles.scrollContainer} showsVerticalScrollIndicator={false}>
         {/* Profile Card */}
         <SurfaceCard style={styles.profileCard}>
@@ -127,6 +133,7 @@ export default function ProfileScreen() {
 
         <View style={{ height: 40 }} />
       </ScrollView>
+      </KeyboardAvoidingView>
     </View>
   );
 }

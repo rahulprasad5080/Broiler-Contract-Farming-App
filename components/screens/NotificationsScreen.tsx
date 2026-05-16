@@ -2,6 +2,8 @@ import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect } from "@react-navigation/native";
 import React, { useMemo, useState } from "react";
 import {
+  KeyboardAvoidingView,
+  Platform,
   SectionList,
   StyleSheet,
   Text,
@@ -139,6 +141,10 @@ export function NotificationsScreen() {
     <View style={styles.safeArea}>
       <TopAppBar title="Notifications" subtitle={`${unreadCount} unread update${unreadCount === 1 ? "" : "s"}`} />
 
+      <KeyboardAvoidingView
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        style={{ flex: 1 }}
+      >
       <View style={styles.container}>
         {/* Filter Tabs */}
         <View style={styles.tabsRow}>
@@ -224,6 +230,7 @@ export function NotificationsScreen() {
           />
         )}
       </View>
+      </KeyboardAvoidingView>
     </View>
   );
 }

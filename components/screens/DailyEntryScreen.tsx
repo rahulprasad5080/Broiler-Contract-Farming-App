@@ -18,6 +18,8 @@ import React, {
 } from "react";
 import {
   ActivityIndicator,
+  KeyboardAvoidingView,
+  Platform,
   ScrollView,
   StyleSheet,
   Text,
@@ -295,6 +297,10 @@ export function DailyEntryScreen({ title = "Daily Entry", subtitle }: DailyEntry
         title={isEditMode ? "Edit Daily Entry" : title}
         subtitle={subtitle}
       />
+      <KeyboardAvoidingView
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        style={{ flex: 1 }}
+      >
 
       <ScrollView
         contentContainerStyle={styles.scrollContainer}
@@ -519,6 +525,7 @@ export function DailyEntryScreen({ title = "Daily Entry", subtitle }: DailyEntry
         </View>
         <View style={{ height: 40 }} />
       </ScrollView>
+      </KeyboardAvoidingView>
     </View>
   );
 }

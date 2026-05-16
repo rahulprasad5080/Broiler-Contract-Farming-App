@@ -3,6 +3,9 @@ import { useRouter } from "expo-router";
 import React from "react";
 import {
   Image,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
   StyleSheet,
   Text,
   TextInput,
@@ -61,6 +64,10 @@ export default function QuickLoginPasswordScreen() {
 
   return (
     <SafeAreaView style={styles.safeArea}>
+      <KeyboardAvoidingView
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        style={{ flex: 1 }}
+      >
       <View style={styles.container}>
         <TouchableOpacity
           style={styles.backButton}
@@ -158,6 +165,7 @@ export default function QuickLoginPasswordScreen() {
           </View>
         </View>
       </View>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }

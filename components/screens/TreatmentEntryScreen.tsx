@@ -15,6 +15,8 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   ActivityIndicator,
   Animated,
+  KeyboardAvoidingView,
+  Platform,
   ScrollView,
   StyleSheet,
   Text,
@@ -273,6 +275,10 @@ export function TreatmentEntryScreen({
   return (
     <View style={styles.safeArea}>
       <TopAppBar title={title} subtitle={subtitle} />
+      <KeyboardAvoidingView
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        style={{ flex: 1 }}
+      >
 
       <ScrollView
         contentContainerStyle={styles.container}

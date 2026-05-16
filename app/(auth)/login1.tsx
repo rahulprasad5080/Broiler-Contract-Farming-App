@@ -158,11 +158,12 @@ export default function LoginScreen() {
 
   return (
     <SafeAreaView style={styles.safeArea}>
+      <KeyboardAvoidingView
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        style={{ flex: 1 }}
+      >
       <ScrollView contentContainerStyle={styles.scrollContent}>
-        <KeyboardAvoidingView
-          behavior={Platform.OS === "ios" ? "padding" : "height"}
-          style={styles.container}
-        >
+        <View style={styles.container}>
           <View style={styles.brandBlock}>
             <Image
               source={require("../../assets/logo.jpeg")}
@@ -341,8 +342,9 @@ export default function LoginScreen() {
               <Text style={styles.registerButtonText}>Register Organization</Text>
             </TouchableOpacity> */}
           </View>
-        </KeyboardAvoidingView>
+        </View>
       </ScrollView>
+      </KeyboardAvoidingView>
 
       <Modal
         visible={showRegister}
