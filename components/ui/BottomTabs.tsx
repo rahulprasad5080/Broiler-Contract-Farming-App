@@ -16,22 +16,18 @@ export function BottomTabs({ state, descriptors, navigation, hiddenTabs = [] }: 
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
   
-  // Navigation states se data nikalna
-  const tabs: { name: string; label: string; icon: keyof typeof Ionicons.glyphMap }[] = [
-    { name: 'dashboard', label: 'Dashboard', icon: 'grid' },
-    { name: 'farms', label: 'Farms', icon: 'business-outline' },
-    { name: 'tasks', label: 'Tasks', icon: 'checkmark-circle-outline' },
-    { name: 'review', label: 'Review', icon: 'shield-checkmark-outline' },
-    { name: 'manage', label: 'Entries', icon: 'briefcase-outline' },
-    { name: 'reports', label: 'Reports', icon: 'stats-chart-outline' },
-    { name: 'profile', label: 'Profile', icon: 'person-outline' },
+  const tabs: { name: string; label: string; activeIcon: keyof typeof Ionicons.glyphMap; inactiveIcon: keyof typeof Ionicons.glyphMap }[] = [
+    { name: 'dashboard', label: 'Dashboard', activeIcon: 'grid', inactiveIcon: 'grid-outline' },
+    { name: 'farms', label: 'Farms', activeIcon: 'business', inactiveIcon: 'business-outline' },
+    { name: 'tasks', label: 'Tasks', activeIcon: 'checkmark-circle', inactiveIcon: 'checkmark-circle-outline' },
+    { name: 'review', label: 'Review', activeIcon: 'shield-checkmark', inactiveIcon: 'shield-checkmark-outline' },
+    { name: 'manage', label: 'Entries', activeIcon: 'briefcase', inactiveIcon: 'briefcase-outline' },
+    { name: 'reports', label: 'Reports', activeIcon: 'stats-chart', inactiveIcon: 'stats-chart-outline' },
+    { name: 'profile', label: 'Profile', activeIcon: 'person', inactiveIcon: 'person-outline' },
   ];
 
-  // Determine dynamic bottom padding
-  // Fallback to default paddings if insets.bottom is 0
-  const fallbackBottomPadding = Platform.OS === 'ios' ? 20 : 16;
-  const bottomPadding = Math.max(insets.bottom, fallbackBottomPadding);
-  const tabHeight = 55 + bottomPadding;
+  const bottomPadding = Math.max(insets.bottom, 12);
+  const tabHeight = 60 + bottomPadding;
 
   return (
     <View style={[styles.tabBar, { paddingBottom: bottomPadding, height: tabHeight }]}>
@@ -43,7 +39,6 @@ export function BottomTabs({ state, descriptors, navigation, hiddenTabs = [] }: 
           return null;
         }
 
-        // Check if this tab exists in the current navigator state
         const route = state.routes.find(r => r.name === tab.name);
         if (!route) return null;
 
@@ -75,13 +70,17 @@ export function BottomTabs({ state, descriptors, navigation, hiddenTabs = [] }: 
             key={tab.name}
             style={styles.tabItem}
             onPress={onPress}
+            activeOpacity={0.7}
           >
-            <Ionicons
-              name={tab.icon}
-              size={24}
-              color={isFocused ? Colors.primary : Colors.textSecondary}
-            />
-            <Text style={[styles.tabLabel, { color: isFocused ? Colors.primary : Colors.textSecondary }]}>
+            <View style={styles.iconContainer}>
+              <Ionicons
+                name={isFocused ? tab.activeIcon : tab.inactiveIcon}
+                size={22}
+                color={isFocused ? Colors.primary : '#8E8E93'}
+              />
+              {isFocused && <View style={styles.activeIndicator} />}
+            </View>
+            <Text style={[styles.tabLabel, { color: isFocused ? Colors.primary : '#8E8E93', fontWeight: isFocused ? '700' : '500' }]}>
               {tab.label}
             </Text>
           </TouchableOpacity>
@@ -95,23 +94,45 @@ const styles = StyleSheet.create({
   tabBar: {
     flexDirection: 'row',
     backgroundColor: '#FFF',
-    borderTopWidth: 1,
-    borderTopColor: '#E5E8EB',
-    elevation: 8,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: -2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
+    borderTopWidth: 0.5,
+    borderTopColor: '#E5E5EA',
+    paddingTop: 8,
+    // Modern shadow
+    ...Platform.select({
+      ios: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: -4 },
+        shadowOpacity: 0.05,
+        shadowRadius: 10,
+      },
+      android: {
+        elevation: 10,
+      },
+    }),
   },
   tabItem: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
   },
+  iconContainer: {
+    height: 30,
+    justifyContent: 'center',
+    alignItems: 'center',
+    position: 'relative',
+  },
+  activeIndicator: {
+    position: 'absolute',
+    bottom: -4,
+    width: 4,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: Colors.primary,
+  },
   tabLabel: {
     fontSize: 10,
-    marginTop: 4,
-    fontWeight: '500',
+    marginTop: 2,
+    letterSpacing: -0.1,
   },
 });
 

@@ -1,12 +1,5 @@
 /**
  * TopAppBar — Global reusable header component
- *
- * Supports two leading modes:
- *   - "menu"  → hamburger icon that opens the global DashboardSidebar (via SidebarContext)
- *   - "back"  → arrow-back icon that pops the navigation stack (or calls onBack)
- *
- * The Admin Dashboard header design (green bg, logo text, icon buttons) is the
- * canonical template. All screens use this component instead of ad-hoc headers.
  */
 import { Feather, Ionicons } from '@expo/vector-icons';
 import { StatusBar } from 'expo-status-bar';
@@ -54,7 +47,6 @@ export type TopAppBarProps = {
 
   /**
    * Arbitrary right-side content that replaces the default bell button.
-   * If provided, notificationCount / onNotificationPress are ignored.
    */
   right?: React.ReactNode;
 };
@@ -75,70 +67,94 @@ export function TopAppBar({
   const insets = useSafeAreaInsets();
   const sidebar = useSidebar();
 
+  const menuButton = (
+    <TouchableOpacity
+      key="menu-btn"
+      style={styles.iconBtn}
+      onPress={sidebar.openSidebar}
+      accessibilityRole="button"
+      accessibilityLabel="Open navigation menu"
+    >
+      <Ionicons name="menu" size={24} color="#FFF" />
+    </TouchableOpacity>
+  );
+
+  const backButton = (
+    <TouchableOpacity
+      key="back-btn"
+      style={styles.iconBtn}
+      onPress={onBack ?? (() => router.back())}
+      activeOpacity={0.82}
+      accessibilityRole="button"
+      accessibilityLabel="Go back"
+    >
+      <Ionicons name="arrow-back" size={22} color="#FFF" />
+    </TouchableOpacity>
+  );
+
   // ── Leading icon ──────────────────────────────────────────────────────────
-  let leadingButton: React.ReactNode;
+  let leadingContent: React.ReactNode;
   if (leadingMode === 'menu') {
-    leadingButton = (
-      <TouchableOpacity
-        style={styles.iconBtn}
-        onPress={sidebar.openSidebar}
-        accessibilityRole="button"
-        accessibilityLabel="Open navigation menu"
-      >
-        <Ionicons name="menu" size={22} color="#FFF" />
-      </TouchableOpacity>
-    );
+    leadingContent = menuButton;
   } else if (leadingMode === 'back') {
-    leadingButton = (
-      <TouchableOpacity
-        style={styles.iconBtn}
-        onPress={onBack ?? (() => router.back())}
-        activeOpacity={0.82}
-        accessibilityRole="button"
-        accessibilityLabel="Go back"
-      >
-        <Ionicons name="arrow-back" size={22} color="#FFF" />
-      </TouchableOpacity>
-    );
+    leadingContent = backButton;
   } else {
-    // "none" -> invisible placeholder
-    leadingButton = <View style={styles.iconBtn} />;
+    // "none" -> invisible placeholder to keep title centered
+    leadingContent = <View style={styles.iconBtn} />;
   }
 
   // ── Trailing / right area ─────────────────────────────────────────────────
   let trailingContent: React.ReactNode;
   if (right !== undefined) {
     trailingContent = <View style={styles.right}>{right}</View>;
-  } else if (notificationCount !== -1 && onNotificationPress) {
-    const badgeCount = notificationCount ?? 0;
-    trailingContent = (
-      <TouchableOpacity
-        style={styles.iconBtn}
-        onPress={onNotificationPress}
-        accessibilityRole="button"
-        accessibilityLabel="Notifications"
-      >
-        <Feather name="bell" size={22} color="#FFF" />
-        {badgeCount > 0 ? (
-          <View style={styles.badge}>
-            <Text style={styles.badgeText}>
-              {badgeCount > 9 ? '9+' : badgeCount}
-            </Text>
-          </View>
-        ) : null}
-      </TouchableOpacity>
-    );
   } else {
-    // Invisible placeholder to keep the title centred
-    trailingContent = <View style={styles.iconBtn} />;
+    const trailingItems: React.ReactNode[] = [];
+
+    // Notification bell (Only on dashboard screens where leadingMode='menu')
+    if (leadingMode === 'menu' && notificationCount !== -1) {
+      const badgeCount = notificationCount ?? 0;
+      trailingItems.push(
+        <TouchableOpacity
+          key="bell-btn"
+          style={styles.iconBtn}
+          onPress={onNotificationPress}
+          accessibilityRole="button"
+          accessibilityLabel="Notifications"
+        >
+          <Feather name="bell" size={20} color="#FFF" />
+          {badgeCount > 0 ? (
+            <View style={styles.badge}>
+              <Text style={styles.badgeText}>
+                {badgeCount > 9 ? '9+' : badgeCount}
+              </Text>
+            </View>
+          ) : null}
+        </TouchableOpacity>
+      );
+    }
+
+    // Always show menu icon on every screen.
+    // If it's not the leading icon, we put it on the right side.
+    if (leadingMode !== 'menu' && leadingMode !== 'none') {
+      trailingItems.push(menuButton);
+    }
+
+    if (trailingItems.length > 0) {
+      trailingContent = <View style={styles.right}>{trailingItems}</View>;
+    } else {
+      // Invisible placeholder to keep the title centred
+      trailingContent = <View style={styles.iconBtn} />;
+    }
   }
 
   return (
-    <View style={[styles.bar, { paddingTop: insets.top + 10 }]}>
-      <StatusBar style="light" backgroundColor={THEME_GREEN} />
+    <View style={[styles.bar, { paddingTop: insets.top + 8 }]}>
+      <StatusBar style="light" />
 
       {/* Leading (hamburger or back) */}
-      {leadingButton}
+      <View style={styles.sideContainer}>
+        {leadingContent}
+      </View>
 
       {/* Centre copy */}
       <View style={styles.copy}>
@@ -154,7 +170,9 @@ export function TopAppBar({
       </View>
 
       {/* Trailing */}
-      {trailingContent}
+      <View style={[styles.sideContainer, styles.sideRight]}>
+        {trailingContent}
+      </View>
     </View>
   );
 }
@@ -165,48 +183,57 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    paddingBottom: 16,
+    paddingHorizontal: 16,
+    paddingBottom: 14,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255,255,255,0.05)',
+  },
+  sideContainer: {
+    width: 44,
+    justifyContent: 'center',
+  },
+  sideRight: {
+    alignItems: 'flex-end',
   },
   iconBtn: {
     width: 40,
     height: 40,
-    borderRadius: 12,
+    borderRadius: 10,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: 'rgba(255,255,255,0.12)',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.2)',
+    backgroundColor: 'rgba(255,255,255,0.1)',
     position: 'relative',
   },
   copy: {
     flex: 1,
     alignItems: 'center',
     minWidth: 0,
-    paddingHorizontal: 8,
+    paddingHorizontal: 4,
   },
   eyebrow: {
-    color: 'rgba(255,255,255,0.72)',
-    fontSize: 10,
+    color: 'rgba(255,255,255,0.6)',
+    fontSize: 9,
     fontWeight: '900',
     textTransform: 'uppercase',
-    letterSpacing: 0.5,
-    marginBottom: 1,
+    letterSpacing: 0.6,
+    marginBottom: 0,
   },
   title: {
     color: '#FFFFFF',
     fontSize: 20,
-    fontWeight: 'bold',
+    fontWeight: '800',
+    letterSpacing: -0.2,
   },
   titleLight: {
-    fontWeight: '400',
-    opacity: 0.8,
+    fontWeight: '300',
+    opacity: 0.9,
   },
   subtitle: {
-    marginTop: 2,
-    color: 'rgba(255,255,255,0.78)',
-    fontSize: 11,
-    fontWeight: '700',
+    marginTop: 1,
+    color: 'rgba(255,255,255,0.7)',
+    fontSize: 10.5,
+    fontWeight: '600',
+    textAlign: 'center',
   },
   right: {
     flexDirection: 'row',
@@ -215,9 +242,9 @@ const styles = StyleSheet.create({
   },
   badge: {
     position: 'absolute',
-    top: 2,
-    right: 2,
-    backgroundColor: '#D32F2F',
+    top: 6,
+    right: 6,
+    backgroundColor: '#FF3B30',
     minWidth: 16,
     height: 16,
     borderRadius: 8,
@@ -228,7 +255,7 @@ const styles = StyleSheet.create({
   },
   badgeText: {
     color: '#FFF',
-    fontSize: 9,
-    fontWeight: 'bold',
+    fontSize: 8,
+    fontWeight: '800',
   },
 });
