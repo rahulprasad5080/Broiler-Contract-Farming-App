@@ -314,13 +314,6 @@ const farmerRoutes: DashboardSidebarRoute[] = [
     ],
   },
   {
-    title: "Reports",
-    icon: "stats-chart-outline",
-    route: "/(farmer)/reports",
-    section: "Main",
-    requiredPermission: "view:reports",
-  },
-  {
     title: "Daily Entry",
     icon: "clipboard-outline",
     route: "/(farmer)/tasks/daily",
