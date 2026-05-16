@@ -167,7 +167,7 @@ export default function ReportsScreen() {
   );
 
   return (
-    <SafeAreaView style={styles.safeArea} edges={['top']}>
+    <View style={styles.safeArea}>
       <TopAppBar title="Reports" subtitle="Business health, stock, and settlement snapshots" />
 
       <ScrollView
@@ -322,7 +322,7 @@ export default function ReportsScreen() {
 
         <View style={{ height: 40 }} />
       </ScrollView>
-    </SafeAreaView>
+    </View>
   );
 }
 

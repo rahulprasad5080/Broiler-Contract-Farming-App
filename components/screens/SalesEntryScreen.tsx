@@ -225,7 +225,7 @@ export function SalesEntryScreen({ title = "Sales Entry", subtitle }: SalesEntry
   };
 
   return (
-    <SafeAreaView style={styles.safeArea} edges={['top']}>
+    <View style={styles.safeArea}>
       <TopAppBar title={title} subtitle={subtitle} />
 
       <ScrollView
@@ -419,7 +419,7 @@ export function SalesEntryScreen({ title = "Sales Entry", subtitle }: SalesEntry
         </View>
         <View style={{ height: 40 }} />
       </ScrollView>
-    </SafeAreaView>
+    </View>
   );
 }
 

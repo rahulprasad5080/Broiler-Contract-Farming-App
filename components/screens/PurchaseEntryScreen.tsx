@@ -22,7 +22,6 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
 
 import { DatePickerField } from "@/components/ui/DatePickerField";
 import { ScreenState } from "@/components/ui/ScreenState";
@@ -167,7 +166,7 @@ export function PurchaseEntryScreen() {
     try {
       const qty = Number(data.quantity.replace(/,/g, ''));
       const rate = Number(data.ratePerUnit.replace(/,/g, ''));
-      
+
       await createFinancePurchase(accessToken, {
         purchaseDate: data.purchaseDate,
         purchaseType: "FEED", // Mocked as FEED for now or map accordingly
@@ -193,15 +192,14 @@ export function PurchaseEntryScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.safeArea} edges={['top']}>
+    <View style={styles.safeArea}>
       <TopAppBar
         title="Purchase Entry"
         subtitle="Record inventory and supplier purchases"
-        showBack
       />
 
-      <ScrollView 
-        contentContainerStyle={styles.scrollContainer} 
+      <ScrollView
+        contentContainerStyle={styles.scrollContainer}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
       >
@@ -233,13 +231,13 @@ export function PurchaseEntryScreen() {
           <View style={styles.inputGroup}>
             <Text style={styles.label}>Purchase Type</Text>
             <View style={styles.toggleContainer}>
-              <TouchableOpacity 
+              <TouchableOpacity
                 style={[styles.toggleBtn, purchaseType === 'INVENTORY' && styles.toggleBtnActive]}
                 onPress={() => setValue("purchaseType", "INVENTORY")}
               >
                 <Text style={[styles.toggleBtnText, purchaseType === 'INVENTORY' && styles.toggleBtnTextActive]}>Inventory Purchase</Text>
               </TouchableOpacity>
-              <TouchableOpacity 
+              <TouchableOpacity
                 style={[styles.toggleBtn, purchaseType === 'OTHER' && styles.toggleBtnActive]}
                 onPress={() => setValue("purchaseType", "OTHER")}
               >
@@ -340,7 +338,7 @@ export function PurchaseEntryScreen() {
             <Text style={styles.label}>Payment Type</Text>
             <View style={styles.toggleRow}>
               {["CASH", "UPI", "BANK", "CREDIT"].map((type) => (
-                <TouchableOpacity 
+                <TouchableOpacity
                   key={type}
                   style={[styles.smallToggleBtn, paymentType === type && styles.toggleBtnActive]}
                   onPress={() => setValue("paymentType", type as any)}
@@ -384,7 +382,7 @@ export function PurchaseEntryScreen() {
                 </TouchableOpacity>
               </View>
             ) : (
-              <TouchableOpacity 
+              <TouchableOpacity
                 style={styles.uploadBtn}
                 onPress={() => setValue("attachmentUrl", "invoice_20052024.jpg")} // Simulation
               >
@@ -394,8 +392,8 @@ export function PurchaseEntryScreen() {
             )}
           </View>
 
-          <TouchableOpacity 
-            style={[styles.submitBtn, submitting && styles.btnDisabled]} 
+          <TouchableOpacity
+            style={[styles.submitBtn, submitting && styles.btnDisabled]}
             onPress={handleSubmit(onSubmit)}
             disabled={submitting}
           >
@@ -408,14 +406,14 @@ export function PurchaseEntryScreen() {
         </View>
         <View style={{ height: 40 }} />
       </ScrollView>
-    </SafeAreaView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  safeArea: { 
-    flex: 1, 
-    backgroundColor: "#0B5C36" 
+  safeArea: {
+    flex: 1,
+    backgroundColor: "#0B5C36"
   },
   scrollContainer: {
     flexGrow: 1,

@@ -198,7 +198,7 @@ export function ExpenseEntryScreen({ title = "Expense Entry", subtitle }: Expens
   };
 
   return (
-    <SafeAreaView style={styles.safeArea} edges={['top']}>
+    <View style={styles.safeArea}>
       <TopAppBar title={title} subtitle={subtitle} />
 
       <ScrollView contentContainerStyle={styles.scrollContainer} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
@@ -384,7 +384,7 @@ export function ExpenseEntryScreen({ title = "Expense Entry", subtitle }: Expens
         </View>
         <View style={{ height: 40 }} />
       </ScrollView>
-    </SafeAreaView>
+    </View>
   );
 }
 

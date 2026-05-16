@@ -271,7 +271,7 @@ export function TreatmentEntryScreen({
   };
 
   return (
-    <SafeAreaView style={styles.safeArea} edges={['top']}>
+    <View style={styles.safeArea}>
       <TopAppBar title={title} subtitle={subtitle} />
 
       <ScrollView
@@ -511,7 +511,7 @@ export function TreatmentEntryScreen({
           )}
         </TouchableOpacity>
       </ScrollView>
-    </SafeAreaView>
+    </View>
   );
 }
 

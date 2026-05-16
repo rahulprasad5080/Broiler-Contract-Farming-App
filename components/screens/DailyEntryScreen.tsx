@@ -290,7 +290,7 @@ export function DailyEntryScreen({ title = "Daily Entry", subtitle }: DailyEntry
   };
 
   return (
-    <SafeAreaView style={styles.safeArea} edges={['top']}>
+    <View style={styles.safeArea}>
       <TopAppBar
         title={isEditMode ? "Edit Daily Entry" : title}
         subtitle={subtitle}
@@ -519,7 +519,7 @@ export function DailyEntryScreen({ title = "Daily Entry", subtitle }: DailyEntry
         </View>
         <View style={{ height: 40 }} />
       </ScrollView>
-    </SafeAreaView>
+    </View>
   );
 }
 

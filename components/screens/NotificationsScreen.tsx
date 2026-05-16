@@ -136,7 +136,7 @@ export function NotificationsScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.safeArea} edges={['top']}>
+    <View style={styles.safeArea}>
       <TopAppBar title="Notifications" subtitle={`${unreadCount} unread update${unreadCount === 1 ? "" : "s"}`} />
 
       <View style={styles.container}>
@@ -224,7 +224,7 @@ export function NotificationsScreen() {
           />
         )}
       </View>
-    </SafeAreaView>
+    </View>
   );
 }
 
