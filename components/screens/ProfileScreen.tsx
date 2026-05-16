@@ -9,7 +9,6 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { SurfaceCard } from '@/components/ui/SurfaceCard';
 import { TopAppBar } from '@/components/ui/TopAppBar';
@@ -80,9 +79,7 @@ export default function ProfileScreen() {
               <Text style={styles.role}>{user?.role === 'OWNER' ? 'Admin' : user?.role ? user.role : 'Staff'}</Text>
               <Text style={styles.email}>{user?.email || user?.phone || 'Contact not available'}</Text>
 
-              <TouchableOpacity style={styles.viewProfileBtn}>
-                <Text style={styles.viewProfileText}>View Profile</Text>
-              </TouchableOpacity>
+
             </View>
           </View>
         </SurfaceCard>
@@ -91,7 +88,6 @@ export default function ProfileScreen() {
         <Text style={styles.sectionTitle}>Account Settings</Text>
         <SurfaceCard padded={false} style={styles.settingsGroup}>
           <SettingItem icon="person-outline" label="Personal Information" />
-          <SettingItem icon="language-outline" label="Language" value="English" isLast={!canManageUsers} />
           {canManageUsers ? (
             <SettingItem
               icon="settings-outline"
@@ -114,26 +110,12 @@ export default function ProfileScreen() {
           />
         </SurfaceCard>
 
-        {/* Business Settings */}
-        <Text style={styles.sectionTitle}>Business Settings</Text>
-        <SurfaceCard padded={false} style={styles.settingsGroup}>
-          {canManageFarms ? (
-            <SettingItem
-              icon="business-outline"
-              label="Farm Details"
-              onPress={() => router.navigate('/(owner)/manage/farms')}
-            />
-          ) : null}
-          <SettingItem icon="options-outline" label="Units & Measurements" />
-          <SettingItem icon="calendar-outline" label="Financial Year" value="2024-25" isLast />
-        </SurfaceCard>
+
 
         {/* Support */}
         <Text style={styles.sectionTitle}>Support</Text>
         <SurfaceCard padded={false} style={styles.settingsGroup}>
-          <SettingItem icon="help-circle-outline" label="Help & Support" />
           <SettingItem icon="shield-outline" label="Privacy Policy" />
-          <SettingItem icon="document-text-outline" label="Terms & Conditions" />
           <SettingItem icon="information-circle-outline" label="About PoultryFlow" value="Version 1.0.0" isLast />
         </SurfaceCard>
 
