@@ -10,7 +10,6 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
 
 import { Colors } from "@/constants/Colors";
 import { useAuth } from "@/context/AuthContext";
@@ -170,11 +169,10 @@ export default function FinanceEntryScreen() {
   );
 
   return (
-    <SafeAreaView style={styles.safeArea} edges={["top"]}>
+    <View style={styles.safeArea}>
       <TopAppBar
         title="Finance Entry"
         subtitle="Record investment, income, and expense entries"
-        showBack
         right={
           <TouchableOpacity onPress={() => void loadEntries()} style={styles.headerBtn}>
             <Ionicons name="refresh-outline" size={22} color="#FFF" />
@@ -301,7 +299,7 @@ export default function FinanceEntryScreen() {
         }
         ListFooterComponent={<View style={{ height: 60 }} />}
       />
-    </SafeAreaView>
+    </View>
   );
 }
 

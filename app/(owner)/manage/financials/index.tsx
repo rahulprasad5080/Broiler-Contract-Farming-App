@@ -7,7 +7,6 @@ import { useFocusEffect } from '@react-navigation/native';
 import { useRouter } from 'expo-router';
 import React, { useCallback, useState } from 'react';
 import { FlatList, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ScreenState } from '@/components/ui/ScreenState';
 import { TopAppBar } from '@/components/ui/TopAppBar';
@@ -51,8 +50,8 @@ export default function FinancialDashboardScreen() {
   const summary = dashboard?.summary;
 
   return (
-    <SafeAreaView style={styles.safeArea} edges={['top']}>
-      <TopAppBar title="Financials" subtitle="Cash flow, dues, and quick finance actions" showBack />
+    <View style={styles.safeArea}>
+      <TopAppBar title="Financials" subtitle="Cash flow, dues, and quick finance actions" />
 
       <FlatList
         data={loading ? [] : dashboard?.recentTransactions ?? []}
@@ -173,7 +172,7 @@ export default function FinancialDashboardScreen() {
         }
         ListFooterComponent={<View style={{ height: 40 }} />}
       />
-    </SafeAreaView>
+    </View>
   );
 }
 

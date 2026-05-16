@@ -28,7 +28,6 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { ScreenState } from '@/components/ui/ScreenState';
 import { TopAppBar } from '@/components/ui/TopAppBar';
 
@@ -337,12 +336,11 @@ export default function UserManagementScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.safeArea} edges={['top']}>
+    <View style={styles.safeArea}>
       <View style={styles.pageContent}>
         <TopAppBar
           title="User Management"
           subtitle="Roles, farms, status, and access"
-          showBack
           right={
             <TouchableOpacity onPress={() => router.navigate('/(owner)/manage/users/create')}>
               <Ionicons name="add" size={28} color="#FFF" />
@@ -403,7 +401,7 @@ export default function UserManagementScreen() {
         />
       </View>
 
-    </SafeAreaView>
+    </View>
   );
 }
 

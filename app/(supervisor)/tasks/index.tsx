@@ -8,7 +8,6 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
 
 import { ScreenState } from "@/components/ui/ScreenState";
 import { TopAppBar } from "@/components/ui/TopAppBar";
@@ -69,7 +68,7 @@ export default function SupervisorTasksIndexScreen() {
   );
 
   return (
-    <SafeAreaView style={styles.safeArea} edges={["top"]}>
+    <View style={styles.safeArea}>
       <TopAppBar title="Supervisor Actions" subtitle="Review, log, and support farm work" />
 
       <ScrollView
@@ -101,7 +100,7 @@ export default function SupervisorTasksIndexScreen() {
           </View>
         )}
       </ScrollView>
-    </SafeAreaView>
+    </View>
   );
 }
 

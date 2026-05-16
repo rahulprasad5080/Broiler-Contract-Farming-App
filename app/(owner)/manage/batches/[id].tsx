@@ -36,7 +36,6 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { ScreenState } from '@/components/ui/ScreenState';
 import { TopAppBar } from '@/components/ui/TopAppBar';
 import { showRequestErrorToast, showSuccessToast } from '@/services/apiFeedback';
@@ -239,11 +238,10 @@ export default function BatchDetailsScreen() {
   );
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
+    <View style={styles.container}>
       <TopAppBar
         title="Batch Details"
         subtitle={batch?.code ? `${batch.code} | ${batch.farmName ?? 'Farm not loaded'}` : 'Batch performance and records'}
-        showBack
         right={
           <>
             <TouchableOpacity
@@ -416,7 +414,7 @@ export default function BatchDetailsScreen() {
           </>
         )}
       </ScrollView>
-    </SafeAreaView>
+    </View>
   );
 }
 

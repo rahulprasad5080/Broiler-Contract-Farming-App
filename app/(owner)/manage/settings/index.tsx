@@ -11,7 +11,6 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
 
 import { Colors } from "@/constants/Colors";
 import { useAuth } from "@/context/AuthContext";
@@ -133,11 +132,10 @@ export default function OrganizationSettingsScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.safeArea} edges={["top"]}>
+    <View style={styles.safeArea}>
       <TopAppBar
         title="Organization Settings"
         subtitle="Payout, alert, and finance controls"
-        showBack
         right={
           <TouchableOpacity onPress={() => void loadSettings()} style={styles.headerBtn}>
             <Ionicons name="refresh-outline" size={22} color="#FFF" />
@@ -220,7 +218,7 @@ export default function OrganizationSettingsScreen() {
           <View style={{ height: 40 }} />
         </ScrollView>
       )}
-    </SafeAreaView>
+    </View>
   );
 }
 

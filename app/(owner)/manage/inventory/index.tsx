@@ -27,7 +27,6 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
 import { Controller, useForm } from "react-hook-form";
 import { z } from "zod";
 
@@ -342,7 +341,7 @@ export default function InventoryScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <View style={styles.safeArea}>
       <TopAppBar
         title="Stock, Purchases, Expenses"
         eyebrow="Inventory operations"
@@ -495,7 +494,7 @@ export default function InventoryScreen() {
         )}
 <View style={{ height: 24 }} />
       </ScrollView>
-    </SafeAreaView>
+    </View>
   );
 }
 

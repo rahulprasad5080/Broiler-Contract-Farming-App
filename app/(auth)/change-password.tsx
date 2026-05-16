@@ -9,7 +9,6 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
 
 import { TopAppBar } from "@/components/ui/TopAppBar";
 import { Colors } from "@/constants/Colors";
@@ -66,11 +65,11 @@ export default function ChangePasswordScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.safeArea} edges={["top"]}>
+    <View style={styles.safeArea}>
       <TopAppBar
         title="Security"
         subtitle="Change password"
-        showBack={!isPasswordChangeRequired}
+        leadingMode={isPasswordChangeRequired ? "none" : "back"}
         right={
           isPasswordChangeRequired ? (
             <TouchableOpacity
@@ -102,7 +101,7 @@ export default function ChangePasswordScreen() {
           </TouchableOpacity>
         </View>
       </View>
-    </SafeAreaView>
+    </View>
   );
 }
 

@@ -1,6 +1,5 @@
 import React, { useCallback, useState } from 'react';
 import { View, Text, StyleSheet, FlatList, TouchableOpacity, RefreshControl } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { Colors } from '@/constants/Colors';
 import { Layout } from '@/constants/Layout';
 import { Ionicons } from '@expo/vector-icons';
@@ -85,8 +84,8 @@ export default function FarmerFarmsScreen() {
   );
 
   return (
-    <SafeAreaView style={styles.safeArea} edges={['top']}>
-      <TopAppBar title="My Assigned Farms" subtitle="Assigned farms and active batches" />
+    <View style={styles.safeArea}>
+      <TopAppBar title="My Assigned Farms" subtitle="Assigned farms and active batches" leadingMode="back" />
 
       <View style={styles.container}>
         {loading && !refreshing ? (
@@ -125,7 +124,7 @@ export default function FarmerFarmsScreen() {
           />
         )}
       </View>
-    </SafeAreaView>
+    </View>
   );
 }
 

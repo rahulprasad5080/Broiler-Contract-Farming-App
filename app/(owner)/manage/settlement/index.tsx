@@ -10,7 +10,6 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 
@@ -156,11 +155,10 @@ export default function SettlementScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.safeArea} edges={['top']}>
+    <View style={styles.safeArea}>
       <TopAppBar
         title="Farmer Settlement"
         subtitle="Review farmer payable and settlement status"
-        showBack
         right={batches.length > 1 ? (
             <TouchableOpacity style={styles.batchSelector} onPress={() => { /* Open Batch Modal */ }}>
                <Text style={styles.batchSelectorText}>{selectedBatch?.code || "Select Batch"}</Text>
@@ -274,7 +272,7 @@ export default function SettlementScreen() {
         )}
         <View style={{ height: 40 }} />
       </ScrollView>
-    </SafeAreaView>
+    </View>
   );
 }
 

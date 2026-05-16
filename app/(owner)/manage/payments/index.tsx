@@ -24,7 +24,6 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { Controller, useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { ScreenState } from '@/components/ui/ScreenState';
@@ -153,8 +152,8 @@ export default function PaymentEntryScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.safeArea} edges={['top']}>
-      <TopAppBar title="Payment Entry" subtitle="Record payment made or received" showBack />
+    <View style={styles.safeArea}>
+      <TopAppBar title="Payment Entry" subtitle="Record payment made or received" />
 
       <ScrollView 
         contentContainerStyle={styles.scrollContainer} 
@@ -346,7 +345,7 @@ export default function PaymentEntryScreen() {
         </View>
         <View style={{ height: 40 }} />
       </ScrollView>
-    </SafeAreaView>
+    </View>
   );
 }
 

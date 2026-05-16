@@ -11,7 +11,6 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
 import { Controller, useForm } from "react-hook-form";
 import { z } from "zod";
 import { DatePickerField } from "@/components/ui/DatePickerField";
@@ -179,8 +178,8 @@ export default function AllocateStockScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.safeArea} edges={['top']}>
-      <TopAppBar title="Inventory Allocation" subtitle="Assign stock to farms and batches" showBack />
+    <View style={styles.safeArea}>
+      <TopAppBar title="Inventory Allocation" subtitle="Assign stock to farms and batches" />
 
       <ScrollView 
         contentContainerStyle={styles.scrollContainer} 
@@ -337,7 +336,7 @@ export default function AllocateStockScreen() {
         </View>
         <View style={{ height: 40 }} />
       </ScrollView>
-    </SafeAreaView>
+    </View>
   );
 }
 

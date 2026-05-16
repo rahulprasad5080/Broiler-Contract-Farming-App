@@ -18,7 +18,6 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import Toast from 'react-native-toast-message';
 
 import { TopAppBar } from '@/components/ui/TopAppBar';
@@ -299,11 +298,10 @@ export default function AddFarmScreen() {
         : 'Select Assigned Staff';
 
   return (
-    <SafeAreaView style={styles.safeArea} edges={['top']}>
+    <View style={styles.safeArea}>
       <TopAppBar
         title="Add Farm"
         subtitle="Create farm profile and assignments"
-        showBack
         right={
           <TouchableOpacity
             style={[styles.headerBtn, isSubmitting && styles.buttonDisabled]}
@@ -740,7 +738,7 @@ export default function AddFarmScreen() {
           </View>
         </TouchableOpacity>
       </Modal>
-    </SafeAreaView>
+    </View>
   );
 }
 

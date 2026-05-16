@@ -12,9 +12,8 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { DashboardSidebar } from '../../components/navigation/DashboardSidebar';
+import { TopAppBar } from '@/components/ui/TopAppBar';
 import { useAuth, type Permission } from '../../context/AuthContext';
 import { showRequestErrorToast } from '../../services/apiFeedback';
 import { fetchDashboard, type ApiDashboardSummary } from '../../services/dashboardApi';
@@ -68,8 +67,6 @@ function buildWeatherUrl(latitude: number, longitude: number) {
 export default function FarmerDashboard() {
   const { accessToken, hasPermission, user } = useAuth();
   const router = useRouter();
-  const insets = useSafeAreaInsets();
-  const [showSidebar, setShowSidebar] = React.useState(false);
   const [dashboard, setDashboard] = React.useState<ApiDashboardSummary | null>(null);
   const [weather, setWeather] = React.useState<WeatherState>({
     temperature: null,
@@ -201,31 +198,17 @@ export default function FarmerDashboard() {
     <View style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor={THEME_GREEN} />
 
-      <View style={[styles.header, { paddingTop: insets.top + 10 }]}>
-        <TouchableOpacity
-          style={styles.headerIconBtn}
-          onPress={() => setShowSidebar(true)}
-          accessibilityRole="button"
-          accessibilityLabel="Open dashboard menu"
-        >
-          <Ionicons name="menu" size={22} color="#FFF" />
-        </TouchableOpacity>
-        <Text style={styles.headerLogoText}>
-          Broiler<Text style={styles.headerLogoLight}>Manager</Text>
-        </Text>
-        {canViewNotifications ? (
-          <TouchableOpacity
-            style={styles.bellIconBtn}
-            onPress={() => router.navigate('/(farmer)/notifications')}
-            accessibilityRole="button"
-            accessibilityLabel="Notifications"
-          >
-            <Ionicons name="notifications-outline" size={22} color="#FFF" />
-          </TouchableOpacity>
-        ) : (
-          <View style={styles.headerIconBtn} />
-        )}
-      </View>
+      {/* Global Top App Bar */}
+      <TopAppBar
+        leadingMode="menu"
+        title="PoultryFlow"
+        notificationCount={canViewNotifications ? 0 : -1}
+        onNotificationPress={
+          canViewNotifications
+            ? () => router.navigate('/(farmer)/notifications')
+            : undefined
+        }
+      />
 
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
         <View style={styles.welcomeSection}>
@@ -411,11 +394,7 @@ export default function FarmerDashboard() {
         <View style={{ height: 40 }} />
       </ScrollView>
 
-      <DashboardSidebar
-        visible={showSidebar}
-        onClose={() => setShowSidebar(false)}
-        themeColor={THEME_GREEN}
-      />
+      {/* DashboardSidebar is rendered by GlobalSidebarOverlay in _layout.tsx */}
     </View>
   );
 }
@@ -451,32 +430,6 @@ function StatusCard({
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#F9FAF9' },
-  header: {
-    backgroundColor: THEME_GREEN,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    paddingBottom: 16,
-  },
-  headerLogoText: { fontSize: 20, color: '#FFF', fontWeight: 'bold' },
-  headerLogoLight: { fontWeight: '400', opacity: 0.8 },
-  headerIconBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: 'rgba(255,255,255,0.14)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  bellIconBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: 'rgba(255,255,255,0.14)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
   scrollContent: { padding: 20, paddingBottom: 40 },
   welcomeSection: {
     flexDirection: 'row',

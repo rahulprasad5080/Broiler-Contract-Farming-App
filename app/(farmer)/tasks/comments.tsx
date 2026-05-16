@@ -7,7 +7,6 @@ import { useFocusEffect } from '@react-navigation/native';
 import { format } from 'date-fns';
 import React, { useCallback, useEffect, useState } from 'react';
 import { FlatList, RefreshControl, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ScreenState } from '@/components/ui/ScreenState';
 import { TopAppBar } from '@/components/ui/TopAppBar';
@@ -104,7 +103,7 @@ export default function FarmerCommentsScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.safeArea} edges={['top']}>
+    <View style={styles.safeArea}>
       <TopAppBar title="Comments & Notes" subtitle="Supervisor feedback" />
 
       <View style={styles.container}>
@@ -201,7 +200,7 @@ export default function FarmerCommentsScreen() {
           </>
         )}
       </View>
-    </SafeAreaView>
+    </View>
   );
 }
 

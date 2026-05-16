@@ -26,7 +26,6 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { z } from 'zod';
 import { ScreenState } from '@/components/ui/ScreenState';
 import { TopAppBar } from '@/components/ui/TopAppBar';
@@ -134,7 +133,7 @@ export default function SupervisorCatalogScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.safeArea} edges={['top']}>
+    <View style={styles.safeArea}>
       <TopAppBar title="Catalog Master" subtitle="Feed, medicine, vaccine, and equipment items" />
 
       <FlatList
@@ -276,7 +275,7 @@ export default function SupervisorCatalogScreen() {
           <ScreenState title="No items found" message="Add a catalog item to start tracking inventory." icon="cube-outline" />
         ) : null}
       />
-    </SafeAreaView>
+    </View>
   );
 }
 

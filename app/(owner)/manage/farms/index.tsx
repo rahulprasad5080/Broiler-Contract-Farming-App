@@ -12,7 +12,6 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { Colors } from '@/constants/Colors';
 import { Layout } from '@/constants/Layout';
 import { useAuth } from '@/context/AuthContext';
@@ -496,11 +495,10 @@ export default function FarmListScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.safeArea} edges={['top']}>
+    <View style={styles.safeArea}>
       <TopAppBar
         title="Farms"
         subtitle="Farm directory and assignments"
-        showBack
         right={
           <TouchableOpacity
             style={styles.headerBtn}
@@ -1184,7 +1182,7 @@ export default function FarmListScreen() {
           <Toast position="bottom" bottomOffset={100} />
         </TouchableOpacity>
       </Modal>
-    </SafeAreaView>
+    </View>
   );
 }
 

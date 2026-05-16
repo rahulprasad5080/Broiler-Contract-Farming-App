@@ -1,6 +1,5 @@
 import React, { useCallback, useState } from 'react';
 import { View, Text, StyleSheet, FlatList, TouchableOpacity, ActivityIndicator, RefreshControl, Modal, TextInput } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { Colors } from '@/constants/Colors';
 import { Layout } from '@/constants/Layout';
 import { Ionicons } from '@expo/vector-icons';
@@ -126,8 +125,8 @@ export default function SupervisorReviewLogsScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.safeArea} edges={['top']}>
-      <TopAppBar title="Review Daily Logs" subtitle="Check submitted daily records" showBack />
+    <View style={styles.safeArea}>
+      <TopAppBar title="Review Daily Logs" subtitle="Check submitted daily records" />
 
       <FlatList
         data={loading && !refreshing ? [] : logs}
@@ -264,7 +263,7 @@ export default function SupervisorReviewLogsScreen() {
         </TouchableOpacity>
       </Modal>
 
-    </SafeAreaView>
+    </View>
   );
 }
 

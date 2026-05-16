@@ -8,7 +8,6 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
 
 import { Colors } from "@/constants/Colors";
 import { Layout } from "@/constants/Layout";
@@ -45,8 +44,8 @@ export function RouteMenuScreen({
   const router = useRouter();
 
   return (
-    <SafeAreaView style={styles.safeArea}>
-      <TopAppBar title={title} eyebrow="Entries" />
+    <View style={styles.safeArea}>
+      <TopAppBar title={title} eyebrow="Entries" leadingMode="back" />
 
       <ScrollView contentContainerStyle={styles.container}>
         {infoBanner ? (
@@ -87,14 +86,14 @@ export function RouteMenuScreen({
           ))}
         </View>
       </ScrollView>
-    </SafeAreaView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: "#F6F8F7",
+    backgroundColor: "#0B5C36",
   },
   container: {
     padding: Layout.screenPadding,

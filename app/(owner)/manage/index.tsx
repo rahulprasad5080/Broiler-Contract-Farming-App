@@ -9,7 +9,6 @@ import {
   View,
   Dimensions,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
 
 import { ScreenState } from "@/components/ui/ScreenState";
 import { TopAppBar } from "@/components/ui/TopAppBar";
@@ -98,8 +97,8 @@ export default function EntriesScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.safeArea} edges={['top']}>
-      <TopAppBar title="Entries" subtitle="Create operational and financial records" />
+    <View style={styles.safeArea}>
+      <TopAppBar title="Entries" subtitle="Create operational and financial records" leadingMode="back" />
 
       <ScrollView contentContainerStyle={styles.scrollContainer} showsVerticalScrollIndicator={false}>
         {visibleItems.length === 0 ? (
@@ -126,7 +125,7 @@ export default function EntriesScreen() {
         )}
         <View style={{ height: 40 }} />
       </ScrollView>
-    </SafeAreaView>
+    </View>
   );
 }
 

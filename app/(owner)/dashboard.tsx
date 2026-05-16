@@ -1,7 +1,8 @@
 import {
-  DashboardSidebar,
   type DashboardSidebarAction,
 } from "@/components/navigation/DashboardSidebar";
+import { TopAppBar } from "@/components/ui/TopAppBar";
+import { useExtraSidebarItems } from "@/hooks/useExtraSidebarItems";
 import {
   showRequestErrorToast,
   showSuccessToast,
@@ -31,9 +32,6 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import {
-  useSafeAreaInsets,
-} from "react-native-safe-area-context";
 import { Colors } from "../../constants/Colors";
 import { useAuth } from "../../context/AuthContext";
 import {
@@ -62,11 +60,9 @@ function formatPercent(value?: number | null) {
 
 export default function OwnerDashboard() {
   const { hasPermission, user, accessToken } = useAuth();
-  const insets = useSafeAreaInsets();
   const router = useRouter();
 
   // Settings Panel State
-  const [showSidebar, setShowSidebar] = useState(false);
   const [showSettingsPanel, setShowSettingsPanel] = useState(false);
   const [users, setUsers] = useState<any[]>([]);
   const [userSearch, setUserSearch] = useState("");
@@ -198,6 +194,9 @@ export default function OwnerDashboard() {
     },
   ];
 
+  // Register extra sidebar items for this screen
+  useExtraSidebarItems(sidebarExtraItems);
+
   const firstFarmName =
     dashboard?.activeBatches.find((batch) => batch.farmName)?.farmName ??
     (dashboard?.farmCount ? `${formatNumber(dashboard.farmCount)} farms` : "No active farms");
@@ -255,38 +254,18 @@ export default function OwnerDashboard() {
   return (
     <View style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor={THEME_GREEN} />
-      
-      {/* Top Header */}
-      <View style={[styles.header, { paddingTop: insets.top + 10 }]}>
-        <TouchableOpacity
-          style={styles.headerIconBtn}
-          onPress={() => setShowSidebar(true)}
-          accessibilityRole="button"
-          accessibilityLabel="Open dashboard menu"
-        >
-          <Ionicons name="menu" size={22} color="#FFF" />
-        </TouchableOpacity>
-        <Text style={styles.headerLogoText}>
-          Poultry<Text style={styles.headerLogoLight}>Flow</Text>
-        </Text>
-        {canViewNotifications ? (
-          <TouchableOpacity
-            style={styles.bellIconBtn}
-            onPress={() => router.navigate("/(owner)/notifications" as Href)}
-            accessibilityRole="button"
-            accessibilityLabel="Notifications"
-          >
-            <Feather name="bell" size={24} color="#FFF" />
-            {alertCount > 0 ? (
-              <View style={styles.bellBadge}>
-                <Text style={styles.bellBadgeText}>{alertCount > 9 ? "9+" : alertCount}</Text>
-              </View>
-            ) : null}
-          </TouchableOpacity>
-        ) : (
-          <View style={styles.headerIconBtn} />
-        )}
-      </View>
+
+      {/* Global Top App Bar */}
+      <TopAppBar
+        leadingMode="menu"
+        title="PoultryFlow"
+        notificationCount={canViewNotifications ? alertCount : -1}
+        onNotificationPress={
+          canViewNotifications
+            ? () => router.navigate("/(owner)/notifications" as Href)
+            : undefined
+        }
+      />
 
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
         
@@ -578,12 +557,7 @@ export default function OwnerDashboard() {
         </TouchableOpacity>
       ) : null}
 
-      <DashboardSidebar
-        visible={showSidebar}
-        onClose={() => setShowSidebar(false)}
-        themeColor={THEME_GREEN}
-        extraItems={sidebarExtraItems}
-      />
+      {/* DashboardSidebar is rendered by GlobalSidebarOverlay in _layout.tsx */}
 
       {/* Settings Panel Modal */}
       <Modal visible={showSettingsPanel} transparent animationType="slide">
@@ -718,63 +692,7 @@ export default function OwnerDashboard() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#F9FAF9", // Very light background
-  },
-  header: {
-    backgroundColor: THEME_GREEN,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingHorizontal: 20,
-    paddingBottom: 16,
-  },
-  headerLogoText: {
-    fontSize: 20,
-    color: "#FFF",
-    fontWeight: "bold",
-  },
-  headerLogoLight: {
-    fontWeight: "400",
-    opacity: 0.8,
-  },
-  headerIconBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 12,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: "rgba(255,255,255,0.12)",
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.2)",
-  },
-  bellIconBtn: {
-    position: "relative",
-    width: 40,
-    height: 40,
-    borderRadius: 12,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: "rgba(255,255,255,0.12)",
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.2)",
-  },
-  bellBadge: {
-    position: "absolute",
-    top: 2,
-    right: 2,
-    backgroundColor: "#D32F2F",
-    minWidth: 16,
-    height: 16,
-    borderRadius: 8,
-    alignItems: "center",
-    justifyContent: "center",
-    borderWidth: 1.5,
-    borderColor: THEME_GREEN,
-  },
-  bellBadgeText: {
-    color: "#FFF",
-    fontSize: 9,
-    fontWeight: "bold",
+    backgroundColor: "#F9FAF9",
   },
   scrollContent: {
     paddingBottom: 40,

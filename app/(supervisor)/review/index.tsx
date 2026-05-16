@@ -1,6 +1,5 @@
 import React, { useCallback, useState } from 'react';
 import { View, Text, StyleSheet, FlatList, TouchableOpacity, RefreshControl } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { Colors } from '@/constants/Colors';
 import { Layout } from '@/constants/Layout';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
@@ -82,7 +81,7 @@ export default function SupervisorReviewScreen() {
   );
 
   return (
-    <SafeAreaView style={styles.safeArea} edges={['top']}>
+    <View style={styles.safeArea}>
       <TopAppBar title="Review & Corrections" subtitle="Check active batch logs and corrections" />
 
       <View style={styles.container}>
@@ -122,7 +121,7 @@ export default function SupervisorReviewScreen() {
           />
         )}
       </View>
-    </SafeAreaView>
+    </View>
   );
 }
 

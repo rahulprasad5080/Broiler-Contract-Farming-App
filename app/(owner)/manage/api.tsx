@@ -11,7 +11,6 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
 
 import { TopAppBar } from "@/components/ui/TopAppBar";
 import { Colors } from "@/constants/Colors";
@@ -543,11 +542,10 @@ export default function ApiOperationsScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <View style={styles.safeArea}>
       <TopAppBar
         title="API Operations"
         subtitle="Backend actions from integration map"
-        showBack
         right={busyKey ? <ActivityIndicator color="#FFF" /> : undefined}
       />
 
@@ -871,7 +869,7 @@ export default function ApiOperationsScreen() {
           )}
         </Section>
       </ScrollView>
-    </SafeAreaView>
+    </View>
   );
 }
 

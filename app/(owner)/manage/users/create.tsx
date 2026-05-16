@@ -36,7 +36,6 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import Toast from 'react-native-toast-message';
 import { z } from 'zod';
 import { ScreenState } from '@/components/ui/ScreenState';
@@ -411,12 +410,11 @@ export default function CreateUserScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.safeArea} edges={['top']}>
+    <View style={styles.safeArea}>
       <View style={styles.pageContent}>
         <TopAppBar
           title={isEditMode ? 'Edit User' : 'Create User'}
           subtitle="Role, permissions, farms, and security"
-          showBack
         />
 
         <ScrollView
@@ -773,7 +771,7 @@ export default function CreateUserScreen() {
         </ScrollView>
       </View>
       <Toast position="bottom" bottomOffset={90} />
-    </SafeAreaView>
+    </View>
   );
 }
 

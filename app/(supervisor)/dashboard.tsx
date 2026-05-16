@@ -3,9 +3,8 @@ import { useFocusEffect } from '@react-navigation/native';
 import { useRouter, type Href } from 'expo-router';
 import React, { useCallback, useMemo, useState } from 'react';
 import { ActivityIndicator, Image, ScrollView, StatusBar, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { DashboardSidebar } from '../../components/navigation/DashboardSidebar';
+import { TopAppBar } from '@/components/ui/TopAppBar';
 import { Colors } from '../../constants/Colors';
 import { Layout } from '../../constants/Layout';
 import { useAuth } from '../../context/AuthContext';
@@ -25,10 +24,8 @@ function formatStatus(value: string) {
 
 export default function SupervisorDashboard() {
   const { accessToken, hasPermission, user } = useAuth();
-  const insets = useSafeAreaInsets();
   const router = useRouter();
   const [dashboard, setDashboard] = useState<ApiDashboardSummary | null>(null);
-  const [showSidebar, setShowSidebar] = useState(false);
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState<string | null>(null);
@@ -95,37 +92,17 @@ export default function SupervisorDashboard() {
     <View style={styles.safeArea}>
       <StatusBar barStyle="light-content" backgroundColor={THEME_GREEN} />
 
-      {/* Top Header */}
-      <View style={[styles.header, { paddingTop: insets.top + 10 }]}>
-        <TouchableOpacity
-          style={styles.headerIconBtn}
-          onPress={() => setShowSidebar(true)}
-          accessibilityRole="button"
-          accessibilityLabel="Open dashboard menu"
-        >
-          <Ionicons name="menu" size={22} color="#FFF" />
-        </TouchableOpacity>
-        <Text style={styles.headerLogoText}>
-          Poultry<Text style={styles.headerLogoLight}>Flow</Text>
-        </Text>
-        {canViewNotifications ? (
-          <TouchableOpacity
-            style={styles.bellIconBtn}
-            onPress={() => router.navigate('/(supervisor)/notifications' as Href)}
-            accessibilityRole="button"
-            accessibilityLabel="Notifications"
-          >
-            <Feather name="bell" size={24} color="#FFF" />
-            {alertCount > 0 ? (
-              <View style={styles.bellBadge}>
-                <Text style={styles.bellBadgeText}>{alertCount > 9 ? '9+' : alertCount}</Text>
-              </View>
-            ) : null}
-          </TouchableOpacity>
-        ) : (
-          <View style={styles.headerIconBtn} />
-        )}
-      </View>
+      {/* Global Top App Bar */}
+      <TopAppBar
+        leadingMode="menu"
+        title="PoultryFlow"
+        notificationCount={canViewNotifications ? alertCount : -1}
+        onNotificationPress={
+          canViewNotifications
+            ? () => router.navigate('/(supervisor)/notifications' as Href)
+            : undefined
+        }
+      />
 
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
         {/* Profile Section */}
@@ -288,11 +265,7 @@ export default function SupervisorDashboard() {
 
 
 
-      <DashboardSidebar
-        visible={showSidebar}
-        onClose={() => setShowSidebar(false)}
-        themeColor={THEME_GREEN}
-      />
+      {/* DashboardSidebar is rendered by GlobalSidebarOverlay in _layout.tsx */}
     </View>
   );
 }
@@ -373,62 +346,6 @@ const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
     backgroundColor: '#F9FAF9',
-  },
-  header: {
-    backgroundColor: THEME_GREEN,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    paddingBottom: 16,
-  },
-  headerLogoText: {
-    fontSize: 20,
-    color: '#FFF',
-    fontWeight: 'bold',
-  },
-  headerLogoLight: {
-    fontWeight: '400',
-    opacity: 0.8,
-  },
-  headerIconBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: 'rgba(255,255,255,0.12)',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.2)',
-  },
-  bellIconBtn: {
-    position: 'relative',
-    width: 40,
-    height: 40,
-    borderRadius: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: 'rgba(255,255,255,0.12)',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.2)',
-  },
-  bellBadge: {
-    position: 'absolute',
-    top: 2,
-    right: 2,
-    backgroundColor: '#D32F2F',
-    minWidth: 16,
-    height: 16,
-    borderRadius: 8,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1.5,
-    borderColor: '#FFF',
-  },
-  bellBadgeText: {
-    color: '#FFF',
-    fontSize: 9,
-    fontWeight: 'bold',
   },
   scrollContent: {
     paddingBottom: 40,

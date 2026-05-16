@@ -4,7 +4,6 @@ import { useFocusEffect } from '@react-navigation/native';
 import { useRouter } from 'expo-router';
 import React, { useCallback, useMemo, useState } from 'react';
 import { ActivityIndicator, FlatList, Modal, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { Controller, useForm } from 'react-hook-form';
 import { z } from 'zod';
 
@@ -136,8 +135,8 @@ export default function PartnerManagementScreen() {
 
   if (!canManagePartners) {
     return (
-      <SafeAreaView style={styles.safeArea}>
-        <TopAppBar title="Partners" subtitle="Permission required" showBack />
+      <View style={styles.safeArea}>
+        <TopAppBar title="Partners" subtitle="Permission required" />
         <View style={styles.lockedState}>
           <ScreenState
             title="Permission required"
@@ -146,16 +145,15 @@ export default function PartnerManagementScreen() {
             tone="error"
           />
         </View>
-      </SafeAreaView>
+      </View>
     );
   }
 
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <View style={styles.safeArea}>
       <TopAppBar
         title="Trader Master"
         subtitle="Used by sale entry and settlement review"
-        showBack
         right={
           <TouchableOpacity style={styles.headerAction} onPress={() => setShowAddModal(true)}>
             <Ionicons name="add" size={24} color="#FFF" />
@@ -240,7 +238,7 @@ export default function PartnerManagementScreen() {
           </View>
         </TouchableOpacity>
       </Modal>
-    </SafeAreaView>
+    </View>
   );
 }
 

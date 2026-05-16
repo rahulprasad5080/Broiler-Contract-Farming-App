@@ -129,7 +129,6 @@ export default function BatchManagementScreen() {
       <TopAppBar
         title="Batches"
         subtitle="Track active, sales-ready, and closed batches"
-        showBack
         right={
           <TouchableOpacity
             style={styles.iconBtn}

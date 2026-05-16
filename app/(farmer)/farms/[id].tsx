@@ -8,7 +8,6 @@ import { format } from 'date-fns';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useCallback, useState } from 'react';
 import { FlatList, RefreshControl, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ScreenState } from '@/components/ui/ScreenState';
 import { TopAppBar } from '@/components/ui/TopAppBar';
@@ -67,19 +66,19 @@ export default function FarmerFarmDetailScreen() {
 
   if (loading && !refreshing) {
     return (
-      <SafeAreaView style={styles.safeArea} edges={['top']}>
-        <TopAppBar title="Farm Details" subtitle="Loading farm information" showBack />
+      <View style={styles.safeArea}>
+        <TopAppBar title="Farm Details" subtitle="Loading farm information" />
         <View style={[styles.centerBox, { backgroundColor: '#F9FAFB' }]}>
           <ScreenState title="Loading farm details" message="Fetching farm and batch records." loading />
         </View>
-      </SafeAreaView>
+      </View>
     );
   }
 
   if (!farm) {
     return (
-      <SafeAreaView style={styles.safeArea} edges={['top']}>
-        <TopAppBar title="Farm Details" subtitle={errorMessage ? "Unable to load" : "Record not found"} showBack />
+      <View style={styles.safeArea}>
+        <TopAppBar title="Farm Details" subtitle={errorMessage ? "Unable to load" : "Record not found"} />
         <View style={[styles.centerBox, { backgroundColor: '#F9FAFB' }]}>
           {errorMessage ? (
             <ScreenState
@@ -99,16 +98,15 @@ export default function FarmerFarmDetailScreen() {
             />
           )}
         </View>
-      </SafeAreaView>
+      </View>
     );
   }
 
   return (
-    <SafeAreaView style={styles.safeArea} edges={['top']}>
+    <View style={styles.safeArea}>
       <TopAppBar
         title={farm.name}
         subtitle={[farm.location, farm.village, farm.district].filter(Boolean).join(', ')}
-        showBack
       />
 
       <FlatList
@@ -215,7 +213,7 @@ export default function FarmerFarmDetailScreen() {
           />
         }
       />
-    </SafeAreaView>
+    </View>
   );
 }
 

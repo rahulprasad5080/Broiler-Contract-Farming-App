@@ -11,8 +11,8 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Controller, useForm } from 'react-hook-form';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 
@@ -312,8 +312,8 @@ export default function CreateBatchScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
-      <TopAppBar title="Create New Batch" subtitle="Placement, farm, and target details" showBack />
+    <View style={styles.container}>
+      <TopAppBar title="Create New Batch" subtitle="Placement, farm, and target details" />
 
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
         {loadError ? (
@@ -690,7 +690,7 @@ export default function CreateBatchScreen() {
           )}
         </TouchableOpacity>
       </View>
-    </SafeAreaView>
+    </View>
   );
 }
 

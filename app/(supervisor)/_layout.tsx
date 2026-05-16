@@ -1,19 +1,26 @@
 import { Tabs } from 'expo-router';
+import { View } from 'react-native';
 import { BottomTabs } from '../../components/ui/BottomTabs';
+import { GlobalSidebarOverlay } from '../../components/navigation/GlobalSidebarOverlay';
 
 export default function SupervisorLayout() {
   return (
-    <Tabs
-      tabBar={(props) => <BottomTabs {...props} hiddenTabs={['manage', 'review']} />}
-      screenOptions={{ headerShown: false }}
-    >
-      <Tabs.Screen name="dashboard" />
-      <Tabs.Screen name="tasks" />
-      <Tabs.Screen name="review" options={{ href: null }} />
-      {/* <Tabs.Screen name="manage" /> */}
-      <Tabs.Screen name="reports" />
-      <Tabs.Screen name="profile" />
-      <Tabs.Screen name="notifications" options={{ href: null }} />
-    </Tabs>
+    <View style={{ flex: 1 }}>
+      <Tabs
+        tabBar={(props) => <BottomTabs {...props} hiddenTabs={['manage', 'review']} />}
+        screenOptions={{ headerShown: false }}
+      >
+        <Tabs.Screen name="dashboard" />
+        <Tabs.Screen name="tasks" />
+        <Tabs.Screen name="review" options={{ href: null }} />
+        {/* <Tabs.Screen name="manage" /> */}
+        <Tabs.Screen name="reports" />
+        <Tabs.Screen name="profile" />
+        <Tabs.Screen name="notifications" options={{ href: null }} />
+      </Tabs>
+
+      {/* Global sidebar — rendered above the tab navigator */}
+      <GlobalSidebarOverlay />
+    </View>
   );
 }
