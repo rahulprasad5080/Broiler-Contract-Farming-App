@@ -1,4 +1,3 @@
-import { Ionicons } from "@expo/vector-icons";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useFocusEffect } from "@react-navigation/native";
 import React, { useCallback, useMemo, useState } from "react";
@@ -12,7 +11,6 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
 import { z } from "zod";
 
 import { DatePickerField } from "@/components/ui/DatePickerField";
@@ -26,13 +24,13 @@ import {
   showSuccessToast,
 } from "@/services/apiFeedback";
 import { getLocalDateValue } from "@/services/dateUtils";
-import { enqueueOfflineSubmission, isNetworkConnected } from "@/services/offlineSyncQueue";
 import {
   createBatchExpense,
   listAllBatches,
   type ApiBatch,
   type ApiExpenseCategoryCode,
 } from "@/services/managementApi";
+import { enqueueOfflineSubmission, isNetworkConnected } from "@/services/offlineSyncQueue";
 
 const COMPANY_CATEGORIES = [
   "CHICKS",
@@ -360,22 +358,6 @@ export function ExpenseEntryScreen({ title = "Expense Entry", subtitle }: Expens
                 />
               )}
             />
-          </View>
-
-          {/* Bill Photo Upload Mockup */}
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Bill Photo (Optional)</Text>
-            <View style={styles.fileUploadBox}>
-              <View style={styles.fileInfo}>
-                <View style={styles.fileIconBox}>
-                  <Ionicons name="image-outline" size={24} color="#0B5C36" />
-                </View>
-                <Text style={styles.fileName}>electricity_may.jpg</Text>
-              </View>
-              <TouchableOpacity>
-                <Ionicons name="close" size={20} color="#EF4444" />
-              </TouchableOpacity>
-            </View>
           </View>
 
           <TouchableOpacity style={[styles.submitBtn, submitting && styles.btnDisabled]} onPress={handleSubmit(onSubmit)} disabled={submitting}>
