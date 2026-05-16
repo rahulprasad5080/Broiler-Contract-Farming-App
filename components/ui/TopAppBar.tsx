@@ -72,6 +72,7 @@ export function TopAppBar({
       key="menu-btn"
       style={styles.iconBtn}
       onPress={sidebar.openSidebar}
+      activeOpacity={0.7}
       accessibilityRole="button"
       accessibilityLabel="Open navigation menu"
     >
@@ -84,7 +85,7 @@ export function TopAppBar({
       key="back-btn"
       style={styles.iconBtn}
       onPress={onBack ?? (() => router.back())}
-      activeOpacity={0.82}
+      activeOpacity={0.7}
       accessibilityRole="button"
       accessibilityLabel="Go back"
     >
@@ -92,73 +93,66 @@ export function TopAppBar({
     </TouchableOpacity>
   );
 
-  // ── Leading icon ──────────────────────────────────────────────────────────
+  // ── Leading area ──────────────────────────────────────────────────────────
   let leadingContent: React.ReactNode;
-  if (leadingMode === 'menu') {
+  if (leadingMode === 'menu' || leadingMode === 'back') {
     leadingContent = menuButton;
-  } else if (leadingMode === 'back') {
-    leadingContent = backButton;
   } else {
-    // "none" -> invisible placeholder to keep title centered
-    leadingContent = <View style={styles.iconBtn} />;
+    leadingContent = <View style={styles.iconBtnPlaceholder} />;
   }
 
   // ── Trailing / right area ─────────────────────────────────────────────────
-  let trailingContent: React.ReactNode;
+  const trailingItems: React.ReactNode[] = [];
+
   if (right !== undefined) {
-    trailingContent = <View style={styles.right}>{right}</View>;
-  } else {
-    const trailingItems: React.ReactNode[] = [];
-
-    // Notification bell (Only on dashboard screens where leadingMode='menu')
-    if (leadingMode === 'menu' && notificationCount !== -1) {
-      const badgeCount = notificationCount ?? 0;
-      trailingItems.push(
-        <TouchableOpacity
-          key="bell-btn"
-          style={styles.iconBtn}
-          onPress={onNotificationPress}
-          accessibilityRole="button"
-          accessibilityLabel="Notifications"
-        >
-          <Feather name="bell" size={20} color="#FFF" />
-          {badgeCount > 0 ? (
-            <View style={styles.badge}>
-              <Text style={styles.badgeText}>
-                {badgeCount > 9 ? '9+' : badgeCount}
-              </Text>
-            </View>
-          ) : null}
-        </TouchableOpacity>
-      );
-    }
-
-    // Always show menu icon on every screen.
-    // If it's not the leading icon, we put it on the right side.
-    if (leadingMode !== 'menu' && leadingMode !== 'none') {
-      trailingItems.push(menuButton);
-    }
-
-    if (trailingItems.length > 0) {
-      trailingContent = <View style={styles.right}>{trailingItems}</View>;
-    } else {
-      // Invisible placeholder to keep the title centred
-      trailingContent = <View style={styles.iconBtn} />;
-    }
+    trailingItems.push(<React.Fragment key="custom-right">{right}</React.Fragment>);
   }
+
+  // Notification bell (Only on dashboard screens where leadingMode='menu')
+  if (leadingMode === 'menu' && notificationCount !== -1) {
+    const badgeCount = notificationCount ?? 0;
+    trailingItems.push(
+      <TouchableOpacity
+        key="bell-btn"
+        style={styles.iconBtn}
+        onPress={onNotificationPress}
+        activeOpacity={0.7}
+        accessibilityRole="button"
+        accessibilityLabel="Notifications"
+      >
+        <Feather name="bell" size={20} color="#FFF" />
+        {badgeCount > 0 ? (
+          <View style={styles.badge}>
+            <Text style={styles.badgeText}>
+              {badgeCount > 9 ? '9+' : badgeCount}
+            </Text>
+          </View>
+        ) : null}
+      </TouchableOpacity>
+    );
+  }
+
+  // The menu icon is now handled on the left side for "back" mode.
+  // No longer adding it to the trailing items here.
+
+  const trailingContent = trailingItems.length > 0 ? (
+    <View style={styles.right}>{trailingItems}</View>
+  ) : (
+    <View style={styles.iconBtnPlaceholder} />
+  );
 
   return (
     <View style={[styles.bar, { paddingTop: insets.top + 8 }]}>
-      <StatusBar style="light" />
+      <StatusBar style="light" backgroundColor={THEME_GREEN} translucent />
 
-      {/* Leading (hamburger or back) */}
-      <View style={styles.sideContainer}>
+      {/* Side Content — Positioned to allow title centering */}
+      <View style={styles.sideWrapper}>
         {leadingContent}
       </View>
 
-      {/* Centre copy */}
+      {/* Centre Copy */}
       <View style={styles.copy}>
-        {eyebrow ? <Text style={styles.eyebrow}>{eyebrow}</Text> : null}
+        {eyebrow ? <Text style={styles.eyebrow} numberOfLines={1}>{eyebrow}</Text> : null}
         <Text style={styles.title} numberOfLines={1}>
           Poultry<Text style={styles.titleLight}>Flow</Text>
         </Text>
@@ -169,8 +163,7 @@ export function TopAppBar({
         ) : null}
       </View>
 
-      {/* Trailing */}
-      <View style={[styles.sideContainer, styles.sideRight]}>
+      <View style={[styles.sideWrapper, styles.sideRight]}>
         {trailingContent}
       </View>
     </View>
@@ -183,17 +176,22 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 16,
+    paddingHorizontal: 12,
     paddingBottom: 14,
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255,255,255,0.05)',
+    borderBottomColor: 'rgba(255,255,255,0.08)',
   },
-  sideContainer: {
-    width: 44,
-    justifyContent: 'center',
+  sideWrapper: {
+    minWidth: 40,
+    zIndex: 10,
   },
   sideRight: {
     alignItems: 'flex-end',
+  },
+  leftGroup: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
   },
   iconBtn: {
     width: 40,
@@ -201,28 +199,36 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: 'rgba(255,255,255,0.1)',
+    backgroundColor: 'rgba(255,255,255,0.12)',
     position: 'relative',
   },
+  iconBtnPlaceholder: {
+    width: 40,
+    height: 40,
+  },
   copy: {
-    flex: 1,
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 14,
     alignItems: 'center',
-    minWidth: 0,
-    paddingHorizontal: 4,
+    justifyContent: 'center',
+    zIndex: 1,
+    pointerEvents: 'none', // Allow taps on side buttons
   },
   eyebrow: {
     color: 'rgba(255,255,255,0.6)',
     fontSize: 9,
     fontWeight: '900',
     textTransform: 'uppercase',
-    letterSpacing: 0.6,
+    letterSpacing: 0.8,
     marginBottom: 0,
   },
   title: {
     color: '#FFFFFF',
-    fontSize: 20,
+    fontSize: 19,
     fontWeight: '800',
-    letterSpacing: -0.2,
+    letterSpacing: -0.3,
   },
   titleLight: {
     fontWeight: '300',
@@ -230,8 +236,8 @@ const styles = StyleSheet.create({
   },
   subtitle: {
     marginTop: 1,
-    color: 'rgba(255,255,255,0.7)',
-    fontSize: 10.5,
+    color: 'rgba(255,255,255,0.75)',
+    fontSize: 10,
     fontWeight: '600',
     textAlign: 'center',
   },
@@ -245,9 +251,9 @@ const styles = StyleSheet.create({
     top: 6,
     right: 6,
     backgroundColor: '#FF3B30',
-    minWidth: 16,
-    height: 16,
-    borderRadius: 8,
+    minWidth: 15,
+    height: 15,
+    borderRadius: 7.5,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1.5,
