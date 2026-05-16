@@ -628,7 +628,7 @@ export function DashboardSidebar({
             </ScrollView>
 
             {/* ── Footer ── */}
-            <View style={[styles.footer, { paddingBottom: Math.max(insets.bottom, 16) + 10 }]}>
+            <View style={[styles.footer, { paddingBottom: Math.max(insets.bottom, 12) + 8 }]}>
               <TouchableOpacity
                 style={styles.signOutButton}
                 onPress={() => {

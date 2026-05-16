@@ -26,8 +26,8 @@ export function BottomTabs({ state, descriptors, navigation, hiddenTabs = [] }: 
     { name: 'profile', label: 'Profile', activeIcon: 'person', inactiveIcon: 'person-outline' },
   ];
 
-  const bottomPadding = Math.max(insets.bottom, 12);
-  const tabHeight = 60 + bottomPadding;
+  const bottomPadding = insets.bottom > 0 ? insets.bottom : 8;
+  const tabHeight = 54 + bottomPadding;
 
   return (
     <View style={[styles.tabBar, { paddingBottom: bottomPadding, height: tabHeight }]}>
