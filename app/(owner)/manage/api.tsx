@@ -80,6 +80,7 @@ import {
   submitSubscriptionPayment,
 } from "@/services/subscriptionApi";
 import { fetchDocsHtml, fetchHealth } from "@/services/supportApi";
+import { listNotifications, markNotificationRead } from "@/services/notificationApi";
 
 type TabKey =
   | "dashboards"
@@ -255,6 +256,9 @@ export default function ApiOperationsScreen() {
     payerName: "",
     payerPhone: "",
     proofUrl: "",
+  });
+  const [notificationForm, setNotificationForm] = useState({
+    notificationId: "",
   });
 
   const selectedBatch = useMemo(
@@ -591,28 +595,64 @@ export default function ApiOperationsScreen() {
           />
 
           {activeTab === "dashboards" ? (
-            <Section title="Dashboards" icon="view-dashboard-outline">
-              <ActionGrid>
-                <ActionButton
-                  label="Operational Dashboard"
-                  onPress={() =>
-                    void runAction("dashboard", "Operational dashboard", () =>
-                      fetchDashboard(accessToken!),
-                    )
+            <>
+              <Section title="Dashboards" icon="view-dashboard-outline">
+                <ActionGrid>
+                  <ActionButton
+                    label="Operational Dashboard"
+                    onPress={() =>
+                      void runAction("dashboard", "Operational dashboard", () =>
+                        fetchDashboard(accessToken!),
+                      )
+                    }
+                    busy={busyKey === "dashboard"}
+                  />
+                  <ActionButton
+                    label="Financial Dashboard"
+                    onPress={() =>
+                      void runAction("dashboard-finance", "Financial dashboard", () =>
+                        fetchFinancialDashboard(accessToken!),
+                      )
+                    }
+                    busy={busyKey === "dashboard-finance"}
+                  />
+                </ActionGrid>
+              </Section>
+
+              <Section title="Notifications" icon="bell-outline">
+                <Field
+                  label="Notification ID (for marking read)"
+                  value={notificationForm.notificationId}
+                  onChangeText={(notificationId) =>
+                    setNotificationForm((v) => ({ ...v, notificationId }))
                   }
-                  busy={busyKey === "dashboard"}
                 />
-                <ActionButton
-                  label="Financial Dashboard"
-                  onPress={() =>
-                    void runAction("dashboard-finance", "Financial dashboard", () =>
-                      fetchFinancialDashboard(accessToken!),
-                    )
-                  }
-                  busy={busyKey === "dashboard-finance"}
-                />
-              </ActionGrid>
-            </Section>
+                <ActionGrid>
+                  <ActionButton
+                    label="List Notifications"
+                    onPress={() =>
+                      void runAction("notifications-list", "List notifications", () =>
+                        listNotifications(accessToken!),
+                      )
+                    }
+                    busy={busyKey === "notifications-list"}
+                  />
+                  <ActionButton
+                    label="Mark Notification Read"
+                    onPress={() => {
+                      if (!notificationForm.notificationId.trim()) {
+                        setError("Enter Notification ID first.");
+                        return;
+                      }
+                      void runAction("notification-read", "Mark notification read", () =>
+                        markNotificationRead(accessToken!, notificationForm.notificationId.trim()),
+                      );
+                    }}
+                    busy={busyKey === "notification-read"}
+                  />
+                </ActionGrid>
+              </Section>
+            </>
           ) : null}
 
           {activeTab === "batch" ? (
