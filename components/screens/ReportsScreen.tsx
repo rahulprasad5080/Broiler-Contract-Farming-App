@@ -11,6 +11,8 @@ import {
   Text,
   TouchableOpacity,
   View,
+  Modal,
+  TextInput,
 } from "react-native";
 
 import { useAuth } from "@/context/AuthContext";
@@ -61,6 +63,68 @@ export default function ReportsScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [exporting, setExporting] = useState<"pdf" | "excel" | null>(null);
+
+  // FCR Calculator state variables
+  const [fcrModalVisible, setFcrModalVisible] = useState(false);
+  const [calcFeed, setCalcFeed] = useState("1500"); 
+  const [calcFeedUnit, setCalcFeedUnit] = useState<"kg" | "bags">("kg");
+  const [calcBirds, setCalcBirds] = useState("1000"); 
+  const [calcAvgWeight, setCalcAvgWeight] = useState("1500"); 
+  const [calcFeedPrice, setCalcFeedPrice] = useState("38"); 
+  const [calcBirdPrice, setCalcBirdPrice] = useState("110");
+
+  // Derived FCR Calculations
+  const fcrCalculation = useMemo(() => {
+    const feedVal = parseFloat(calcFeed) || 0;
+    const feedKg = calcFeedUnit === "bags" ? feedVal * 50 : feedVal;
+    const birdsCount = parseInt(calcBirds) || 0;
+    const avgWeightG = parseFloat(calcAvgWeight) || 0;
+    const feedPriceKg = parseFloat(calcFeedPrice) || 0;
+    const birdPriceKg = parseFloat(calcBirdPrice) || 0;
+
+    const totalWeightKg = (birdsCount * avgWeightG) / 1000;
+    const fcrValue = totalWeightKg > 0 ? feedKg / totalWeightKg : 0;
+
+    let rating = "N/A";
+    let ratingColor = "#4B5563"; 
+    let ratingHindi = "अमान्य (कैलकुलेटर इनपुट सही करें)";
+
+    if (fcrValue > 0) {
+      if (fcrValue < 1.4) {
+        rating = "Excellent FCR";
+        ratingColor = "#10B981"; 
+        ratingHindi = "🌟 असाधारण! अत्यंत मुनाफेदार प्रदर्शन!";
+      } else if (fcrValue <= 1.6) {
+        rating = "Good FCR";
+        ratingColor = "#2563EB"; 
+        ratingHindi = "👍 शानदार! सामान्य मानकों से बेहतर प्रदर्शन।";
+      } else if (fcrValue <= 1.8) {
+        rating = "Average FCR";
+        ratingColor = "#D97706"; 
+        ratingHindi = "⚠️ औसत! फीड वेस्टेज (दाना बर्बादी) की जांच करें।";
+      } else {
+        rating = "Poor FCR";
+        ratingColor = "#EF4444"; 
+        ratingHindi = "❌ कमजोर! तुरंत डॉक्टर या सलाहकार से संपर्क करें।";
+      }
+    }
+
+    const estimatedFeedCost = feedKg * feedPriceKg;
+    const estimatedRevenue = totalWeightKg * birdPriceKg;
+    const grossMargin = estimatedRevenue - estimatedFeedCost;
+
+    return {
+      feedKg,
+      totalWeightKg,
+      fcrValue: fcrValue ? Number(fcrValue.toFixed(3)) : 0,
+      rating,
+      ratingColor,
+      ratingHindi,
+      estimatedFeedCost,
+      estimatedRevenue,
+      grossMargin,
+    };
+  }, [calcFeed, calcFeedUnit, calcBirds, calcAvgWeight, calcFeedPrice, calcBirdPrice]);
 
   const loadReports = useCallback(async (isRefresh = false) => {
     if (!accessToken) return;
@@ -472,6 +536,29 @@ export default function ReportsScreen() {
                   </View>
                 </SurfaceCard>
 
+                {/* Dynamic FCR Estimator Tool Card */}
+                <SurfaceCard style={styles.fcrEstimatorCard}>
+                  <View style={styles.fcrEstimatorHeader}>
+                    <View style={styles.fcrIconBox}>
+                      <MaterialCommunityIcons name="calculator-variant" size={24} color="#FFF" />
+                    </View>
+                    <View style={styles.fcrTextContainer}>
+                      <Text style={styles.fcrTitle}>🐔 FCR Estimator & Valuation</Text>
+                      <Text style={styles.fcrSubtitle}>
+                        Calculate Feed Conversion Ratio & forecast margins instantly on device.
+                      </Text>
+                    </View>
+                  </View>
+                  <TouchableOpacity
+                    style={styles.fcrOpenBtn}
+                    onPress={() => setFcrModalVisible(true)}
+                    activeOpacity={0.85}
+                  >
+                    <Text style={styles.fcrOpenBtnText}>Open FCR Calculator</Text>
+                    <Ionicons name="arrow-forward-outline" size={16} color="#FFF" />
+                  </TouchableOpacity>
+                </SurfaceCard>
+
                 {/* Sub data snapshots */}
                 <Text style={styles.categoryTitle}>Inventory & Farm Records</Text>
                 
@@ -499,6 +586,196 @@ export default function ReportsScreen() {
 
             <View style={{ height: 40 }} />
           </ScrollView>
+
+          {/* Interactive FCR Estimator Modal */}
+          <Modal
+            visible={fcrModalVisible}
+            animationType="slide"
+            transparent={false}
+            onRequestClose={() => setFcrModalVisible(false)}
+          >
+            <View style={{ flex: 1, backgroundColor: "#F9FAFB" }}>
+              <View style={styles.modalHeader}>
+                <View style={styles.modalHeaderLeft}>
+                  <View style={styles.modalIconBg}>
+                    <MaterialCommunityIcons name="calculator-variant" size={24} color="#FFF" />
+                  </View>
+                  <View>
+                    <Text style={styles.modalHeaderTitle}>🐔 FCR & Profit Estimator</Text>
+                    <Text style={styles.modalHeaderSub}>Standard Client-Side Analysis</Text>
+                  </View>
+                </View>
+                <TouchableOpacity
+                  style={styles.modalCloseBtn}
+                  onPress={() => setFcrModalVisible(false)}
+                  activeOpacity={0.7}
+                >
+                  <Ionicons name="close" size={24} color="#4B5563" />
+                </TouchableOpacity>
+              </View>
+
+              <ScrollView contentContainerStyle={styles.modalScroll} keyboardShouldPersistTaps="handled">
+                {/* Display Real-time FCR and Rating */}
+                <SurfaceCard style={[styles.fcrResultCard, { borderColor: fcrCalculation.ratingColor }]}>
+                  <Text style={styles.calcResultLabel}>Calculated Feed Conversion Ratio (FCR)</Text>
+                  <Text style={[styles.calcResultVal, { color: fcrCalculation.ratingColor }]}>
+                    {fcrCalculation.fcrValue > 0 ? fcrCalculation.fcrValue.toFixed(3) : "0.000"}
+                  </Text>
+                  <View style={[styles.ratingBadge, { backgroundColor: fcrCalculation.ratingColor + "15" }]}>
+                    <Text style={[styles.ratingBadgeText, { color: fcrCalculation.ratingColor }]}>
+                      {fcrCalculation.rating}
+                    </Text>
+                  </View>
+                  <Text style={[styles.hindiRatingText, { color: fcrCalculation.ratingColor }]}>
+                    {fcrCalculation.ratingHindi}
+                  </Text>
+                </SurfaceCard>
+
+                {/* Inputs Group */}
+                <Text style={styles.modalSectionTitle}>Estimator Inputs</Text>
+                
+                {/* Feed Consumed */}
+                <View style={styles.inputCard}>
+                  <View style={styles.inputHeader}>
+                    <Text style={styles.inputLabel}>Total Feed Consumed</Text>
+                    <View style={styles.unitBtnRow}>
+                      <TouchableOpacity
+                        style={[styles.unitBtn, calcFeedUnit === "kg" && styles.activeUnitBtn]}
+                        onPress={() => setCalcFeedUnit("kg")}
+                      >
+                        <Text style={[styles.unitBtnText, calcFeedUnit === "kg" && styles.activeUnitText]}>KG</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        style={[styles.unitBtn, calcFeedUnit === "bags" && styles.activeUnitBtn]}
+                        onPress={() => setCalcFeedUnit("bags")}
+                      >
+                        <Text style={[styles.unitBtnText, calcFeedUnit === "bags" && styles.activeUnitText]}>Bags</Text>
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+                  <View style={styles.textInputRow}>
+                    <TextInput
+                      value={calcFeed}
+                      onChangeText={setCalcFeed}
+                      keyboardType="numeric"
+                      placeholder="e.g. 1500"
+                      style={styles.calcInput}
+                    />
+                    <Text style={styles.inputSuffix}>{calcFeedUnit === "bags" ? "Bags (50kg each)" : "KG"}</Text>
+                  </View>
+                </View>
+
+                {/* Total Birds */}
+                <View style={styles.inputCard}>
+                  <Text style={styles.inputLabel}>Total Live Birds</Text>
+                  <View style={styles.textInputRow}>
+                    <TouchableOpacity
+                      style={styles.stepBtn}
+                      onPress={() => setCalcBirds(prev => String(Math.max(1, (parseInt(prev) || 0) - 100)))}
+                    >
+                      <Text style={styles.stepBtnText}>-100</Text>
+                    </TouchableOpacity>
+                    <TextInput
+                      value={calcBirds}
+                      onChangeText={setCalcBirds}
+                      keyboardType="numeric"
+                      placeholder="e.g. 1000"
+                      style={[styles.calcInput, { textAlign: "center" }]}
+                    />
+                    <TouchableOpacity
+                      style={styles.stepBtn}
+                      onPress={() => setCalcBirds(prev => String((parseInt(prev) || 0) + 100))}
+                    >
+                      <Text style={styles.stepBtnText}>+100</Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+
+                {/* Average Bird Weight */}
+                <View style={styles.inputCard}>
+                  <Text style={styles.inputLabel}>Average Bird Weight (Grams)</Text>
+                  <View style={styles.textInputRow}>
+                    <TouchableOpacity
+                      style={styles.stepBtn}
+                      onPress={() => setCalcAvgWeight(prev => String(Math.max(50, (parseInt(prev) || 0) - 50)))}
+                    >
+                      <Text style={styles.stepBtnText}>-50g</Text>
+                    </TouchableOpacity>
+                    <TextInput
+                      value={calcAvgWeight}
+                      onChangeText={setCalcAvgWeight}
+                      keyboardType="numeric"
+                      placeholder="e.g. 1500"
+                      style={[styles.calcInput, { textAlign: "center" }]}
+                    />
+                    <TouchableOpacity
+                      style={styles.stepBtn}
+                      onPress={() => setCalcAvgWeight(prev => String((parseInt(prev) || 0) + 50))}
+                    >
+                      <Text style={styles.stepBtnText}>+50g</Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+
+                {/* Commercial Prices & Valuation */}
+                <Text style={styles.modalSectionTitle}>Flock Valuation Forecast</Text>
+                
+                <View style={styles.commercialGrid}>
+                  <View style={[styles.inputCard, { width: "48%" }]}>
+                    <Text style={styles.inputLabel}>Feed Price (₹/kg)</Text>
+                    <TextInput
+                      value={calcFeedPrice}
+                      onChangeText={setCalcFeedPrice}
+                      keyboardType="numeric"
+                      style={styles.calcInputCompact}
+                    />
+                  </View>
+                  <View style={[styles.inputCard, { width: "48%" }]}>
+                    <Text style={styles.inputLabel}>Bird Price (₹/kg)</Text>
+                    <TextInput
+                      value={calcBirdPrice}
+                      onChangeText={setCalcBirdPrice}
+                      keyboardType="numeric"
+                      style={styles.calcInputCompact}
+                    />
+                  </View>
+                </View>
+
+                {/* Valuation Results */}
+                <SurfaceCard style={styles.valuationCard}>
+                  <View style={styles.valuationRow}>
+                    <Text style={styles.valLabel}>Est. Total Live Weight:</Text>
+                    <Text style={styles.valText}>{fcrCalculation.totalWeightKg.toFixed(2)} kg</Text>
+                  </View>
+                  
+                  <View style={styles.valuationRow}>
+                    <Text style={styles.valLabel}>Est. Flock Market Value:</Text>
+                    <Text style={[styles.valText, { color: THEME_GREEN }]}>
+                      {formatINR(fcrCalculation.estimatedRevenue)}
+                    </Text>
+                  </View>
+
+                  <View style={styles.valuationRow}>
+                    <Text style={styles.valLabel}>Est. Total Feed Cost:</Text>
+                    <Text style={[styles.valText, { color: "#EF4444" }]}>
+                      {formatINR(fcrCalculation.estimatedFeedCost)}
+                    </Text>
+                  </View>
+                  
+                  <View style={styles.valDivider} />
+
+                  <View style={styles.valuationRow}>
+                    <Text style={[styles.valLabel, { fontWeight: "900", fontSize: 13 }]}>Est. Gross Profit Margin:</Text>
+                    <Text style={[styles.valText, { fontWeight: "900", fontSize: 15, color: fcrCalculation.grossMargin >= 0 ? THEME_GREEN : "#EF4444" }]}>
+                      {formatINR(fcrCalculation.grossMargin)}
+                    </Text>
+                  </View>
+                </SurfaceCard>
+
+                <View style={{ height: 40 }} />
+              </ScrollView>
+            </View>
+          </Modal>
         </View>
       </KeyboardAvoidingView>
     </View>
@@ -749,4 +1026,270 @@ const styles = StyleSheet.create({
   dataTextContent: { flex: 1 },
   dataRowTitle: { fontSize: 14, fontWeight: "800", color: "#111827" },
   dataRowSub: { fontSize: 11, fontWeight: "600", color: "#6B7280", marginTop: 2, lineHeight: 15 },
+
+  // FCR Estimator Tool Styles
+  fcrEstimatorCard: {
+    backgroundColor: "#FFFFFF",
+    borderColor: "#E5E7EB",
+    borderWidth: 1,
+    marginBottom: 16,
+    padding: 16,
+  },
+  fcrEstimatorHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 14,
+    gap: 12,
+  },
+  fcrIconBox: {
+    width: 46,
+    height: 46,
+    borderRadius: 10,
+    backgroundColor: THEME_GREEN,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  fcrTextContainer: {
+    flex: 1,
+  },
+  fcrTitle: {
+    fontSize: 14,
+    fontWeight: "800",
+    color: "#111827",
+  },
+  fcrSubtitle: {
+    fontSize: 11,
+    color: "#6B7280",
+    fontWeight: "600",
+    marginTop: 2,
+    lineHeight: 16,
+  },
+  fcrOpenBtn: {
+    height: 44,
+    borderRadius: 8,
+    backgroundColor: THEME_GREEN,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+  },
+  fcrOpenBtnText: {
+    color: "#FFF",
+    fontSize: 13,
+    fontWeight: "800",
+  },
+
+  // FCR Modal Styles
+  modalHeader: {
+    height: 64,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 16,
+    backgroundColor: "#FFFFFF",
+    borderBottomWidth: 1,
+    borderBottomColor: "#E5E7EB",
+  },
+  modalHeaderLeft: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+  },
+  modalIconBg: {
+    width: 36,
+    height: 36,
+    borderRadius: 8,
+    backgroundColor: THEME_GREEN,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  modalHeaderTitle: {
+    fontSize: 15,
+    fontWeight: "800",
+    color: "#111827",
+  },
+  modalHeaderSub: {
+    fontSize: 10,
+    color: "#6B7280",
+    fontWeight: "600",
+  },
+  modalCloseBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: "#F3F4F6",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  modalScroll: {
+    padding: 16,
+  },
+  fcrResultCard: {
+    backgroundColor: "#FFFFFF",
+    borderWidth: 2,
+    alignItems: "center",
+    paddingVertical: 20,
+    paddingHorizontal: 16,
+    marginBottom: 20,
+  },
+  calcResultLabel: {
+    fontSize: 11,
+    fontWeight: "800",
+    color: "#6B7280",
+    textTransform: "uppercase",
+    textAlign: "center",
+  },
+  calcResultVal: {
+    fontSize: 48,
+    fontWeight: "900",
+    marginVertical: 10,
+    letterSpacing: -1,
+  },
+  ratingBadge: {
+    paddingHorizontal: 12,
+    paddingVertical: 5,
+    borderRadius: 6,
+    marginBottom: 10,
+  },
+  ratingBadgeText: {
+    fontSize: 12,
+    fontWeight: "800",
+    textTransform: "uppercase",
+  },
+  hindiRatingText: {
+    fontSize: 12,
+    fontWeight: "700",
+    textAlign: "center",
+    lineHeight: 18,
+  },
+  modalSectionTitle: {
+    fontSize: 13,
+    fontWeight: "800",
+    color: "#4B5563",
+    textTransform: "uppercase",
+    marginBottom: 10,
+    marginTop: 4,
+    letterSpacing: 0.5,
+  },
+  inputCard: {
+    backgroundColor: "#FFFFFF",
+    borderColor: "#E5E7EB",
+    borderWidth: 1,
+    borderRadius: 8,
+    padding: 12,
+    marginBottom: 12,
+  },
+  inputHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 8,
+  },
+  inputLabel: {
+    fontSize: 12,
+    fontWeight: "700",
+    color: "#4B5563",
+  },
+  unitBtnRow: {
+    flexDirection: "row",
+    backgroundColor: "#F3F4F6",
+    borderRadius: 6,
+    padding: 2,
+  },
+  unitBtn: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 4,
+  },
+  activeUnitBtn: {
+    backgroundColor: THEME_GREEN,
+  },
+  unitBtnText: {
+    fontSize: 10,
+    fontWeight: "800",
+    color: "#4B5563",
+  },
+  activeUnitText: {
+    color: "#FFFFFF",
+  },
+  textInputRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+  },
+  calcInput: {
+    flex: 1,
+    height: 42,
+    borderColor: "#E5E7EB",
+    borderWidth: 1,
+    borderRadius: 6,
+    paddingHorizontal: 10,
+    fontSize: 15,
+    fontWeight: "700",
+    color: "#111827",
+    backgroundColor: "#FAFBFC",
+  },
+  inputSuffix: {
+    fontSize: 12,
+    fontWeight: "700",
+    color: "#6B7280",
+  },
+  stepBtn: {
+    backgroundColor: "#F3F4F6",
+    borderRadius: 6,
+    paddingHorizontal: 12,
+    height: 42,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  stepBtnText: {
+    fontSize: 11,
+    fontWeight: "800",
+    color: "#4B5563",
+  },
+  commercialGrid: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginBottom: 4,
+  },
+  calcInputCompact: {
+    height: 38,
+    borderColor: "#E5E7EB",
+    borderWidth: 1,
+    borderRadius: 6,
+    paddingHorizontal: 10,
+    fontSize: 14,
+    fontWeight: "700",
+    color: "#111827",
+    backgroundColor: "#FAFBFC",
+    marginTop: 8,
+  },
+  valuationCard: {
+    backgroundColor: "#FFFFFF",
+    borderColor: "#E5E7EB",
+    borderWidth: 1,
+    padding: 14,
+    marginBottom: 20,
+  },
+  valuationRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingVertical: 6,
+  },
+  valLabel: {
+    fontSize: 12,
+    fontWeight: "700",
+    color: "#6B7280",
+  },
+  valText: {
+    fontSize: 13,
+    fontWeight: "800",
+    color: "#111827",
+  },
+  valDivider: {
+    height: 1,
+    backgroundColor: "#E5E7EB",
+    marginVertical: 8,
+  },
 });
