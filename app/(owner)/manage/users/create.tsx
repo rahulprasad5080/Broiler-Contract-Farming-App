@@ -1,3 +1,5 @@
+import { ScreenState } from '@/components/ui/ScreenState';
+import { TopAppBar } from '@/components/ui/TopAppBar';
 import { Colors } from '@/constants/Colors';
 import { useAuth } from '@/context/AuthContext';
 import {
@@ -13,7 +15,6 @@ import {
   createUser,
   fetchUser,
   listAllFarms,
-  resetUserPassword,
   updateUser,
   updateUserStatus,
   type ApiFarm,
@@ -33,6 +34,7 @@ import {
   Platform,
   ScrollView,
   StyleSheet,
+  Switch,
   Text,
   TextInput,
   TouchableOpacity,
@@ -40,8 +42,6 @@ import {
 } from 'react-native';
 import Toast from 'react-native-toast-message';
 import { z } from 'zod';
-import { ScreenState } from '@/components/ui/ScreenState';
-import { TopAppBar } from '@/components/ui/TopAppBar';
 
 type Role = ApiRole;
 type PermissionKey = keyof ApiPermissionMatrix;
@@ -201,7 +201,8 @@ function selectedFarmLabel(farms: ApiFarm[], selectedIds: string[]) {
 export default function CreateUserScreen() {
   const router = useRouter();
   const params = useLocalSearchParams<{ userId?: string }>();
-  const { accessToken } = useAuth();
+  const { accessToken, user } = useAuth();
+  const isOwner = user?.role === 'OWNER';
   const userId = typeof params.userId === 'string' ? params.userId : undefined;
   const isEditMode = Boolean(userId);
 
@@ -217,6 +218,8 @@ export default function CreateUserScreen() {
   const [farmDropdownOpen, setFarmDropdownOpen] = useState(false);
   const [farmSearch, setFarmSearch] = useState('');
   const skipPermissionSyncRef = useRef(false);
+
+
 
   const {
     control,
@@ -346,7 +349,7 @@ export default function CreateUserScreen() {
     }
 
     const trimmedPassword = data.password.trim();
-    const passwordValidationError = !isEditMode || trimmedPassword
+    const passwordValidationError = !isEditMode
       ? getPasswordValidationError(trimmedPassword)
       : null;
 
@@ -374,13 +377,6 @@ export default function CreateUserScreen() {
         const desiredStatus = toApiStatus(data.status);
         if (updated.status !== desiredStatus) {
           await updateUserStatus(accessToken, userId, { status: desiredStatus });
-        }
-
-        if (trimmedPassword) {
-          await resetUserPassword(accessToken, userId, {
-            newPassword: trimmedPassword,
-            mustChangePassword: data.mustChangePassword,
-          });
         }
 
         showSuccessToast('User updated successfully.');
@@ -411,6 +407,24 @@ export default function CreateUserScreen() {
     }
   };
 
+  if (!isOwner) {
+    return (
+      <View style={styles.safeArea}>
+        <TopAppBar title={isEditMode ? 'Edit User' : 'Create User'} subtitle="Access Denied" />
+        <View style={styles.centerBox}>
+          <ScreenState
+            title="Permission Denied"
+            message="Only Owners are authorized to manage user accounts."
+            tone="error"
+            actionLabel="Go Back"
+            onAction={() => router.back()}
+            style={{ width: '100%' }}
+          />
+        </View>
+      </View>
+    );
+  }
+
   return (
     <View style={styles.safeArea}>
       <TopAppBar
@@ -422,6 +436,7 @@ export default function CreateUserScreen() {
         style={{ flex: 1 }}
       >
         <ScrollView
+          style={styles.pageContent}
           contentContainerStyle={styles.container}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
@@ -432,334 +447,336 @@ export default function CreateUserScreen() {
           ) : null}
 
           <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Basic Details</Text>
+            <Text style={styles.sectionTitle}>Basic Details</Text>
 
-          <Controller
-            control={control}
-            name="name"
-            render={({ field: { onChange, value } }) => (
-              <View style={styles.inputGroup}>
-                <Text style={styles.label}>Full Name</Text>
-                <View style={[styles.inputBox, formErrors.name && styles.inputError]}>
-                  <TextInput
-                    style={styles.textInput}
-                    placeholder="Enter name"
-                    placeholderTextColor={Colors.textSecondary}
-                    value={value}
-                    onChangeText={onChange}
-                  />
-                </View>
-                {formErrors.name ? <Text style={styles.fieldErrorText}>{formErrors.name.message}</Text> : null}
-              </View>
-            )}
-          />
-
-          <Controller
-            control={control}
-            name="email"
-            render={({ field: { onChange, value } }) => (
-              <View style={styles.inputGroup}>
-                <Text style={styles.label}>Email</Text>
-                <View style={[styles.inputBox, formErrors.email && styles.inputError]}>
-                  <TextInput
-                    style={styles.textInput}
-                    placeholder="Enter email"
-                    placeholderTextColor={Colors.textSecondary}
-                    value={value}
-                    autoCapitalize="none"
-                    keyboardType="email-address"
-                    onChangeText={onChange}
-                  />
-                </View>
-                {formErrors.email ? <Text style={styles.fieldErrorText}>{formErrors.email.message}</Text> : null}
-              </View>
-            )}
-          />
-
-          <Controller
-            control={control}
-            name="phone"
-            render={({ field: { onChange, value } }) => (
-              <View style={styles.inputGroup}>
-                <Text style={styles.label}>Phone</Text>
-                <View style={[styles.inputBox, formErrors.phone && styles.inputError]}>
-                  <TextInput
-                    style={styles.textInput}
-                    placeholder="10 digit phone number"
-                    placeholderTextColor={Colors.textSecondary}
-                    value={value}
-                    keyboardType="phone-pad"
-                    maxLength={10}
-                    onChangeText={onChange}
-                  />
-                </View>
-                {formErrors.phone ? <Text style={styles.fieldErrorText}>{formErrors.phone.message}</Text> : null}
-              </View>
-            )}
-          />
-
-          <Controller
-            control={control}
-            name="password"
-            render={({ field: { onChange, value } }) => (
-              <View style={styles.inputGroup}>
-                <Text style={styles.label}>{isEditMode ? 'New Password (optional)' : 'Temporary Password'}</Text>
-                <View style={[styles.inputBox, styles.passwordRow, passwordError && styles.inputError]}>
-                  <TextInput
-                    style={[styles.textInput, { flex: 1 }]}
-                    placeholder={isEditMode ? 'Leave blank to keep current password' : 'Enter password'}
-                    placeholderTextColor={Colors.textSecondary}
-                    value={value}
-                    onChangeText={(nextValue) => {
-                      setPasswordError(null);
-                      onChange(nextValue);
-                    }}
-                    secureTextEntry={!showPassword}
-                  />
-                  <TouchableOpacity onPress={() => setShowPassword((prev) => !prev)} style={styles.iconButton}>
-                    <Ionicons
-                      name={showPassword ? 'eye-off-outline' : 'eye-outline'}
-                      size={20}
-                      color={Colors.textSecondary}
+            <Controller
+              control={control}
+              name="name"
+              render={({ field: { onChange, value } }) => (
+                <View style={styles.inputGroup}>
+                  <Text style={styles.label}>Full Name</Text>
+                  <View style={[styles.inputBox, formErrors.name && styles.inputError]}>
+                    <TextInput
+                      style={styles.textInput}
+                      placeholder="Enter name"
+                      placeholderTextColor={Colors.textSecondary}
+                      value={value}
+                      onChangeText={onChange}
                     />
-                  </TouchableOpacity>
+                  </View>
+                  {formErrors.name ? <Text style={styles.fieldErrorText}>{formErrors.name.message}</Text> : null}
                 </View>
-                {passwordError ? (
-                  <Text style={styles.fieldErrorText}>{passwordError}</Text>
-                ) : (
-                  <Text style={styles.helperText}>{PASSWORD_REQUIREMENT_TEXT}</Text>
+              )}
+            />
+
+            <Controller
+              control={control}
+              name="email"
+              render={({ field: { onChange, value } }) => (
+                <View style={styles.inputGroup}>
+                  <Text style={styles.label}>Email</Text>
+                  <View style={[styles.inputBox, formErrors.email && styles.inputError]}>
+                    <TextInput
+                      style={styles.textInput}
+                      placeholder="Enter email"
+                      placeholderTextColor={Colors.textSecondary}
+                      value={value}
+                      autoCapitalize="none"
+                      keyboardType="email-address"
+                      onChangeText={onChange}
+                    />
+                  </View>
+                  {formErrors.email ? <Text style={styles.fieldErrorText}>{formErrors.email.message}</Text> : null}
+                </View>
+              )}
+            />
+
+            <Controller
+              control={control}
+              name="phone"
+              render={({ field: { onChange, value } }) => (
+                <View style={styles.inputGroup}>
+                  <Text style={styles.label}>Phone</Text>
+                  <View style={[styles.inputBox, formErrors.phone && styles.inputError]}>
+                    <TextInput
+                      style={styles.textInput}
+                      placeholder="10 digit phone number"
+                      placeholderTextColor={Colors.textSecondary}
+                      value={value}
+                      keyboardType="phone-pad"
+                      maxLength={10}
+                      onChangeText={onChange}
+                    />
+                  </View>
+                  {formErrors.phone ? <Text style={styles.fieldErrorText}>{formErrors.phone.message}</Text> : null}
+                </View>
+              )}
+            />
+
+            {!isEditMode ? (
+              <Controller
+                control={control}
+                name="password"
+                render={({ field: { onChange, value } }) => (
+                  <View style={styles.inputGroup}>
+                    <Text style={styles.label}>Temporary Password</Text>
+                    <View style={[styles.inputBox, styles.passwordRow, passwordError && styles.inputError]}>
+                      <TextInput
+                        style={[styles.textInput, { flex: 1 }]}
+                        placeholder="Enter password"
+                        placeholderTextColor={Colors.textSecondary}
+                        value={value}
+                        onChangeText={(nextValue) => {
+                          setPasswordError(null);
+                          onChange(nextValue);
+                        }}
+                        secureTextEntry={!showPassword}
+                      />
+                      <TouchableOpacity onPress={() => setShowPassword((prev) => !prev)} style={styles.iconButton}>
+                        <Ionicons
+                          name={showPassword ? 'eye-off-outline' : 'eye-outline'}
+                          size={20}
+                          color={Colors.textSecondary}
+                        />
+                      </TouchableOpacity>
+                    </View>
+                    {passwordError ? (
+                      <Text style={styles.fieldErrorText}>{passwordError}</Text>
+                    ) : (
+                      <Text style={styles.helperText}>{PASSWORD_REQUIREMENT_TEXT}</Text>
+                    )}
+                  </View>
                 )}
-              </View>
-            )}
-          />
-        </View>
-
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Role & Farms</Text>
-
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Role</Text>
-            <TouchableOpacity
-              style={styles.dropdownButton}
-              onPress={() => {
-                setFarmDropdownOpen(false);
-                setStatusDropdownOpen(false);
-                setRoleDropdownOpen((prev) => !prev);
-              }}
-              activeOpacity={0.85}
-            >
-              <Text style={styles.dropdownText}>{ROLE_LABELS[selectedRole]}</Text>
-              <Ionicons
-                name={roleDropdownOpen ? 'chevron-up' : 'chevron-down'}
-                size={18}
-                color={Colors.textSecondary}
               />
-            </TouchableOpacity>
-            {roleDropdownOpen ? (
-              <View style={styles.dropdownList}>
-                {ROLE_OPTIONS.map((role) => (
-                  <TouchableOpacity
-                    key={role}
-                    style={[styles.dropdownItem, selectedRole === role && styles.dropdownItemActive]}
-                    onPress={() => {
-                      setValue('role', role, { shouldDirty: true, shouldValidate: true });
-                      setRoleDropdownOpen(false);
-                    }}
-                    activeOpacity={0.85}
-                  >
-                    <Text style={styles.dropdownItemText}>{ROLE_LABELS[role]}</Text>
-                    {selectedRole === role ? <Ionicons name="checkmark" size={18} color={Colors.primary} /> : null}
-                  </TouchableOpacity>
-                ))}
-              </View>
             ) : null}
           </View>
 
-          {isEditMode ? (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Role & Farms</Text>
+
             <View style={styles.inputGroup}>
-              <Text style={styles.label}>Status</Text>
+              <Text style={styles.label}>Role</Text>
               <TouchableOpacity
                 style={styles.dropdownButton}
                 onPress={() => {
-                  setRoleDropdownOpen(false);
                   setFarmDropdownOpen(false);
-                  setStatusDropdownOpen((prev) => !prev);
+                  setStatusDropdownOpen(false);
+                  setRoleDropdownOpen((prev) => !prev);
                 }}
                 activeOpacity={0.85}
               >
-                <Text style={styles.dropdownText}>{selectedStatus}</Text>
+                <Text style={styles.dropdownText}>{ROLE_LABELS[selectedRole]}</Text>
                 <Ionicons
-                  name={statusDropdownOpen ? 'chevron-up' : 'chevron-down'}
+                  name={roleDropdownOpen ? 'chevron-up' : 'chevron-down'}
                   size={18}
                   color={Colors.textSecondary}
                 />
               </TouchableOpacity>
-              {statusDropdownOpen ? (
+              {roleDropdownOpen ? (
                 <View style={styles.dropdownList}>
-                  {STATUS_OPTIONS.map((status) => (
+                  {ROLE_OPTIONS.map((role) => (
                     <TouchableOpacity
-                      key={status}
-                      style={[styles.dropdownItem, selectedStatus === status && styles.dropdownItemActive]}
+                      key={role}
+                      style={[styles.dropdownItem, selectedRole === role && styles.dropdownItemActive]}
                       onPress={() => {
-                        setValue('status', status, { shouldDirty: true, shouldValidate: true });
-                        setStatusDropdownOpen(false);
+                        setValue('role', role, { shouldDirty: true, shouldValidate: true });
+                        setRoleDropdownOpen(false);
                       }}
                       activeOpacity={0.85}
                     >
-                      <Text style={styles.dropdownItemText}>{status}</Text>
-                      {selectedStatus === status ? (
-                        <Ionicons name="checkmark" size={18} color={Colors.primary} />
-                      ) : null}
+                      <Text style={styles.dropdownItemText}>{ROLE_LABELS[role]}</Text>
+                      {selectedRole === role ? <Ionicons name="checkmark" size={18} color={Colors.primary} /> : null}
                     </TouchableOpacity>
                   ))}
                 </View>
               ) : null}
             </View>
-          ) : null}
 
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Assigned Farms</Text>
-            <TouchableOpacity
-              style={styles.dropdownButton}
-              onPress={() => {
-                setRoleDropdownOpen(false);
-                setStatusDropdownOpen(false);
-                setFarmDropdownOpen((prev) => {
-                  const nextOpen = !prev;
-                  if (nextOpen) setFarmSearch('');
-                  return nextOpen;
-                });
-              }}
-              activeOpacity={0.85}
-            >
-              <Text
-                style={[
-                  styles.dropdownText,
-                  !selectedFarmIds.length && { color: Colors.textSecondary },
-                ]}
-              >
-                {selectedFarmLabel(farms, selectedFarmIds)}
-              </Text>
-              <Ionicons
-                name={farmDropdownOpen ? 'chevron-up' : 'chevron-down'}
-                size={18}
-                color={Colors.textSecondary}
-              />
-            </TouchableOpacity>
-
-            {farmDropdownOpen ? (
-              <View style={[styles.dropdownList, styles.farmDropdownList]}>
-                {isLoadingFarms ? (
-                  <View style={styles.dropdownEmpty}>
-                    <ActivityIndicator color={Colors.primary} />
-                    <Text style={styles.helperText}>Loading farms...</Text>
-                  </View>
-                ) : farms.length ? (
-                  <>
-                    <View style={styles.farmSearchBox}>
-                      <Ionicons name="search-outline" size={17} color={Colors.textSecondary} />
-                      <TextInput
-                        style={styles.farmSearchInput}
-                        value={farmSearch}
-                        onChangeText={setFarmSearch}
-                        placeholder="Search farms"
-                        placeholderTextColor={Colors.textSecondary}
-                        autoCapitalize="none"
-                        autoCorrect={false}
-                      />
-                    </View>
-                    <ScrollView nestedScrollEnabled showsVerticalScrollIndicator={false}>
-                      {filteredFarms.map((farm) => {
-                        const isSelected = selectedFarmIds.includes(farm.id);
-
-                        return (
-                          <TouchableOpacity
-                            key={farm.id}
-                            style={[styles.dropdownItem, isSelected && styles.dropdownItemActive]}
-                            onPress={() => toggleFarm(farm.id)}
-                            activeOpacity={0.85}
-                          >
-                            <Ionicons
-                              name={isSelected ? 'checkbox' : 'square-outline'}
-                              size={20}
-                              color={isSelected ? Colors.primary : Colors.textSecondary}
-                            />
-                            <View style={styles.dropdownTextBlock}>
-                              <Text style={styles.dropdownItemText}>{farm.name}</Text>
-                              {farm.code ? <Text style={styles.dropdownItemMeta}>{farm.code}</Text> : null}
-                            </View>
-                          </TouchableOpacity>
-                        );
-                      })}
-                      {!filteredFarms.length ? (
-                        <View style={styles.dropdownEmpty}>
-                          <Text style={styles.helperText}>No farms match your search.</Text>
-                        </View>
-                      ) : null}
-                    </ScrollView>
-                    <View style={styles.dropdownFooter}>
-                      <Text style={styles.dropdownFooterText}>{selectedFarmIds.length} selected</Text>
-                      <TouchableOpacity style={styles.dropdownDoneButton} onPress={() => setFarmDropdownOpen(false)}>
-                        <Text style={styles.dropdownDoneText}>Done</Text>
-                      </TouchableOpacity>
-                    </View>
-                  </>
-                ) : (
-                  <View style={styles.dropdownEmpty}>
-                    <Text style={styles.helperText}>No farms available.</Text>
-                  </View>
-                )}
-              </View>
-            ) : null}
-          </View>
-        </View>
-
-        <View style={styles.section}>
-          <View style={styles.sectionHeaderRow}>
-            <Text style={styles.sectionTitle}>Permissions</Text>
-            <Text style={styles.permissionCount}>{activePermissionCount}/{PERMISSION_LABELS.length}</Text>
-          </View>
-
-          <View style={styles.permissionsGrid}>
-            {PERMISSION_LABELS.map((permission) => {
-              const isEnabled = permissions[permission.key];
-
-              return (
+            {isEditMode ? (
+              <View style={styles.inputGroup}>
+                <Text style={styles.label}>Status</Text>
                 <TouchableOpacity
-                  key={permission.key}
-                  style={[styles.permissionItem, isEnabled && styles.permissionItemActive]}
-                  onPress={() => togglePermission(permission.key)}
+                  style={styles.dropdownButton}
+                  onPress={() => {
+                    setRoleDropdownOpen(false);
+                    setFarmDropdownOpen(false);
+                    setStatusDropdownOpen((prev) => !prev);
+                  }}
                   activeOpacity={0.85}
                 >
+                  <Text style={styles.dropdownText}>{selectedStatus}</Text>
                   <Ionicons
-                    name={isEnabled ? 'checkbox' : 'square-outline'}
-                    size={20}
-                    color={isEnabled ? Colors.primary : Colors.textSecondary}
+                    name={statusDropdownOpen ? 'chevron-up' : 'chevron-down'}
+                    size={18}
+                    color={Colors.textSecondary}
                   />
-                  <Text style={styles.permissionLabel}>{permission.label}</Text>
                 </TouchableOpacity>
-              );
-            })}
-          </View>
-        </View>
+                {statusDropdownOpen ? (
+                  <View style={styles.dropdownList}>
+                    {STATUS_OPTIONS.map((status) => (
+                      <TouchableOpacity
+                        key={status}
+                        style={[styles.dropdownItem, selectedStatus === status && styles.dropdownItemActive]}
+                        onPress={() => {
+                          setValue('status', status, { shouldDirty: true, shouldValidate: true });
+                          setStatusDropdownOpen(false);
+                        }}
+                        activeOpacity={0.85}
+                      >
+                        <Text style={styles.dropdownItemText}>{status}</Text>
+                        {selectedStatus === status ? (
+                          <Ionicons name="checkmark" size={18} color={Colors.primary} />
+                        ) : null}
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                ) : null}
+              </View>
+            ) : null}
 
-        <View style={styles.section}>
-          <TouchableOpacity
-            style={styles.switchRow}
-            onPress={() => setValue('mustChangePassword', !mustChangePassword, { shouldDirty: true })}
-            activeOpacity={0.85}
-          >
-            <View style={styles.switchTextBlock}>
-              <Text style={styles.switchTitle}>Must change password</Text>
-              <Text style={styles.switchSubtitle}>User will be asked to change password on first login.</Text>
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Assigned Farms</Text>
+              <TouchableOpacity
+                style={styles.dropdownButton}
+                onPress={() => {
+                  setRoleDropdownOpen(false);
+                  setStatusDropdownOpen(false);
+                  setFarmDropdownOpen((prev) => {
+                    const nextOpen = !prev;
+                    if (nextOpen) setFarmSearch('');
+                    return nextOpen;
+                  });
+                }}
+                activeOpacity={0.85}
+              >
+                <Text
+                  style={[
+                    styles.dropdownText,
+                    !selectedFarmIds.length && { color: Colors.textSecondary },
+                  ]}
+                >
+                  {selectedFarmLabel(farms, selectedFarmIds)}
+                </Text>
+                <Ionicons
+                  name={farmDropdownOpen ? 'chevron-up' : 'chevron-down'}
+                  size={18}
+                  color={Colors.textSecondary}
+                />
+              </TouchableOpacity>
+
+              {farmDropdownOpen ? (
+                <View style={[styles.dropdownList, styles.farmDropdownList]}>
+                  {isLoadingFarms ? (
+                    <View style={styles.dropdownEmpty}>
+                      <ActivityIndicator color={Colors.primary} />
+                      <Text style={styles.helperText}>Loading farms...</Text>
+                    </View>
+                  ) : farms.length ? (
+                    <>
+                      <View style={styles.farmSearchBox}>
+                        <Ionicons name="search-outline" size={17} color={Colors.textSecondary} />
+                        <TextInput
+                          style={styles.farmSearchInput}
+                          value={farmSearch}
+                          onChangeText={setFarmSearch}
+                          placeholder="Search farms"
+                          placeholderTextColor={Colors.textSecondary}
+                          autoCapitalize="none"
+                          autoCorrect={false}
+                        />
+                      </View>
+                      <ScrollView nestedScrollEnabled showsVerticalScrollIndicator={false}>
+                        {filteredFarms.map((farm) => {
+                          const isSelected = selectedFarmIds.includes(farm.id);
+
+                          return (
+                            <TouchableOpacity
+                              key={farm.id}
+                              style={[styles.dropdownItem, isSelected && styles.dropdownItemActive]}
+                              onPress={() => toggleFarm(farm.id)}
+                              activeOpacity={0.85}
+                            >
+                              <Ionicons
+                                name={isSelected ? 'checkbox' : 'square-outline'}
+                                size={20}
+                                color={isSelected ? Colors.primary : Colors.textSecondary}
+                              />
+                              <View style={styles.dropdownTextBlock}>
+                                <Text style={styles.dropdownItemText}>{farm.name}</Text>
+                                {farm.code ? <Text style={styles.dropdownItemMeta}>{farm.code}</Text> : null}
+                              </View>
+                            </TouchableOpacity>
+                          );
+                        })}
+                        {!filteredFarms.length ? (
+                          <View style={styles.dropdownEmpty}>
+                            <Text style={styles.helperText}>No farms match your search.</Text>
+                          </View>
+                        ) : null}
+                      </ScrollView>
+                      <View style={styles.dropdownFooter}>
+                        <Text style={styles.dropdownFooterText}>{selectedFarmIds.length} selected</Text>
+                        <TouchableOpacity style={styles.dropdownDoneButton} onPress={() => setFarmDropdownOpen(false)}>
+                          <Text style={styles.dropdownDoneText}>Done</Text>
+                        </TouchableOpacity>
+                      </View>
+                    </>
+                  ) : (
+                    <View style={styles.dropdownEmpty}>
+                      <Text style={styles.helperText}>No farms available.</Text>
+                    </View>
+                  )}
+                </View>
+              ) : null}
             </View>
-            <Ionicons
-              name={mustChangePassword ? 'toggle' : 'toggle-outline'}
-              size={34}
-              color={mustChangePassword ? Colors.primary : Colors.textSecondary}
-            />
-          </TouchableOpacity>
           </View>
+
+          <View style={styles.section}>
+            <View style={styles.sectionHeaderRow}>
+              <Text style={styles.sectionTitle}>Permissions</Text>
+              <Text style={styles.permissionCount}>{activePermissionCount}/{PERMISSION_LABELS.length}</Text>
+            </View>
+
+            <View style={styles.permissionsGrid}>
+              {PERMISSION_LABELS.map((permission) => {
+                const isEnabled = permissions[permission.key];
+
+                return (
+                  <TouchableOpacity
+                    key={permission.key}
+                    style={[styles.permissionItem, isEnabled && styles.permissionItemActive]}
+                    onPress={() => togglePermission(permission.key)}
+                    activeOpacity={0.85}
+                  >
+                    <Ionicons
+                      name={isEnabled ? 'checkbox' : 'square-outline'}
+                      size={20}
+                      color={isEnabled ? Colors.primary : Colors.textSecondary}
+                    />
+                    <Text style={styles.permissionLabel}>{permission.label}</Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          </View>
+
+          <View style={styles.section}>
+            <View style={styles.switchRow}>
+              <View style={styles.switchTextBlock}>
+                <Text style={styles.switchTitle}>Must change password</Text>
+                <Text style={styles.switchSubtitle}>User will be asked to change password on first login.</Text>
+              </View>
+              <Switch
+                value={mustChangePassword}
+                onValueChange={(val) => setValue('mustChangePassword', val, { shouldDirty: true })}
+                trackColor={{ false: '#D1D5DB', true: '#A7F3D0' }}
+                thumbColor={mustChangePassword ? '#10B981' : '#F3F4F6'}
+                ios_backgroundColor="#D1D5DB"
+              />
+            </View>
+          </View>
+
+
 
           <TouchableOpacity
             style={[styles.submitButton, isSubmitting && styles.buttonDisabled]}
@@ -1031,5 +1048,25 @@ const styles = StyleSheet.create({
   },
   buttonDisabled: {
     opacity: 0.75,
+  },
+  centerBox: {
+    flex: 1,
+    backgroundColor: '#F9FAFB',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 24,
+  },
+  resetPasswordBtn: {
+    backgroundColor: '#DC2626',
+    minHeight: 46,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 18,
+  },
+  resetPasswordBtnText: {
+    color: '#FFF',
+    fontSize: 14,
+    fontWeight: '800',
   },
 });

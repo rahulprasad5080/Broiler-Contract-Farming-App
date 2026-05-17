@@ -8,7 +8,6 @@ import { useAuth } from '@/context/AuthContext';
 import {
   listAllFarms,
   listUsers,
-  updateUserStatus,
   type ApiFarm,
   type ApiRole,
   type ApiUser,
@@ -16,7 +15,7 @@ import {
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import { useRouter } from 'expo-router';
-import React, { useCallback, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   FlatList,
@@ -92,8 +91,12 @@ function toUserCard(user: ApiUser, farms: ApiFarm[]): UserCard {
 }
 
 export default function UserManagementScreen() {
-  const { accessToken } = useAuth();
+  const { accessToken, user } = useAuth();
   const router = useRouter();
+
+  const isOwner = user?.role === 'OWNER';
+  const isSupervisor = user?.role === 'SUPERVISOR';
+  const isAllowed = isOwner || isSupervisor;
 
   const [users, setUsers] = useState<UserCard[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -103,7 +106,6 @@ export default function UserManagementScreen() {
   const [totalPages, setTotalPages] = useState(1);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
-  const [savingUserIds, setSavingUserIds] = useState<Set<string>>(new Set());
   const farmsRef = useRef<ApiFarm[]>([]);
   const usersRequestIdRef = useRef(0);
 
@@ -113,6 +115,11 @@ export default function UserManagementScreen() {
   ) => {
     if (!accessToken) {
       setError('Your session has expired. Please sign in again.');
+      setIsLoading(false);
+      return;
+    }
+
+    if (!isAllowed) {
       setIsLoading(false);
       return;
     }
@@ -148,15 +155,15 @@ export default function UserManagementScreen() {
         farmsRef.current = farmsResponse.data;
       }
 
-      const mappedUsers = usersResponse.data.map((user) => toUserCard(user, farmsResponse.data));
+      const mappedUsers = usersResponse.data.map((item) => toUserCard(item, farmsResponse.data));
 
       setUsers((prev) => {
         if (!options.append) {
           return mappedUsers;
         }
 
-        const existingIds = new Set(prev.map((user) => user.id));
-        return [...prev, ...mappedUsers.filter((user) => !existingIds.has(user.id))];
+        const existingIds = new Set(prev.map((item) => item.id));
+        return [...prev, ...mappedUsers.filter((item) => !existingIds.has(item.id))];
       });
       setCurrentPage(usersResponse.meta.page || pageToLoad);
       setTotalPages(Math.max(1, usersResponse.meta.totalPages || 1));
@@ -171,19 +178,28 @@ export default function UserManagementScreen() {
         setIsRefreshing(false);
       }
     }
-  }, [accessToken, userSearch]);
+  }, [accessToken, userSearch, isAllowed]);
 
   useFocusEffect(
     useCallback(() => {
-      const timeout = setTimeout(() => {
+      if (isAllowed) {
         loadUsersPage(1);
-      }, userSearch.trim() ? 350 : 0);
-
-      return () => clearTimeout(timeout);
-    }, [loadUsersPage, userSearch]),
+      }
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [accessToken, isAllowed])
   );
 
+  useEffect(() => {
+    if (!accessToken || !isAllowed) return;
+    const delayDebounce = setTimeout(() => {
+      loadUsersPage(1);
+    }, 350);
+
+    return () => clearTimeout(delayDebounce);
+  }, [userSearch, accessToken, isAllowed]);
+
   const openEditUser = (userId: string) => {
+    if (!isOwner) return;
     router.navigate({
       pathname: '/(owner)/manage/users/create',
       params: { userId },
@@ -202,59 +218,6 @@ export default function UserManagementScreen() {
     loadUsersPage(1, { refreshing: true });
   };
   
-  const toggleUserStatusAction = async (user: UserCard, active: boolean) => {
-    if (!accessToken || savingUserIds.has(user.id)) return;
-    
-    // Add to saving set
-    setSavingUserIds((prev) => new Set(prev).add(user.id));
-    
-    try {
-      const nextApiStatus = active ? 'ACTIVE' : 'DISABLED';
-      const nextLocalStatus = active ? 'Active' : 'Inactive';
-      
-      // Optimistic Update
-      setUsers((prev) =>
-        prev.map((item) =>
-          item.id === user.id ? { ...item, status: nextLocalStatus } : item
-        )
-      );
-
-      const updated = await updateUserStatus(accessToken, user.id, {
-        status: nextApiStatus,
-      });
-      
-      setUsers((prev) =>
-        prev.map((item) =>
-          item.id === updated.id ? toUserCard(updated, farmsRef.current) : item
-        )
-      );
-      
-      showSuccessToast(
-        `${updated.name} is now ${updated.status === 'ACTIVE' ? 'active' : 'inactive'}.`,
-        'Status Updated'
-      );
-    } catch (err) {
-      // Rollback on error
-      setUsers((prev) =>
-        prev.map((item) =>
-          item.id === user.id ? user : item
-        )
-      );
-      
-      showRequestErrorToast(err, {
-        title: 'Status update failed',
-        fallbackMessage: 'Failed to update user status.',
-      });
-    } finally {
-      // Remove from saving set
-      setSavingUserIds((prev) => {
-        const next = new Set(prev);
-        next.delete(user.id);
-        return next;
-      });
-    }
-  };
-
   const initials = (name: string) =>
     name
       .split(' ')
@@ -275,7 +238,11 @@ export default function UserManagementScreen() {
     const statusBg = isInactive ? '#FEF2F2' : isInvited ? '#FFFBEB' : '#ECFDF5';
 
     return (
-      <View style={styles.userCard}>
+      <TouchableOpacity
+        style={styles.userCard}
+        onPress={() => router.navigate(`/(owner)/manage/users/${user.id}` as any)}
+        activeOpacity={0.85}
+      >
         <View style={styles.cardHeader}>
           <View style={[styles.avatar, isInactive && styles.avatarInactive]}>
             {user.hasAvatar ? (
@@ -301,14 +268,10 @@ export default function UserManagementScreen() {
           </View>
 
           <View style={styles.cardActions}>
-            <Switch
-              value={user.status === 'Active'}
-              onValueChange={(val) => toggleUserStatusAction(user, val)}
-              disabled={savingUserIds.has(user.id) || isInvited}
-              trackColor={{ false: '#D1D5DB', true: '#A7F3D0' }}
-              thumbColor={user.status === 'Active' ? '#10B981' : '#F3F4F6'}
-              ios_backgroundColor="#D1D5DB"
-            />
+            <View style={[styles.statusPill, { backgroundColor: statusBg, marginVertical: 0 }]}>
+              <View style={[styles.statusDot, { backgroundColor: statusColor }]} />
+              <Text style={[styles.statusPillText, { color: statusColor }]}>{user.status}</Text>
+            </View>
           </View>
         </View>
 
@@ -319,23 +282,39 @@ export default function UserManagementScreen() {
           </View>
           
           <View style={styles.footerRight}>
-            <View style={[styles.statusPill, { backgroundColor: statusBg }]}>
-              <View style={[styles.statusDot, { backgroundColor: statusColor }]} />
-              <Text style={[styles.statusPillText, { color: statusColor }]}>{user.status}</Text>
-            </View>
-            
-            <TouchableOpacity 
-              style={styles.editBtnCircle} 
-              onPress={() => openEditUser(user.id)}
-              activeOpacity={0.7}
-            >
-              <MaterialCommunityIcons name="pencil" size={16} color="#0B5C36" />
-            </TouchableOpacity>
+            {isOwner ? (
+              <TouchableOpacity
+                style={styles.editBtnCircle}
+                onPress={() => openEditUser(user.id)}
+                activeOpacity={0.7}
+              >
+                <MaterialCommunityIcons name="pencil" size={16} color="#0B5C36" />
+              </TouchableOpacity>
+            ) : null}
           </View>
+        </View>
+      </TouchableOpacity>
+    );
+  };
+
+  if (!isAllowed) {
+    return (
+      <View style={styles.safeArea}>
+        <TopAppBar title="User Management" subtitle="Access Denied" />
+        <View style={styles.centerBox}>
+          <ScreenState
+            title="Permission Denied"
+            message="You do not have permission to view user management records."
+            icon="lock-closed-outline"
+            tone="error"
+            actionLabel="Go Back"
+            onAction={() => router.back()}
+            style={{ width: '100%' }}
+          />
         </View>
       </View>
     );
-  };
+  }
 
   return (
     <View style={styles.safeArea}>
@@ -344,9 +323,11 @@ export default function UserManagementScreen() {
           title="User Management"
           subtitle="Roles, farms, status, and access"
           right={
-            <TouchableOpacity onPress={() => router.navigate('/(owner)/manage/users/create')}>
-              <Ionicons name="add" size={28} color="#FFF" />
-            </TouchableOpacity>
+            isOwner ? (
+              <TouchableOpacity onPress={() => router.navigate('/(owner)/manage/users/create')}>
+                <Ionicons name="add" size={28} color="#FFF" />
+              </TouchableOpacity>
+            ) : null
           }
         />
         <KeyboardAvoidingView
@@ -696,4 +677,11 @@ const styles = StyleSheet.create({
   },
   buttonDisabled: { opacity: 0.75 },
   submitBtnText: { color: '#FFF', fontSize: 15, fontWeight: '700' },
+  centerBox: {
+    flex: 1,
+    backgroundColor: '#F9FAFB',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 24,
+  },
 });

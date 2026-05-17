@@ -197,6 +197,7 @@ function getPermissionsForRole(role: UserRole): Permission[] {
       "manage:inventory",
       "manage:catalog",
       "manage:traders",
+      "manage:users",
     ];
   }
 
@@ -237,6 +238,7 @@ function getStructuralPermissionsForRole(role: UserRole): Permission[] {
       "review:entries",
       "manage:catalog",
       "manage:traders",
+      "manage:users",
     ];
   }
 
