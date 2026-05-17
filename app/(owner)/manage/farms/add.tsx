@@ -2,9 +2,9 @@ import { Colors } from '@/constants/Colors';
 import { Layout } from '@/constants/Layout';
 import { useAuth } from '@/context/AuthContext';
 import { useFormPersistence } from '@/hooks/useFormPersistence';
-import { createFarm, listAllUsers, type ApiUser } from '@/services/managementApi';
+import { createFarm, fetchFarm, listAllUsers, updateFarm, type ApiUser } from '@/services/managementApi';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
@@ -89,6 +89,7 @@ const farmSchema = z.object({
   primaryFarmerId: z.string().optional(),
   supervisorId: z.string().optional(),
   assignmentUserIds: z.array(z.string()).optional(),
+  status: z.enum(['ACTIVE', 'INACTIVE']).optional(),
 });
 
 type FarmFormData = z.infer<typeof farmSchema>;
@@ -105,11 +106,27 @@ const FARM_FORM_DEFAULTS: FarmFormData = {
   primaryFarmerId: '',
   supervisorId: '',
   assignmentUserIds: [],
+  status: 'ACTIVE',
 };
 
 export default function AddFarmScreen() {
   const router = useRouter();
-  const { accessToken } = useAuth();
+  const { id: farmId } = useLocalSearchParams<{ id?: string }>();
+  const isEditMode = Boolean(farmId);
+  const { accessToken, hasPermission } = useAuth();
+  const canManageFarms = hasPermission('manage:farms');
+
+  useEffect(() => {
+    if (!canManageFarms) {
+      Toast.show({
+        type: 'error',
+        text1: 'Permission Denied',
+        text2: 'You do not have permission to add or edit farms.',
+        position: 'bottom',
+      });
+      router.back();
+    }
+  }, [canManageFarms, router]);
 
   const [users, setUsers] = useState<FarmUserOption[]>([]);
   const [showAssignmentPicker, setShowAssignmentPicker] = useState(false);
@@ -136,9 +153,43 @@ export default function AddFarmScreen() {
     FARM_FORM_DEFAULTS,
   );
 
+  // Load farm details if in edit mode
+  useEffect(() => {
+    const loadFarmDetails = async () => {
+      if (!farmId || !accessToken) return;
+      setIsLoading(true);
+      setError(null);
+      try {
+        const farm = await fetchFarm(accessToken, farmId);
+        reset({
+          name: farm.name,
+          code: farm.code,
+          location: farm.location ?? '',
+          village: farm.village ?? '',
+          district: farm.district ?? '',
+          state: farm.state ?? '',
+          capacity: farm.capacity?.toString() ?? '',
+          notes: farm.notes ?? '',
+          primaryFarmerId: farm.primaryFarmerId ?? '',
+          supervisorId: farm.supervisorId ?? '',
+          assignmentUserIds: farm.assignments.map((assignment) => assignment.userId),
+          status: farm.status ?? 'ACTIVE',
+        });
+      } catch (err) {
+        setError(getRequestErrorMessage(err, 'Failed to load farm details.'));
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    if (isEditMode) {
+      loadFarmDetails();
+    }
+  }, [farmId, accessToken, isEditMode, reset]);
+
   // Show and fade out the draft-restored banner
   useEffect(() => {
-    if (!isRestored) return;
+    if (!isRestored || isEditMode) return;
     setShowDraftBanner(true);
     draftBannerOpacity.setValue(0);
     const animation = Animated.sequence([
@@ -154,7 +205,7 @@ export default function AddFarmScreen() {
     });
 
     return () => animation.stop();
-  }, [isRestored, draftBannerOpacity]);
+  }, [isRestored, draftBannerOpacity, isEditMode]);
 
   const primaryFarmerId = watch('primaryFarmerId');
   const supervisorId = watch('supervisorId');
@@ -252,7 +303,7 @@ export default function AddFarmScreen() {
     closeAssignmentPicker();
   };
 
-  const handleCreateFarm = async (data: FarmFormData) => {
+  const handleSaveFarm = async (data: FarmFormData) => {
     if (!accessToken) {
       return;
     }
@@ -262,8 +313,7 @@ export default function AddFarmScreen() {
 
     try {
       const normalizedCapacity = data.capacity?.trim();
-
-      await createFarm(accessToken, {
+      const payload = {
         name: data.name.trim(),
         code: data.code.trim(),
         location: data.location?.trim() || undefined,
@@ -275,18 +325,40 @@ export default function AddFarmScreen() {
         primaryFarmerId: data.primaryFarmerId || undefined,
         supervisorId: data.supervisorId || undefined,
         assignmentUserIds: data.assignmentUserIds?.length ? data.assignmentUserIds : undefined,
-      });
+        status: data.status,
+      };
 
-      await clearPersistedData();
+      if (isEditMode && farmId) {
+        await updateFarm(accessToken, farmId, payload);
+        Toast.show({
+          type: 'success',
+          text1: 'Success',
+          text2: 'Farm updated successfully.',
+          position: 'bottom',
+        });
+      } else {
+        await createFarm(accessToken, payload);
+        await clearPersistedData();
+        Toast.show({
+          type: 'success',
+          text1: 'Success',
+          text2: 'Farm created successfully.',
+          position: 'bottom',
+        });
+      }
+
       reset();
-      Toast.show({type: 'success', text1: 'Success', text2: 'Farm created successfully.',
-  position: 'bottom'});
       router.back();
     } catch (err) {
-      const msg = err instanceof Error ? err.message : 'Failed to create farm.';
+      const action = isEditMode ? 'update' : 'create';
+      const msg = err instanceof Error ? err.message : `Failed to ${action} farm.`;
       setError(msg);
-      Toast.show({type: 'error', text1: 'Error', text2: msg,
-  position: 'bottom'});
+      Toast.show({
+        type: 'error',
+        text1: 'Error',
+        text2: msg,
+        position: 'bottom',
+      });
     } finally {
       setIsSubmitting(false);
     }
@@ -302,391 +374,446 @@ export default function AddFarmScreen() {
   return (
     <View style={styles.safeArea}>
       <TopAppBar
-        title="Add Farm"
-        subtitle="Create farm profile and assignments"
-        right={
-          <TouchableOpacity
-            style={[styles.headerBtn, isSubmitting && styles.buttonDisabled]}
-            onPress={handleSubmit(handleCreateFarm)}
-            disabled={isSubmitting}
-            accessibilityRole="button"
-            accessibilityLabel="Create farm"
-          >
-            {isSubmitting ? (
-              <ActivityIndicator color="#FFF" size="small" />
-            ) : (
-              <Ionicons name="checkmark" size={27} color="#FFF" />
-            )}
-          </TouchableOpacity>
-        }
+        title={isEditMode ? "Edit Farm" : "Add Farm"}
+        subtitle={isEditMode ? "Modify farm profile and assignments" : "Create farm profile and assignments"}
+
       />
 
       <KeyboardAvoidingView
         behavior={Platform.OS === "ios" ? "padding" : "height"}
         style={{ flex: 1 }}
       >
-      <ScrollView
-        style={styles.contentArea}
-        contentContainerStyle={styles.container}
-        showsVerticalScrollIndicator={false}
-        keyboardShouldPersistTaps="handled"
-      >
-        {showDraftBanner ? (
-          <Animated.View style={[styles.draftBanner, { opacity: draftBannerOpacity }]} pointerEvents="none">
-            <Ionicons name="cloud-done-outline" size={16} color={THEME_GREEN} />
-            <Text style={styles.draftBannerText}>Draft restored</Text>
-          </Animated.View>
-        ) : null}
-        {error ? <Text style={styles.errorText}>{error}</Text> : null}
-        <View style={[styles.card, styles.referenceCard]}>
-          <View style={styles.referenceHeader}>
-            <View style={styles.referenceIconBox}>
-              <Ionicons name="home-outline" size={18} color="#FFFFFF" />
-            </View>
-            <View>
-              <Text style={styles.referenceTitle}>Farm Details</Text>
-              <Text style={styles.referenceSubtitle}>Basic information about your farm</Text>
-            </View>
-          </View>
-
-          <Controller
-            control={control}
-            name="name"
-            render={({ field: { onChange, value } }) => (
-              <View style={styles.referenceField}>
-                <Text style={styles.referenceLabel}>Farm Name *</Text>
-                <View style={[styles.referenceInput, formErrors.name && styles.referenceInputError]}>
-                  <Ionicons name="business-outline" size={16} color={THEME_GREEN} />
-                  <TextInput
-                    style={styles.referenceTextInput}
-                    placeholder="Enter farm name"
-                    placeholderTextColor="#A3AAA6"
-                    value={value}
-                    onChangeText={onChange}
-                  />
-                </View>
-                {formErrors.name && <Text style={styles.fieldErrorText}>{formErrors.name.message}</Text>}
-              </View>
-            )}
-          />
-
-          <View style={styles.referenceRow}>
-            <Controller
-              control={control}
-              name="code"
-              render={({ field: { onChange, value } }) => (
-                <View style={styles.referenceHalf}>
-                  <Text style={styles.referenceLabel}>Farm Code *</Text>
-                  <View style={[styles.referenceInput, formErrors.code && styles.referenceInputError]}>
-                    <Ionicons name="barcode-outline" size={16} color={THEME_GREEN} />
-                    <TextInput
-                      style={styles.referenceTextInput}
-                      placeholder="Enter farm code"
-                      placeholderTextColor="#A3AAA6"
-                      value={value}
-                      onChangeText={onChange}
-                    />
-                  </View>
-                  {formErrors.code && <Text style={styles.fieldErrorText}>{formErrors.code.message}</Text>}
-                </View>
-              )}
-            />
-            <Controller
-              control={control}
-              name="capacity"
-              render={({ field: { onChange, value } }) => (
-                <View style={[styles.referenceHalf, !Layout.isSmallDevice && styles.referenceHalfRight]}>
-                  <Text style={styles.referenceLabel}>Total Birds Capacity *</Text>
-                  <View style={[styles.referenceInput, formErrors.capacity && styles.referenceInputError]}>
-                    <Ionicons name="speedometer-outline" size={16} color={THEME_GREEN} />
-                    <TextInput
-                      style={styles.referenceTextInput}
-                      placeholder="Enter capacity"
-                      placeholderTextColor="#A3AAA6"
-                      value={value}
-                      onChangeText={onChange}
-                      keyboardType="numeric"
-                    />
-                  </View>
-                  {formErrors.capacity && <Text style={styles.fieldErrorText}>{formErrors.capacity.message}</Text>}
-                </View>
-              )}
-            />
-          </View>
-
-          <View style={styles.referenceRow}>
-            <Controller
-              control={control}
-              name="location"
-              render={({ field: { onChange, value } }) => (
-                <View style={styles.referenceHalf}>
-                  <Text style={styles.referenceLabel}>Location *</Text>
-                  <View style={[styles.referenceInput, formErrors.location && styles.referenceInputError]}>
-                    <Ionicons name="location-outline" size={16} color={THEME_GREEN} />
-                    <TextInput
-                      style={styles.referenceTextInput}
-                      placeholder="Enter farm location"
-                      placeholderTextColor="#A3AAA6"
-                      value={value}
-                      onChangeText={onChange}
-                    />
-                  </View>
-                  {formErrors.location && <Text style={styles.fieldErrorText}>{formErrors.location.message}</Text>}
-                </View>
-              )}
-            />
-            <Controller
-              control={control}
-              name="state"
-              render={({ field: { onChange, value } }) => (
-                <View style={[styles.referenceHalf, !Layout.isSmallDevice && styles.referenceHalfRight]}>
-                  <Text style={styles.referenceLabel}>State</Text>
-                  <View style={[styles.referenceInput, formErrors.state && styles.referenceInputError]}>
-                    <Ionicons name="map-outline" size={16} color={THEME_GREEN} />
-                    <TextInput
-                      style={styles.referenceTextInput}
-                      placeholder="Enter state"
-                      placeholderTextColor="#A3AAA6"
-                      value={value}
-                      onChangeText={onChange}
-                    />
-                  </View>
-                  {formErrors.state && <Text style={styles.fieldErrorText}>{formErrors.state.message}</Text>}
-                </View>
-              )}
-            />
-          </View>
-
-          <View style={styles.referenceRow}>
-            <Controller
-              control={control}
-              name="village"
-              render={({ field: { onChange, value } }) => (
-                <View style={styles.referenceHalf}>
-                  <Text style={styles.referenceLabel}>Village</Text>
-                  <View style={[styles.referenceInput, formErrors.village && styles.referenceInputError]}>
-                    <Ionicons name="leaf-outline" size={16} color={THEME_GREEN} />
-                    <TextInput
-                      style={styles.referenceTextInput}
-                      placeholder="Enter village"
-                      placeholderTextColor="#A3AAA6"
-                      value={value}
-                      onChangeText={onChange}
-                    />
-                  </View>
-                  {formErrors.village && <Text style={styles.fieldErrorText}>{formErrors.village.message}</Text>}
-                </View>
-              )}
-            />
-            <Controller
-              control={control}
-              name="district"
-              render={({ field: { onChange, value } }) => (
-                <View style={[styles.referenceHalf, !Layout.isSmallDevice && styles.referenceHalfRight]}>
-                  <Text style={styles.referenceLabel}>District</Text>
-                  <View style={[styles.referenceInput, formErrors.district && styles.referenceInputError]}>
-                    <Ionicons name="navigate-outline" size={16} color={THEME_GREEN} />
-                    <TextInput
-                      style={styles.referenceTextInput}
-                      placeholder="Enter district"
-                      placeholderTextColor="#A3AAA6"
-                      value={value}
-                      onChangeText={onChange}
-                    />
-                  </View>
-                  {formErrors.district && <Text style={styles.fieldErrorText}>{formErrors.district.message}</Text>}
-                </View>
-              )}
-            />
-          </View>
-
-          <Controller
-            control={control}
-            name="notes"
-            render={({ field: { onChange, value } }) => (
-              <View style={styles.referenceField}>
-                <Text style={styles.referenceLabel}>Notes (Optional)</Text>
-                <View style={[styles.referenceInput, styles.referenceTextAreaBox, formErrors.notes && styles.referenceInputError]}>
-                  <Ionicons name="document-text-outline" size={16} color={THEME_GREEN} />
-                  <TextInput
-                    style={[styles.referenceTextInput, styles.referenceTextArea]}
-                    placeholder="Add any additional notes about your farm..."
-                    placeholderTextColor="#A3AAA6"
-                    value={value}
-                    onChangeText={onChange}
-                    multiline
-                  />
-                </View>
-                <Text style={styles.referenceCounter}>{value?.length ?? 0}/500</Text>
-                {formErrors.notes && <Text style={styles.fieldErrorText}>{formErrors.notes.message}</Text>}
-              </View>
-            )}
-          />
-        </View>
-
-        <View style={[styles.card, styles.referenceCard]}>
-          <View style={styles.referenceHeader}>
-            <View style={styles.referenceIconBox}>
-              <Ionicons name="people-outline" size={18} color="#FFFFFF" />
-            </View>
-            <View>
-              <Text style={styles.referenceTitle}>Assignments</Text>
-              <Text style={styles.referenceSubtitle}>Assign staff and managers to this farm</Text>
-            </View>
-          </View>
-
-          <View style={styles.assignmentTwoCol}>
-            <View style={styles.assignmentPickerBlock}>
-              <Text style={styles.referenceLabel}>Farm Manager *</Text>
-              <TouchableOpacity
-                style={styles.referenceSelectCard}
-                onPress={() => openAssignmentPicker('primaryFarmerId')}
-                activeOpacity={0.84}
-              >
-                <View style={styles.referenceSelectIcon}>
-                  <Ionicons name="person-outline" size={17} color={THEME_GREEN} />
-                </View>
-                <View style={styles.referenceSelectCopy}>
-                  <Text style={styles.referenceSelectTitle}>
-                    {primaryFarmerId ? getUserLabel(primaryFarmerId) : 'Select Manager'}
-                  </Text>
-                  <Text style={styles.referenceSelectSubtitle}>
-                    {primaryFarmerOption ? getRoleLabel(primaryFarmerOption.role) : 'Choose farm manager'}
-                  </Text>
-                </View>
-                <Ionicons name="chevron-forward" size={16} color={Colors.textSecondary} />
-              </TouchableOpacity>
-            </View>
-
-            <View style={[styles.assignmentPickerBlock, !Layout.isSmallDevice && styles.referenceHalfRight]}>
-              <Text style={styles.referenceLabel}>Supervisor *</Text>
-              <TouchableOpacity
-                style={styles.referenceSelectCard}
-                onPress={() => openAssignmentPicker('supervisorId')}
-                activeOpacity={0.84}
-              >
-                <View style={styles.referenceSelectIcon}>
-                  <Ionicons name="person-outline" size={17} color={THEME_GREEN} />
-                </View>
-                <View style={styles.referenceSelectCopy}>
-                  <Text style={styles.referenceSelectTitle}>
-                    {supervisorId ? getUserLabel(supervisorId) : 'Select Supervisor'}
-                  </Text>
-                  <Text style={styles.referenceSelectSubtitle}>
-                    {supervisorOption ? getRoleLabel(supervisorOption.role) : 'Choose supervisor'}
-                  </Text>
-                </View>
-                <Ionicons name="chevron-forward" size={16} color={Colors.textSecondary} />
-              </TouchableOpacity>
-            </View>
-          </View>
-
-          <Text style={styles.referenceLabel}>Assigned Staff</Text>
-          <TouchableOpacity
-            style={styles.staffSelectSummary}
-            onPress={() => openAssignmentPicker('assignmentUserIds')}
-            activeOpacity={0.84}
-          >
-            <View style={styles.referenceSelectIcon}>
-              <Ionicons name="people-outline" size={17} color={THEME_GREEN} />
-            </View>
-            <View style={styles.referenceSelectCopy}>
-              <Text style={styles.referenceSelectTitle}>Select Staff Members</Text>
-              <Text style={styles.referenceSelectSubtitle}>
-                {assignmentUserIds.length ? `${assignmentUserIds.length} staff selected` : 'Choose one or more staff'}
-              </Text>
-            </View>
-            <Ionicons name="chevron-forward" size={16} color={Colors.textSecondary} />
-          </TouchableOpacity>
-
-          {assignmentUserIds.length ? (
-            <View style={styles.referenceStaffChips}>
-              {assignmentUserIds.map((userId) => (
-                <View key={userId} style={styles.referenceStaffChip}>
-                  <View style={styles.referenceStaffDot}>
-                    <Text style={styles.referenceStaffInitial}>{getUserInitials(getUserLabel(userId)).slice(0, 1)}</Text>
-                  </View>
-                  <Text style={styles.referenceStaffName} numberOfLines={1}>
-                    {getUserLabel(userId)}
-                  </Text>
-                  <TouchableOpacity
-                    style={styles.referenceStaffRemove}
-                    onPress={() => setValue('assignmentUserIds', assignmentUserIds.filter((id) => id !== userId))}
-                  >
-                    <Ionicons name="close" size={11} color={THEME_GREEN} />
-                  </TouchableOpacity>
-                </View>
-              ))}
-            </View>
-          ) : null}
-        </View>
-
-        <TouchableOpacity
-          style={[styles.saveButton, isSubmitting && styles.buttonDisabled]}
-          onPress={handleSubmit(handleCreateFarm)}
-          disabled={isSubmitting}
+        <ScrollView
+          style={styles.contentArea}
+          contentContainerStyle={styles.container}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
         >
-          {isSubmitting ? (
-            <ActivityIndicator color="#FFF" />
-          ) : (
-            <>
-              <MaterialCommunityIcons name="content-save-outline" size={18} color="#FFF" />
-              <Text style={styles.saveButtonText}>Create Farm Record</Text>
-            </>
-          )}
-        </TouchableOpacity>
-      </ScrollView>
-      </KeyboardAvoidingView>
+          {showDraftBanner ? (
+            <Animated.View style={[styles.draftBanner, { opacity: draftBannerOpacity }]} pointerEvents="none">
+              <Ionicons name="cloud-done-outline" size={16} color={THEME_GREEN} />
+              <Text style={styles.draftBannerText}>Draft restored</Text>
+            </Animated.View>
+          ) : null}
+          {error ? <Text style={styles.errorText}>{error}</Text> : null}
+          <View style={[styles.card, styles.referenceCard]}>
+            <View style={styles.referenceHeader}>
+              <View style={styles.referenceIconBox}>
+                <Ionicons name="home-outline" size={18} color="#FFFFFF" />
+              </View>
+              <View>
+                <Text style={styles.referenceTitle}>Farm Details</Text>
+                <Text style={styles.referenceSubtitle}>Basic information about your farm</Text>
+              </View>
+            </View>
 
-      <Modal visible={showAssignmentPicker} transparent animationType="slide">
-        <TouchableOpacity style={styles.modalOverlay} onPress={closeAssignmentPicker} activeOpacity={1}>
-          <KeyboardAvoidingView
-            behavior={Platform.OS === "ios" ? "padding" : "height"}
-            style={{ width: '100%' }}
-          >
-          <View style={styles.pickerSheet} onStartShouldSetResponder={() => true}>
-            <Text style={styles.modalTitle}>{pickerTitle}</Text>
+            <Controller
+              control={control}
+              name="name"
+              render={({ field: { onChange, value } }) => (
+                <View style={styles.referenceField}>
+                  <Text style={styles.referenceLabel}>Farm Name *</Text>
+                  <View style={[styles.referenceInput, formErrors.name && styles.referenceInputError]}>
+                    <Ionicons name="business-outline" size={16} color={THEME_GREEN} />
+                    <TextInput
+                      style={styles.referenceTextInput}
+                      placeholder="Enter farm name"
+                      placeholderTextColor="#A3AAA6"
+                      value={value}
+                      onChangeText={onChange}
+                    />
+                  </View>
+                  {formErrors.name && <Text style={styles.fieldErrorText}>{formErrors.name.message}</Text>}
+                </View>
+              )}
+            />
 
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterRow}>
-              {roleFilterOptions.map((option) => (
-                <TouchableOpacity
-                  key={option.key}
-                  style={[
-                    styles.filterChip,
-                    assignmentRoleFilter === option.key && styles.filterChipActive,
-                  ]}
-                  onPress={() => setAssignmentRoleFilter(option.key)}
-                >
-                  <Text
-                    style={[
-                      styles.filterChipText,
-                      assignmentRoleFilter === option.key && styles.filterChipTextActive,
-                    ]}
-                  >
-                    {option.label}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </ScrollView>
-
-            <View style={styles.searchBox}>
-              <Ionicons name="search-outline" size={18} color={Colors.textSecondary} />
-              <TextInput
-                style={styles.searchInput}
-                placeholder="Search by name, phone, email..."
-                placeholderTextColor={Colors.textSecondary}
-                value={assignmentSearch}
-                onChangeText={setAssignmentSearch}
+            <View style={styles.referenceRow}>
+              <Controller
+                control={control}
+                name="code"
+                render={({ field: { onChange, value } }) => (
+                  <View style={styles.referenceHalf}>
+                    <Text style={styles.referenceLabel}>Farm Code *</Text>
+                    <View style={[styles.referenceInput, formErrors.code && styles.referenceInputError]}>
+                      <Ionicons name="barcode-outline" size={16} color={THEME_GREEN} />
+                      <TextInput
+                        style={styles.referenceTextInput}
+                        placeholder="Enter farm code"
+                        placeholderTextColor="#A3AAA6"
+                        value={value}
+                        onChangeText={onChange}
+                      />
+                    </View>
+                    {formErrors.code && <Text style={styles.fieldErrorText}>{formErrors.code.message}</Text>}
+                  </View>
+                )}
+              />
+              <Controller
+                control={control}
+                name="capacity"
+                render={({ field: { onChange, value } }) => (
+                  <View style={[styles.referenceHalf, !Layout.isSmallDevice && styles.referenceHalfRight]}>
+                    <Text style={styles.referenceLabel}>Total Birds Capacity *</Text>
+                    <View style={[styles.referenceInput, formErrors.capacity && styles.referenceInputError]}>
+                      <Ionicons name="speedometer-outline" size={16} color={THEME_GREEN} />
+                      <TextInput
+                        style={styles.referenceTextInput}
+                        placeholder="Enter capacity"
+                        placeholderTextColor="#A3AAA6"
+                        value={value}
+                        onChangeText={onChange}
+                        keyboardType="numeric"
+                      />
+                    </View>
+                    {formErrors.capacity && <Text style={styles.fieldErrorText}>{formErrors.capacity.message}</Text>}
+                  </View>
+                )}
               />
             </View>
 
-            <FlatList
-              data={isLoading ? [] : roleFilteredUsers}
-              keyExtractor={(item) => item.id}
-              style={styles.assignmentList}
-              showsVerticalScrollIndicator={false}
-              keyboardShouldPersistTaps="handled"
-              renderItem={({ item: user }) => {
+            <View style={styles.referenceRow}>
+              <Controller
+                control={control}
+                name="location"
+                render={({ field: { onChange, value } }) => (
+                  <View style={styles.referenceHalf}>
+                    <Text style={styles.referenceLabel}>Location *</Text>
+                    <View style={[styles.referenceInput, formErrors.location && styles.referenceInputError]}>
+                      <Ionicons name="location-outline" size={16} color={THEME_GREEN} />
+                      <TextInput
+                        style={styles.referenceTextInput}
+                        placeholder="Enter farm location"
+                        placeholderTextColor="#A3AAA6"
+                        value={value}
+                        onChangeText={onChange}
+                      />
+                    </View>
+                    {formErrors.location && <Text style={styles.fieldErrorText}>{formErrors.location.message}</Text>}
+                  </View>
+                )}
+              />
+              <Controller
+                control={control}
+                name="state"
+                render={({ field: { onChange, value } }) => (
+                  <View style={[styles.referenceHalf, !Layout.isSmallDevice && styles.referenceHalfRight]}>
+                    <Text style={styles.referenceLabel}>State</Text>
+                    <View style={[styles.referenceInput, formErrors.state && styles.referenceInputError]}>
+                      <Ionicons name="map-outline" size={16} color={THEME_GREEN} />
+                      <TextInput
+                        style={styles.referenceTextInput}
+                        placeholder="Enter state"
+                        placeholderTextColor="#A3AAA6"
+                        value={value}
+                        onChangeText={onChange}
+                      />
+                    </View>
+                    {formErrors.state && <Text style={styles.fieldErrorText}>{formErrors.state.message}</Text>}
+                  </View>
+                )}
+              />
+            </View>
+
+            <View style={styles.referenceRow}>
+              <Controller
+                control={control}
+                name="village"
+                render={({ field: { onChange, value } }) => (
+                  <View style={styles.referenceHalf}>
+                    <Text style={styles.referenceLabel}>Village</Text>
+                    <View style={[styles.referenceInput, formErrors.village && styles.referenceInputError]}>
+                      <Ionicons name="leaf-outline" size={16} color={THEME_GREEN} />
+                      <TextInput
+                        style={styles.referenceTextInput}
+                        placeholder="Enter village"
+                        placeholderTextColor="#A3AAA6"
+                        value={value}
+                        onChangeText={onChange}
+                      />
+                    </View>
+                    {formErrors.village && <Text style={styles.fieldErrorText}>{formErrors.village.message}</Text>}
+                  </View>
+                )}
+              />
+              <Controller
+                control={control}
+                name="district"
+                render={({ field: { onChange, value } }) => (
+                  <View style={[styles.referenceHalf, !Layout.isSmallDevice && styles.referenceHalfRight]}>
+                    <Text style={styles.referenceLabel}>District</Text>
+                    <View style={[styles.referenceInput, formErrors.district && styles.referenceInputError]}>
+                      <Ionicons name="navigate-outline" size={16} color={THEME_GREEN} />
+                      <TextInput
+                        style={styles.referenceTextInput}
+                        placeholder="Enter district"
+                        placeholderTextColor="#A3AAA6"
+                        value={value}
+                        onChangeText={onChange}
+                      />
+                    </View>
+                    {formErrors.district && <Text style={styles.fieldErrorText}>{formErrors.district.message}</Text>}
+                  </View>
+                )}
+              />
+            </View>
+
+            <Controller
+              control={control}
+              name="notes"
+              render={({ field: { onChange, value } }) => (
+                <View style={styles.referenceField}>
+                  <Text style={styles.referenceLabel}>Notes (Optional)</Text>
+                  <View style={[styles.referenceInput, styles.referenceTextAreaBox, formErrors.notes && styles.referenceInputError]}>
+                    <Ionicons name="document-text-outline" size={16} color={THEME_GREEN} />
+                    <TextInput
+                      style={[styles.referenceTextInput, styles.referenceTextArea]}
+                      placeholder="Add any additional notes about your farm..."
+                      placeholderTextColor="#A3AAA6"
+                      value={value}
+                      onChangeText={onChange}
+                      multiline
+                    />
+                  </View>
+                  <Text style={styles.referenceCounter}>{value?.length ?? 0}/500</Text>
+                  {formErrors.notes && <Text style={styles.fieldErrorText}>{formErrors.notes.message}</Text>}
+                </View>
+              )}
+            />
+
+            {isEditMode && (
+              <Controller
+                control={control}
+                name="status"
+                render={({ field: { onChange, value } }) => (
+                  <View style={styles.referenceField}>
+                    <Text style={styles.referenceLabel}>Farm Status</Text>
+                    <View style={styles.statusToggleContainer}>
+                      <TouchableOpacity
+                        style={[
+                          styles.statusToggleBtn,
+                          value === 'ACTIVE' && styles.statusToggleBtnActive,
+                        ]}
+                        onPress={() => onChange('ACTIVE')}
+                        activeOpacity={0.84}
+                      >
+                        <Ionicons
+                          name="checkmark-circle-outline"
+                          size={18}
+                          color={value === 'ACTIVE' ? '#FFFFFF' : Colors.textSecondary}
+                        />
+                        <Text
+                          style={[
+                            styles.statusToggleText,
+                            value === 'ACTIVE' && styles.statusToggleTextActive,
+                          ]}
+                        >
+                          ACTIVE
+                        </Text>
+                      </TouchableOpacity>
+
+                      <TouchableOpacity
+                        style={[
+                          styles.statusToggleBtn,
+                          value === 'INACTIVE' && styles.statusToggleBtnInactive,
+                        ]}
+                        onPress={() => onChange('INACTIVE')}
+                        activeOpacity={0.84}
+                      >
+                        <Ionicons
+                          name="close-circle-outline"
+                          size={18}
+                          color={value === 'INACTIVE' ? '#FFFFFF' : Colors.textSecondary}
+                        />
+                        <Text
+                          style={[
+                            styles.statusToggleText,
+                            value === 'INACTIVE' && styles.statusToggleTextActive,
+                          ]}
+                        >
+                          INACTIVE
+                        </Text>
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+                )}
+              />
+            )}
+          </View>
+
+          <View style={[styles.card, styles.referenceCard]}>
+            <View style={styles.referenceHeader}>
+              <View style={styles.referenceIconBox}>
+                <Ionicons name="people-outline" size={18} color="#FFFFFF" />
+              </View>
+              <View>
+                <Text style={styles.referenceTitle}>Assignments</Text>
+                <Text style={styles.referenceSubtitle}>Assign staff and managers to this farm</Text>
+              </View>
+            </View>
+
+            <View style={styles.assignmentTwoCol}>
+              <View style={styles.assignmentPickerBlock}>
+                <Text style={styles.referenceLabel}>Farmer*</Text>
+                <TouchableOpacity
+                  style={styles.referenceSelectCard}
+                  onPress={() => openAssignmentPicker('primaryFarmerId')}
+                  activeOpacity={0.84}
+                >
+                  <View style={styles.referenceSelectIcon}>
+                    <Ionicons name="person-outline" size={17} color={THEME_GREEN} />
+                  </View>
+                  <View style={styles.referenceSelectCopy}>
+                    <Text style={styles.referenceSelectTitle}>
+                      {primaryFarmerId ? getUserLabel(primaryFarmerId) : 'Select Manager'}
+                    </Text>
+                    <Text style={styles.referenceSelectSubtitle}>
+                      {primaryFarmerOption ? getRoleLabel(primaryFarmerOption.role) : 'Choose farm manager'}
+                    </Text>
+                  </View>
+                  <Ionicons name="chevron-forward" size={16} color={Colors.textSecondary} />
+                </TouchableOpacity>
+              </View>
+
+              <View style={[styles.assignmentPickerBlock, !Layout.isSmallDevice && styles.referenceHalfRight]}>
+                <Text style={styles.referenceLabel}>Supervisor *</Text>
+                <TouchableOpacity
+                  style={styles.referenceSelectCard}
+                  onPress={() => openAssignmentPicker('supervisorId')}
+                  activeOpacity={0.84}
+                >
+                  <View style={styles.referenceSelectIcon}>
+                    <Ionicons name="person-outline" size={17} color={THEME_GREEN} />
+                  </View>
+                  <View style={styles.referenceSelectCopy}>
+                    <Text style={styles.referenceSelectTitle}>
+                      {supervisorId ? getUserLabel(supervisorId) : 'Select Supervisor'}
+                    </Text>
+                    <Text style={styles.referenceSelectSubtitle}>
+                      {supervisorOption ? getRoleLabel(supervisorOption.role) : 'Choose supervisor'}
+                    </Text>
+                  </View>
+                  <Ionicons name="chevron-forward" size={16} color={Colors.textSecondary} />
+                </TouchableOpacity>
+              </View>
+            </View>
+
+            <Text style={styles.referenceLabel}>Assigned Staff</Text>
+            <TouchableOpacity
+              style={styles.staffSelectSummary}
+              onPress={() => openAssignmentPicker('assignmentUserIds')}
+              activeOpacity={0.84}
+            >
+              <View style={styles.referenceSelectIcon}>
+                <Ionicons name="people-outline" size={17} color={THEME_GREEN} />
+              </View>
+              <View style={styles.referenceSelectCopy}>
+                <Text style={styles.referenceSelectTitle}>Select Staff Members</Text>
+                <Text style={styles.referenceSelectSubtitle}>
+                  {assignmentUserIds.length ? `${assignmentUserIds.length} staff selected` : 'Choose one or more staff'}
+                </Text>
+              </View>
+              <Ionicons name="chevron-forward" size={16} color={Colors.textSecondary} />
+            </TouchableOpacity>
+
+            {assignmentUserIds.length ? (
+              <View style={styles.referenceStaffChips}>
+                {assignmentUserIds.map((userId) => (
+                  <View key={userId} style={styles.referenceStaffChip}>
+                    <View style={styles.referenceStaffDot}>
+                      <Text style={styles.referenceStaffInitial}>{getUserInitials(getUserLabel(userId)).slice(0, 1)}</Text>
+                    </View>
+                    <Text style={styles.referenceStaffName} numberOfLines={1}>
+                      {getUserLabel(userId)}
+                    </Text>
+                    <TouchableOpacity
+                      style={styles.referenceStaffRemove}
+                      onPress={() => setValue('assignmentUserIds', assignmentUserIds.filter((id) => id !== userId))}
+                    >
+                      <Ionicons name="close" size={11} color={THEME_GREEN} />
+                    </TouchableOpacity>
+                  </View>
+                ))}
+              </View>
+            ) : null}
+          </View>
+
+          <TouchableOpacity
+            style={[styles.saveButton, isSubmitting && styles.buttonDisabled]}
+            onPress={handleSubmit(handleSaveFarm)}
+            disabled={isSubmitting}
+          >
+            {isSubmitting ? (
+              <ActivityIndicator color="#FFF" />
+            ) : (
+              <>
+                <MaterialCommunityIcons name="content-save-outline" size={18} color="#FFF" />
+                <Text style={styles.saveButtonText}>{isEditMode ? "Update Farm Record" : "Create Farm Record"}</Text>
+              </>
+            )}
+          </TouchableOpacity>
+        </ScrollView>
+      </KeyboardAvoidingView>
+
+      <Modal
+        visible={showAssignmentPicker}
+        transparent
+        animationType="slide"
+        onRequestClose={closeAssignmentPicker}
+      >
+        <KeyboardAvoidingView
+          behavior={Platform.OS === "ios" ? "padding" : "height"}
+          style={styles.keyboardAvoidingOverlay}
+        >
+          <TouchableOpacity
+            style={styles.modalOverlay}
+            activeOpacity={1}
+            onPress={closeAssignmentPicker}
+          >
+            <View style={styles.pickerSheet} onStartShouldSetResponder={() => true}>
+              <View style={styles.sheetHandle} />
+              <Text style={styles.modalTitle}>{pickerTitle}</Text>
+
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterRow}>
+                {roleFilterOptions.map((option) => (
+                  <TouchableOpacity
+                    key={option.key}
+                    style={[
+                      styles.filterChip,
+                      assignmentRoleFilter === option.key && styles.filterChipActive,
+                    ]}
+                    onPress={() => setAssignmentRoleFilter(option.key)}
+                  >
+                    <Text
+                      style={[
+                        styles.filterChipText,
+                        assignmentRoleFilter === option.key && styles.filterChipTextActive,
+                      ]}
+                    >
+                      {option.label}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+
+              <View style={styles.searchBox}>
+                <Ionicons name="search-outline" size={18} color={Colors.textSecondary} />
+                <TextInput
+                  style={styles.searchInput}
+                  placeholder="Search by name, phone, email..."
+                  placeholderTextColor={Colors.textSecondary}
+                  value={assignmentSearch}
+                  onChangeText={setAssignmentSearch}
+                />
+              </View>
+
+              <FlatList
+                data={isLoading ? [] : roleFilteredUsers}
+                keyExtractor={(item) => item.id}
+                style={styles.assignmentList}
+                showsVerticalScrollIndicator={false}
+                keyboardShouldPersistTaps="handled"
+                renderItem={({ item: user }) => {
                   const selected =
                     assignmentField === 'assignmentUserIds'
                       ? assignmentUserIds.includes(user.id)
@@ -726,29 +853,29 @@ export default function AddFarmScreen() {
                     </TouchableOpacity>
                   );
                 }}
-              ListEmptyComponent={
-                isLoading ? (
-                  <View style={styles.loadingState}>
-                    <ActivityIndicator color={Colors.primary} />
-                    <Text style={styles.loadingText}>Loading users...</Text>
-                  </View>
-                ) : (
-                  <View style={styles.emptyPickerState}>
-                    <MaterialCommunityIcons name="account-search-outline" size={40} color={Colors.border} />
-                    <Text style={styles.emptyText}>No matching users</Text>
-                  </View>
-                )
-              }
-            />
+                ListEmptyComponent={
+                  isLoading ? (
+                    <View style={styles.loadingState}>
+                      <ActivityIndicator color={Colors.primary} />
+                      <Text style={styles.loadingText}>Loading users...</Text>
+                    </View>
+                  ) : (
+                    <View style={styles.emptyPickerState}>
+                      <MaterialCommunityIcons name="account-search-outline" size={40} color={Colors.border} />
+                      <Text style={styles.emptyText}>No matching users</Text>
+                    </View>
+                  )
+                }
+              />
 
-            {assignmentField === 'assignmentUserIds' ? (
-              <TouchableOpacity style={styles.doneButton} onPress={closeAssignmentPicker}>
-                <Text style={styles.doneButtonText}>Done</Text>
-              </TouchableOpacity>
-            ) : null}
-          </View>
-          </KeyboardAvoidingView>
-        </TouchableOpacity>
+              {assignmentField === 'assignmentUserIds' ? (
+                <TouchableOpacity style={styles.doneButton} onPress={closeAssignmentPicker}>
+                  <Text style={styles.doneButtonText}>Done</Text>
+                </TouchableOpacity>
+              ) : null}
+            </View>
+          </TouchableOpacity>
+        </KeyboardAvoidingView>
       </Modal>
     </View>
   );
@@ -1228,18 +1355,49 @@ const styles = StyleSheet.create({
   },
   buttonDisabled: { opacity: 0.75 },
   saveButtonText: { color: '#FFF', fontSize: 16, fontWeight: 'bold' },
-  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'flex-end' },
+  keyboardAvoidingOverlay: {
+    flex: 1,
+    width: '100%',
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.4)',
+    justifyContent: 'flex-end',
+  },
   pickerSheet: {
     backgroundColor: '#FFF',
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    padding: 20,
-    paddingBottom: 24,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    paddingHorizontal: 24,
+    paddingTop: 8,
+    paddingBottom: Platform.OS === 'ios' ? 40 : 24,
     maxHeight: '88%',
+    width: '100%',
+    ...Platform.select({
+      ios: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: -4 },
+        shadowOpacity: 0.08,
+        shadowRadius: 12,
+      },
+      android: {
+        elevation: 8,
+      },
+    }),
   },
-  modalTitle: { fontSize: 18, fontWeight: 'bold', color: Colors.text, marginBottom: 16 },
+  sheetHandle: {
+    width: 40,
+    height: 5,
+    borderRadius: 2.5,
+    backgroundColor: '#E4E7EB',
+    alignSelf: 'center',
+    marginBottom: 16,
+  },
+  modalTitle: { fontSize: 18, fontWeight: '800', color: Colors.text, marginBottom: 16 },
   filterRow: { gap: 8, paddingBottom: 12 },
-  assignmentList: { flexGrow: 0 },
+  assignmentList: {
+    maxHeight: 320,
+  },
   filterChip: {
     borderWidth: 1,
     borderColor: Colors.border,
@@ -1328,5 +1486,39 @@ const styles = StyleSheet.create({
     fontSize: 11,
     marginTop: 4,
     fontWeight: '600',
+  },
+  statusToggleContainer: {
+    flexDirection: 'row',
+    gap: 12,
+    marginTop: 8,
+  },
+  statusToggleBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    borderRadius: 8,
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    flex: 1,
+    backgroundColor: '#FAFAFA',
+  },
+  statusToggleBtnActive: {
+    backgroundColor: Colors.primary,
+    borderColor: Colors.primary,
+  },
+  statusToggleBtnInactive: {
+    backgroundColor: '#D32F2F',
+    borderColor: '#D32F2F',
+  },
+  statusToggleText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: Colors.textSecondary,
+  },
+  statusToggleTextActive: {
+    color: '#FFFFFF',
   },
 });

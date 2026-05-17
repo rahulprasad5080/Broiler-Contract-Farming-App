@@ -1,6 +1,7 @@
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
+import { useFocusEffect } from '@react-navigation/native';
 import {
   ActivityIndicator,
   FlatList,
@@ -144,7 +145,8 @@ function toFarmCard(farm: ApiFarm): FarmCard {
 
 export default function FarmListScreen() {
   const router = useRouter();
-  const { accessToken } = useAuth();
+  const { accessToken, hasPermission } = useAuth();
+  const canManageFarms = hasPermission('manage:farms');
 
   const [farms, setFarms] = useState<FarmCard[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
@@ -185,7 +187,7 @@ export default function FarmListScreen() {
   const editSupervisorId = watchEdit('supervisorId');
   const editAssignmentUserIds = watchEdit('assignmentUserIds') || [];
 
-  const loadFarms = async () => {
+  const loadFarms = async (search?: string) => {
     if (!accessToken) {
       setError('Your session has expired. Please sign in again.');
       setIsLoading(false);
@@ -197,7 +199,7 @@ export default function FarmListScreen() {
 
     try {
       const [farmsResponse, usersResponse] = await Promise.all([
-        listAllFarms(accessToken),
+        listAllFarms(accessToken, search?.trim() || undefined),
         listAllUsers(accessToken),
       ]);
       setFarms(farmsResponse.data.map(toFarmCard));
@@ -209,43 +211,24 @@ export default function FarmListScreen() {
     }
   };
 
+  useFocusEffect(
+    useCallback(() => {
+      loadFarms(searchQuery);
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [accessToken])
+  );
+
   useEffect(() => {
-    loadFarms();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [accessToken]);
+    if (!accessToken) return;
+    const delayDebounce = setTimeout(() => {
+      loadFarms(searchQuery);
+    }, 400);
 
-  const openEditFarm = async (farmId: string) => {
-    if (!accessToken) {
-      setError('Your session has expired. Please sign in again.');
-      return;
-    }
+    return () => clearTimeout(delayDebounce);
+  }, [searchQuery, accessToken]);
 
-    setError(null);
-    setIsSavingEdit(true);
-
-    try {
-      const farm = await fetchFarm(accessToken, farmId);
-      setEditFarmId(farm.id);
-      resetEdit({
-        name: farm.name,
-        code: farm.code,
-        location: farm.location ?? '',
-        village: farm.village ?? '',
-        district: farm.district ?? '',
-        state: farm.state ?? '',
-        capacity: farm.capacity?.toString() ?? '',
-        notes: farm.notes ?? '',
-        status: farm.status,
-        primaryFarmerId: farm.primaryFarmerId ?? '',
-        supervisorId: farm.supervisorId ?? '',
-        assignmentUserIds: farm.assignments.map((assignment) => assignment.userId),
-      });
-      setShowEditModal(true);
-    } catch (err) {
-      setError(getRequestErrorMessage(err, 'Failed to load farm details.'));
-    } finally {
-      setIsSavingEdit(false);
-    }
+  const openEditFarm = (farmId: string) => {
+    router.push({ pathname: '/(owner)/manage/farms/add', params: { id: farmId } });
   };
 
   const openQuickAssignment = async (farmId: string, field: Exclude<AssignmentField, 'assignmentUserIds'>) => {
@@ -502,14 +485,16 @@ export default function FarmListScreen() {
         title="Farm Management"
         subtitle="Operational status and assignments"
         right={
-          <TouchableOpacity
-            style={styles.headerBtn}
-            onPress={() => router.navigate('/(owner)/manage/farms/add')}
-            accessibilityRole="button"
-            accessibilityLabel="Add farm"
-          >
-            <Ionicons name="add" size={28} color="#FFF" />
-          </TouchableOpacity>
+          canManageFarms ? (
+            <TouchableOpacity
+              style={styles.headerBtn}
+              onPress={() => router.navigate('/(owner)/manage/farms/add')}
+              accessibilityRole="button"
+              accessibilityLabel="Add farm"
+            >
+              <Ionicons name="add" size={28} color="#FFF" />
+            </TouchableOpacity>
+          ) : null
         }
       />
       <KeyboardAvoidingView
@@ -570,7 +555,7 @@ export default function FarmListScreen() {
                   onChangeText={setSearchQuery}
                 />
               </View>
-              <TouchableOpacity style={styles.filterBtn} onPress={loadFarms}>
+              <TouchableOpacity style={styles.filterBtn} onPress={() => loadFarms(searchQuery)}>
                 <Ionicons name="refresh-outline" size={20} color={THEME_GREEN} />
               </TouchableOpacity>
             </View>
@@ -623,6 +608,10 @@ export default function FarmListScreen() {
           const sc = statusColor(farm.status);
           return (
             <View style={styles.farmCard}>
+              <TouchableOpacity
+                onPress={() => router.push({ pathname: '/(owner)/manage/farms/[id]', params: { id: farm.id } })}
+                activeOpacity={0.88}
+              >
                 <View style={styles.cardTop}>
                   <View style={styles.farmTitleRow}>
                     <View style={styles.farmIcon}>
@@ -637,13 +626,15 @@ export default function FarmListScreen() {
                     <View style={[styles.statusBadge, { backgroundColor: sc.bg }]}>
                       <Text style={[styles.statusText, { color: sc.text }]}>{farm.status}</Text>
                     </View>
-                    <TouchableOpacity
-                      style={styles.actionButton}
-                      onPress={() => openEditFarm(farm.id)}
-                      disabled={isSavingEdit}
-                    >
-                      <Ionicons name="pencil-outline" size={16} color={Colors.primary} />
-                    </TouchableOpacity>
+                    {canManageFarms && (
+                      <TouchableOpacity
+                        style={styles.actionButton}
+                        onPress={() => openEditFarm(farm.id)}
+                        disabled={isSavingEdit}
+                      >
+                        <Ionicons name="pencil-outline" size={16} color={Colors.primary} />
+                      </TouchableOpacity>
+                    )}
                   </View>
                 </View>
 
@@ -666,11 +657,12 @@ export default function FarmListScreen() {
                     <Text style={styles.metricValue}>{farm.activeBatchCount}</Text>
                   </View>
                 </View>
+              </TouchableOpacity>
 
                 <TouchableOpacity
                   style={[styles.assignButton, farm.farmer && styles.assignButtonFilled]}
                   onPress={() => void openQuickAssignment(farm.id, 'primaryFarmerId')}
-                  disabled={isSavingAssignment}
+                  disabled={isSavingAssignment || !canManageFarms}
                 >
                   <MaterialCommunityIcons
                     name={farm.farmer ? 'account-check-outline' : 'account-plus-outline'}
@@ -678,14 +670,14 @@ export default function FarmListScreen() {
                     color={farm.farmer ? Colors.primary : Colors.text}
                   />
                   <Text style={[styles.assignButtonText, farm.farmer && styles.assignButtonTextFilled]}>
-                    {farm.farmer ? `Farmer: ${farm.farmer.name}` : 'Assign Farmer'}
+                    {farm.farmer ? `Farmer: ${farm.farmer.name}` : (canManageFarms ? 'Assign Farmer' : 'Farmer: Not Assigned')}
                   </Text>
                 </TouchableOpacity>
 
                 <TouchableOpacity
                   style={[styles.assignButton, farm.supervisor && styles.assignButtonFilled]}
                   onPress={() => void openQuickAssignment(farm.id, 'supervisorId')}
-                  disabled={isSavingAssignment}
+                  disabled={isSavingAssignment || !canManageFarms}
                 >
                   <MaterialCommunityIcons
                     name={farm.supervisor ? 'account-tie-outline' : 'account-plus-outline'}
@@ -693,7 +685,7 @@ export default function FarmListScreen() {
                     color={farm.supervisor ? Colors.primary : Colors.text}
                   />
                   <Text style={[styles.assignButtonText, farm.supervisor && styles.assignButtonTextFilled]}>
-                    {farm.supervisor ? `Supervisor: ${farm.supervisor.name}` : 'Assign Supervisor'}
+                    {farm.supervisor ? `Supervisor: ${farm.supervisor.name}` : (canManageFarms ? 'Assign Supervisor' : 'Supervisor: Not Assigned')}
                   </Text>
                 </TouchableOpacity>
 
@@ -738,334 +730,6 @@ export default function FarmListScreen() {
       />
       </KeyboardAvoidingView>
 
-      <Modal visible={showEditModal} transparent animationType="slide">
-        <TouchableOpacity
-          style={styles.modalOverlay}
-          onPress={() => setShowEditModal(false)}
-          activeOpacity={1}
-        >
-          <KeyboardAvoidingView
-            behavior={Platform.OS === "ios" ? "padding" : "height"}
-            style={{ width: '100%' }}
-          >
-          <View style={styles.editSheet} onStartShouldSetResponder={() => true}>
-            <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
-              <Text style={styles.modalTitle}>Edit Farm</Text>
-
-            <Controller
-              control={editControl}
-              name="name"
-              render={({ field: { onChange, value } }) => (
-                <>
-                  <Text style={styles.formLabel}>Farm Name *</Text>
-                  <View style={[styles.inputBox, editErrors.name && { borderColor: Colors.tertiary }]}>
-                    <TextInput
-                      style={styles.textInput}
-                      placeholder="e.g. Green Valley Farm"
-                      placeholderTextColor={Colors.textSecondary}
-                      value={value}
-                      onChangeText={onChange}
-                    />
-                  </View>
-                  {editErrors.name && <Text style={styles.fieldErrorText}>{editErrors.name.message}</Text>}
-                </>
-              )}
-            />
-
-            <Controller
-              control={editControl}
-              name="code"
-              render={({ field: { onChange, value } }) => (
-                <>
-                  <Text style={styles.formLabel}>Farm Code *</Text>
-                  <View style={[styles.inputBox, editErrors.code && { borderColor: Colors.tertiary }]}>
-                    <TextInput
-                      style={styles.textInput}
-                      placeholder="FARM-CODE"
-                      placeholderTextColor={Colors.textSecondary}
-                      value={value}
-                      onChangeText={onChange}
-                    />
-                  </View>
-                  {editErrors.code && <Text style={styles.fieldErrorText}>{editErrors.code.message}</Text>}
-                </>
-              )}
-            />
-
-            <View style={styles.formRow}>
-              <View style={styles.formHalf}>
-                <Controller
-                  control={editControl}
-                  name="capacity"
-                  render={({ field: { onChange, value } }) => (
-                    <>
-                      <Text style={styles.formLabel}>Capacity</Text>
-                      <View style={[styles.inputBox, editErrors.capacity && { borderColor: Colors.tertiary }]}>
-                        <TextInput
-                          style={styles.textInput}
-                          placeholder="Enter capacity"
-                          placeholderTextColor={Colors.textSecondary}
-                          value={value}
-                          onChangeText={onChange}
-                          keyboardType="numeric"
-                        />
-                      </View>
-                      {editErrors.capacity && <Text style={styles.fieldErrorText}>{editErrors.capacity.message}</Text>}
-                    </>
-                  )}
-                />
-              </View>
-              <View style={[styles.formHalf, !Layout.isSmallDevice && { marginLeft: 12 }]}>
-                <Controller
-                  control={editControl}
-                  name="status"
-                  render={({ field: { onChange, value } }) => (
-                    <>
-                      <Text style={styles.formLabel}>Status</Text>
-                      <TouchableOpacity
-                        style={[styles.inputBox, styles.dropdownRow, editErrors.status && { borderColor: Colors.tertiary }]}
-                        onPress={() => {
-                          onChange(value === 'ACTIVE' ? 'INACTIVE' : 'ACTIVE');
-                        }}
-                      >
-                        <Text style={styles.textInput}>{value === 'ACTIVE' ? 'Active' : 'Inactive'}</Text>
-                        <MaterialCommunityIcons
-                          name={value === 'ACTIVE' ? 'toggle-switch' : 'toggle-switch-off'}
-                          size={24}
-                          color={value === 'ACTIVE' ? Colors.primary : Colors.textSecondary}
-                        />
-                      </TouchableOpacity>
-                      {editErrors.status && <Text style={styles.fieldErrorText}>{editErrors.status.message}</Text>}
-                    </>
-                  )}
-                />
-              </View>
-            </View>
-
-            <Controller
-              control={editControl}
-              name="state"
-              render={({ field: { onChange, value } }) => (
-                <>
-                  <Text style={styles.formLabel}>State</Text>
-                  <View style={[styles.inputBox, editErrors.state && { borderColor: Colors.tertiary }]}>
-                    <TextInput
-                      style={styles.textInput}
-                      placeholder="Madhya Pradesh"
-                      placeholderTextColor={Colors.textSecondary}
-                      value={value}
-                      onChangeText={onChange}
-                    />
-                  </View>
-                  {editErrors.state && <Text style={styles.fieldErrorText}>{editErrors.state.message}</Text>}
-                </>
-              )}
-            />
-
-            <Controller
-              control={editControl}
-              name="location"
-              render={({ field: { onChange, value } }) => (
-                <>
-                  <Text style={styles.formLabel}>Location</Text>
-                  <View style={[styles.inputBox, editErrors.location && { borderColor: Colors.tertiary }]}>
-                    <TextInput
-                      style={styles.textInput}
-                      placeholder="Near Main Road"
-                      placeholderTextColor={Colors.textSecondary}
-                      value={value}
-                      onChangeText={onChange}
-                    />
-                  </View>
-                  {editErrors.location && <Text style={styles.fieldErrorText}>{editErrors.location.message}</Text>}
-                </>
-              )}
-            />
-
-            <View style={styles.formRow}>
-              <View style={styles.formHalf}>
-                <Controller
-                  control={editControl}
-                  name="village"
-                  render={({ field: { onChange, value } }) => (
-                    <>
-                      <Text style={styles.formLabel}>Village</Text>
-                      <View style={[styles.inputBox, editErrors.village && { borderColor: Colors.tertiary }]}>
-                        <TextInput
-                          style={styles.textInput}
-                          placeholder="Rampura"
-                          placeholderTextColor={Colors.textSecondary}
-                          value={value}
-                          onChangeText={onChange}
-                        />
-                      </View>
-                      {editErrors.village && <Text style={styles.fieldErrorText}>{editErrors.village.message}</Text>}
-                    </>
-                  )}
-                />
-              </View>
-              <View style={[styles.formHalf, !Layout.isSmallDevice && { marginLeft: 12 }]}>
-                <Controller
-                  control={editControl}
-                  name="district"
-                  render={({ field: { onChange, value } }) => (
-                    <>
-                      <Text style={styles.formLabel}>District</Text>
-                      <View style={[styles.inputBox, editErrors.district && { borderColor: Colors.tertiary }]}>
-                        <TextInput
-                          style={styles.textInput}
-                          placeholder="Indore"
-                          placeholderTextColor={Colors.textSecondary}
-                          value={value}
-                          onChangeText={onChange}
-                        />
-                      </View>
-                      {editErrors.district && <Text style={styles.fieldErrorText}>{editErrors.district.message}</Text>}
-                    </>
-                  )}
-                />
-              </View>
-            </View>
-
-            <Controller
-              control={editControl}
-              name="notes"
-              render={({ field: { onChange, value } }) => (
-                <>
-                  <Text style={styles.formLabel}>Notes</Text>
-                  <View style={[styles.inputBox, styles.textAreaBox, editErrors.notes && { borderColor: Colors.tertiary }]}>
-                    <TextInput
-                      style={[styles.textInput, styles.textArea]}
-                      placeholder="Optional notes"
-                      placeholderTextColor={Colors.textSecondary}
-                      value={value}
-                      onChangeText={onChange}
-                      multiline
-                    />
-                  </View>
-                  {editErrors.notes && <Text style={styles.fieldErrorText}>{editErrors.notes.message}</Text>}
-                </>
-              )}
-            />
-
-            <View style={styles.assignmentCard}>
-              <Text style={styles.assignmentSectionTitle}>Assignments</Text>
-              <Text style={styles.assignmentSectionHint}>
-                Tap any row to search and replace the assigned user.
-              </Text>
-
-              <TouchableOpacity
-                style={styles.assignmentRow}
-                onPress={() => openAssignmentPicker('primaryFarmerId', 'edit')}
-              >
-                <View style={styles.assignmentRowTextWrap}>
-                  <Text style={styles.assignmentRowLabel}>Primary Farmer</Text>
-                  <Text
-                    style={[
-                      styles.assignmentRowValue,
-                      !editPrimaryFarmerId && styles.selectorPlaceholder,
-                    ]}
-                  >
-                    {editPrimaryFarmerId
-                      ? getUserLabel(editPrimaryFarmerId)
-                      : 'Search and select a primary farmer'}
-                  </Text>
-                </View>
-                <Ionicons name="chevron-forward" size={18} color={Colors.textSecondary} />
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={styles.assignmentRow}
-                onPress={() => openAssignmentPicker('supervisorId', 'edit')}
-              >
-                <View style={styles.assignmentRowTextWrap}>
-                  <Text style={styles.assignmentRowLabel}>Supervisor</Text>
-                  <Text
-                    style={[
-                      styles.assignmentRowValue,
-                      !editSupervisorId && styles.selectorPlaceholder,
-                    ]}
-                  >
-                    {editSupervisorId
-                      ? getUserLabel(editSupervisorId)
-                      : 'Search and select a supervisor'}
-                  </Text>
-                </View>
-                <Ionicons name="chevron-forward" size={18} color={Colors.textSecondary} />
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={styles.assignmentRow}
-                onPress={() => openAssignmentPicker('assignmentUserIds', 'edit')}
-              >
-                <View style={styles.assignmentRowTextWrap}>
-                  <Text style={styles.assignmentRowLabel}>Assigned Staff</Text>
-                  <Text
-                    style={[
-                      styles.assignmentRowValue,
-                      !editAssignmentUserIds.length && styles.selectorPlaceholder,
-                    ]}
-                  >
-                    {editAssignmentUserIds.length
-                      ? `${editAssignmentUserIds.length} user(s) selected`
-                      : 'Search and select staff members'}
-                  </Text>
-                </View>
-                <Ionicons name="chevron-forward" size={18} color={Colors.textSecondary} />
-              </TouchableOpacity>
-
-              {editAssignmentUserIds.length ? (
-                <View style={styles.chipWrap}>
-                  {editAssignmentUserIds.map((userId) => {
-                    const option = getUserOption(userId);
-
-                    return (
-                      <View key={userId} style={styles.chip}>
-                        <View style={styles.avatarMini}>
-                          <Text style={styles.avatarMiniText}>{getUserInitials(getUserLabel(userId))}</Text>
-                        </View>
-                        <View style={styles.chipBody}>
-                          <Text style={styles.chipText}>{getUserLabel(userId)}</Text>
-                          {option ? (
-                            <View style={[styles.rolePill, { backgroundColor: `${getRoleAccent(option.role)}1A` }]}>
-                              <Text style={[styles.rolePillText, { color: getRoleAccent(option.role) }]}>
-                                {getRoleLabel(option.role)}
-                              </Text>
-                            </View>
-                          ) : null}
-                        </View>
-                        <TouchableOpacity
-                          style={styles.chipRemoveBtn}
-                          onPress={() =>
-                            setEditValue('assignmentUserIds', editAssignmentUserIds.filter((id) => id !== userId))
-                          }
-                        >
-                          <Ionicons name="close" size={14} color={Colors.primary} />
-                        </TouchableOpacity>
-                      </View>
-                    );
-                  })}
-                </View>
-              ) : null}
-            </View>
-
-              <TouchableOpacity
-                style={[styles.createButton, isSavingEdit && styles.buttonDisabled]}
-                onPress={handleEditSubmit(handleUpdateFarm)}
-                disabled={isSavingEdit}
-              >
-                {isSavingEdit ? (
-                  <ActivityIndicator color="#FFF" />
-                ) : (
-                  <Text style={styles.createButtonText}>Update Farm</Text>
-                )}
-              </TouchableOpacity>
-            </ScrollView>
-          </View>
-          </KeyboardAvoidingView>
-          <Toast position="bottom" bottomOffset={100} />
-        </TouchableOpacity>
-      </Modal>
 
       <Modal visible={showAssignmentPicker} transparent animationType="slide">
         <TouchableOpacity
