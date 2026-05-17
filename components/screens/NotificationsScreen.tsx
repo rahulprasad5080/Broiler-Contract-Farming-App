@@ -1,5 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect } from "@react-navigation/native";
+import { useRouter } from "expo-router";
 import React, { useMemo, useState } from "react";
 import {
   KeyboardAvoidingView,
@@ -28,7 +29,8 @@ type NotificationGroup = {
 };
 
 export function NotificationsScreen() {
-  const { accessToken } = useAuth();
+  const { accessToken, user } = useAuth();
+  const router = useRouter();
   const [selectedFilter, setSelectedFilter] = useState<"All" | "Unread" | "Important">("All");
   const [notifications, setNotifications] = useState<ApiNotification[]>([]);
   const [loading, setLoading] = useState(false);
@@ -57,7 +59,44 @@ export function NotificationsScreen() {
   );
 
   const handleNotificationPress = React.useCallback(async (notification: ApiNotification) => {
-    if (!accessToken || notification.isRead || markingIds[notification.id]) {
+    if (!accessToken) return;
+
+    // First handle deep link navigation
+    const navigateToTarget = () => {
+      if (!user?.role) return;
+      const isOwnerOrAccounts = user.role === "OWNER" || user.role === "ACCOUNTS";
+      const isSupervisor = user.role === "SUPERVISOR";
+      const isFarmer = user.role === "FARMER";
+
+      if (notification.batchId) {
+        if (isOwnerOrAccounts) {
+          router.navigate({
+            pathname: "/(owner)/manage/batches/[id]",
+            params: { id: notification.batchId },
+          } as any);
+        } else if (isSupervisor) {
+          router.navigate({
+            pathname: "/(supervisor)/review/[batchId]",
+            params: { batchId: notification.batchId },
+          } as any);
+        }
+      } else if (notification.farmId) {
+        if (isOwnerOrAccounts) {
+          router.navigate({
+            pathname: "/(owner)/manage/farms/[id]",
+            params: { id: notification.farmId },
+          } as any);
+        } else if (isFarmer) {
+          router.navigate({
+            pathname: "/(farmer)/farms/[id]",
+            params: { id: notification.farmId },
+          } as any);
+        }
+      }
+    };
+
+    if (notification.isRead || markingIds[notification.id]) {
+      navigateToTarget();
       return;
     }
 
@@ -73,6 +112,7 @@ export function NotificationsScreen() {
       setNotifications((current) =>
         current.map((item) => (item.id === updated.id ? updated : item)),
       );
+      navigateToTarget();
     } catch (err) {
       setNotifications((current) =>
         current.map((item) =>
@@ -87,7 +127,27 @@ export function NotificationsScreen() {
         return next;
       });
     }
-  }, [accessToken, markingIds]);
+  }, [accessToken, markingIds, user?.role, router]);
+
+  const handleMarkAllRead = React.useCallback(async () => {
+    const unreadNotifications = notifications.filter((n) => !n.isRead);
+    if (!accessToken || unreadNotifications.length === 0) return;
+
+    // Optimistic UI update
+    setNotifications((current) =>
+      current.map((n) => ({ ...n, isRead: true })),
+    );
+
+    try {
+      await Promise.all(
+        unreadNotifications.map((n) => markNotificationRead(accessToken, n.id))
+      );
+      void loadNotifications();
+    } catch (err) {
+      void loadNotifications();
+      showRequestErrorToast(err, { title: "Unable to mark all notifications read" });
+    }
+  }, [accessToken, notifications, loadNotifications]);
 
   const unreadCount = notifications.filter(n => !n.isRead).length;
 
@@ -123,12 +183,29 @@ export function NotificationsScreen() {
     return groups;
   }, [filteredNotifications]);
 
-  const getIconMeta = (type: string) => {
+  const getIconMeta = (type: string, severity: string) => {
+    if (severity === "CRITICAL") {
+      return { icon: "alert-circle", color: "#EF4444", bg: "#FEE2E2", isCritical: true };
+    }
+
     switch (type) {
-      case 'FEED_ALERT': return { icon: 'nutrition-outline', color: '#F59E0B', bg: '#FEF3C7' };
-      case 'MORTALITY_ALERT': return { icon: 'alert-circle-outline', color: '#F59E0B', bg: '#FEF3C7' };
-      case 'SALES_READY': return { icon: 'cart-outline', color: '#10B981', bg: '#D1FAE5' };
-      default: return { icon: 'notifications-outline', color: '#6B7280', bg: '#F3F4F6' };
+      case "MORTALITY_ALERT":
+        return { icon: "alert-circle-outline", color: "#EF4444", bg: "#FEE2E2" };
+      case "FEED_ALERT":
+        return { icon: "nutrition-outline", color: "#D97706", bg: "#FEF3C7" };
+      case "VACCINE_DUE":
+        return { icon: "medical-outline", color: "#8B5CF6", bg: "#EDE9FE" };
+      case "FCR_ALERT":
+        return { icon: "trending-up-outline", color: "#EC4899", bg: "#FCE7F3" };
+      case "PENDING_ENTRY":
+        return { icon: "document-text-outline", color: "#3B82F6", bg: "#DBEAFE" };
+      case "SALES_READY":
+        return { icon: "cart-outline", color: "#10B981", bg: "#D1FAE5" };
+      case "PAYMENT_DUE":
+        return { icon: "cash-outline", color: "#059669", bg: "#ECFDF5" };
+      case "GENERAL":
+      default:
+        return { icon: "notifications-outline", color: "#6B7280", bg: "#F3F4F6" };
     }
   };
 
@@ -139,7 +216,21 @@ export function NotificationsScreen() {
 
   return (
     <View style={styles.safeArea}>
-      <TopAppBar title="Notifications" subtitle={`${unreadCount} unread update${unreadCount === 1 ? "" : "s"}`} />
+      <TopAppBar
+        title="Notifications"
+        subtitle={`${unreadCount} unread update${unreadCount === 1 ? "" : "s"}`}
+        right={
+          unreadCount > 0 ? (
+            <TouchableOpacity
+              style={styles.markAllBtn}
+              onPress={() => void handleMarkAllRead()}
+              activeOpacity={0.7}
+            >
+              <Ionicons name="checkmark-done" size={20} color="#FFF" />
+            </TouchableOpacity>
+          ) : undefined
+        }
+      />
 
       <KeyboardAvoidingView
         behavior={Platform.OS === "ios" ? "padding" : "height"}
@@ -196,11 +287,15 @@ export function NotificationsScreen() {
               <Text style={styles.sectionHeader}>{title}</Text>
             )}
             renderItem={({ item, index, section }) => {
-              const meta = getIconMeta(item.type);
+              const meta = getIconMeta(item.type, item.severity);
               const isLast = index === section.data.length - 1;
               return (
                 <TouchableOpacity
-                  style={[styles.notifCard, isLast && { borderBottomWidth: 0 }]}
+                  style={[
+                    styles.notifCard,
+                    isLast && { borderBottomWidth: 0 },
+                    meta.isCritical && styles.criticalCard,
+                  ]}
                   activeOpacity={0.7}
                   onPress={() => void handleNotificationPress(item)}
                 >
@@ -209,12 +304,23 @@ export function NotificationsScreen() {
                   </View>
                   <View style={styles.notifContent}>
                     <View style={styles.notifHeaderRow}>
-                      <Text style={styles.notifTitle}>{item.title}</Text>
+                      <View style={styles.titleWrap}>
+                        <Text style={styles.notifTitle} numberOfLines={1}>{item.title}</Text>
+                        {item.severity === "CRITICAL" && (
+                          <View style={styles.criticalBadge}>
+                            <Text style={styles.criticalBadgeText}>CRITICAL</Text>
+                          </View>
+                        )}
+                      </View>
                       <Text style={styles.notifTime}>{formatTime(item.createdAt)}</Text>
                     </View>
                     <Text style={styles.notifMessage} numberOfLines={2}>{item.message}</Text>
                   </View>
-                  {!item.isRead && <View style={styles.unreadDot} />}
+                  {!item.isRead ? (
+                    <View style={styles.unreadDot} />
+                  ) : (
+                    <Ionicons name="checkmark-done" size={16} color="#9CA3AF" style={{ marginLeft: 12 }} />
+                  )}
                 </TouchableOpacity>
               );
             }}
@@ -263,15 +369,39 @@ const styles = StyleSheet.create({
   notifCard: {
     flexDirection: "row", alignItems: "center", backgroundColor: "#FFF",
     padding: 16, borderBottomWidth: 1, borderBottomColor: "#F3F4F6",
-    borderRadius: 8, marginBottom: 2,
+    borderRadius: 8, marginBottom: 4,
+    borderLeftWidth: 3, borderLeftColor: "transparent",
+  },
+  criticalCard: {
+    borderLeftColor: "#EF4444",
   },
   iconBox: {
     width: 44, height: 44, borderRadius: 12, alignItems: "center", justifyContent: "center", marginRight: 16,
   },
   notifContent: { flex: 1 },
   notifHeaderRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 4 },
-  notifTitle: { fontSize: 15, fontWeight: "700", color: "#111827", flex: 1, marginRight: 8 },
+  titleWrap: { flexDirection: "row", alignItems: "center", flex: 1, marginRight: 8, gap: 6 },
+  notifTitle: { fontSize: 15, fontWeight: "700", color: "#111827", flexShrink: 1 },
+  criticalBadge: {
+    backgroundColor: "#FEE2E2",
+    borderRadius: 4,
+    paddingHorizontal: 5,
+    paddingVertical: 1,
+  },
+  criticalBadgeText: {
+    color: "#EF4444",
+    fontSize: 8,
+    fontWeight: "900",
+  },
   notifTime: { fontSize: 11, color: "#9CA3AF" },
   notifMessage: { fontSize: 13, color: "#6B7280", lineHeight: 18 },
   unreadDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: "#EF4444", marginLeft: 12 },
+  markAllBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 10,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "rgba(255,255,255,0.12)",
+  },
 });

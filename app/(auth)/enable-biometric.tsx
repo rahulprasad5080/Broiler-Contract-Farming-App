@@ -10,9 +10,9 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
+import Toast from 'react-native-toast-message';
 import { Colors } from "../../constants/Colors";
 import { useAuth } from "../../context/AuthContext";
-import Toast from 'react-native-toast-message';
 import { authenticateWithBiometrics } from "../../services/authSecurity";
 
 export default function EnableBiometricScreen() {
@@ -68,14 +68,6 @@ export default function EnableBiometricScreen() {
   return (
     <SafeAreaView style={styles.safeArea}>
       <View style={styles.container}>
-        <TouchableOpacity
-          style={styles.backButton}
-          onPress={() => router.back()}
-          activeOpacity={0.7}
-        >
-          <Ionicons name="arrow-back" size={24} color="#111827" />
-        </TouchableOpacity>
-
         <View style={styles.content}>
           <View style={styles.fingerprintCircle}>
             <Ionicons name="finger-print-outline" size={72} color={Colors.primary} />

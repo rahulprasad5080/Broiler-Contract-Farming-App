@@ -11,11 +11,13 @@ import {
   listAllUsers,
   updateUserStatus,
 } from "@/services/managementApi";
+import { listNotifications } from "../../services/notificationApi";
 import {
   Feather,
   Ionicons,
   MaterialCommunityIcons,
 } from "@expo/vector-icons";
+import { useFocusEffect } from "@react-navigation/native";
 import { useRouter, type Href } from "expo-router";
 import React, { useCallback, useEffect, useState } from "react";
 import {
@@ -78,6 +80,7 @@ export default function OwnerDashboard() {
   const [dashboard, setDashboard] = useState<ApiDashboardSummary | null>(null);
   const [financialDashboard, setFinancialDashboard] =
     useState<ApiFinancialDashboard | null>(null);
+  const [unreadNotificationsCount, setUnreadNotificationsCount] = useState(0);
   const [loadingDashboard, setLoadingDashboard] = useState(false);
   const [activeBatchIndex, setActiveBatchIndex] = useState(0);
 
@@ -85,14 +88,20 @@ export default function OwnerDashboard() {
     if (!accessToken) return;
     setLoadingDashboard(true);
     try {
-      const [dashboardResponse, financialResponse] = await Promise.all([
+      const [dashboardResponse, financialResponse, notificationsResponse] = await Promise.all([
         fetchDashboard(accessToken),
         hasPermission("view:financial-dashboard")
           ? fetchFinancialDashboard(accessToken)
           : Promise.resolve(null),
+        hasPermission("view:notifications")
+          ? listNotifications(accessToken, { unreadOnly: true })
+          : Promise.resolve({ data: [] }),
       ]);
       setDashboard(dashboardResponse);
       setFinancialDashboard(financialResponse);
+      if (notificationsResponse) {
+        setUnreadNotificationsCount(notificationsResponse.data.length);
+      }
     } catch (err) {
       showRequestErrorToast(err, {
         title: "Dashboard load failed",
@@ -103,9 +112,11 @@ export default function OwnerDashboard() {
     }
   }, [accessToken, hasPermission]);
 
-  useEffect(() => {
-    void loadDashboard();
-  }, [loadDashboard]);
+  useFocusEffect(
+    useCallback(() => {
+      void loadDashboard();
+    }, [loadDashboard])
+  );
 
   // Load Users for settings panel
   const loadUsers = useCallback(async () => {
@@ -267,7 +278,7 @@ export default function OwnerDashboard() {
       <TopAppBar
         leadingMode="menu"
         title="PoultryFlow"
-        notificationCount={canViewNotifications ? alertCount : -1}
+        notificationCount={canViewNotifications ? unreadNotificationsCount : -1}
         onNotificationPress={
           canViewNotifications
             ? () => router.navigate("/(owner)/notifications" as Href)

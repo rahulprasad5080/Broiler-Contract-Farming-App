@@ -22,6 +22,7 @@ import { Layout } from '../../constants/Layout';
 import { useAuth } from '../../context/AuthContext';
 import { showRequestErrorToast } from '../../services/apiFeedback';
 import { fetchDashboard, type ApiDashboardBatch, type ApiDashboardSummary } from '../../services/dashboardApi';
+import { listNotifications } from '../../services/notificationApi';
 
 // Using a custom deeper green based on the owner dashboard
 const THEME_GREEN = '#0B5C36';
@@ -38,6 +39,7 @@ export default function SupervisorDashboard() {
   const { accessToken, hasPermission, user } = useAuth();
   const router = useRouter();
   const [dashboard, setDashboard] = useState<ApiDashboardSummary | null>(null);
+  const [unreadNotificationsCount, setUnreadNotificationsCount] = useState(0);
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState<string | null>(null);
@@ -48,8 +50,16 @@ export default function SupervisorDashboard() {
     setLoading(true);
     setMessage(null);
     try {
-      const response = await fetchDashboard(accessToken);
+      const [response, notificationsResponse] = await Promise.all([
+        fetchDashboard(accessToken),
+        hasPermission('view:notifications')
+          ? listNotifications(accessToken, { unreadOnly: true })
+          : Promise.resolve({ data: [] }),
+      ]);
       setDashboard(response);
+      if (notificationsResponse) {
+        setUnreadNotificationsCount(notificationsResponse.data.length);
+      }
     } catch (error) {
       setMessage(
         showRequestErrorToast(error, {
@@ -60,7 +70,7 @@ export default function SupervisorDashboard() {
     } finally {
       setLoading(false);
     }
-  }, [accessToken]);
+  }, [accessToken, hasPermission]);
 
   useFocusEffect(
     useCallback(() => {
@@ -112,7 +122,7 @@ export default function SupervisorDashboard() {
       <TopAppBar
         leadingMode="menu"
         title="PoultryFlow"
-        notificationCount={canViewNotifications ? alertCount : -1}
+        notificationCount={canViewNotifications ? unreadNotificationsCount : -1}
         onNotificationPress={
           canViewNotifications
             ? () => router.navigate('/(supervisor)/notifications' as Href)

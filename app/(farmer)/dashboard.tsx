@@ -17,6 +17,7 @@ import { TopAppBar } from '@/components/ui/TopAppBar';
 import { useAuth, type Permission } from '../../context/AuthContext';
 import { showRequestErrorToast } from '../../services/apiFeedback';
 import { fetchDashboard, type ApiDashboardSummary } from '../../services/dashboardApi';
+import { listNotifications } from '../../services/notificationApi';
 
 const THEME_GREEN = '#0B5C36';
 
@@ -68,6 +69,7 @@ export default function FarmerDashboard() {
   const { accessToken, hasPermission, user } = useAuth();
   const router = useRouter();
   const [dashboard, setDashboard] = React.useState<ApiDashboardSummary | null>(null);
+  const [unreadNotificationsCount, setUnreadNotificationsCount] = React.useState(0);
   const [weather, setWeather] = React.useState<WeatherState>({
     temperature: null,
     humidity: null,
@@ -83,7 +85,16 @@ export default function FarmerDashboard() {
     setLoading(true);
     try {
       setDashboardError(null);
-      setDashboard(await fetchDashboard(accessToken));
+      const [dashboardResponse, notificationsResponse] = await Promise.all([
+        fetchDashboard(accessToken),
+        hasPermission('view:notifications')
+          ? listNotifications(accessToken, { unreadOnly: true })
+          : Promise.resolve({ data: [] }),
+      ]);
+      setDashboard(dashboardResponse);
+      if (notificationsResponse) {
+        setUnreadNotificationsCount(notificationsResponse.data.length);
+      }
     } catch (error) {
       setDashboardError(
         showRequestErrorToast(error, {
@@ -94,7 +105,7 @@ export default function FarmerDashboard() {
     } finally {
       setLoading(false);
     }
-  }, [accessToken]);
+  }, [accessToken, hasPermission]);
 
   const loadWeather = React.useCallback(async () => {
     try {
@@ -202,7 +213,7 @@ export default function FarmerDashboard() {
       <TopAppBar
         leadingMode="menu"
         title="PoultryFlow"
-        notificationCount={canViewNotifications ? 0 : -1}
+        notificationCount={canViewNotifications ? unreadNotificationsCount : -1}
         onNotificationPress={
           canViewNotifications
             ? () => router.navigate('/(farmer)/notifications')
