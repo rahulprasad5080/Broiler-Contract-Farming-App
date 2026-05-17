@@ -1,22 +1,16 @@
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
-import { zodResolver } from '@hookform/resolvers/zod';
 import { useFocusEffect } from '@react-navigation/native';
 import { useRouter } from 'expo-router';
 import React, { useCallback, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   FlatList,
-  KeyboardAvoidingView,
-  Modal,
-  Platform,
   StyleSheet,
   Text,
   TextInput,
   TouchableOpacity,
   View
 } from 'react-native';
-import { Controller, useForm } from 'react-hook-form';
-import { z } from 'zod';
 
 import { Colors } from '@/constants/Colors';
 import { Layout } from '@/constants/Layout';
@@ -33,24 +27,7 @@ import {
   updateTrader,
   listAllTraders,
 } from '@/services/managementApi';
-
-const traderSchema = z.object({
-  name: z.string().trim().min(1, 'Trader name is required'),
-  phone: z.string().optional(),
-  email: z.string().optional(),
-  address: z.string().optional(),
-  notes: z.string().optional(),
-});
-
-type TraderFormData = z.infer<typeof traderSchema>;
-
-const TRADER_DEFAULTS = {
-  name: '',
-  phone: '',
-  email: '',
-  address: '',
-  notes: '',
-} satisfies TraderFormData;
+import TraderModal, { TraderFormData } from './components/TraderModal';
 
 export default function PartnerManagementScreen() {
   const router = useRouter();
@@ -62,17 +39,6 @@ export default function PartnerManagementScreen() {
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
-
-  const {
-    control,
-    handleSubmit,
-    reset,
-    formState: { errors },
-  } = useForm<TraderFormData>({
-    resolver: zodResolver(traderSchema),
-    defaultValues: TRADER_DEFAULTS,
-  });
-
   const canManagePartners = hasPermission('manage:partners');
 
   const loadTraders = useCallback(async () => {
@@ -115,19 +81,11 @@ export default function PartnerManagementScreen() {
 
   const handleOpenAdd = () => {
     setEditingTrader(null);
-    reset(TRADER_DEFAULTS);
     setShowAddModal(true);
   };
 
   const handleOpenEdit = (trader: ApiTrader) => {
     setEditingTrader(trader);
-    reset({
-      name: trader.name,
-      phone: trader.phone || '',
-      email: trader.email || '',
-      address: trader.address || '',
-      notes: trader.notes || '',
-    });
     setShowAddModal(true);
   };
 
@@ -165,7 +123,6 @@ export default function PartnerManagementScreen() {
         setTraders((current) => [created, ...current]);
         showSuccessToast('Trader saved successfully.', 'Saved');
       }
-      reset(TRADER_DEFAULTS);
       setShowAddModal(false);
       setEditingTrader(null);
     } catch (error) {
@@ -271,71 +228,14 @@ export default function PartnerManagementScreen() {
         }
       />
 
-      <Modal visible={showAddModal} transparent animationType="slide">
-        <TouchableOpacity style={styles.modalOverlay} activeOpacity={1} onPress={() => setShowAddModal(false)}>
-          <KeyboardAvoidingView
-            behavior={Platform.OS === "ios" ? "padding" : "height"}
-            style={{ width: '100%' }}
-          >
-          <View style={styles.modalSheet} onStartShouldSetResponder={() => true}>
-            <Text style={styles.modalTitle}>{editingTrader ? 'Edit Trader' : 'Add Trader'}</Text>
-
-            <Field control={control} name="name" label="Trader Name" error={errors.name?.message} placeholder="Mahadev Traders" />
-            <Field control={control} name="phone" label="Phone" error={errors.phone?.message} placeholder="9876543210" keyboardType="phone-pad" />
-            <Field control={control} name="email" label="Email" error={errors.email?.message} placeholder="trader@example.com" />
-            <Field control={control} name="address" label="Address" error={errors.address?.message} placeholder="Ward 3, Rampura" />
-            <Field control={control} name="notes" label="Notes" error={errors.notes?.message} placeholder="Optional notes" multiline />
-
-            <TouchableOpacity style={[styles.submitBtn, saving && styles.submitBtnDisabled]} onPress={handleSubmit(handleSaveTrader)} disabled={saving}>
-              {saving ? <ActivityIndicator color="#FFF" /> : <Text style={styles.submitBtnText}>{editingTrader ? 'Save Changes' : 'Create Trader'}</Text>}
-            </TouchableOpacity>
-          </View>
-          </KeyboardAvoidingView>
-        </TouchableOpacity>
-      </Modal>
+      <TraderModal
+        visible={showAddModal}
+        onClose={() => setShowAddModal(false)}
+        editingTrader={editingTrader}
+        onSave={handleSaveTrader}
+        saving={saving}
+      />
     </View>
-  );
-}
-
-function Field({
-  control,
-  name,
-  label,
-  error,
-  placeholder,
-  keyboardType = 'default',
-  multiline = false,
-}: {
-  control: ReturnType<typeof useForm<TraderFormData>>['control'];
-  name: keyof TraderFormData;
-  label: string;
-  error?: string;
-  placeholder: string;
-  keyboardType?: 'default' | 'phone-pad';
-  multiline?: boolean;
-}) {
-  return (
-    <Controller
-      control={control}
-      name={name}
-      render={({ field: { onChange, value } }) => (
-        <>
-          <Text style={styles.formLabel}>{label}</Text>
-          <View style={[styles.inputBox, multiline && styles.textArea, error && { borderColor: Colors.tertiary }]}>
-            <TextInput
-              style={[styles.textInput, multiline && styles.multiLineInput]}
-              placeholder={placeholder}
-              placeholderTextColor={Colors.textSecondary}
-              value={value}
-              onChangeText={onChange}
-              keyboardType={keyboardType}
-              multiline={multiline}
-            />
-          </View>
-          {error ? <Text style={styles.fieldErrorText}>{error}</Text> : null}
-        </>
-      )}
-    />
   );
 }
 
