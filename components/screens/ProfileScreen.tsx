@@ -104,6 +104,21 @@ export default function ProfileScreen() {
           ) : null}
         </SurfaceCard>
 
+        {/* Billing & Subscription */}
+        {user?.role === 'OWNER' ? (
+          <>
+            <Text style={styles.sectionTitle}>Billing & Subscription</Text>
+            <SurfaceCard padded={false} style={styles.settingsGroup}>
+              <SettingItem
+                icon="card-outline"
+                label="Subscription Plan"
+                onPress={() => router.navigate('/(owner)/manage/billing' as any)}
+                isLast
+              />
+            </SurfaceCard>
+          </>
+        ) : null}
+
         {/* Security */}
         <Text style={styles.sectionTitle}>Security</Text>
         <SurfaceCard padded={false} style={styles.settingsGroup}>
