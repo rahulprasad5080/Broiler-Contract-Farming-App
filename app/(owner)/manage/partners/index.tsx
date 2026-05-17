@@ -30,6 +30,7 @@ import {
 import {
   ApiTrader,
   createTrader,
+  updateTrader,
   listAllTraders,
 } from '@/services/managementApi';
 
@@ -57,6 +58,7 @@ export default function PartnerManagementScreen() {
   const [traders, setTraders] = useState<ApiTrader[]>([]);
   const [search, setSearch] = useState('');
   const [showAddModal, setShowAddModal] = useState(false);
+  const [editingTrader, setEditingTrader] = useState<ApiTrader | null>(null);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
@@ -111,7 +113,25 @@ export default function PartnerManagementScreen() {
     );
   }, [search, traders]);
 
-  const handleAddTrader = async (data: TraderFormData) => {
+  const handleOpenAdd = () => {
+    setEditingTrader(null);
+    reset(TRADER_DEFAULTS);
+    setShowAddModal(true);
+  };
+
+  const handleOpenEdit = (trader: ApiTrader) => {
+    setEditingTrader(trader);
+    reset({
+      name: trader.name,
+      phone: trader.phone || '',
+      email: trader.email || '',
+      address: trader.address || '',
+      notes: trader.notes || '',
+    });
+    setShowAddModal(true);
+  };
+
+  const handleSaveTrader = async (data: TraderFormData) => {
     if (!accessToken) {
       setMessage('Missing access token. Please sign in again.');
       return;
@@ -120,18 +140,34 @@ export default function PartnerManagementScreen() {
     setSaving(true);
     setMessage(null);
     try {
-      const created = await createTrader(accessToken, {
-        name: data.name.trim(),
-        phone: data.phone?.trim() || undefined,
-        email: data.email?.trim() || undefined,
-        address: data.address?.trim() || undefined,
-        notes: data.notes?.trim() || undefined,
-      });
+      if (editingTrader) {
+        const updated = await updateTrader(accessToken, editingTrader.id, {
+          name: data.name.trim(),
+          phone: data.phone?.trim() || undefined,
+          email: data.email?.trim() || undefined,
+          address: data.address?.trim() || undefined,
+          notes: data.notes?.trim() || undefined,
+        });
 
-      setTraders((current) => [created, ...current]);
+        setTraders((current) =>
+          current.map((t) => (t.id === updated.id ? updated : t))
+        );
+        showSuccessToast('Trader updated successfully.', 'Updated');
+      } else {
+        const created = await createTrader(accessToken, {
+          name: data.name.trim(),
+          phone: data.phone?.trim() || undefined,
+          email: data.email?.trim() || undefined,
+          address: data.address?.trim() || undefined,
+          notes: data.notes?.trim() || undefined,
+        });
+
+        setTraders((current) => [created, ...current]);
+        showSuccessToast('Trader saved successfully.', 'Saved');
+      }
       reset(TRADER_DEFAULTS);
       setShowAddModal(false);
-      showSuccessToast('Trader saved successfully.', 'Saved');
+      setEditingTrader(null);
     } catch (error) {
       setMessage(
         showRequestErrorToast(error, {
@@ -166,7 +202,7 @@ export default function PartnerManagementScreen() {
         title="Trader Master"
         subtitle="Used by sale entry and settlement review"
         right={
-          <TouchableOpacity style={styles.headerAction} onPress={() => setShowAddModal(true)}>
+          <TouchableOpacity style={styles.headerAction} onPress={handleOpenAdd}>
             <Ionicons name="add" size={24} color="#FFF" />
           </TouchableOpacity>
         }
@@ -221,6 +257,9 @@ export default function PartnerManagementScreen() {
                 </Text>
                 {trader.address ? <Text style={styles.partnerMeta}>{trader.address}</Text> : null}
               </View>
+              <TouchableOpacity onPress={() => handleOpenEdit(trader)} style={styles.editBtn}>
+                <Ionicons name="pencil" size={20} color={Colors.textSecondary} />
+              </TouchableOpacity>
             </View>
         )}
         ListEmptyComponent={
@@ -239,7 +278,7 @@ export default function PartnerManagementScreen() {
             style={{ width: '100%' }}
           >
           <View style={styles.modalSheet} onStartShouldSetResponder={() => true}>
-            <Text style={styles.modalTitle}>Add Trader</Text>
+            <Text style={styles.modalTitle}>{editingTrader ? 'Edit Trader' : 'Add Trader'}</Text>
 
             <Field control={control} name="name" label="Trader Name" error={errors.name?.message} placeholder="Mahadev Traders" />
             <Field control={control} name="phone" label="Phone" error={errors.phone?.message} placeholder="9876543210" keyboardType="phone-pad" />
@@ -247,8 +286,8 @@ export default function PartnerManagementScreen() {
             <Field control={control} name="address" label="Address" error={errors.address?.message} placeholder="Ward 3, Rampura" />
             <Field control={control} name="notes" label="Notes" error={errors.notes?.message} placeholder="Optional notes" multiline />
 
-            <TouchableOpacity style={[styles.submitBtn, saving && styles.submitBtnDisabled]} onPress={handleSubmit(handleAddTrader)} disabled={saving}>
-              {saving ? <ActivityIndicator color="#FFF" /> : <Text style={styles.submitBtnText}>Create Trader</Text>}
+            <TouchableOpacity style={[styles.submitBtn, saving && styles.submitBtnDisabled]} onPress={handleSubmit(handleSaveTrader)} disabled={saving}>
+              {saving ? <ActivityIndicator color="#FFF" /> : <Text style={styles.submitBtnText}>{editingTrader ? 'Save Changes' : 'Create Trader'}</Text>}
             </TouchableOpacity>
           </View>
           </KeyboardAvoidingView>
@@ -431,6 +470,9 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: Colors.textSecondary,
     lineHeight: 17,
+  },
+  editBtn: {
+    padding: 8,
   },
   lockedState: {
     flex: 1,

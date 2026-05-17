@@ -6,12 +6,16 @@ import {
   listBatchComments,
   listDailyLogs,
   listSales,
+  listInventoryLedger,
+  listCatalogItems,
   type ApiBatch,
   type ApiBatchExpense,
   type ApiBatchPnl,
   type ApiComment,
   type ApiDailyLog,
   type ApiSale,
+  type ApiInventoryLedgerEntry,
+  type ApiCatalogItem,
 } from '@/services/managementApi';
 import {
   downloadBatchExcelReport,
@@ -114,6 +118,8 @@ export default function BatchDetailsScreen() {
   const [batchPnl, setBatchPnl] = useState<ApiBatchPnl | null>(null);
   const [sales, setSales] = useState<ApiSale[]>([]);
   const [comments, setComments] = useState<ApiComment[]>([]);
+  const [allocations, setAllocations] = useState<ApiInventoryLedgerEntry[]>([]);
+  const [catalogItems, setCatalogItems] = useState<ApiCatalogItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [exporting, setExporting] = useState<'pdf' | 'excel' | null>(null);
@@ -131,6 +137,8 @@ export default function BatchDetailsScreen() {
         pnlRes,
         salesRes,
         commentsRes,
+        allocationsRes,
+        catalogRes,
       ] = await Promise.all([
         fetchBatch(accessToken, id),
         listDailyLogs(accessToken, id),
@@ -139,6 +147,8 @@ export default function BatchDetailsScreen() {
         fetchBatchPnl(accessToken, id),
         listSales(accessToken, id),
         listBatchComments(accessToken, id),
+        listInventoryLedger(accessToken, { batchId: id, limit: 100 }),
+        listCatalogItems(accessToken, { limit: 100 }),
       ]);
       setBatch(batchRes);
       setDailyLogs(dailyLogsRes.data);
@@ -147,6 +157,8 @@ export default function BatchDetailsScreen() {
       setBatchPnl(pnlRes);
       setSales(salesRes.data);
       setComments(commentsRes.data);
+      setAllocations(allocationsRes.data || []);
+      setCatalogItems(catalogRes.data || []);
     } catch (error) {
       setErrorMessage(
         showRequestErrorToast(error, {
@@ -179,11 +191,37 @@ export default function BatchDetailsScreen() {
   const toGo = expectedAge - ageDays > 0 ? expectedAge - ageDays : 0;
   const activeExpenses = activeExpenseTab === 'company' ? companyExpenses : farmerExpenses;
   const activeExpenseTitle = activeExpenseTab === 'company' ? 'Company Expenses' : 'Farmer Expenses';
-  const activeExpenseTotal = sumExpenses(activeExpenses);
+
+  const stockAllocations = allocations.filter(
+    (a) => a.movementType === 'ALLOCATION' || (a.quantityOut !== undefined && a.quantityOut !== null && a.quantityOut > 0)
+  );
+
+  const getStockAllocationCost = (a: ApiInventoryLedgerEntry) => {
+    const qty = a.quantityOut || 0;
+    const catItem = catalogItems.find((c) => c.id === a.catalogItemId);
+    const rate = catItem?.defaultRate || 0;
+    return qty * rate;
+  };
+
+  const companyAllocationsTotal = stockAllocations.reduce(
+    (sum, a) => sum + getStockAllocationCost(a),
+    0
+  );
+
+  const todayAllocationsTotal = stockAllocations
+    .filter((a) => {
+      const localDate = getLocalDateValue();
+      const movementDateOnly = a.movementDate ? a.movementDate.split('T')[0] : '';
+      return movementDateOnly === localDate;
+    })
+    .reduce((sum, a) => sum + getStockAllocationCost(a), 0);
+
+  const activeExpenseTotal = sumExpenses(activeExpenses) + (activeExpenseTab === 'company' ? companyAllocationsTotal : 0);
   const todayExpenseTotal = sumExpenses(
     activeExpenses.filter((expense) => expense.expenseDate === getLocalDateValue()),
-  );
-  const companyProfitLoss = batchPnl?.company.netProfitOrLoss ?? 0;
+  ) + (activeExpenseTab === 'company' ? todayAllocationsTotal : 0);
+  const companyExpensesTotal = (batchPnl?.company.expenses || 0) + companyAllocationsTotal;
+  const companyProfitLoss = (batchPnl?.company.salesRevenue || 0) - companyExpensesTotal;
   const companyResultColor = companyProfitLoss >= 0 ? THEME_GREEN : '#D32F2F';
   const totalSalesAmount = sumSalesAmount(sales);
   const todaySalesAmount = sumSalesAmount(
@@ -365,6 +403,8 @@ export default function BatchDetailsScreen() {
                 activeExpenses={activeExpenses}
                 activeExpenseTotal={activeExpenseTotal}
                 todayExpenseTotal={todayExpenseTotal}
+                allocations={allocations}
+                catalogItems={catalogItems}
               />
             )}
 
@@ -385,6 +425,7 @@ export default function BatchDetailsScreen() {
                 batchPnl={batchPnl}
                 companyProfitLoss={companyProfitLoss}
                 companyResultColor={companyResultColor}
+                companyExpensesOverride={companyExpensesTotal}
               />
             )}
 

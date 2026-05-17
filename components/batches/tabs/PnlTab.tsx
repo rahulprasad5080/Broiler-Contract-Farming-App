@@ -43,6 +43,7 @@ interface PnlTabProps {
   batchPnl: ApiBatchPnl | null;
   companyProfitLoss: number;
   companyResultColor: string;
+  companyExpensesOverride?: number;
 }
 
 export function PnlTab({
@@ -51,6 +52,7 @@ export function PnlTab({
   batchPnl,
   companyProfitLoss,
   companyResultColor,
+  companyExpensesOverride,
 }: PnlTabProps) {
   return (
     <View style={styles.section}>
@@ -82,7 +84,7 @@ export function PnlTab({
             </View>
             <View style={styles.expenseSummaryBody}>
               <PnlRow label="Sales Revenue" value={formatMoney(batchPnl?.company.salesRevenue)} />
-              <PnlRow label="Company Expenses" value={formatMoney(batchPnl?.company.expenses)} />
+              <PnlRow label="Company Expenses" value={formatMoney(companyExpensesOverride !== undefined ? companyExpensesOverride : batchPnl?.company.expenses)} />
               <View style={styles.expenseDivider} />
               <PnlRow
                 label={companyProfitLoss >= 0 ? 'Company Profit' : 'Company Loss'}

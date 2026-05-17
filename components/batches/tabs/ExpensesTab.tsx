@@ -2,7 +2,11 @@ import React from 'react';
 import { View, Text, TouchableOpacity, Linking } from 'react-native';
 import { Ionicons, Feather } from '@expo/vector-icons';
 import { styles } from './styles';
-import type { ApiBatchExpense } from '@/services/managementApi';
+import type {
+  ApiBatchExpense,
+  ApiInventoryLedgerEntry,
+  ApiCatalogItem,
+} from '@/services/managementApi';
 
 const THEME_GREEN = '#0B5C36';
 
@@ -110,6 +114,49 @@ function ExpenseHistoryCard({ expense }: { expense: ApiBatchExpense }) {
   );
 }
 
+function AllocatedStockCard({
+  allocation,
+  catalogItem,
+}: {
+  allocation: ApiInventoryLedgerEntry;
+  catalogItem?: ApiCatalogItem;
+}) {
+  const qty = allocation.quantityOut || 0;
+  const rate = catalogItem?.defaultRate || 0;
+  const unit = catalogItem?.unit || 'units';
+  const totalCost = qty * rate;
+
+  return (
+    <View style={styles.expenseHistoryCard}>
+      <View style={styles.expenseHistoryHeader}>
+        <View style={styles.expenseHistoryTitleWrap}>
+          <Text style={styles.expenseHistoryTitle} numberOfLines={1}>
+            {allocation.catalogItemName || catalogItem?.name || 'Allocated Stock'}
+          </Text>
+          <Text style={styles.expenseHistoryMeta}>
+            {['Stock Allocation', formatDate(allocation.movementDate)].filter(Boolean).join(' | ')}
+          </Text>
+        </View>
+        <Text style={[styles.expenseHistoryAmount, { color: '#0B5C36' }]}>
+          {totalCost > 0 ? formatMoney(totalCost) : 'Rate not set'}
+        </Text>
+      </View>
+
+      <View style={styles.expenseInfoGrid}>
+        <InfoPill label="Ledger" value="Company Stock" />
+        <InfoPill label="Qty Issued" value={`${formatNumber(qty)} ${unit}`} />
+        {rate > 0 ? <InfoPill label="Rate" value={`${formatMoney(rate)} / ${unit}`} /> : null}
+      </View>
+
+      {allocation.notes ? (
+        <Text style={styles.expenseNotes} numberOfLines={2}>
+          {allocation.notes}
+        </Text>
+      ) : null}
+    </View>
+  );
+}
+
 interface ExpensesTabProps {
   activeExpenseTab: 'company' | 'farmer';
   setActiveExpenseTab: (val: 'company' | 'farmer') => void;
@@ -117,6 +164,8 @@ interface ExpensesTabProps {
   activeExpenses: ApiBatchExpense[];
   activeExpenseTotal: number;
   todayExpenseTotal: number;
+  allocations?: ApiInventoryLedgerEntry[];
+  catalogItems?: ApiCatalogItem[];
 }
 
 export function ExpensesTab({
@@ -126,6 +175,8 @@ export function ExpensesTab({
   activeExpenses,
   activeExpenseTotal,
   todayExpenseTotal,
+  allocations = [],
+  catalogItems = [],
 }: ExpensesTabProps) {
   return (
     <View style={styles.section}>
@@ -189,6 +240,26 @@ export function ExpensesTab({
         activeExpenses.map((expense) => (
           <ExpenseHistoryCard key={expense.id} expense={expense} />
         ))
+      )}
+
+      {activeExpenseTab === 'company' && allocations && allocations.length > 0 && (
+        <View style={{ marginTop: 24 }}>
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>Allocated Stock Items</Text>
+          </View>
+          {allocations
+            .filter((a) => a.movementType === 'ALLOCATION' || (a.quantityOut !== undefined && a.quantityOut !== null && a.quantityOut > 0))
+            .map((allocation) => {
+              const catalogItem = catalogItems?.find((c) => c.id === allocation.catalogItemId);
+              return (
+                <AllocatedStockCard
+                  key={allocation.id}
+                  allocation={allocation}
+                  catalogItem={catalogItem}
+                />
+              );
+            })}
+        </View>
       )}
 
       <View style={styles.noteBox}>
