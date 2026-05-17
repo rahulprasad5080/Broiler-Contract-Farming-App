@@ -8,6 +8,9 @@ import {
   listSales,
   listInventoryLedger,
   listCatalogItems,
+  updateBatch,
+  updateBatchStatus,
+  createBatchComment,
   type ApiBatch,
   type ApiBatchExpense,
   type ApiBatchPnl,
@@ -39,6 +42,10 @@ import {
   Text,
   TouchableOpacity,
   View,
+  Modal,
+  TextInput,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import { ScreenState } from '@/components/ui/ScreenState';
 import { TopAppBar } from '@/components/ui/TopAppBar';
@@ -47,6 +54,7 @@ import { showRequestErrorToast, showSuccessToast } from '@/services/apiFeedback'
 type TabKey = 'overview' | 'daily' | 'expenses' | 'sales' | 'pnl' | 'comments';
 
 const TABS: { key: TabKey; label: string }[] = [
+  { key: 'overview', label: 'Overview' },
   { key: 'daily', label: 'Daily Entries' },
   { key: 'expenses', label: 'Expenses' },
   { key: 'sales', label: 'Sales' },
@@ -108,7 +116,7 @@ export default function BatchDetailsScreen() {
   const router = useRouter();
   const { accessToken } = useAuth();
 
-  const [activeTab, setActiveTab] = useState<TabKey>('daily');
+  const [activeTab, setActiveTab] = useState<TabKey>('overview');
   const [activeExpenseTab, setActiveExpenseTab] = useState<'company' | 'farmer'>('company');
   const [activePnlTab, setActivePnlTab] = useState<'company' | 'farmer'>('company');
   const [batch, setBatch] = useState<ApiBatch | null>(null);
@@ -123,6 +131,18 @@ export default function BatchDetailsScreen() {
   const [loading, setLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [exporting, setExporting] = useState<'pdf' | 'excel' | null>(null);
+
+  const [newComment, setNewComment] = useState('');
+  const [correctionNote, setCorrectionNote] = useState('');
+  const [submittingComment, setSubmittingComment] = useState(false);
+
+  // Edit & Status Modal States
+  const [showActionsModal, setShowActionsModal] = useState(false);
+  const [editCode, setEditCode] = useState('');
+  const [editPlacementCount, setEditPlacementCount] = useState('');
+  const [editNotes, setEditNotes] = useState('');
+  const [editStatus, setEditStatus] = useState<ApiBatch['status']>('ACTIVE');
+  const [savingActions, setSavingActions] = useState(false);
 
   const loadBatchDetails = useCallback(async () => {
     if (!accessToken || !id) return;
@@ -151,6 +171,10 @@ export default function BatchDetailsScreen() {
         listCatalogItems(accessToken, { limit: 100 }),
       ]);
       setBatch(batchRes);
+      setEditCode(batchRes.code || '');
+      setEditPlacementCount(String(batchRes.placementCount || ''));
+      setEditNotes(batchRes.notes || '');
+      setEditStatus(batchRes.status || 'ACTIVE');
       setDailyLogs(dailyLogsRes.data);
       setCompanyExpenses(companyExpensesRes.data);
       setFarmerExpenses(farmerExpensesRes.data);
@@ -173,7 +197,7 @@ export default function BatchDetailsScreen() {
 
   useFocusEffect(
     useCallback(() => {
-      setActiveTab('daily');
+      setActiveTab('overview');
       void loadBatchDetails();
     }, [loadBatchDetails]),
   );
@@ -241,6 +265,60 @@ export default function BatchDetailsScreen() {
     [id, router],
   );
 
+  const handleSubmitComment = async () => {
+    if (!newComment.trim() || !accessToken || !id) return;
+    setSubmittingComment(true);
+    try {
+      await createBatchComment(accessToken, id, {
+        targetType: 'BATCH',
+        targetId: id,
+        comment: newComment.trim(),
+        correctionNote: correctionNote.trim() || undefined,
+      });
+      setNewComment('');
+      setCorrectionNote('');
+      showSuccessToast('Comment posted successfully.');
+      void loadBatchDetails();
+    } catch (error) {
+      showRequestErrorToast(error, { title: 'Failed to post comment' });
+    } finally {
+      setSubmittingComment(false);
+    }
+  };
+
+  const handleSaveActions = async () => {
+    if (!accessToken || !id || !batch) return;
+    setSavingActions(true);
+    try {
+      if (editStatus !== batch.status) {
+        await updateBatchStatus(accessToken, id, {
+          status: editStatus,
+          actualCloseDate: editStatus === 'CLOSED' ? getLocalDateValue() : null,
+        });
+      }
+
+      if (
+        editCode !== batch.code ||
+        Number(editPlacementCount) !== batch.placementCount ||
+        editNotes !== batch.notes
+      ) {
+        await updateBatch(accessToken, id, {
+          code: editCode.trim(),
+          placementCount: Number(editPlacementCount),
+          notes: editNotes.trim() || undefined,
+        });
+      }
+
+      showSuccessToast('Batch actions updated successfully.');
+      setShowActionsModal(false);
+      void loadBatchDetails();
+    } catch (error) {
+      showRequestErrorToast(error, { title: 'Failed to update batch details' });
+    } finally {
+      setSavingActions(false);
+    }
+  };
+
   const exportReport = useCallback(
     async (format: 'pdf' | 'excel') => {
       if (!accessToken || !id || exporting) return;
@@ -289,7 +367,12 @@ export default function BatchDetailsScreen() {
             >
               <Ionicons name="share-social-outline" size={22} color="#FFF" />
             </TouchableOpacity>
-            <TouchableOpacity style={styles.headerIcon}>
+            <TouchableOpacity
+              style={styles.headerIcon}
+              onPress={() => setShowActionsModal(true)}
+              accessibilityRole="button"
+              accessibilityLabel="Batch settings menu"
+            >
               <Ionicons name="ellipsis-vertical" size={22} color="#FFF" />
             </TouchableOpacity>
           </>
@@ -300,8 +383,10 @@ export default function BatchDetailsScreen() {
       <View style={styles.heroBox}>
         <View style={styles.heroTop}>
           <Text style={styles.heroTitle}>{batch?.code ?? 'Batch not loaded'}</Text>
-          <View style={styles.statusBadge}>
-            <Text style={styles.statusText}>Active</Text>
+          <View style={[styles.statusBadge, batch?.status === 'CLOSED' && { backgroundColor: '#F3F4F6', borderColor: '#E5E7EB' }]}>
+            <Text style={[styles.statusText, batch?.status === 'CLOSED' && { color: '#6B7280' }]}>
+              {batch?.status ? labelize(batch.status) : 'Active'}
+            </Text>
           </View>
         </View>
         <Text style={styles.heroFarm}>{batch?.farmName ?? 'Farm not loaded'}</Text>
@@ -435,6 +520,40 @@ export default function BatchDetailsScreen() {
                   <Text style={styles.sectionTitle}>Comments & Notes</Text>
                 </View>
 
+                {/* Add Comment Input Form */}
+                <View style={styles.addCommentContainer}>
+                  <Text style={styles.addCommentTitle}>Add a Review Comment</Text>
+                  <TextInput
+                    style={styles.commentInput}
+                    placeholder="Write your comment..."
+                    placeholderTextColor="#9CA3AF"
+                    value={newComment}
+                    onChangeText={setNewComment}
+                    multiline
+                  />
+                  <TextInput
+                    style={[styles.commentInput, { height: 44, marginTop: 8, paddingTop: 10 }]}
+                    placeholder="Correction Note (Optional)"
+                    placeholderTextColor="#9CA3AF"
+                    value={correctionNote}
+                    onChangeText={setCorrectionNote}
+                  />
+                  <TouchableOpacity
+                    style={[styles.commentSubmitBtn, submittingComment && styles.exportButtonDisabled]}
+                    onPress={handleSubmitComment}
+                    disabled={submittingComment}
+                  >
+                    {submittingComment ? (
+                      <ActivityIndicator color="#FFF" />
+                    ) : (
+                      <>
+                        <Ionicons name="chatbubble-outline" size={16} color="#FFF" />
+                        <Text style={styles.commentSubmitBtnText}>Submit Comment</Text>
+                      </>
+                    )}
+                  </TouchableOpacity>
+                </View>
+
                 {comments.length === 0 ? (
                   <View style={styles.emptyStateCard}>
                     <Ionicons name="chatbubble-ellipses-outline" size={28} color="#9CA3AF" />
@@ -455,6 +574,130 @@ export default function BatchDetailsScreen() {
           </>
         )}
       </ScrollView>
+
+      {/* Actions & Edit Modal */}
+      <Modal
+        visible={showActionsModal}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowActionsModal(false)}
+      >
+        <TouchableOpacity
+          style={styles.modalOverlay}
+          activeOpacity={1}
+          onPress={() => setShowActionsModal(false)}
+        >
+          <KeyboardAvoidingView
+            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+            style={styles.keyboardAvoid}
+          >
+            <View
+              style={styles.modalSheet}
+              onStartShouldSetResponder={() => true}
+            >
+              {/* Drag Handle */}
+              <View style={styles.dragHandle} />
+
+              <Text style={styles.modalTitle}>Batch Actions & Lifecycle</Text>
+              
+              <ScrollView showsVerticalScrollIndicator={false} style={{ maxHeight: 420 }}>
+                {/* Status Selector */}
+                <Text style={styles.fieldLabel}>Change Lifecycle Status</Text>
+                <View style={styles.statusSelectorRow}>
+                  {(['ACTIVE', 'SALES_RUNNING', 'SETTLEMENT_PENDING', 'CLOSED'] as const).map((status) => {
+                    const isSelected = editStatus === status;
+                    const statusLabel =
+                      status === 'ACTIVE'
+                        ? 'Active'
+                        : status === 'SALES_RUNNING'
+                        ? 'Sales Ready'
+                        : status === 'SETTLEMENT_PENDING'
+                        ? 'Settling'
+                        : 'Closed';
+
+                    return (
+                      <TouchableOpacity
+                        key={status}
+                        style={[
+                          styles.statusOptionChip,
+                          isSelected && styles.statusOptionChipActive,
+                        ]}
+                        onPress={() => setEditStatus(status)}
+                      >
+                        <Text
+                          style={[
+                            styles.statusOptionText,
+                            isSelected && styles.statusOptionTextActive,
+                          ]}
+                        >
+                          {statusLabel}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+
+                {/* Edit Form */}
+                <View style={styles.formGroup}>
+                  <Text style={styles.fieldLabel}>Batch Code / ID</Text>
+                  <TextInput
+                    style={styles.modalInput}
+                    value={editCode}
+                    onChangeText={setEditCode}
+                    placeholder="e.g. GV-B-2307"
+                    placeholderTextColor="#9CA3AF"
+                  />
+                </View>
+
+                <View style={styles.formGroup}>
+                  <Text style={styles.fieldLabel}>Chicks Placed</Text>
+                  <TextInput
+                    style={styles.modalInput}
+                    value={editPlacementCount}
+                    onChangeText={setEditPlacementCount}
+                    keyboardType="numeric"
+                    placeholder="e.g. 5000"
+                    placeholderTextColor="#9CA3AF"
+                  />
+                </View>
+
+                <View style={styles.formGroup}>
+                  <Text style={styles.fieldLabel}>Notes</Text>
+                  <TextInput
+                    style={[styles.modalInput, { height: 70, paddingTop: 10 }]}
+                    value={editNotes}
+                    onChangeText={setEditNotes}
+                    multiline
+                    placeholder="Batch notes..."
+                    placeholderTextColor="#9CA3AF"
+                  />
+                </View>
+              </ScrollView>
+
+              {/* Action Buttons */}
+              <View style={styles.modalActionRow}>
+                <TouchableOpacity
+                  style={[styles.modalBtn, styles.modalBtnCancel]}
+                  onPress={() => setShowActionsModal(false)}
+                >
+                  <Text style={styles.modalBtnCancelText}>Cancel</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.modalBtn, styles.modalBtnSave, savingActions && styles.exportButtonDisabled]}
+                  onPress={handleSaveActions}
+                  disabled={savingActions}
+                >
+                  {savingActions ? (
+                    <ActivityIndicator color="#FFF" />
+                  ) : (
+                    <Text style={styles.modalBtnSaveText}>Save Changes</Text>
+                  )}
+                </TouchableOpacity>
+              </View>
+            </View>
+          </KeyboardAvoidingView>
+        </TouchableOpacity>
+      </Modal>
     </View>
   );
 }
@@ -1444,5 +1687,155 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '800',
     color: '#EA580C',
+  },
+  addCommentContainer: {
+    backgroundColor: '#FFF',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    padding: 16,
+    marginBottom: 20,
+  },
+  addCommentTitle: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: '#111827',
+    marginBottom: 10,
+  },
+  commentInput: {
+    backgroundColor: '#F9FAFB',
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    height: 60,
+    fontSize: 14,
+    color: '#111827',
+    textAlignVertical: 'top',
+    paddingTop: 8,
+  },
+  commentSubmitBtn: {
+    backgroundColor: THEME_GREEN,
+    height: 40,
+    borderRadius: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 12,
+    gap: 6,
+  },
+  commentSubmitBtnText: {
+    color: '#FFF',
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'flex-end',
+  },
+  keyboardAvoid: {
+    flex: 1,
+    justifyContent: 'flex-end',
+  },
+  modalSheet: {
+    backgroundColor: '#FFF',
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    paddingHorizontal: 20,
+    paddingTop: 12,
+    paddingBottom: 32,
+  },
+  dragHandle: {
+    width: 40,
+    height: 5,
+    backgroundColor: '#E5E7EB',
+    borderRadius: 3,
+    alignSelf: 'center',
+    marginBottom: 16,
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: '800',
+    color: '#111827',
+    marginBottom: 20,
+    textAlign: 'center',
+  },
+  fieldLabel: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#374151',
+    marginBottom: 8,
+    marginTop: 12,
+  },
+  statusSelectorRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginBottom: 16,
+  },
+  statusOptionChip: {
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    backgroundColor: '#F9FAFB',
+  },
+  statusOptionChipActive: {
+    backgroundColor: '#ECFDF5',
+    borderColor: THEME_GREEN,
+  },
+  statusOptionText: {
+    fontSize: 12,
+    color: '#4B5563',
+    fontWeight: '600',
+  },
+  statusOptionTextActive: {
+    color: THEME_GREEN,
+    fontWeight: '700',
+  },
+  formGroup: {
+    marginBottom: 16,
+  },
+  modalInput: {
+    backgroundColor: '#F9FAFB',
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    borderRadius: 10,
+    paddingHorizontal: 16,
+    height: 48,
+    fontSize: 14,
+    color: '#111827',
+  },
+  modalActionRow: {
+    flexDirection: 'row',
+    gap: 12,
+    marginTop: 20,
+  },
+  modalBtn: {
+    flex: 1,
+    height: 48,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  modalBtnCancel: {
+    backgroundColor: '#F3F4F6',
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+  },
+  modalBtnCancelText: {
+    color: '#4B5563',
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  modalBtnSave: {
+    backgroundColor: THEME_GREEN,
+  },
+  modalBtnSaveText: {
+    color: '#FFF',
+    fontSize: 14,
+    fontWeight: '700',
   },
 });
