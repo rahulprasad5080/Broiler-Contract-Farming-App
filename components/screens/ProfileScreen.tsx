@@ -73,39 +73,39 @@ export default function ProfileScreen() {
         behavior={Platform.OS === "ios" ? "padding" : "height"}
         style={{ flex: 1 }}
       >
-      <ScrollView contentContainerStyle={styles.scrollContainer} showsVerticalScrollIndicator={false}>
-        {/* Profile Card */}
-        <SurfaceCard style={styles.profileCard}>
-          <View style={styles.profileInfoRow}>
-            <View style={styles.avatar}>
-              <Text style={styles.avatarText}>{initials}</Text>
+        <ScrollView contentContainerStyle={styles.scrollContainer} showsVerticalScrollIndicator={false}>
+          {/* Profile Card */}
+          <SurfaceCard style={styles.profileCard}>
+            <View style={styles.profileInfoRow}>
+              <View style={styles.avatar}>
+                <Text style={styles.avatarText}>{initials}</Text>
+              </View>
+              <View style={styles.profileDetails}>
+                <Text style={styles.name}>{user?.name || 'User'}</Text>
+                <Text style={styles.role}>{user?.role === 'OWNER' ? 'Admin' : user?.role ? user.role : 'Staff'}</Text>
+                <Text style={styles.email}>{user?.email || user?.phone || 'Contact not available'}</Text>
+
+
+              </View>
             </View>
-            <View style={styles.profileDetails}>
-              <Text style={styles.name}>{user?.name || 'User'}</Text>
-              <Text style={styles.role}>{user?.role === 'OWNER' ? 'Admin' : user?.role ? user.role : 'Staff'}</Text>
-              <Text style={styles.email}>{user?.email || user?.phone || 'Contact not available'}</Text>
+          </SurfaceCard>
 
+          {/* Account Settings */}
+          <Text style={styles.sectionTitle}>Account Settings</Text>
+          <SurfaceCard padded={false} style={styles.settingsGroup}>
+            <SettingItem icon="person-outline" label="Personal Information" />
+            {canManageUsers ? (
+              <SettingItem
+                icon="settings-outline"
+                label="App Settings"
+                onPress={() => router.navigate('/(owner)/manage/settings' as any)}
+                isLast
+              />
+            ) : null}
+          </SurfaceCard>
 
-            </View>
-          </View>
-        </SurfaceCard>
-
-        {/* Account Settings */}
-        <Text style={styles.sectionTitle}>Account Settings</Text>
-        <SurfaceCard padded={false} style={styles.settingsGroup}>
-          <SettingItem icon="person-outline" label="Personal Information" />
-          {canManageUsers ? (
-            <SettingItem
-              icon="settings-outline"
-              label="App Settings"
-              onPress={() => router.navigate('/(owner)/manage/settings' as any)}
-              isLast
-            />
-          ) : null}
-        </SurfaceCard>
-
-        {/* Billing & Subscription */}
-        {user?.role === 'OWNER' ? (
+          {/* Billing & Subscription */}
+          {/* {user?.role === 'OWNER' ? (
           <>
             <Text style={styles.sectionTitle}>Billing & Subscription</Text>
             <SurfaceCard padded={false} style={styles.settingsGroup}>
@@ -117,37 +117,37 @@ export default function ProfileScreen() {
               />
             </SurfaceCard>
           </>
-        ) : null}
+        ) : null} */}
 
-        {/* Security */}
-        <Text style={styles.sectionTitle}>Security</Text>
-        <SurfaceCard padded={false} style={styles.settingsGroup}>
-          <SettingItem
-            icon="lock-closed-outline"
-            label="Password"
-            value="Change"
-            onPress={() => router.navigate('/(auth)/change-password' as any)}
-            isLast
-          />
-        </SurfaceCard>
+          {/* Security */}
+          <Text style={styles.sectionTitle}>Security</Text>
+          <SurfaceCard padded={false} style={styles.settingsGroup}>
+            <SettingItem
+              icon="lock-closed-outline"
+              label="Password"
+              value="Change"
+              onPress={() => router.navigate('/(auth)/change-password' as any)}
+              isLast
+            />
+          </SurfaceCard>
 
 
 
-        {/* Support */}
-        <Text style={styles.sectionTitle}>Support</Text>
-        <SurfaceCard padded={false} style={styles.settingsGroup}>
-          <SettingItem icon="shield-outline" label="Privacy Policy" />
-          <SettingItem icon="information-circle-outline" label="About PoultryFlow" value="Version 1.0.0" isLast />
-        </SurfaceCard>
+          {/* Support */}
+          <Text style={styles.sectionTitle}>Support</Text>
+          <SurfaceCard padded={false} style={styles.settingsGroup}>
+            <SettingItem icon="shield-outline" label="Privacy Policy" />
+            <SettingItem icon="information-circle-outline" label="About PoultryFlow" value="Version 1.0.0" isLast />
+          </SurfaceCard>
 
-        {/* Logout Button */}
-        <TouchableOpacity style={styles.logoutBtn} onPress={handleLogout}>
-          <MaterialCommunityIcons name="logout" size={22} color="#EF4444" />
-          <Text style={styles.logoutText}>Logout</Text>
-        </TouchableOpacity>
+          {/* Logout Button */}
+          <TouchableOpacity style={styles.logoutBtn} onPress={handleLogout}>
+            <MaterialCommunityIcons name="logout" size={22} color="#EF4444" />
+            <Text style={styles.logoutText}>Logout</Text>
+          </TouchableOpacity>
 
-        <View style={{ height: 40 }} />
-      </ScrollView>
+          <View style={{ height: 40 }} />
+        </ScrollView>
       </KeyboardAvoidingView>
     </View>
   );
