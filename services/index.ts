@@ -6,7 +6,7 @@
  * Import from this file in screens and components:
  *   import { login, listBatches, fetchDashboard } from "@/services";
  *
- * Route coverage: 79 routes (77 Swagger + 2 support)
+ * Route coverage: 77 Swagger routes
  *
  * ─────────────────────────────────────────────────────────────
  *  Section               File
@@ -23,7 +23,6 @@
  *  Reports (9)           reportApi.ts
  *  Settings (2)          settingsApi.ts
  *  Subscriptions (4)     subscriptionApi.ts
- *  Support (2)           supportApi.ts
  *  Shared types          management/types.ts, authTypes.ts
  *  Utilities             management/pagination.ts, apiFeedback.ts
  * ─────────────────────────────────────────────────────────────
@@ -179,13 +178,6 @@ export type {
   CreateSubscriptionRequest,
   SubmitSubscriptionPaymentRequest,
 } from "./subscriptionApi";
-
-// ── Support — /health, /docs (2 routes) ──
-export {
-  fetchHealth,
-  fetchDocsHtml,
-} from "./supportApi";
-export type { ApiHealthResponse } from "./supportApi";
 
 // ── Feedback / Toast utilities ──
 export {

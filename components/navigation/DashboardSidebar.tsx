@@ -167,13 +167,6 @@ const ownerRoutes: DashboardSidebarRoute[] = [
     requiredPermission: "manage:settlements",
   },
   {
-    title: "API Diagnostics",
-    icon: "terminal-outline",
-    route: "/(owner)/manage/api",
-    section: "More",
-    requiredPermission: "manage:users",
-  },
-  {
     title: "Notifications",
     icon: "notifications-outline",
     route: "/(owner)/notifications",
