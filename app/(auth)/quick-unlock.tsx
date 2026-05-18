@@ -349,31 +349,33 @@ export default function QuickUnlockScreen() {
     );
   };
 
-  <SafeAreaView style={styles.safeArea}>
-    <KeyboardAvoidingView
-      behavior={Platform.OS === "ios" ? "padding" : "height"}
-      style={{ flex: 1 }}
-    >
-      <ScrollView
-        contentContainerStyle={styles.container}
-        keyboardShouldPersistTaps="handled"
-        showsVerticalScrollIndicator={false}
+  return (
+    <SafeAreaView style={styles.safeArea}>
+      <KeyboardAvoidingView
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        style={{ flex: 1 }}
       >
-        <Image source={require("../../assets/logo.jpeg")} style={styles.logo} resizeMode="cover" />
-        <Text style={styles.title}>Welcome Back{user?.name ? `, ${user.name.split(' ')[0]}` : ''}</Text>
-        <Text style={styles.subtitle}>Continue as {maskMobileNumber(user?.phone ?? undefined)}</Text>
+        <ScrollView
+          contentContainerStyle={styles.container}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+        >
+          <Image source={require("../../assets/logo.jpeg")} style={styles.logo} resizeMode="cover" />
+          <Text style={styles.title}>Welcome Back{user?.name ? `, ${user.name.split(' ')[0]}` : ''}</Text>
+          <Text style={styles.subtitle}>Continue as {maskMobileNumber(user?.phone ?? undefined)}</Text>
 
-        {renderUnlockBody()}
+          {renderUnlockBody()}
 
-        {mode !== "password" ? (
-          <TouchableOpacity style={styles.passwordButton} onPress={usePassword} activeOpacity={0.76}>
-            <Ionicons name="key-outline" size={18} color={Colors.primary} />
-            <Text style={styles.passwordButtonText}>Use Password</Text>
-          </TouchableOpacity>
-        ) : null}
-      </ScrollView>
-    </KeyboardAvoidingView>
-  </SafeAreaView>
+          {mode !== "password" ? (
+            <TouchableOpacity style={styles.passwordButton} onPress={usePassword} activeOpacity={0.76}>
+              <Ionicons name="key-outline" size={18} color={Colors.primary} />
+              <Text style={styles.passwordButtonText}>Use Password</Text>
+            </TouchableOpacity>
+          ) : null}
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </SafeAreaView>
+  );
 
 }
 

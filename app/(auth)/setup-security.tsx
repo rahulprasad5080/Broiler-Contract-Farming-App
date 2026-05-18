@@ -119,123 +119,125 @@ export default function SetupSecurityScreen() {
     }
   };
 
-  <SafeAreaView style={styles.safeArea}>
-    <KeyboardAvoidingView
-      behavior={Platform.OS === "ios" ? "padding" : "height"}
-      style={{ flex: 1 }}
-    >
-      <ScrollView
-        contentContainerStyle={styles.container}
-        keyboardShouldPersistTaps="handled"
-        showsVerticalScrollIndicator={false}
+  return (
+    <SafeAreaView style={styles.safeArea}>
+      <KeyboardAvoidingView
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        style={{ flex: 1 }}
       >
-        <View style={styles.headerIcon}>
-          <Ionicons name="shield-checkmark-outline" size={38} color={Colors.primary} />
-        </View>
+        <ScrollView
+          contentContainerStyle={styles.container}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+        >
+          <View style={styles.headerIcon}>
+            <Ionicons name="shield-checkmark-outline" size={38} color={Colors.primary} />
+          </View>
 
-        <Text style={styles.title}>Secure Your App</Text>
-        <Text style={styles.subtitle}>Create a fast unlock method for this device.</Text>
+          <Text style={styles.title}>Secure Your App</Text>
+          <Text style={styles.subtitle}>Create a fast unlock method for this device.</Text>
 
-        <View style={[styles.passwordPanel, passwordError && styles.passwordPanelError]}>
-          <Ionicons name="lock-closed-outline" size={20} color={Colors.textSecondary} />
-          <TextInput
-            value={currentPassword}
-            onChangeText={(value) => {
-              setCurrentPassword(value);
-              setPasswordError(null);
-            }}
-            placeholder="Current password"
-            placeholderTextColor="#8A94A3"
-            secureTextEntry={!showPassword}
-            autoCapitalize="none"
-            autoComplete="password"
-            textContentType="password"
-            style={styles.passwordInput}
-          />
-          <TouchableOpacity
-            onPress={() => setShowPassword((current) => !current)}
-            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-            activeOpacity={0.7}
-          >
-            <Ionicons
-              name={showPassword ? "eye-off-outline" : "eye-outline"}
-              size={21}
-              color={Colors.textSecondary}
+          <View style={[styles.passwordPanel, passwordError && styles.passwordPanelError]}>
+            <Ionicons name="lock-closed-outline" size={20} color={Colors.textSecondary} />
+            <TextInput
+              value={currentPassword}
+              onChangeText={(value) => {
+                setCurrentPassword(value);
+                setPasswordError(null);
+              }}
+              placeholder="Current password"
+              placeholderTextColor="#8A94A3"
+              secureTextEntry={!showPassword}
+              autoCapitalize="none"
+              autoComplete="password"
+              textContentType="password"
+              style={styles.passwordInput}
             />
-          </TouchableOpacity>
-        </View>
-        {passwordError ? (
-          <Text style={styles.errorText}>{passwordError}</Text>
-        ) : (
-          <Text style={styles.helperText}>Password confirms this PIN change with backend.</Text>
-        )}
-
-        <Pressable
-          style={[styles.pinPanel, pinError && styles.pinPanelError]}
-          onPress={() => inputRef.current?.focus()}
-        >
-          <View style={styles.pinHeader}>
-            <Text style={styles.label}>4-digit PIN</Text>
-            <Ionicons name="keypad-outline" size={20} color={Colors.textSecondary} />
+            <TouchableOpacity
+              onPress={() => setShowPassword((current) => !current)}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              activeOpacity={0.7}
+            >
+              <Ionicons
+                name={showPassword ? "eye-off-outline" : "eye-outline"}
+                size={21}
+                color={Colors.textSecondary}
+              />
+            </TouchableOpacity>
           </View>
-          <PinDots value={pin} hasError={Boolean(pinError)} />
-        </Pressable>
-
-        {pinError ? (
-          <Text style={styles.errorText}>{pinError}</Text>
-        ) : (
-          <Text style={styles.helperText}>You will use this when biometric unlock is unavailable.</Text>
-        )}
-
-        <TextInput
-          ref={inputRef}
-          value={pin}
-          onChangeText={updatePin}
-          keyboardType="number-pad"
-          maxLength={4}
-          secureTextEntry
-          caretHidden
-          style={styles.hiddenInput}
-        />
-
-        <View style={styles.toggleRow}>
-          <View style={styles.toggleIcon}>
-            <Ionicons name="finger-print-outline" size={24} color={Colors.primary} />
-          </View>
-          <View style={styles.toggleText}>
-            <Text style={styles.toggleTitle}>Enable Fingerprint/Face Unlock</Text>
-            <Text style={styles.toggleSub}>Use device security for faster access.</Text>
-          </View>
-          <Switch
-            value={enableBiometric}
-            onValueChange={setEnableBiometric}
-            trackColor={{ false: "#DDE3E8", true: "#BDE8D7" }}
-            thumbColor={enableBiometric ? Colors.primary : "#FFFFFF"}
-          />
-        </View>
-
-        <TouchableOpacity
-          style={[styles.primaryButton, isSaving && styles.disabledButton]}
-          onPress={() => void continueToApp()}
-          disabled={isSaving}
-          activeOpacity={0.86}
-        >
-          {isSaving ? (
-            <ActivityIndicator color="#FFFFFF" />
+          {passwordError ? (
+            <Text style={styles.errorText}>{passwordError}</Text>
           ) : (
-            <>
-              <Text style={styles.primaryButtonText}>Continue</Text>
-              <Ionicons name="arrow-forward" size={21} color="#FFFFFF" />
-            </>
+            <Text style={styles.helperText}>Password confirms this PIN change with backend.</Text>
           )}
-        </TouchableOpacity>
 
-        <TouchableOpacity style={styles.skipButton} onPress={unlockApp} activeOpacity={0.72}>
-          <Text style={styles.skipText}>Skip</Text>
-        </TouchableOpacity>
-      </ScrollView>
-    </KeyboardAvoidingView>
-  </SafeAreaView>
+          <Pressable
+            style={[styles.pinPanel, pinError && styles.pinPanelError]}
+            onPress={() => inputRef.current?.focus()}
+          >
+            <View style={styles.pinHeader}>
+              <Text style={styles.label}>4-digit PIN</Text>
+              <Ionicons name="keypad-outline" size={20} color={Colors.textSecondary} />
+            </View>
+            <PinDots value={pin} hasError={Boolean(pinError)} />
+          </Pressable>
+
+          {pinError ? (
+            <Text style={styles.errorText}>{pinError}</Text>
+          ) : (
+            <Text style={styles.helperText}>You will use this when biometric unlock is unavailable.</Text>
+          )}
+
+          <TextInput
+            ref={inputRef}
+            value={pin}
+            onChangeText={updatePin}
+            keyboardType="number-pad"
+            maxLength={4}
+            secureTextEntry
+            caretHidden
+            style={styles.hiddenInput}
+          />
+
+          <View style={styles.toggleRow}>
+            <View style={styles.toggleIcon}>
+              <Ionicons name="finger-print-outline" size={24} color={Colors.primary} />
+            </View>
+            <View style={styles.toggleText}>
+              <Text style={styles.toggleTitle}>Enable Fingerprint/Face Unlock</Text>
+              <Text style={styles.toggleSub}>Use device security for faster access.</Text>
+            </View>
+            <Switch
+              value={enableBiometric}
+              onValueChange={setEnableBiometric}
+              trackColor={{ false: "#DDE3E8", true: "#BDE8D7" }}
+              thumbColor={enableBiometric ? Colors.primary : "#FFFFFF"}
+            />
+          </View>
+
+          <TouchableOpacity
+            style={[styles.primaryButton, isSaving && styles.disabledButton]}
+            onPress={() => void continueToApp()}
+            disabled={isSaving}
+            activeOpacity={0.86}
+          >
+            {isSaving ? (
+              <ActivityIndicator color="#FFFFFF" />
+            ) : (
+              <>
+                <Text style={styles.primaryButtonText}>Continue</Text>
+                <Ionicons name="arrow-forward" size={21} color="#FFFFFF" />
+              </>
+            )}
+          </TouchableOpacity>
+
+          <TouchableOpacity style={styles.skipButton} onPress={unlockApp} activeOpacity={0.72}>
+            <Text style={styles.skipText}>Skip</Text>
+          </TouchableOpacity>
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </SafeAreaView>
+  );
 }
 
 const styles = StyleSheet.create({
