@@ -2,19 +2,23 @@ import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import React from 'react';
 import {
+  ActivityIndicator,
   Alert,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
   StyleSheet,
+  Switch,
   Text,
   TouchableOpacity,
   View,
 } from 'react-native';
+import Toast from 'react-native-toast-message';
 
 import { SurfaceCard } from '@/components/ui/SurfaceCard';
 import { TopAppBar } from '@/components/ui/TopAppBar';
 import { useAuth } from '@/context/AuthContext';
+import { authenticateWithBiometrics, getBiometricAvailability } from '@/services/authSecurity';
 
 type SettingItemProps = {
   icon: any;
@@ -23,6 +27,15 @@ type SettingItemProps = {
   onPress?: () => void;
   isLast?: boolean;
   color?: string;
+};
+
+type BiometricToggleItemProps = {
+  label: string;
+  description?: string;
+  isEnabled: boolean;
+  isLoading: boolean;
+  onToggle: () => void;
+  isLast?: boolean;
 };
 
 const SettingItem = ({ icon, label, value, onPress, isLast, color = "#4B5563" }: SettingItemProps) => (
@@ -44,11 +57,57 @@ const SettingItem = ({ icon, label, value, onPress, isLast, color = "#4B5563" }:
   </TouchableOpacity>
 );
 
+const BiometricToggleItem = ({
+  label,
+  description,
+  isEnabled,
+  isLoading,
+  onToggle,
+  isLast,
+}: BiometricToggleItemProps) => (
+  <View style={[styles.settingItem, isLast && { borderBottomWidth: 0 }]}>
+    <View style={styles.settingItemLeft}>
+      <View style={styles.iconBox}>
+        <Ionicons name="finger-print" size={20} color="#4B5563" />
+      </View>
+      <View style={{ flex: 1 }}>
+        <Text style={styles.settingLabel}>{label}</Text>
+        {description && <Text style={styles.settingDescription}>{description}</Text>}
+      </View>
+    </View>
+    <View style={styles.toggleContainer}>
+      {isLoading && <ActivityIndicator size="small" color="#0B5C36" style={{ marginRight: 8 }} />}
+      <Switch
+        value={isEnabled}
+        onValueChange={onToggle}
+        disabled={isLoading}
+        trackColor={{ false: '#D1D5DB', true: '#86EFAC' }}
+        thumbColor={isEnabled ? '#0B5C36' : '#F3F4F6'}
+      />
+    </View>
+  </View>
+);
+
 export default function ProfileScreen() {
-  const { hasPermission, signOut, user } = useAuth();
+  const { hasPermission, signOut, user, setBiometricPreference } = useAuth();
   const router = useRouter();
   const canManageUsers = hasPermission('manage:users');
   const canManageFarms = hasPermission('manage:farms');
+
+  const [biometricEnabled, setBiometricEnabled] = React.useState(user?.biometricEnabled ?? false);
+  const [isTogglingBiometric, setIsTogglingBiometric] = React.useState(false);
+  const [biometricAvailable, setBiometricAvailable] = React.useState(true);
+
+  React.useEffect(() => {
+    // Check if biometric is available on the device
+    const checkBiometric = async () => {
+      const availability = await getBiometricAvailability();
+      setBiometricAvailable(availability.available);
+    };
+
+    checkBiometric();
+  }, []);
+
   const initials =
     user?.name
       ?.split(' ')
@@ -63,6 +122,72 @@ export default function ProfileScreen() {
       { text: 'Cancel', style: 'cancel' },
       { text: 'Sign Out', style: 'destructive', onPress: signOut },
     ]);
+  };
+
+  const handleBiometricToggle = async () => {
+    if (isTogglingBiometric) return;
+
+    // If enabling biometric, authenticate first
+    if (!biometricEnabled) {
+      setIsTogglingBiometric(true);
+      try {
+        const result = await authenticateWithBiometrics('Enable biometric unlock');
+
+        if (!result.success) {
+          if (result.error) {
+            Toast.show({
+              type: 'error',
+              text1: 'Biometric setup',
+              text2: result.error,
+              position: 'bottom',
+            });
+          }
+          setIsTogglingBiometric(false);
+          return;
+        }
+
+        // Update server and local state
+        await setBiometricPreference(true);
+        setBiometricEnabled(true);
+        Toast.show({
+          type: 'success',
+          text1: 'Biometric enabled',
+          text2: 'Fingerprint or face unlock is now ready.',
+          position: 'bottom',
+        });
+      } catch (error) {
+        Toast.show({
+          type: 'error',
+          text1: 'Error',
+          text2: error instanceof Error ? error.message : 'Failed to enable biometric',
+          position: 'bottom',
+        });
+      } finally {
+        setIsTogglingBiometric(false);
+      }
+    } else {
+      // If disabling, just update server
+      setIsTogglingBiometric(true);
+      try {
+        await setBiometricPreference(false);
+        setBiometricEnabled(false);
+        Toast.show({
+          type: 'success',
+          text1: 'Biometric disabled',
+          text2: 'You can still use password or PIN to unlock.',
+          position: 'bottom',
+        });
+      } catch (error) {
+        Toast.show({
+          type: 'error',
+          text1: 'Error',
+          text2: error instanceof Error ? error.message : 'Failed to disable biometric',
+          position: 'bottom',
+        });
+      } finally {
+        setIsTogglingBiometric(false);
+      }
+    }
   };
 
   return (
@@ -127,8 +252,18 @@ export default function ProfileScreen() {
               label="Password"
               value="Change"
               onPress={() => router.navigate('/(auth)/change-password' as any)}
-              isLast
+              isLast={!biometricAvailable}
             />
+            {biometricAvailable && (
+              <BiometricToggleItem
+                label="Biometric Unlock"
+                description={biometricEnabled ? 'Enabled' : 'Disabled'}
+                isEnabled={biometricEnabled}
+                isLoading={isTogglingBiometric}
+                onToggle={handleBiometricToggle}
+                isLast
+              />
+            )}
           </SurfaceCard>
 
 
@@ -190,8 +325,10 @@ const styles = StyleSheet.create({
   settingItemLeft: { flexDirection: "row", alignItems: "center" },
   iconBox: { width: 32, alignItems: "center" },
   settingLabel: { fontSize: 14, fontWeight: "500", color: "#374151", marginLeft: 4 },
+  settingDescription: { fontSize: 12, color: "#9CA3AF", marginTop: 2 },
   settingItemRight: { flexDirection: "row", alignItems: "center" },
   settingValue: { fontSize: 13, color: "#9CA3AF", marginRight: 8 },
+  toggleContainer: { flexDirection: "row", alignItems: "center" },
   logoutBtn: {
     flexDirection: "row", alignItems: "center", justifyContent: "center",
     backgroundColor: "#FFF", borderRadius: 16, paddingVertical: 16,
