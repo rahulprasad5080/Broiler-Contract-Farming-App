@@ -1,0 +1,204 @@
+import assert from "node:assert/strict";
+import test from "node:test";
+
+import {
+  API_BATCH_STATUS_VALUES,
+  API_CATALOG_ITEM_TYPE_VALUES,
+  API_COMPANY_EXPENSE_CATEGORY_CODE_VALUES,
+  API_COMMENT_TARGET_TYPE_VALUES,
+  API_EXPENSE_APPROVAL_STATUS_VALUES,
+  API_EXPENSE_CATEGORY_CODE_VALUES,
+  API_EXPENSE_LEDGER_VALUES,
+  API_FARMER_EXPENSE_CATEGORY_CODE_VALUES,
+  API_FARM_STATUS_VALUES,
+  API_FINANCE_ENTRY_TYPE_VALUES,
+  API_INVENTORY_MOVEMENT_TYPE_VALUES,
+  API_NOTIFICATION_SEVERITY_VALUES,
+  API_NOTIFICATION_TYPE_VALUES,
+  API_OPEN_TRANSACTION_PAYMENT_STATUS_VALUES,
+  API_PAYMENT_DIRECTION_VALUES,
+  API_PAYMENT_ENTRY_TYPE_VALUES,
+  API_PAYMENT_STATUS_VALUES,
+  API_PAYOUT_UNIT_VALUES,
+  API_PURCHASE_TYPE_VALUES,
+  API_ROLE_VALUES,
+  API_SALE_STATUS_VALUES,
+  API_SETTLEMENT_STATUS_VALUES,
+  API_SUBSCRIPTION_STATUS_VALUES,
+  API_TRANSACTION_PAYMENT_STATUS_VALUES,
+  API_TREATMENT_KIND_VALUES,
+  API_USER_STATUS_VALUES,
+} from "../services/apiEnums";
+
+test("API enum reference values match the frontend contract", () => {
+  assert.deepEqual([...API_BATCH_STATUS_VALUES], [
+    "ACTIVE",
+    "CANCELLED",
+    "PLANNED",
+    "SALES_RUNNING",
+    "SETTLEMENT_PENDING",
+    "CLOSED",
+  ]);
+  assert.deepEqual([...API_CATALOG_ITEM_TYPE_VALUES], [
+    "CHICKS",
+    "FEED",
+    "MEDICINE",
+    "VACCINE",
+    "EQUIPMENT",
+    "OTHER",
+  ]);
+  assert.deepEqual([...API_COMMENT_TARGET_TYPE_VALUES], [
+    "PURCHASE",
+    "SETTLEMENT",
+    "FARM",
+    "BATCH",
+    "DAILY_LOG",
+    "TREATMENT",
+    "COST",
+    "SALE",
+    "PAYMENT",
+  ]);
+  assert.deepEqual([...API_EXPENSE_APPROVAL_STATUS_VALUES], [
+    "PENDING",
+    "APPROVED",
+    "REJECTED",
+  ]);
+  assert.deepEqual([...API_EXPENSE_CATEGORY_CODE_VALUES], [
+    "CHICKS",
+    "FEED",
+    "MEDICINE",
+    "VACCINE",
+    "TRANSPORT",
+    "OFFICE_EXPENSE",
+    "SUPERVISOR_EXPENSE",
+    "OTHER_COMPANY",
+    "ELECTRICITY",
+    "COCO_PITH",
+    "LABOUR",
+    "WATER",
+    "DIESEL",
+    "SHED_MAINTENANCE",
+    "REPAIRS",
+    "MISCELLANEOUS",
+    "OTHER_FARMER",
+  ]);
+  assert.deepEqual([...API_COMPANY_EXPENSE_CATEGORY_CODE_VALUES], [
+    "CHICKS",
+    "FEED",
+    "MEDICINE",
+    "VACCINE",
+    "TRANSPORT",
+    "OFFICE_EXPENSE",
+    "SUPERVISOR_EXPENSE",
+    "OTHER_COMPANY",
+  ]);
+  assert.deepEqual([...API_FARMER_EXPENSE_CATEGORY_CODE_VALUES], [
+    "ELECTRICITY",
+    "COCO_PITH",
+    "LABOUR",
+    "WATER",
+    "DIESEL",
+    "SHED_MAINTENANCE",
+    "REPAIRS",
+    "MISCELLANEOUS",
+    "OTHER_FARMER",
+  ]);
+  assert.deepEqual([...API_EXPENSE_LEDGER_VALUES], ["FARMER", "COMPANY"]);
+  assert.deepEqual([...API_FARM_STATUS_VALUES], ["ACTIVE", "INACTIVE"]);
+  assert.deepEqual([...API_FINANCE_ENTRY_TYPE_VALUES], [
+    "INVESTMENT",
+    "OTHER_INCOME",
+    "OTHER_EXPENSE",
+  ]);
+  assert.deepEqual([...API_INVENTORY_MOVEMENT_TYPE_VALUES], [
+    "PURCHASE",
+    "ALLOCATION",
+    "ADJUSTMENT",
+    "RETURN",
+  ]);
+  assert.deepEqual([...API_NOTIFICATION_SEVERITY_VALUES], [
+    "INFO",
+    "WARNING",
+    "CRITICAL",
+  ]);
+  assert.deepEqual([...API_NOTIFICATION_TYPE_VALUES], [
+    "MORTALITY_ALERT",
+    "FEED_ALERT",
+    "VACCINE_DUE",
+    "FCR_ALERT",
+    "PENDING_ENTRY",
+    "SALES_READY",
+    "PAYMENT_DUE",
+    "GENERAL",
+  ]);
+  assert.deepEqual([...API_PAYMENT_DIRECTION_VALUES], ["INBOUND", "OUTBOUND"]);
+  assert.deepEqual([...API_PAYMENT_ENTRY_TYPE_VALUES], [
+    "OTHER",
+    "PURCHASE",
+    "EXPENSE",
+    "SALE_RECEIPT",
+    "SETTLEMENT",
+    "INVESTMENT",
+  ]);
+  assert.deepEqual([...API_PAYMENT_STATUS_VALUES], [
+    "EXPIRED",
+    "PENDING",
+    "SUBMITTED",
+    "APPROVED",
+    "REJECTED",
+  ]);
+  assert.deepEqual([...API_PAYOUT_UNIT_VALUES], [
+    "PER_BIRD_PLACED",
+    "PER_BIRD_SOLD",
+    "PER_KG_SOLD",
+  ]);
+  assert.deepEqual([...API_PURCHASE_TYPE_VALUES], [
+    "CHICKS",
+    "FEED",
+    "MEDICINE",
+    "VACCINE",
+    "EQUIPMENT",
+    "OTHER",
+  ]);
+  assert.deepEqual([...API_SALE_STATUS_VALUES], [
+    "CANCELLED",
+    "DRAFT",
+    "CONFIRMED",
+  ]);
+  assert.deepEqual([...API_SETTLEMENT_STATUS_VALUES], ["DRAFT", "FINALIZED"]);
+  assert.deepEqual([...API_SUBSCRIPTION_STATUS_VALUES], [
+    "ACTIVE",
+    "TRIAL",
+    "GRACE",
+    "EXPIRED",
+    "PENDING_APPROVAL",
+    "CANCELLED",
+  ]);
+  assert.deepEqual([...API_TRANSACTION_PAYMENT_STATUS_VALUES], [
+    "CANCELLED",
+    "PENDING",
+    "PARTIAL",
+    "PAID",
+  ]);
+  assert.deepEqual([...API_OPEN_TRANSACTION_PAYMENT_STATUS_VALUES], [
+    "PENDING",
+    "PARTIAL",
+    "PAID",
+  ]);
+  assert.deepEqual([...API_TREATMENT_KIND_VALUES], [
+    "OTHER",
+    "VACCINATION",
+    "MEDICATION",
+  ]);
+  assert.deepEqual([...API_ROLE_VALUES], [
+    "OWNER",
+    "ACCOUNTS",
+    "SUPERVISOR",
+    "FARMER",
+  ]);
+  assert.deepEqual([...API_USER_STATUS_VALUES], [
+    "ACTIVE",
+    "INVITED",
+    "DISABLED",
+  ]);
+});

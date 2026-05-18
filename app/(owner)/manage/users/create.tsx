@@ -12,6 +12,7 @@ import {
   getPasswordValidationError,
 } from '@/services/authValidation';
 import {
+  API_ROLE_VALUES,
   createUser,
   fetchUser,
   listAllFarms,
@@ -46,7 +47,7 @@ import { z } from 'zod';
 type Role = ApiRole;
 type PermissionKey = keyof ApiPermissionMatrix;
 
-const ROLE_OPTIONS = ['OWNER', 'ACCOUNTS', 'SUPERVISOR', 'FARMER'] as const;
+const ROLE_OPTIONS = API_ROLE_VALUES;
 const STATUS_OPTIONS = ['Active', 'Invited', 'Inactive'] as const;
 type Status = (typeof STATUS_OPTIONS)[number];
 

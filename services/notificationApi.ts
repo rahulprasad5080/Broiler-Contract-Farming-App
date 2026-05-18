@@ -1,17 +1,18 @@
 import { apiRequest } from "./api";
+import {
+  API_NOTIFICATION_SEVERITY_VALUES,
+  API_NOTIFICATION_TYPE_VALUES,
+} from "./apiEnums";
 import type { ApiCommentTargetType } from "./management/types";
 
-export type ApiNotificationType =
-  | "MORTALITY_ALERT"
-  | "FEED_ALERT"
-  | "VACCINE_DUE"
-  | "FCR_ALERT"
-  | "PENDING_ENTRY"
-  | "SALES_READY"
-  | "PAYMENT_DUE"
-  | "GENERAL";
+export {
+  API_NOTIFICATION_SEVERITY_VALUES,
+  API_NOTIFICATION_TYPE_VALUES,
+} from "./apiEnums";
 
-export type ApiNotificationSeverity = "INFO" | "WARNING" | "CRITICAL";
+export type ApiNotificationType = (typeof API_NOTIFICATION_TYPE_VALUES)[number];
+
+export type ApiNotificationSeverity = (typeof API_NOTIFICATION_SEVERITY_VALUES)[number];
 
 export type ApiNotification = {
   id: string;

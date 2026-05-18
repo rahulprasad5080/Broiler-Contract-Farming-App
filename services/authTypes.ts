@@ -1,5 +1,15 @@
-export type ApiRole = "OWNER" | "ACCOUNTS" | "SUPERVISOR" | "FARMER";
-export type ApiUserStatus = "ACTIVE" | "INVITED" | "DISABLED";
+import {
+  API_ROLE_VALUES,
+  API_USER_STATUS_VALUES,
+} from "./apiEnums";
+
+export {
+  API_ROLE_VALUES,
+  API_USER_STATUS_VALUES,
+} from "./apiEnums";
+
+export type ApiRole = (typeof API_ROLE_VALUES)[number];
+export type ApiUserStatus = (typeof API_USER_STATUS_VALUES)[number];
 
 /**
  * Permission matrix returned by /auth/me and all user endpoints.

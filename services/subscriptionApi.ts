@@ -1,14 +1,17 @@
 import { apiRequest } from "./api";
+import {
+  API_PAYMENT_STATUS_VALUES,
+  API_SUBSCRIPTION_STATUS_VALUES,
+} from "./apiEnums";
 
-export type ApiSubscriptionStatus =
-  | "ACTIVE"
-  | "TRIAL"
-  | "GRACE"
-  | "EXPIRED"
-  | "PENDING_APPROVAL"
-  | "CANCELLED";
+export {
+  API_PAYMENT_STATUS_VALUES,
+  API_SUBSCRIPTION_STATUS_VALUES,
+} from "./apiEnums";
 
-export type ApiPaymentStatus = "EXPIRED" | "PENDING" | "SUBMITTED" | "APPROVED" | "REJECTED";
+export type ApiSubscriptionStatus = (typeof API_SUBSCRIPTION_STATUS_VALUES)[number];
+
+export type ApiPaymentStatus = (typeof API_PAYMENT_STATUS_VALUES)[number];
 
 export type ApiSubscriptionPlan = {
   id: string;

@@ -27,6 +27,9 @@ import {
 } from "@/services/apiFeedback";
 import { getLocalDateValue } from "@/services/dateUtils";
 import {
+  API_COMPANY_EXPENSE_CATEGORY_CODE_VALUES,
+  API_EXPENSE_LEDGER_VALUES,
+  API_FARMER_EXPENSE_CATEGORY_CODE_VALUES,
   createBatchExpense,
   listAllBatches,
   type ApiBatch,
@@ -34,28 +37,8 @@ import {
 } from "@/services/managementApi";
 import { enqueueOfflineSubmission, isNetworkConnected } from "@/services/offlineSyncQueue";
 
-const COMPANY_CATEGORIES = [
-  "CHICKS",
-  "FEED",
-  "MEDICINE",
-  "VACCINE",
-  "TRANSPORT",
-  "OFFICE_EXPENSE",
-  "SUPERVISOR_EXPENSE",
-  "OTHER_COMPANY",
-];
-
-const FARMER_CATEGORIES = [
-  "ELECTRICITY",
-  "COCO_PITH",
-  "LABOUR",
-  "WATER",
-  "DIESEL",
-  "SHED_MAINTENANCE",
-  "REPAIRS",
-  "MISCELLANEOUS",
-  "OTHER_FARMER",
-];
+const COMPANY_CATEGORIES = API_COMPANY_EXPENSE_CATEGORY_CODE_VALUES;
+const FARMER_CATEGORIES = API_FARMER_EXPENSE_CATEGORY_CODE_VALUES;
 
 const PAYMENT_TYPES = ["Cash", "UPI", "Bank", "Credit"];
 const EXPENSE_DEFAULTS: ExpenseFormData = {
@@ -70,7 +53,7 @@ const EXPENSE_DEFAULTS: ExpenseFormData = {
 
 const expenseSchema = z.object({
   batchId: z.string().min(1, "Please select a batch"),
-  ledger: z.enum(["COMPANY", "FARMER"]),
+  ledger: z.enum(API_EXPENSE_LEDGER_VALUES),
   category: z.string().min(1, "Select category"),
   totalAmount: z.string().min(1, "Amount is required"),
   expenseDate: z.string().min(1, "Date is required"),

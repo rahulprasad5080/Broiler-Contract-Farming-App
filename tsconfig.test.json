@@ -10,6 +10,7 @@
   },
   "include": [
     "__tests__/**/*.ts",
+    "services/apiEnums.ts",
     "services/authRevocation.ts",
     "services/dateUtils.ts",
     "services/permissionRules.ts",

@@ -20,10 +20,10 @@ import {
   showSuccessToast,
 } from '@/services/apiFeedback';
 import {
+  API_OPEN_TRANSACTION_PAYMENT_STATUS_VALUES,
+  API_PAYOUT_UNIT_VALUES,
   ApiBatch,
   ApiBatchSettlement,
-  ApiPayoutUnit,
-  ApiTransactionPaymentStatus,
   createBatchSettlement,
   fetchBatchSettlement,
   listAllBatches,
@@ -31,17 +31,8 @@ import {
 import { ScreenState } from '@/components/ui/ScreenState';
 import { TopAppBar } from '@/components/ui/TopAppBar';
 
-const PAYOUT_UNITS = [
-  'PER_BIRD_PLACED',
-  'PER_BIRD_SOLD',
-  'PER_KG_SOLD',
-] as const satisfies readonly ApiPayoutUnit[];
-
-const PAYMENT_STATUSES = [
-  'PENDING',
-  'PARTIAL',
-  'PAID',
-] as const satisfies readonly ApiTransactionPaymentStatus[];
+const PAYOUT_UNITS = API_PAYOUT_UNIT_VALUES;
+const PAYMENT_STATUSES = API_OPEN_TRANSACTION_PAYMENT_STATUS_VALUES;
 
 const settlementSchema = z.object({
   payoutRate: z.string().trim().min(1, 'Payout rate is required'),

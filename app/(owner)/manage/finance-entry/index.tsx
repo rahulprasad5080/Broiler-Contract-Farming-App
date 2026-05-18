@@ -20,6 +20,7 @@ import {
   showSuccessToast,
 } from "@/services/apiFeedback";
 import {
+  API_OPEN_TRANSACTION_PAYMENT_STATUS_VALUES,
   createFinanceEntry,
   listFinanceEntries,
   type ApiFinanceEntry,
@@ -35,7 +36,7 @@ const ENTRY_TYPES: { key: ApiFinanceEntryType; label: string; icon: React.Compon
   { key: "OTHER_EXPENSE", label: "Other Expense", icon: "cash-minus" },
 ];
 
-const PAYMENT_STATUSES: ApiTransactionPaymentStatus[] = ["PENDING", "PARTIAL", "PAID"];
+const PAYMENT_STATUSES = API_OPEN_TRANSACTION_PAYMENT_STATUS_VALUES satisfies readonly ApiTransactionPaymentStatus[];
 
 function getToday() {
   const date = new Date();

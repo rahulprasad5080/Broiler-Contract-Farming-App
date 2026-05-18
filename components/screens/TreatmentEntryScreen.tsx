@@ -2,9 +2,9 @@ import { Colors } from '@/constants/Colors';
 import { Layout } from '@/constants/Layout';
 import { useAuth } from '@/context/AuthContext';
 import {
+  API_TREATMENT_KIND_VALUES,
   ApiBatch,
   ApiCatalogItem,
-  ApiTreatmentKind,
   createTreatment,
   listAllBatches,
   listCatalogItems,
@@ -58,7 +58,7 @@ const treatmentSchema = z.object({
   batchId: z.string().min(1, 'Please select a batch'),
   dailyLogId: z.string().optional(),
   treatmentDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Date must be in YYYY-MM-DD format'),
-  kind: z.enum(['MEDICATION', 'VACCINATION', 'OTHER']),
+  kind: z.enum(API_TREATMENT_KIND_VALUES),
   catalogItemId: z.string().optional(),
   treatmentName: z.string().optional(),
   dosage: z.string().optional(),
@@ -69,6 +69,11 @@ const treatmentSchema = z.object({
 });
 
 type TreatmentFormData = z.infer<typeof treatmentSchema>;
+const TREATMENT_KIND_OPTIONS = [
+  API_TREATMENT_KIND_VALUES[2],
+  API_TREATMENT_KIND_VALUES[1],
+  API_TREATMENT_KIND_VALUES[0],
+] as const;
 
 const TREATMENT_DEFAULTS = {
   batchId: '',
@@ -374,7 +379,7 @@ export function TreatmentEntryScreen({
               <View style={styles.inputGroup}>
                 <Text style={styles.label}>Type *</Text>
                 <View style={styles.chipRow}>
-                  {(['MEDICATION', 'VACCINATION', 'OTHER'] as ApiTreatmentKind[]).map((k) => (
+                  {TREATMENT_KIND_OPTIONS.map((k) => (
                     <TouchableOpacity
                       key={k}
                       style={[styles.typeChip, value === k && styles.typeChipActive, formErrors.kind && { borderColor: Colors.tertiary }]}

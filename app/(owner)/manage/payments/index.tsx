@@ -1,6 +1,8 @@
 import { Colors } from '@/constants/Colors';
 import { useAuth } from '@/context/AuthContext';
 import {
+  API_PAYMENT_DIRECTION_VALUES,
+  API_PAYMENT_ENTRY_TYPE_VALUES,
   createFinancePayment,
   listAllBatches,
   listFinancePayments,
@@ -33,8 +35,18 @@ import { DatePickerField } from '@/components/ui/DatePickerField';
 import { SearchableSelectField } from '@/components/ui/SearchableSelectField';
 import { TopAppBar } from '@/components/ui/TopAppBar';
 
-const PAYMENT_TYPES = ['PURCHASE', 'EXPENSE', 'SALE_RECEIPT', 'SETTLEMENT', 'INVESTMENT', 'OTHER'] as const satisfies readonly ApiPaymentEntryType[];
-const DIRECTIONS = ['OUTBOUND', 'INBOUND'] as const satisfies readonly ApiPaymentDirection[];
+const PAYMENT_TYPES = [
+  API_PAYMENT_ENTRY_TYPE_VALUES[1],
+  API_PAYMENT_ENTRY_TYPE_VALUES[2],
+  API_PAYMENT_ENTRY_TYPE_VALUES[3],
+  API_PAYMENT_ENTRY_TYPE_VALUES[4],
+  API_PAYMENT_ENTRY_TYPE_VALUES[5],
+  API_PAYMENT_ENTRY_TYPE_VALUES[0],
+] as const satisfies readonly ApiPaymentEntryType[];
+const DIRECTIONS = [
+  API_PAYMENT_DIRECTION_VALUES[1],
+  API_PAYMENT_DIRECTION_VALUES[0],
+] as const satisfies readonly ApiPaymentDirection[];
 const METHODS = ['Cash', 'UPI', 'Bank Transfer', 'Cheque'];
 const PARTY_OPTIONS = ['Agro Feed Suppliers', 'Zenith Pharma', 'City Bank', 'General Expenses'];
 const ACCOUNT_OPTIONS = ['HDFC Bank - 1234', 'ICICI Bank - 5678', 'Cash in Hand'];

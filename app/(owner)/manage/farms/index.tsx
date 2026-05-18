@@ -22,6 +22,7 @@ import Toast from 'react-native-toast-message';
 import { TopAppBar } from '@/components/ui/TopAppBar';
 import { getRequestErrorMessage } from '@/services/apiFeedback';
 import {
+  API_FARM_STATUS_VALUES,
   fetchFarm,
   listAllFarms,
   listAllUsers,
@@ -61,7 +62,7 @@ const editFarmSchema = z.object({
     message: 'Must be a number',
   }),
   notes: z.string().optional(),
-  status: z.enum(['ACTIVE', 'INACTIVE']),
+  status: z.enum(API_FARM_STATUS_VALUES),
   primaryFarmerId: z.string().optional(),
   supervisorId: z.string().optional(),
   assignmentUserIds: z.array(z.string()).optional(),

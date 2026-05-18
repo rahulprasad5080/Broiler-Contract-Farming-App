@@ -1,62 +1,74 @@
-export type ApiRole = "OWNER" | "ACCOUNTS" | "SUPERVISOR" | "FARMER";
-export type ApiUserStatus = "ACTIVE" | "INVITED" | "DISABLED";
-export type ApiFarmStatus = "ACTIVE" | "INACTIVE";
-export type ApiBatchStatus =
-  | "ACTIVE"
-  | "CANCELLED"
-  | "PLANNED"
-  | "SALES_RUNNING"
-  | "SETTLEMENT_PENDING"
-  | "CLOSED";
-export type ApiSaleStatus = "CANCELLED" | "DRAFT" | "CONFIRMED";
-export type ApiTreatmentKind = "OTHER" | "VACCINATION" | "MEDICATION";
-export type ApiExpenseCategoryCode =
-  | "CHICKS"
-  | "FEED"
-  | "MEDICINE"
-  | "VACCINE"
-  | "TRANSPORT"
-  | "OFFICE_EXPENSE"
-  | "SUPERVISOR_EXPENSE"
-  | "OTHER_COMPANY"
-  | "ELECTRICITY"
-  | "COCO_PITH"
-  | "LABOUR"
-  | "WATER"
-  | "DIESEL"
-  | "SHED_MAINTENANCE"
-  | "REPAIRS"
-  | "MISCELLANEOUS"
-  | "OTHER_FARMER";
+import {
+  API_BATCH_STATUS_VALUES,
+  API_CATALOG_ITEM_TYPE_VALUES,
+  API_COMPANY_EXPENSE_CATEGORY_CODE_VALUES,
+  API_COMMENT_TARGET_TYPE_VALUES,
+  API_EXPENSE_APPROVAL_STATUS_VALUES,
+  API_EXPENSE_CATEGORY_CODE_VALUES,
+  API_EXPENSE_LEDGER_VALUES,
+  API_FARMER_EXPENSE_CATEGORY_CODE_VALUES,
+  API_FARM_STATUS_VALUES,
+  API_FINANCE_ENTRY_TYPE_VALUES,
+  API_INVENTORY_MOVEMENT_TYPE_VALUES,
+  API_PAYMENT_DIRECTION_VALUES,
+  API_PAYMENT_ENTRY_TYPE_VALUES,
+  API_OPEN_TRANSACTION_PAYMENT_STATUS_VALUES,
+  API_PAYOUT_UNIT_VALUES,
+  API_PURCHASE_TYPE_VALUES,
+  API_ROLE_VALUES,
+  API_SALE_STATUS_VALUES,
+  API_SETTLEMENT_STATUS_VALUES,
+  API_TRANSACTION_PAYMENT_STATUS_VALUES,
+  API_TREATMENT_KIND_VALUES,
+  API_USER_STATUS_VALUES,
+} from "../apiEnums";
+
+export {
+  API_BATCH_STATUS_VALUES,
+  API_CATALOG_ITEM_TYPE_VALUES,
+  API_COMPANY_EXPENSE_CATEGORY_CODE_VALUES,
+  API_COMMENT_TARGET_TYPE_VALUES,
+  API_EXPENSE_APPROVAL_STATUS_VALUES,
+  API_EXPENSE_CATEGORY_CODE_VALUES,
+  API_EXPENSE_LEDGER_VALUES,
+  API_FARMER_EXPENSE_CATEGORY_CODE_VALUES,
+  API_FARM_STATUS_VALUES,
+  API_FINANCE_ENTRY_TYPE_VALUES,
+  API_INVENTORY_MOVEMENT_TYPE_VALUES,
+  API_PAYMENT_DIRECTION_VALUES,
+  API_PAYMENT_ENTRY_TYPE_VALUES,
+  API_OPEN_TRANSACTION_PAYMENT_STATUS_VALUES,
+  API_PAYOUT_UNIT_VALUES,
+  API_PURCHASE_TYPE_VALUES,
+  API_ROLE_VALUES,
+  API_SALE_STATUS_VALUES,
+  API_SETTLEMENT_STATUS_VALUES,
+  API_TRANSACTION_PAYMENT_STATUS_VALUES,
+  API_TREATMENT_KIND_VALUES,
+  API_USER_STATUS_VALUES,
+} from "../apiEnums";
+
+export type ApiRole = (typeof API_ROLE_VALUES)[number];
+export type ApiUserStatus = (typeof API_USER_STATUS_VALUES)[number];
+export type ApiFarmStatus = (typeof API_FARM_STATUS_VALUES)[number];
+export type ApiBatchStatus = (typeof API_BATCH_STATUS_VALUES)[number];
+export type ApiSaleStatus = (typeof API_SALE_STATUS_VALUES)[number];
+export type ApiTreatmentKind = (typeof API_TREATMENT_KIND_VALUES)[number];
+export type ApiExpenseCategoryCode = (typeof API_EXPENSE_CATEGORY_CODE_VALUES)[number];
 
 export type ApiCostCategory = ApiExpenseCategoryCode;
-export type ApiExpenseLedger = "COMPANY" | "FARMER";
-export type ApiExpenseApprovalStatus = "PENDING" | "APPROVED" | "REJECTED";
-export type ApiTransactionPaymentStatus = "CANCELLED" | "PENDING" | "PARTIAL" | "PAID";
-export type ApiInventoryMovementType = "PURCHASE" | "ALLOCATION" | "ADJUSTMENT" | "RETURN";
-export type ApiPurchaseType = "CHICKS" | "FEED" | "MEDICINE" | "VACCINE" | "EQUIPMENT" | "OTHER";
-export type ApiFinanceEntryType = "INVESTMENT" | "OTHER_INCOME" | "OTHER_EXPENSE";
-export type ApiPaymentDirection = "INBOUND" | "OUTBOUND";
-export type ApiPaymentEntryType =
-  | "OTHER"
-  | "PURCHASE"
-  | "EXPENSE"
-  | "SALE_RECEIPT"
-  | "SETTLEMENT"
-  | "INVESTMENT";
-export type ApiPayoutUnit = "PER_BIRD_PLACED" | "PER_BIRD_SOLD" | "PER_KG_SOLD";
-export type ApiSettlementStatus = "DRAFT" | "FINALIZED";
-export type ApiCatalogItemType = ApiPurchaseType;
-export type ApiCommentTargetType =
-  | "PURCHASE"
-  | "SETTLEMENT"
-  | "FARM"
-  | "BATCH"
-  | "DAILY_LOG"
-  | "TREATMENT"
-  | "COST"
-  | "SALE"
-  | "PAYMENT";
+export type ApiExpenseLedger = (typeof API_EXPENSE_LEDGER_VALUES)[number];
+export type ApiExpenseApprovalStatus = (typeof API_EXPENSE_APPROVAL_STATUS_VALUES)[number];
+export type ApiTransactionPaymentStatus = (typeof API_TRANSACTION_PAYMENT_STATUS_VALUES)[number];
+export type ApiInventoryMovementType = (typeof API_INVENTORY_MOVEMENT_TYPE_VALUES)[number];
+export type ApiPurchaseType = (typeof API_PURCHASE_TYPE_VALUES)[number];
+export type ApiCatalogItemType = (typeof API_CATALOG_ITEM_TYPE_VALUES)[number];
+export type ApiFinanceEntryType = (typeof API_FINANCE_ENTRY_TYPE_VALUES)[number];
+export type ApiPaymentDirection = (typeof API_PAYMENT_DIRECTION_VALUES)[number];
+export type ApiPaymentEntryType = (typeof API_PAYMENT_ENTRY_TYPE_VALUES)[number];
+export type ApiPayoutUnit = (typeof API_PAYOUT_UNIT_VALUES)[number];
+export type ApiSettlementStatus = (typeof API_SETTLEMENT_STATUS_VALUES)[number];
+export type ApiCommentTargetType = (typeof API_COMMENT_TARGET_TYPE_VALUES)[number];
 
 export type PaginationMeta = {
   page: number;

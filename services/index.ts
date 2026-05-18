@@ -115,6 +115,8 @@ export type {
 
 // ── Notifications — /notifications (2 routes) ──
 export {
+  API_NOTIFICATION_TYPE_VALUES,
+  API_NOTIFICATION_SEVERITY_VALUES,
   listNotifications,
   markNotificationRead,
 } from "./notificationApi";
@@ -164,6 +166,8 @@ export type {
 
 // ── Subscriptions — /subscriptions/* (4 routes) ──
 export {
+  API_SUBSCRIPTION_STATUS_VALUES,
+  API_PAYMENT_STATUS_VALUES,
   listSubscriptionPlans,
   fetchCurrentSubscription,
   requestSubscription,

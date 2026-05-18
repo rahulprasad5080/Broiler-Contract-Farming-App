@@ -9,8 +9,8 @@ import {
   showSuccessToast,
 } from '@/services/apiFeedback';
 import {
+  API_CATALOG_ITEM_TYPE_VALUES,
   ApiCatalogItem,
-  ApiCatalogItemType,
   createCatalogItem,
   listCatalogItems,
 } from '@/services/managementApi';
@@ -32,14 +32,7 @@ import {
 } from 'react-native';
 import { z } from 'zod';
 
-const CATALOG_TYPES = [
-  'CHICKS',
-  'FEED',
-  'MEDICINE',
-  'VACCINE',
-  'EQUIPMENT',
-  'OTHER',
-] as const satisfies readonly ApiCatalogItemType[];
+const CATALOG_TYPES = API_CATALOG_ITEM_TYPE_VALUES;
 
 const catalogSchema = z.object({
   name: z.string().min(1, 'Name is required'),

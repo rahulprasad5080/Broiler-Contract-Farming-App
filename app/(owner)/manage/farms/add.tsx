@@ -2,7 +2,7 @@ import { Colors } from '@/constants/Colors';
 import { Layout } from '@/constants/Layout';
 import { useAuth } from '@/context/AuthContext';
 import { useFormPersistence } from '@/hooks/useFormPersistence';
-import { createFarm, fetchFarm, listAllUsers, updateFarm, type ApiUser } from '@/services/managementApi';
+import { API_FARM_STATUS_VALUES, createFarm, fetchFarm, listAllUsers, updateFarm, type ApiUser } from '@/services/managementApi';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useEffect, useRef, useState } from 'react';
@@ -89,7 +89,7 @@ const farmSchema = z.object({
   primaryFarmerId: z.string().optional(),
   supervisorId: z.string().optional(),
   assignmentUserIds: z.array(z.string()).optional(),
-  status: z.enum(['ACTIVE', 'INACTIVE']).optional(),
+  status: z.enum(API_FARM_STATUS_VALUES).optional(),
 });
 
 type FarmFormData = z.infer<typeof farmSchema>;
