@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Animated,
   Easing,
@@ -39,6 +39,7 @@ export function NativeBottomSheet({
   const translateY = useRef(new Animated.Value(hiddenOffset)).current;
   const [mounted, setMounted] = useState(visible);
   const closingRef = useRef(false);
+  const animationFrameRef = useRef<number | null>(null);
 
   const animateTo = useCallback(
     (toValue: number, after?: () => void) => {
@@ -70,8 +71,13 @@ export function NativeBottomSheet({
       closingRef.current = false;
       setMounted(true);
       translateY.setValue(hiddenOffset);
-      requestAnimationFrame(() => animateTo(0));
-      return;
+      animationFrameRef.current = requestAnimationFrame(() => animateTo(0));
+      return () => {
+        if (animationFrameRef.current !== null) {
+          cancelAnimationFrame(animationFrameRef.current);
+          animationFrameRef.current = null;
+        }
+      };
     }
 
     if (mounted && !closingRef.current) {
@@ -83,7 +89,8 @@ export function NativeBottomSheet({
     }
   }, [animateTo, hiddenOffset, mounted, translateY, visible]);
 
-  const panResponder = useRef(
+  const panResponder = useMemo(
+    () =>
     PanResponder.create({
       onMoveShouldSetPanResponder: (_, gestureState) =>
         Math.abs(gestureState.dy) > Math.abs(gestureState.dx) && gestureState.dy > 6,
@@ -100,7 +107,8 @@ export function NativeBottomSheet({
       },
       onPanResponderTerminate: () => animateTo(0),
     }),
-  ).current;
+    [animateTo, close, translateY],
+  );
 
   if (!mounted) return null;
 
