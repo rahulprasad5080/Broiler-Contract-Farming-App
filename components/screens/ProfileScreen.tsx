@@ -8,7 +8,6 @@ import {
   Platform,
   ScrollView,
   StyleSheet,
-  Switch,
   Text,
   TouchableOpacity,
   View,
@@ -70,20 +69,33 @@ const BiometricToggleItem = ({
       <View style={styles.iconBox}>
         <Ionicons name="finger-print" size={20} color="#4B5563" />
       </View>
-      <View style={{ flex: 1 }}>
+      <View style={styles.biometricTextBlock}>
         <Text style={styles.settingLabel}>{label}</Text>
         {description && <Text style={styles.settingDescription}>{description}</Text>}
       </View>
     </View>
     <View style={styles.toggleContainer}>
       {isLoading && <ActivityIndicator size="small" color="#0B5C36" style={{ marginRight: 8 }} />}
-      <Switch
-        value={isEnabled}
-        onValueChange={onToggle}
+      <TouchableOpacity
+        style={[
+          styles.biometricSwitch,
+          isEnabled && styles.biometricSwitchOn,
+          isLoading && styles.biometricSwitchDisabled,
+        ]}
+        onPress={onToggle}
         disabled={isLoading}
-        trackColor={{ false: '#D1D5DB', true: '#86EFAC' }}
-        thumbColor={isEnabled ? '#0B5C36' : '#F3F4F6'}
-      />
+        activeOpacity={0.82}
+        accessibilityRole="switch"
+        accessibilityState={{ checked: isEnabled, disabled: isLoading }}
+      >
+        <View style={[styles.biometricSwitchThumb, isEnabled && styles.biometricSwitchThumbOn]}>
+          <Ionicons
+            name={isEnabled ? "checkmark" : "close"}
+            size={13}
+            color={isEnabled ? "#0B5C36" : "#94A3B8"}
+          />
+        </View>
+      </TouchableOpacity>
     </View>
   </View>
 );
@@ -329,13 +341,47 @@ const styles = StyleSheet.create({
     flexDirection: "row", alignItems: "center", justifyContent: "space-between",
     paddingVertical: 14, paddingHorizontal: 16, borderBottomWidth: 1, borderBottomColor: "#F3F4F6",
   },
-  settingItemLeft: { flexDirection: "row", alignItems: "center" },
+  settingItemLeft: { flex: 1, minWidth: 0, flexDirection: "row", alignItems: "center" },
   iconBox: { width: 32, alignItems: "center" },
   settingLabel: { fontSize: 14, fontWeight: "500", color: "#374151", marginLeft: 4 },
   settingDescription: { fontSize: 12, color: "#9CA3AF", marginTop: 2 },
-  settingItemRight: { flexDirection: "row", alignItems: "center" },
+  settingItemRight: { flexShrink: 0, flexDirection: "row", alignItems: "center", marginLeft: 12 },
   settingValue: { fontSize: 13, color: "#9CA3AF", marginRight: 8 },
-  toggleContainer: { flexDirection: "row", alignItems: "center" },
+  biometricTextBlock: { flex: 1, minWidth: 0, marginRight: 12 },
+  toggleContainer: { flexShrink: 0, flexDirection: "row", alignItems: "center", minWidth: 58, justifyContent: "flex-end" },
+  biometricSwitch: {
+    width: 58,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: "#E5E7EB",
+    borderWidth: 1,
+    borderColor: "#D1D5DB",
+    padding: 3,
+    justifyContent: "center",
+  },
+  biometricSwitchOn: {
+    backgroundColor: "#DCFCE7",
+    borderColor: "#86EFAC",
+  },
+  biometricSwitchDisabled: {
+    opacity: 0.65,
+  },
+  biometricSwitchThumb: {
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    backgroundColor: "#FFFFFF",
+    alignItems: "center",
+    justifyContent: "center",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.12,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  biometricSwitchThumbOn: {
+    alignSelf: "flex-end",
+  },
   logoutBtn: {
     flexDirection: "row", alignItems: "center", justifyContent: "center",
     backgroundColor: "#FFF", borderRadius: 16, paddingVertical: 16,
