@@ -38,6 +38,18 @@ export class ApiError extends Error {
   }
 }
 
+export type ApiFieldValidationError = {
+  message?: string;
+};
+
+export type StandardApiErrorPayload = {
+  message?: string | string[];
+  details?: Record<string, ApiFieldValidationError | string | unknown> | null;
+  error?: string;
+  errors?: unknown;
+  fields?: unknown;
+};
+
 type RequestOptions = {
   method?: Method;
   body?: unknown;
@@ -156,6 +168,26 @@ function collectTextMessages(value: unknown): string[] {
   return [];
 }
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value && typeof value === "object" && !Array.isArray(value));
+}
+
+function collectFieldDetailMessages(value: unknown): string[] {
+  if (!isRecord(value)) {
+    return collectTextMessages(value);
+  }
+
+  return Object.entries(value).flatMap(([fieldName, fieldValue]) => {
+    const fieldMessages = collectTextMessages(fieldValue);
+
+    if (fieldMessages.length === 0) {
+      return [];
+    }
+
+    return fieldMessages.map((message) => `${fieldName}: ${message}`);
+  });
+}
+
 function uniqueMessages(messages: string[]) {
   return Array.from(
     new Set(
@@ -177,11 +209,11 @@ function isGenericErrorMessage(message: string) {
 
 function getErrorMessage(statusText: string | undefined, payload: unknown) {
   if (payload && typeof payload === "object") {
-    const p = payload as Record<string, unknown>;
+    const p = payload as StandardApiErrorPayload;
 
     const detailMessages = uniqueMessages([
-      ...collectTextMessages(p.details),
-      ...collectTextMessages(p.fields),
+      ...collectFieldDetailMessages(p.details),
+      ...collectFieldDetailMessages(p.fields),
     ]);
     if (
       detailMessages.length > 0 &&
