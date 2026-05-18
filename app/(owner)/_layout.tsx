@@ -12,6 +12,7 @@ export default function OwnerLayout() {
       >
         <Tabs.Screen name="dashboard" />
         <Tabs.Screen name="manage" />
+        <Tabs.Screen name="financials" />
         <Tabs.Screen name="reports" />
         <Tabs.Screen name="profile" />
         <Tabs.Screen name="notifications" options={{ href: null }} />

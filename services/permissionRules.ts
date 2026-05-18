@@ -54,6 +54,7 @@ export const BOTTOM_TAB_PERMISSIONS: Partial<Record<string, PermissionRequiremen
   tasks: TASK_PERMISSION_REQUIREMENTS,
   review: "review:entries",
   manage: OWNER_MANAGE_PERMISSION_REQUIREMENTS,
+  financials: "view:financial-dashboard",
   reports: "view:reports",
 };
 

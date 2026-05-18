@@ -122,6 +122,10 @@ export function getRouteRequiredPermission(segments: string[]) {
   }
 
   if (protectedGroup === ROLE_ROUTE_GROUPS.OWNER) {
+    if (firstPathSegment === "financials") {
+      return "view:financial-dashboard";
+    }
+
     if (firstPathSegment !== "manage") {
       return null;
     }

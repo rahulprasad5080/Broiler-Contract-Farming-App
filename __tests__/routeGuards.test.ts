@@ -65,6 +65,10 @@ test("getRouteRequiredPermission gates core admin screens", () => {
     "view:financial-dashboard",
   );
   assert.equal(
+    getRouteRequiredPermission(["(owner)", "financials"]),
+    "view:financial-dashboard",
+  );
+  assert.equal(
     getRouteRequiredPermission(["(owner)", "manage", "inventory", "purchase"]),
     "create:purchase",
   );

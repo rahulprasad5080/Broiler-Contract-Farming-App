@@ -146,13 +146,6 @@ const ownerRoutes: DashboardSidebarRoute[] = [
     requiredPermission: "manage:inventory",
   },
   {
-    title: "Financials",
-    icon: "wallet-outline",
-    route: "/(owner)/manage/financials",
-    section: "Finance",
-    requiredPermission: "view:financial-dashboard",
-  },
-  {
     title: "Payments",
     icon: "card-outline",
     route: "/(owner)/manage/payments",

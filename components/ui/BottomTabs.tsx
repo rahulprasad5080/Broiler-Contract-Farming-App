@@ -41,6 +41,7 @@ export function BottomTabs({ state, descriptors, navigation, hiddenTabs = [] }: 
     { name: 'tasks', label: 'Tasks', activeIcon: 'checkmark-circle', inactiveIcon: 'checkmark-circle-outline' },
     { name: 'review', label: 'Review', activeIcon: 'shield-checkmark', inactiveIcon: 'shield-checkmark-outline' },
     { name: 'manage', label: 'Entries', activeIcon: 'briefcase', inactiveIcon: 'briefcase-outline' },
+    { name: 'financials', label: 'Finance', activeIcon: 'wallet', inactiveIcon: 'wallet-outline' },
     { name: 'reports', label: 'Reports', activeIcon: 'stats-chart', inactiveIcon: 'stats-chart-outline' },
     { name: 'profile', label: 'Profile', activeIcon: 'person', inactiveIcon: 'person-outline' },
   ];
@@ -151,7 +152,7 @@ const styles = StyleSheet.create({
   tabLabel: {
     fontSize: 10,
     marginTop: 2,
-    letterSpacing: -0.1,
+    letterSpacing: 0,
   },
 });
 
