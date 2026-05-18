@@ -1,21 +1,22 @@
-import React, { useState, useEffect } from 'react';
+import { debugLogger } from '@/services/debugLogger';
+import { Ionicons } from '@expo/vector-icons';
+import React, { useEffect, useState } from 'react';
 import {
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
+  FlatList,
   Modal,
   ScrollView,
-  SafeAreaView,
-  FlatList,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
-import { debugLogger } from '@/services/debugLogger';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 export function NetworkInspector() {
   const [visible, setVisible] = useState(false);
   const [logs, setLogs] = useState(debugLogger.getLogs());
   const [selectedLogId, setSelectedLogId] = useState<string | null>(null);
+  const insets = useSafeAreaInsets();
 
   useEffect(() => {
     return debugLogger.subscribe((updatedLogs) => {
@@ -77,68 +78,70 @@ export function NetworkInspector() {
         )}
       </TouchableOpacity>
 
-      <Modal visible={visible} animationType="slide" transparent={false}>
-        <SafeAreaView style={styles.modalContainer}>
-          <View style={styles.header}>
-            <View style={styles.headerLeft}>
-              {selectedLogId && (
-                <TouchableOpacity onPress={() => setSelectedLogId(null)} style={styles.backButton}>
-                  <Ionicons name="arrow-back" size={24} color="#1F2937" />
-                </TouchableOpacity>
-              )}
-              <Text style={styles.headerTitle}>
-                {selectedLogId ? 'Request Details' : 'API History'}
-              </Text>
+      <Modal visible={visible} animationType="slide" transparent statusBarTranslucent>
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalContainer, { paddingBottom: insets.bottom }]}>
+            <View style={styles.header}>
+              <View style={styles.headerLeft}>
+                {selectedLogId && (
+                  <TouchableOpacity onPress={() => setSelectedLogId(null)} style={styles.backButton}>
+                    <Ionicons name="arrow-back" size={22} color="#1F2937" />
+                  </TouchableOpacity>
+                )}
+                <Text style={styles.headerTitle}>
+                  {selectedLogId ? 'Request Details' : 'API History'}
+                </Text>
+              </View>
+              <TouchableOpacity onPress={() => setVisible(false)}>
+                <Ionicons name="close" size={24} color="#1F2937" />
+              </TouchableOpacity>
             </View>
-            <TouchableOpacity onPress={() => setVisible(false)}>
-              <Ionicons name="close" size={28} color="#1F2937" />
-            </TouchableOpacity>
+
+            {selectedLogId && selectedLog ? (
+              <ScrollView style={styles.content}>
+                <View style={styles.detailCard}>
+                  <View style={styles.infoRow}>
+                    <Text style={styles.label}>URL:</Text>
+                    <Text style={styles.value}>{selectedLog.url}</Text>
+                  </View>
+                  <View style={styles.infoRow}>
+                    <Text style={styles.label}>Method:</Text>
+                    <Text style={[styles.value, { fontWeight: '700', color: getMethodColor(selectedLog.method) }]}>
+                      {selectedLog.method}
+                    </Text>
+                  </View>
+                  <View style={styles.infoRow}>
+                    <Text style={styles.label}>Status:</Text>
+                    <Text style={[styles.value, { fontWeight: '700', color: selectedLog.status >= 400 ? '#EF4444' : '#10B981' }]}>
+                      {selectedLog.status}
+                    </Text>
+                  </View>
+                </View>
+
+                <Text style={styles.sectionTitle}>Request Body</Text>
+                <View style={styles.jsonContainer}>
+                  {renderJson(selectedLog.requestPayload)}
+                </View>
+
+                <Text style={styles.sectionTitle}>Response Data</Text>
+                <View style={styles.jsonContainer}>
+                  {renderJson(selectedLog.responsePayload)}
+                </View>
+                <View style={{ height: 24 }} />
+              </ScrollView>
+            ) : (
+              <FlatList
+                data={logs}
+                renderItem={renderLogItem}
+                keyExtractor={item => item.id}
+                ListEmptyComponent={
+                  <Text style={styles.emptyText}>No API calls captured yet.</Text>
+                }
+                contentContainerStyle={styles.listContent}
+              />
+            )}
           </View>
-
-          {selectedLogId && selectedLog ? (
-            <ScrollView style={styles.content}>
-              <View style={styles.detailCard}>
-                <View style={styles.infoRow}>
-                  <Text style={styles.label}>URL:</Text>
-                  <Text style={styles.value}>{selectedLog.url}</Text>
-                </View>
-                <View style={styles.infoRow}>
-                  <Text style={styles.label}>Method:</Text>
-                  <Text style={[styles.value, { fontWeight: '700', color: getMethodColor(selectedLog.method) }]}>
-                    {selectedLog.method}
-                  </Text>
-                </View>
-                <View style={styles.infoRow}>
-                  <Text style={styles.label}>Status:</Text>
-                  <Text style={[styles.value, { fontWeight: '700', color: selectedLog.status >= 400 ? '#EF4444' : '#10B981' }]}>
-                    {selectedLog.status}
-                  </Text>
-                </View>
-              </View>
-
-              <Text style={styles.sectionTitle}>Request Body</Text>
-              <View style={styles.jsonContainer}>
-                {renderJson(selectedLog.requestPayload)}
-              </View>
-
-              <Text style={styles.sectionTitle}>Response Data</Text>
-              <View style={styles.jsonContainer}>
-                {renderJson(selectedLog.responsePayload)}
-              </View>
-              <View style={{ height: 40 }} />
-            </ScrollView>
-          ) : (
-            <FlatList
-              data={logs}
-              renderItem={renderLogItem}
-              keyExtractor={item => item.id}
-              ListEmptyComponent={
-                <Text style={styles.emptyText}>No API calls captured yet.</Text>
-              }
-              contentContainerStyle={styles.listContent}
-            />
-          )}
-        </SafeAreaView>
+        </View>
       </Modal>
     </>
   );
@@ -151,6 +154,7 @@ const styles = StyleSheet.create({
     right: 20,
     width: 50,
     height: 50,
+    marginTop: 50,
     borderRadius: 25,
     backgroundColor: '#EF4444',
     alignItems: 'center',
@@ -181,14 +185,23 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
   },
   modalContainer: {
-    flex: 1,
+    height: '90%',
     backgroundColor: '#F9FAFB',
+    borderTopLeftRadius: 18,
+    borderTopRightRadius: 18,
+    overflow: 'hidden',
+  },
+  modalOverlay: {
+    flex: 1,
+    justifyContent: 'flex-end',
+    backgroundColor: 'rgba(0,0,0,0.2)',
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    padding: 16,
+    paddingHorizontal: 14,
+    paddingVertical: 9,
     backgroundColor: '#FFF',
     borderBottomWidth: 1,
     borderBottomColor: '#E5E7EB',
@@ -199,21 +212,21 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   backButton: {
-    padding: 4,
+    padding: 2,
   },
   headerTitle: {
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: '700',
     color: '#111827',
   },
   listContent: {
-    padding: 12,
+    padding: 10,
   },
   logItem: {
     backgroundColor: '#FFF',
-    padding: 12,
-    borderRadius: 12,
-    marginBottom: 8,
+    padding: 10,
+    borderRadius: 10,
+    marginBottom: 6,
     borderWidth: 1,
     borderColor: '#E5E7EB',
   },
@@ -251,15 +264,15 @@ const styles = StyleSheet.create({
   },
   content: {
     flex: 1,
-    padding: 16,
+    padding: 12,
   },
   detailCard: {
     backgroundColor: '#FFF',
-    padding: 16,
-    borderRadius: 12,
+    padding: 12,
+    borderRadius: 10,
     borderWidth: 1,
     borderColor: '#E5E7EB',
-    marginBottom: 16,
+    marginBottom: 12,
   },
   infoRow: {
     flexDirection: 'row',
@@ -280,14 +293,14 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '700',
     color: '#374151',
-    marginTop: 16,
-    marginBottom: 8,
+    marginTop: 12,
+    marginBottom: 6,
     marginLeft: 4,
   },
   jsonContainer: {
     backgroundColor: '#1F2937',
-    padding: 12,
-    borderRadius: 12,
+    padding: 10,
+    borderRadius: 10,
   },
   jsonText: {
     fontFamily: 'monospace',
