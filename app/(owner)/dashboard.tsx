@@ -54,13 +54,71 @@ function formatNumber(value?: number | null) {
 }
 
 function formatINR(value?: number | null) {
-  return `₹ ${Number(value ?? 0).toLocaleString("en-IN")}`;
+  return `Rs. ${Number(value ?? 0).toLocaleString("en-IN")}`;
 }
 
 function formatPercent(value?: number | null) {
   return `${Number(value ?? 0).toLocaleString("en-IN", {
     maximumFractionDigits: 2,
   })}%`;
+}
+
+function formatDate(value?: string | null) {
+  if (!value) return "No date";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  return date.toLocaleDateString("en-GB", {
+    day: "2-digit",
+    month: "short",
+  });
+}
+
+function getTransactionMeta(type?: string | null, direction?: string | null) {
+  const isOutbound = direction === "OUTBOUND";
+  if (isOutbound) {
+    return {
+      icon: "arrow-up-right",
+      label: "Outflow",
+      color: "#D32F2F",
+      bgColor: "#FFF4F4",
+      sign: "-",
+    };
+  }
+
+  return {
+    icon: type === "SETTLEMENT" ? "refresh-cw" : "arrow-down-left",
+    label: type === "SETTLEMENT" ? "Settlement" : "Inflow",
+    color: type === "SETTLEMENT" ? "#D97706" : THEME_GREEN,
+    bgColor: type === "SETTLEMENT" ? "#FFFBEB" : "#F0F9F3",
+    sign: "+",
+  };
+}
+
+function getAlertMeta(severity?: string | null) {
+  if (severity === "CRITICAL") {
+    return {
+      icon: "alert-triangle",
+      label: "Critical",
+      color: "#D32F2F",
+      bgColor: "#FFF4F4",
+    };
+  }
+
+  if (severity === "WARNING") {
+    return {
+      icon: "alert-circle",
+      label: "Warning",
+      color: "#D97706",
+      bgColor: "#FFFBEB",
+    };
+  }
+
+  return {
+    icon: "info",
+    label: "Info",
+    color: "#1976D2",
+    bgColor: "#EFF6FF",
+  };
 }
 
 export default function OwnerDashboard() {
@@ -216,6 +274,7 @@ export default function OwnerDashboard() {
     dashboard?.activeBatches.find((batch) => batch.farmName)?.farmName ??
     (dashboard?.farmCount ? `${formatNumber(dashboard.farmCount)} farms` : "No active farms");
   const alertCount = dashboard?.alerts?.length ?? 0;
+  const latestAlerts = dashboard?.alerts?.slice(0, 3) ?? [];
   const paymentStatus =
     financialDashboard?.paymentStatus ?? dashboard?.paymentStatus ?? {
       paid: 0,
@@ -224,6 +283,7 @@ export default function OwnerDashboard() {
     };
   const financialSummary = financialDashboard?.summary;
   const netProfitOrLoss = financialSummary?.netProfitOrLoss ?? 0;
+  const recentTransactions = financialDashboard?.recentTransactions?.slice(0, 3) ?? [];
   const visibleBatches = dashboard?.activeBatches?.slice(0, 3) ?? [];
   const canCreateDailyEntry = hasPermission("create:daily-entry");
   const canManageBatches = hasPermission("manage:batches");
@@ -238,6 +298,8 @@ export default function OwnerDashboard() {
   const hasGlanceCards = canManageBatches || canViewReports || canCreateDailyEntry;
   const hasAlertPills =
     canCreateSales || canCreateDailyEntry || canManageInventory || canViewReports;
+  const shouldShowDashboardAlerts =
+    loadingDashboard || alertCount > 0 || canViewNotifications;
   const activeBatch =
     visibleBatches.length > 0
       ? visibleBatches[activeBatchIndex % visibleBatches.length]
@@ -417,6 +479,79 @@ export default function OwnerDashboard() {
           </ScrollView>
         ) : null}
 
+        {shouldShowDashboardAlerts ? (
+          <>
+            <View style={styles.sectionHeader}>
+              <View style={styles.alertTitleWrap}>
+                <Text style={styles.sectionTitleNoMargin}>Alerts</Text>
+                {alertCount > 0 ? (
+                  <Text style={styles.alertCountBadge}>{formatNumber(alertCount)}</Text>
+                ) : null}
+              </View>
+              {canViewNotifications ? (
+                <TouchableOpacity onPress={() => router.navigate("/(owner)/notifications" as Href)}>
+                  <Text style={styles.viewAllText}>View All</Text>
+                </TouchableOpacity>
+              ) : null}
+            </View>
+
+            <View style={styles.dashboardAlertsCard}>
+              {loadingDashboard && !dashboard ? (
+                <View style={styles.alertLoadingRow}>
+                  <ActivityIndicator color={THEME_GREEN} />
+                  <Text style={styles.loadingText}>Loading alerts...</Text>
+                </View>
+              ) : latestAlerts.length > 0 ? (
+                latestAlerts.map((alert, index) => {
+                  const meta = getAlertMeta(alert.severity);
+                  const target = alert.batchId && canManageBatches
+                    ? ({ pathname: "/(owner)/manage/batches/[id]", params: { id: alert.batchId } } as any)
+                    : alert.farmId && canManageFarms
+                      ? ({ pathname: "/(owner)/manage/farms/[id]", params: { id: alert.farmId } } as any)
+                      : canViewNotifications
+                        ? ("/(owner)/notifications" as Href)
+                        : null;
+
+                  return (
+                    <TouchableOpacity
+                      key={alert.id || `${alert.type}-${alert.createdAt}-${index}`}
+                      style={[
+                        styles.dashboardAlertRow,
+                        index < latestAlerts.length - 1 && styles.dashboardAlertBorder,
+                      ]}
+                      onPress={() => {
+                        if (target) router.navigate(target);
+                      }}
+                      disabled={!target}
+                      activeOpacity={0.82}
+                    >
+                      <View style={[styles.dashboardAlertIcon, { backgroundColor: meta.bgColor }]}>
+                        <Feather name={meta.icon as any} size={17} color={meta.color} />
+                      </View>
+                      <View style={styles.dashboardAlertTextWrap}>
+                        <Text style={styles.dashboardAlertTitle} numberOfLines={1}>
+                          {alert.title || "Alert"}
+                        </Text>
+                        <Text style={styles.dashboardAlertMessage} numberOfLines={2}>
+                          {alert.message}
+                        </Text>
+                        <Text style={styles.dashboardAlertMeta}>
+                          {formatDate(alert.createdAt)} | {meta.label}
+                        </Text>
+                      </View>
+                    </TouchableOpacity>
+                  );
+                })
+              ) : (
+                <View style={styles.alertEmptyRow}>
+                  <Feather name="check-circle" size={22} color={THEME_GREEN} />
+                  <Text style={styles.alertEmptyText}>No active alerts right now.</Text>
+                </View>
+              )}
+            </View>
+          </>
+        ) : null}
+
         {/* Active Batches Section */}
         <View style={styles.sectionHeader}>
           <Text style={styles.sectionTitleNoMargin}>Active Batches</Text>
@@ -518,6 +653,62 @@ export default function OwnerDashboard() {
                 </Text>
                 <Text style={styles.plLabel}>{netProfitOrLoss >= 0 ? "Profit" : "Loss"}</Text>
               </TouchableOpacity>
+            </View>
+
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitleNoMargin}>Recent Transactions</Text>
+              <TouchableOpacity onPress={() => router.navigate("/(owner)/manage/financials" as Href)}>
+                <Text style={styles.viewAllText}>View All</Text>
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.recentTransactionsCard}>
+              {loadingDashboard && !financialDashboard ? (
+                <View style={styles.transactionLoadingRow}>
+                  <ActivityIndicator color={THEME_GREEN} />
+                  <Text style={styles.loadingText}>Loading transactions...</Text>
+                </View>
+              ) : recentTransactions.length > 0 ? (
+                recentTransactions.map((transaction, index) => {
+                  const meta = getTransactionMeta(transaction.type, transaction.direction);
+                  return (
+                    <TouchableOpacity
+                      key={transaction.id || `${transaction.type}-${transaction.date}-${index}`}
+                      style={[
+                        styles.transactionRow,
+                        index < recentTransactions.length - 1 && styles.transactionRowBorder,
+                      ]}
+                      onPress={() => router.navigate("/(owner)/manage/financials" as Href)}
+                      activeOpacity={0.82}
+                    >
+                      <View style={[styles.transactionIcon, { backgroundColor: meta.bgColor }]}>
+                        <Feather name={meta.icon as any} size={17} color={meta.color} />
+                      </View>
+                      <View style={styles.transactionTextWrap}>
+                        <Text style={styles.transactionTitle} numberOfLines={1}>
+                          {transaction.description || transaction.type || "Transaction"}
+                        </Text>
+                        <Text style={styles.transactionMeta}>
+                          {formatDate(transaction.date)} | {meta.label}
+                        </Text>
+                      </View>
+                      <Text style={[styles.transactionAmount, { color: meta.color }]}>
+                        {meta.sign}
+                        {formatINR(transaction.amount)}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })
+              ) : (
+                <TouchableOpacity
+                  style={styles.transactionEmptyRow}
+                  onPress={() => router.navigate("/(owner)/manage/financials" as Href)}
+                  activeOpacity={0.82}
+                >
+                  <MaterialCommunityIcons name="wallet-outline" size={22} color={Colors.textSecondary} />
+                  <Text style={styles.transactionEmptyText}>No recent transactions yet.</Text>
+                </TouchableOpacity>
+              )}
             </View>
           </>
         ) : null}
@@ -847,6 +1038,94 @@ const styles = StyleSheet.create({
     color: Colors.textSecondary,
     textAlign: "center",
   },
+  alertTitleWrap: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  alertCountBadge: {
+    minWidth: 22,
+    height: 22,
+    borderRadius: 11,
+    paddingHorizontal: 7,
+    backgroundColor: "#FFF4F4",
+    color: "#D32F2F",
+    fontSize: 12,
+    fontWeight: "900",
+    textAlign: "center",
+    lineHeight: 22,
+    overflow: "hidden",
+  },
+  dashboardAlertsCard: {
+    backgroundColor: "#FFF",
+    borderWidth: 1,
+    borderColor: "#F0F0F0",
+    borderRadius: 12,
+    marginHorizontal: 20,
+    marginBottom: 24,
+    paddingHorizontal: 14,
+    elevation: 1,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+  },
+  dashboardAlertRow: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    paddingVertical: 13,
+    gap: 10,
+  },
+  dashboardAlertBorder: {
+    borderBottomWidth: 1,
+    borderBottomColor: "#F3F4F6",
+  },
+  dashboardAlertIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  dashboardAlertTextWrap: {
+    flex: 1,
+    minWidth: 0,
+  },
+  dashboardAlertTitle: {
+    fontSize: 13,
+    fontWeight: "800",
+    color: Colors.text,
+    marginBottom: 3,
+  },
+  dashboardAlertMessage: {
+    fontSize: 12,
+    color: Colors.textSecondary,
+    lineHeight: 16,
+    marginBottom: 4,
+  },
+  dashboardAlertMeta: {
+    fontSize: 11,
+    color: Colors.textSecondary,
+    fontWeight: "700",
+  },
+  alertLoadingRow: {
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 18,
+    gap: 8,
+  },
+  alertEmptyRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 18,
+    gap: 8,
+  },
+  alertEmptyText: {
+    fontSize: 13,
+    color: Colors.textSecondary,
+    fontWeight: "600",
+  },
   sectionHeader: {
     flexDirection: "row",
     justifyContent: "space-between",
@@ -994,6 +1273,75 @@ const styles = StyleSheet.create({
     fontSize: 9,
     color: Colors.textSecondary,
     textAlign: "center",
+  },
+  recentTransactionsCard: {
+    backgroundColor: "#FFF",
+    borderWidth: 1,
+    borderColor: "#F0F0F0",
+    borderRadius: 12,
+    marginHorizontal: 20,
+    marginBottom: 24,
+    paddingHorizontal: 14,
+    elevation: 1,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+  },
+  transactionRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 13,
+    gap: 10,
+  },
+  transactionRowBorder: {
+    borderBottomWidth: 1,
+    borderBottomColor: "#F3F4F6",
+  },
+  transactionIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  transactionTextWrap: {
+    flex: 1,
+    minWidth: 0,
+  },
+  transactionTitle: {
+    fontSize: 13,
+    fontWeight: "700",
+    color: Colors.text,
+    marginBottom: 3,
+  },
+  transactionMeta: {
+    fontSize: 11,
+    color: Colors.textSecondary,
+  },
+  transactionAmount: {
+    fontSize: 12,
+    fontWeight: "900",
+    textAlign: "right",
+    maxWidth: 110,
+  },
+  transactionLoadingRow: {
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 18,
+    gap: 8,
+  },
+  transactionEmptyRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 18,
+    gap: 8,
+  },
+  transactionEmptyText: {
+    fontSize: 13,
+    color: Colors.textSecondary,
+    fontWeight: "600",
   },
   paymentCardsContainer: {
     paddingHorizontal: 20,
