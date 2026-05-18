@@ -252,6 +252,13 @@ export default function ProfileScreen() {
               label="Password"
               value="Change"
               onPress={() => router.navigate('/(auth)/change-password' as any)}
+              isLast={false}
+            />
+            <SettingItem
+              icon="key-outline"
+              label="Set PIN"
+              value="Manage"
+              onPress={() => router.navigate('/(auth)/set-pin' as any)}
               isLast={!biometricAvailable}
             />
             {biometricAvailable && (
