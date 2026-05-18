@@ -70,6 +70,14 @@ function formatINR(value?: number | null) {
   return `₹ ${Number(value).toLocaleString('en-IN')}`;
 }
 
+function labelizeStatus(value?: string | null) {
+  if (!value) return 'Not set';
+  return value
+    .split('_')
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1).toLowerCase())
+    .join(' ');
+}
+
 export default function SettlementScreen() {
   const { accessToken } = useAuth();
   const [batches, setBatches] = useState<ApiBatch[]>([]);
@@ -139,7 +147,6 @@ export default function SettlementScreen() {
     if (!accessToken || !selectedBatchId) return;
     setSaving(true);
     try {
-      // In a real app, this might update paymentStatus to PAID
       await createBatchSettlement(accessToken, selectedBatchId, {
         payoutRate: settlement?.payoutRate || 21,
         payoutUnit: settlement?.payoutUnit || 'PER_KG_SOLD',
@@ -184,7 +191,7 @@ export default function SettlementScreen() {
                 <View>
                   <Text style={styles.farmerName}>{settlement?.farmerName || "Farmer not assigned"}</Text>
                   <Text style={styles.farmerPhone}>
-                    {settlement ? `Payment ${settlement.paymentStatus ?? 'PENDING'}` : 'No settlement loaded'}
+                    {settlement ? `Payment ${labelizeStatus(settlement.paymentStatus)}` : 'No settlement loaded'}
                   </Text>
                 </View>
               </View>
@@ -202,7 +209,9 @@ export default function SettlementScreen() {
                   <Text style={styles.batchCode}>{selectedBatch?.code || "Select batch"}</Text>
                 </View>
                 <View style={styles.statusTag}>
-                   <Text style={styles.statusText}>{selectedBatch?.status === 'CLOSED' ? 'Settled' : 'Pending'}</Text>
+                   <Text style={styles.statusText}>
+                     {settlement ? labelizeStatus(settlement.status) : 'Not loaded'}
+                   </Text>
                 </View>
               </View>
 
@@ -223,13 +232,6 @@ export default function SettlementScreen() {
               <AmountRow label="Growing Charges" value={settlement?.growingCharges ?? 0} />
               <AmountRow label="Performance Bonus" value={settlement?.performanceBonus ?? 0} />
               <AmountRow label="Other Incentives" value={settlement?.incentiveAmount ?? 0} />
-              <View style={styles.dividerCompact} />
-              <AmountRow
-                label="Total Earnings"
-                value={Number(settlement?.growingCharges ?? 0) + Number(settlement?.performanceBonus ?? 0) + Number(settlement?.incentiveAmount ?? 0)}
-                isTotal
-                color="#059669"
-              />
             </View>
 
             {/* Expenses Section */}
@@ -238,13 +240,6 @@ export default function SettlementScreen() {
               <View style={styles.dividerCompact} />
               <AmountRow label="Approved farmer expenses" value={settlement?.farmerExpenseTotal ?? 0} />
               <AmountRow label="Other deductions" value={settlement?.otherDeductions ?? 0} />
-              <View style={styles.dividerCompact} />
-              <AmountRow
-                label="Total Deductions"
-                value={Number(settlement?.farmerExpenseTotal ?? 0) + Number(settlement?.otherDeductions ?? 0)}
-                isTotal
-                color="#111827"
-              />
             </View>
 
             {/* Net Payable Card */}

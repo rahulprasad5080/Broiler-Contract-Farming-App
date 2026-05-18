@@ -3,8 +3,12 @@ import {
   getStoredSession,
   persistStoredSession,
 } from "./authSession";
-import { isRevokedAuthFailure } from "./authRevocation";
-import type { AuthSession } from "./authTypes";
+import {
+  assertUserCanKeepSession,
+  isRevokedAuthFailure,
+  isRevokedUserError,
+} from "./authRevocation";
+import type { ApiUser, AuthSession } from "./authTypes";
 import axios, {
   type AxiosInstance,
   type AxiosError,
@@ -330,7 +334,36 @@ async function refreshStoredSession() {
         throw apiError;
       }
 
-      const nextSession = response.data as AuthSession;
+      const refreshedSession = response.data as AuthSession;
+      let hydratedUser: ApiUser;
+
+      try {
+        const meResponse = await requestWithRetry<ApiUser>(apiClient, "/auth/me", {
+          method: "GET",
+          token: refreshedSession.tokens.accessToken,
+          retry: 0,
+        });
+        hydratedUser = assertUserCanKeepSession(meResponse.data);
+      } catch (error) {
+        if (isRevokedUserError(error)) {
+          await clearStoredSession();
+          throw error;
+        }
+
+        const apiError = toApiError(error);
+
+        if (apiError.status === 401 || apiError.status === 403) {
+          await clearStoredSession();
+          throw apiError;
+        }
+
+        hydratedUser = assertUserCanKeepSession(refreshedSession.user);
+      }
+
+      const nextSession: AuthSession = {
+        ...refreshedSession,
+        user: hydratedUser,
+      };
       await persistStoredSession(nextSession);
       return nextSession;
     })().finally(() => {

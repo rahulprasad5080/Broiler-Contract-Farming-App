@@ -253,8 +253,7 @@ export default function BatchDetailsScreen() {
   const todayExpenseTotal = sumExpenses(
     activeExpenses.filter((expense) => expense.expenseDate === getLocalDateValue()),
   ) + (activeExpenseTab === 'company' ? todayAllocationsTotal : 0);
-  const companyExpensesTotal = (batchPnl?.company.expenses || 0) + companyAllocationsTotal;
-  const companyProfitLoss = (batchPnl?.company.salesRevenue || 0) - companyExpensesTotal;
+  const companyProfitLoss = Number(batchPnl?.company.netProfitOrLoss ?? 0);
   const companyResultColor = companyProfitLoss >= 0 ? THEME_GREEN : '#D32F2F';
   const totalSalesAmount = sumSalesAmount(sales);
   const todaySalesAmount = sumSalesAmount(
@@ -519,7 +518,6 @@ export default function BatchDetailsScreen() {
                 batchPnl={batchPnl}
                 companyProfitLoss={companyProfitLoss}
                 companyResultColor={companyResultColor}
-                companyExpensesOverride={companyExpensesTotal}
               />
             )}
 
