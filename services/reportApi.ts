@@ -111,7 +111,7 @@ export type ApiSettlementReportRow = {
   netPayable?: number | null;
   paidAmount?: number | null;
   pendingAmount?: number | null;
-  paymentStatus: ApiTransactionPaymentStatus | string;
+  paymentStatus?: ApiTransactionPaymentStatus | string | null;
   status: ApiSettlementStatus | string;
 };
 
