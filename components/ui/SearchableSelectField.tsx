@@ -2,7 +2,6 @@ import { Ionicons } from "@expo/vector-icons";
 import React, { useMemo, useState } from "react";
 import {
   FlatList,
-  Modal,
   StyleSheet,
   Text,
   TextInput,
@@ -11,7 +10,7 @@ import {
 } from "react-native";
 
 import { Colors } from "@/constants/Colors";
-import { Layout } from "@/constants/Layout";
+import { NativeBottomSheet } from "@/components/ui/NativeBottomSheet";
 
 export type SearchableSelectOption = {
   label: string;
@@ -120,75 +119,67 @@ export function SearchableSelectField({
       </TouchableOpacity>
       {error ? <Text style={styles.fieldErrorText}>{error}</Text> : null}
 
-      <Modal
+      <NativeBottomSheet
         visible={visible}
-        transparent
-        animationType="fade"
-        onRequestClose={closePicker}
+        onClose={closePicker}
+        maxHeight="82%"
+        contentStyle={styles.sheetContent}
       >
-        <TouchableOpacity
-          style={styles.modalOverlay}
-          activeOpacity={1}
-          onPress={closePicker}
-        >
-          <View style={styles.sheet} onStartShouldSetResponder={() => true}>
-            <View style={styles.sheetHeader}>
-              <Text style={styles.sheetTitle}>{label}</Text>
-              <TouchableOpacity style={styles.closeButton} onPress={closePicker}>
-                <Ionicons name="close" size={20} color={Colors.text} />
-              </TouchableOpacity>
-            </View>
+        <View style={styles.sheetHeader}>
+          <Text style={styles.sheetTitle}>{label}</Text>
+          <TouchableOpacity style={styles.closeButton} onPress={closePicker}>
+            <Ionicons name="close" size={20} color={Colors.text} />
+          </TouchableOpacity>
+        </View>
 
-            <View style={styles.searchBox}>
-              <Ionicons name="search-outline" size={18} color={Colors.textSecondary} />
-              <TextInput
-                style={styles.searchInput}
-                value={query}
-                onChangeText={setQuery}
-                placeholder={searchPlaceholder}
-                placeholderTextColor={Colors.textSecondary}
-                autoCapitalize="none"
-                autoCorrect={false}
-              />
-            </View>
+        <View style={styles.searchBox}>
+          <Ionicons name="search-outline" size={18} color={Colors.textSecondary} />
+          <TextInput
+            style={styles.searchInput}
+            value={query}
+            onChangeText={setQuery}
+            placeholder={searchPlaceholder}
+            placeholderTextColor={Colors.textSecondary}
+            autoCapitalize="none"
+            autoCorrect={false}
+          />
+        </View>
 
-            <FlatList
-              data={filteredOptions}
-              keyExtractor={(item) => item.value}
-              keyboardShouldPersistTaps="handled"
-              style={styles.optionList}
-              ListEmptyComponent={
-                <View style={styles.emptyBox}>
-                  <Text style={styles.emptyText}>{emptyMessage}</Text>
+        <FlatList
+          data={filteredOptions}
+          keyExtractor={(item) => item.value}
+          keyboardShouldPersistTaps="handled"
+          style={styles.optionList}
+          ListEmptyComponent={
+            <View style={styles.emptyBox}>
+              <Text style={styles.emptyText}>{emptyMessage}</Text>
+            </View>
+          }
+          renderItem={({ item }) => {
+            const selected = item.value === value;
+            return (
+              <TouchableOpacity
+                style={[styles.optionRow, selected && styles.optionRowActive]}
+                onPress={() => {
+                  onSelect(item.value);
+                  closePicker();
+                }}
+                activeOpacity={0.78}
+              >
+                <View style={styles.optionTextBlock}>
+                  <Text style={styles.optionLabel}>{item.label}</Text>
+                  {item.description ? (
+                    <Text style={styles.optionDescription}>{item.description}</Text>
+                  ) : null}
                 </View>
-              }
-              renderItem={({ item }) => {
-                const selected = item.value === value;
-                return (
-                  <TouchableOpacity
-                    style={[styles.optionRow, selected && styles.optionRowActive]}
-                    onPress={() => {
-                      onSelect(item.value);
-                      closePicker();
-                    }}
-                    activeOpacity={0.78}
-                  >
-                    <View style={styles.optionTextBlock}>
-                      <Text style={styles.optionLabel}>{item.label}</Text>
-                      {item.description ? (
-                        <Text style={styles.optionDescription}>{item.description}</Text>
-                      ) : null}
-                    </View>
-                    {selected ? (
-                      <Ionicons name="checkmark-circle" size={20} color={Colors.primary} />
-                    ) : null}
-                  </TouchableOpacity>
-                );
-              }}
-            />
-          </View>
-        </TouchableOpacity>
-      </Modal>
+                {selected ? (
+                  <Ionicons name="checkmark-circle" size={20} color={Colors.primary} />
+                ) : null}
+              </TouchableOpacity>
+            );
+          }}
+        />
+      </NativeBottomSheet>
     </View>
   );
 }
@@ -248,20 +239,8 @@ const styles = StyleSheet.create({
     marginLeft: 4,
     fontWeight: "600",
   },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: "rgba(0,0,0,0.42)",
-    justifyContent: "flex-end",
-  },
-  sheet: {
-    maxHeight: "78%",
-    backgroundColor: Colors.surface,
-    borderTopLeftRadius: 18,
-    borderTopRightRadius: 18,
-    paddingHorizontal: 18,
-    paddingTop: 16,
+  sheetContent: {
     paddingBottom: 12,
-    ...Layout.cardShadow,
   },
   sheetHeader: {
     flexDirection: "row",

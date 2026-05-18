@@ -1,14 +1,13 @@
 import { Ionicons } from '@expo/vector-icons';
 import React, { useCallback, useMemo, useState } from 'react';
 import {
-  Modal,
   StyleSheet,
   Text,
   TouchableOpacity,
   View,
 } from 'react-native';
 import { Colors } from '@/constants/Colors';
-import { Layout } from '@/constants/Layout';
+import { NativeBottomSheet } from '@/components/ui/NativeBottomSheet';
 import { getLocalDateValue } from '@/services/dateUtils';
 
 const WEEK_DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
@@ -142,81 +141,73 @@ export function DatePickerField({
       </TouchableOpacity>
       {error ? <Text style={styles.fieldErrorText}>{error}</Text> : null}
 
-      <Modal
+      <NativeBottomSheet
         visible={visible}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setVisible(false)}
+        onClose={() => setVisible(false)}
+        maxHeight="72%"
+        contentStyle={styles.calendarSheet}
       >
-        <TouchableOpacity
-          style={styles.calendarOverlay}
-          activeOpacity={1}
-          onPress={() => setVisible(false)}
-        >
-          <View style={styles.calendarSheet} onStartShouldSetResponder={() => true}>
-            <View style={styles.calendarHeader}>
+        <View style={styles.calendarHeader}>
+          <TouchableOpacity
+            style={styles.calendarNavBtn}
+            onPress={() => setCalendarMonth((current) => addMonths(current, -1))}
+          >
+            <Ionicons name="chevron-back" size={20} color={Colors.text} />
+          </TouchableOpacity>
+          <Text style={styles.calendarTitle}>{calendarTitle}</Text>
+          <TouchableOpacity
+            style={styles.calendarNavBtn}
+            onPress={() => setCalendarMonth((current) => addMonths(current, 1))}
+          >
+            <Ionicons name="chevron-forward" size={20} color={Colors.text} />
+          </TouchableOpacity>
+        </View>
+
+        <View style={styles.weekRow}>
+          {WEEK_DAYS.map((day) => (
+            <Text key={day} style={styles.weekDay}>
+              {day}
+            </Text>
+          ))}
+        </View>
+
+        <View style={styles.calendarGrid}>
+          {calendarCells.map((date, index) => {
+            const dateValue = date ? formatDateValue(date) : '';
+            const isSelected = Boolean(date && value && dateValue === value);
+            const isToday = Boolean(date && dateValue === todayValue());
+            const disabled = !date || (disableFuture && isFutureDate(dateValue));
+
+            return (
               <TouchableOpacity
-                style={styles.calendarNavBtn}
-                onPress={() => setCalendarMonth((current) => addMonths(current, -1))}
+                key={`${dateValue || 'empty'}-${index}`}
+                style={[styles.calendarDay, disabled && styles.calendarDayDisabled]}
+                onPress={() => date && !disabled && selectDate(date)}
+                disabled={disabled}
+                activeOpacity={0.78}
               >
-                <Ionicons name="chevron-back" size={20} color={Colors.text} />
-              </TouchableOpacity>
-              <Text style={styles.calendarTitle}>{calendarTitle}</Text>
-              <TouchableOpacity
-                style={styles.calendarNavBtn}
-                onPress={() => setCalendarMonth((current) => addMonths(current, 1))}
-              >
-                <Ionicons name="chevron-forward" size={20} color={Colors.text} />
-              </TouchableOpacity>
-            </View>
-
-            <View style={styles.weekRow}>
-              {WEEK_DAYS.map((day) => (
-                <Text key={day} style={styles.weekDay}>
-                  {day}
-                </Text>
-              ))}
-            </View>
-
-            <View style={styles.calendarGrid}>
-              {calendarCells.map((date, index) => {
-                const dateValue = date ? formatDateValue(date) : '';
-                const isSelected = Boolean(date && value && dateValue === value);
-                const isToday = Boolean(date && dateValue === todayValue());
-                const disabled = !date || (disableFuture && isFutureDate(dateValue));
-
-                return (
-                  <TouchableOpacity
-                    key={`${dateValue || 'empty'}-${index}`}
-                    style={[styles.calendarDay, disabled && styles.calendarDayDisabled]}
-                    onPress={() => date && !disabled && selectDate(date)}
-                    disabled={disabled}
-                    activeOpacity={0.78}
+                <View
+                  style={[
+                    styles.calendarDayInner,
+                    isToday && styles.calendarDayToday,
+                    isSelected && styles.calendarDaySelected,
+                  ]}
+                >
+                  <Text
+                    style={[
+                      styles.calendarDayText,
+                      isSelected && styles.calendarDayTextSelected,
+                      disabled && styles.calendarDayTextDisabled,
+                    ]}
                   >
-                    <View
-                      style={[
-                        styles.calendarDayInner,
-                        isToday && styles.calendarDayToday,
-                        isSelected && styles.calendarDaySelected,
-                      ]}
-                    >
-                      <Text
-                        style={[
-                          styles.calendarDayText,
-                          isSelected && styles.calendarDayTextSelected,
-                          disabled && styles.calendarDayTextDisabled,
-                        ]}
-                      >
-                        {date ? date.getDate() : ''}
-                      </Text>
-                    </View>
-                  </TouchableOpacity>
-                );
-              })}
-            </View>
-          </View>
-        </TouchableOpacity>
-      </Modal>
+                    {date ? date.getDate() : ''}
+                  </Text>
+                </View>
+              </TouchableOpacity>
+            );
+          })}
+        </View>
+      </NativeBottomSheet>
     </View>
   );
 }
@@ -261,22 +252,8 @@ const styles = StyleSheet.create({
     marginTop: 4,
     fontWeight: '600',
   },
-  calendarOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.42)',
-    justifyContent: 'center',
-    padding: 20,
-  },
   calendarSheet: {
-    width: '100%',
-    maxWidth: 420,
-    alignSelf: 'center',
-    backgroundColor: Colors.surface,
-    borderRadius: 16,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: Colors.border,
-    ...Layout.cardShadow,
+    paddingBottom: 16,
   },
   calendarHeader: {
     flexDirection: 'row',
