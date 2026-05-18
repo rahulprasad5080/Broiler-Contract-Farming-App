@@ -625,7 +625,7 @@ export default function OwnerDashboard() {
             </View>
 
             <View style={styles.plGrid}>
-              <TouchableOpacity style={styles.plCard} onPress={() => router.navigate("/(owner)/manage/financials" as Href)} activeOpacity={0.82}>
+              <TouchableOpacity style={styles.plCard} onPress={() => router.navigate("/(owner)/financials" as Href)} activeOpacity={0.82}>
                 <Text style={[styles.plValue, { color: THEME_GREEN }]}>
                   {formatINR(financialSummary?.investment)}
                 </Text>
@@ -647,7 +647,7 @@ export default function OwnerDashboard() {
                   <Text style={styles.plLabel}>Sales</Text>
                 </TouchableOpacity>
               ) : null}
-              <TouchableOpacity style={styles.plCard} onPress={() => router.navigate("/(owner)/manage/financials" as Href)} activeOpacity={0.82}>
+              <TouchableOpacity style={styles.plCard} onPress={() => router.navigate("/(owner)/financials" as Href)} activeOpacity={0.82}>
                 <Text style={[styles.plValue, { color: netProfitOrLoss >= 0 ? THEME_GREEN : "#D32F2F" }]}>
                   {formatINR(netProfitOrLoss)}
                 </Text>
@@ -657,7 +657,7 @@ export default function OwnerDashboard() {
 
             <View style={styles.sectionHeader}>
               <Text style={styles.sectionTitleNoMargin}>Recent Transactions</Text>
-              <TouchableOpacity onPress={() => router.navigate("/(owner)/manage/financials" as Href)}>
+              <TouchableOpacity onPress={() => router.navigate("/(owner)/financials" as Href)}>
                 <Text style={styles.viewAllText}>View All</Text>
               </TouchableOpacity>
             </View>
@@ -678,7 +678,7 @@ export default function OwnerDashboard() {
                         styles.transactionRow,
                         index < recentTransactions.length - 1 && styles.transactionRowBorder,
                       ]}
-                      onPress={() => router.navigate("/(owner)/manage/financials" as Href)}
+                      onPress={() => router.navigate("/(owner)/financials" as Href)}
                       activeOpacity={0.82}
                     >
                       <View style={[styles.transactionIcon, { backgroundColor: meta.bgColor }]}>
@@ -702,7 +702,7 @@ export default function OwnerDashboard() {
               ) : (
                 <TouchableOpacity
                   style={styles.transactionEmptyRow}
-                  onPress={() => router.navigate("/(owner)/manage/financials" as Href)}
+                  onPress={() => router.navigate("/(owner)/financials" as Href)}
                   activeOpacity={0.82}
                 >
                   <MaterialCommunityIcons name="wallet-outline" size={22} color={Colors.textSecondary} />

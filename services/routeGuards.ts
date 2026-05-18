@@ -31,7 +31,6 @@ const OWNER_MANAGE_ROUTE_PERMISSIONS: Record<string, AppPermission> = {
   farms: "manage:farms",
   batches: "manage:batches",
   inventory: "manage:inventory",
-  financials: "view:financial-dashboard",
   "finance-entry": "view:financial-dashboard",
   payments: "manage:settlements",
   expenses: "create:expenses",
