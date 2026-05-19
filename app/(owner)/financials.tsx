@@ -11,13 +11,18 @@ import {
 import { FontAwesome5, Ionicons } from "@expo/vector-icons";
 import { useFocusEffect } from "@react-navigation/native";
 import { useRouter } from "expo-router";
-import React, { useCallback, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
+  Animated,
+  Easing,
   FlatList,
+  StyleProp,
   StyleSheet,
   Text,
   TouchableOpacity,
+  useWindowDimensions,
   View,
+  ViewStyle,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
@@ -47,6 +52,17 @@ function labelizeType(value: string) {
     .map((part) => part.charAt(0).toUpperCase() + part.slice(1).toLowerCase())
     .join(" ");
 }
+
+type FinanceQuickAction = {
+  label: string;
+  subtitle: string;
+  icon: React.ComponentProps<typeof Ionicons>["name"];
+  tone: string;
+  backgroundColor: string;
+  onPress: () => void;
+};
+
+type PaymentBucketStatus = "PENDING" | "PARTIAL" | "PAID";
 
 function MoneyAmount({
   value,
@@ -79,9 +95,16 @@ function MoneyAmount({
 export default function FinancialDashboardScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const { width } = useWindowDimensions();
   const { accessToken, hasPermission, user } = useAuth();
   const [dashboard, setDashboard] = useState<ApiFinancialDashboard | null>(null);
   const [loading, setLoading] = useState(true);
+  const [showQuickActions, setShowQuickActions] = useState(false);
+  const quickActionAnimation = useRef(new Animated.Value(0)).current;
+  const twoColumnCardStyle = useMemo(() => {
+    const contentWidth = Math.max(0, width - 32);
+    return { width: Math.floor((contentWidth - 12) / 2) };
+  }, [width]);
 
   const canViewFinance =
     (user?.role === "OWNER" || user?.role === "ACCOUNTS") &&
@@ -121,6 +144,75 @@ export default function FinancialDashboardScreen() {
       (paymentStatus?.partial ?? 0) +
       (paymentStatus?.paid ?? 0),
     [paymentStatus],
+  );
+  const quickActions = useMemo<FinanceQuickAction[]>(
+    () => [
+      {
+        label: "Investment Entry",
+        subtitle: "Add capital or funding",
+        icon: "briefcase-outline",
+        tone: "#7C3AED",
+        backgroundColor: "#F3E8FF",
+        onPress: () => router.navigate("/(owner)/manage/finance-entry" as any),
+      },
+      ...(hasPermission("create:purchase")
+        ? [
+            {
+              label: "Purchase Entry",
+              subtitle: "Record stock purchase",
+              icon: "cart-outline" as const,
+              tone: "#D97706",
+              backgroundColor: "#FFF7ED",
+              onPress: () => router.navigate("/(owner)/manage/inventory/purchase" as any),
+            },
+          ]
+        : []),
+      ...(hasPermission("manage:settlements")
+        ? [
+            {
+              label: "Payment Entry",
+              subtitle: "Add customer payment",
+              icon: "card-outline" as const,
+              tone: "#2563EB",
+              backgroundColor: "#EFF6FF",
+              onPress: () => router.navigate("/(owner)/manage/payments" as any),
+            },
+            {
+              label: "Settlements",
+              subtitle: "Review settlement docs",
+              icon: "document-text-outline" as const,
+              tone: "#059669",
+              backgroundColor: "#ECFDF5",
+              onPress: () => router.navigate("/(owner)/manage/settlement" as any),
+            },
+          ]
+        : []),
+    ],
+    [hasPermission, router],
+  );
+  const hasQuickActions = quickActions.length > 0;
+
+  useEffect(() => {
+    Animated.timing(quickActionAnimation, {
+      toValue: showQuickActions ? 1 : 0,
+      duration: 260,
+      easing: Easing.out(Easing.cubic),
+      useNativeDriver: true,
+    }).start();
+  }, [quickActionAnimation, showQuickActions]);
+
+  const handleQuickActionPress = useCallback((action: FinanceQuickAction) => {
+    setShowQuickActions(false);
+    action.onPress();
+  }, []);
+  const handlePaymentBucketPress = useCallback(
+    (status: PaymentBucketStatus) => {
+      router.navigate({
+        pathname: "/(owner)/manage/payments",
+        params: { status },
+      } as any);
+    },
+    [router],
   );
 
   if (!canViewFinance) {
@@ -186,24 +278,28 @@ export default function FinancialDashboardScreen() {
                 value={formatAmount(summary?.investment)}
                 icon="briefcase-outline"
                 tone="#7C3AED"
+                cardStyle={twoColumnCardStyle}
               />
               <SummaryCard
                 label="Expenses"
                 value={formatAmount(summary?.expenses)}
                 icon="trending-down-outline"
                 tone="#DC2626"
+                cardStyle={twoColumnCardStyle}
               />
               <SummaryCard
                 label="Sales"
                 value={formatAmount(summary?.sales)}
                 icon="trending-up-outline"
                 tone="#059669"
+                cardStyle={twoColumnCardStyle}
               />
               <SummaryCard
                 label="Net"
                 value={formatSignedAmount(summary?.netProfitOrLoss)}
                 icon={netProfitOrLoss < 0 ? "arrow-down-circle-outline" : "arrow-up-circle-outline"}
                 tone={netProfitOrLoss < 0 ? "#DC2626" : "#2563EB"}
+                cardStyle={twoColumnCardStyle}
               />
             </View>
 
@@ -211,52 +307,28 @@ export default function FinancialDashboardScreen() {
             <View style={styles.paymentPanel}>
               <PaymentBucket
                 label="Pending"
+                status="PENDING"
                 value={paymentStatus?.pending ?? 0}
                 total={paymentTotal}
                 tone="#D97706"
+                onPress={handlePaymentBucketPress}
               />
               <PaymentBucket
                 label="Partial"
+                status="PARTIAL"
                 value={paymentStatus?.partial ?? 0}
                 total={paymentTotal}
                 tone="#2563EB"
+                onPress={handlePaymentBucketPress}
               />
               <PaymentBucket
                 label="Paid"
+                status="PAID"
                 value={paymentStatus?.paid ?? 0}
                 total={paymentTotal}
                 tone="#059669"
+                onPress={handlePaymentBucketPress}
               />
-            </View>
-
-            <Text style={styles.sectionTitle}>Quick Actions</Text>
-            <View style={styles.quickActionsGrid}>
-              <QuickAction
-                label="Investment Entry"
-                icon="briefcase-outline"
-                onPress={() => router.navigate("/(owner)/manage/finance-entry" as any)}
-              />
-              {hasPermission("create:purchase") ? (
-                <QuickAction
-                  label="Purchase Entry"
-                  icon="cart-outline"
-                  onPress={() => router.navigate("/(owner)/manage/inventory/purchase" as any)}
-                />
-              ) : null}
-              {hasPermission("manage:settlements") ? (
-                <>
-                  <QuickAction
-                    label="Payment Entry"
-                    icon="card-outline"
-                    onPress={() => router.navigate("/(owner)/manage/payments" as any)}
-                  />
-                  <QuickAction
-                    label="Settlements"
-                    icon="document-text-outline"
-                    onPress={() => router.navigate("/(owner)/manage/settlement" as any)}
-                  />
-                </>
-              ) : null}
             </View>
 
             <View style={styles.transactionsHeader}>
@@ -286,6 +358,117 @@ export default function FinancialDashboardScreen() {
           )
         }
       />
+
+      {hasQuickActions ? (
+        <>
+          <View
+            style={styles.quickActionOverlayLayer}
+            pointerEvents={showQuickActions ? "auto" : "none"}
+          >
+            <TouchableOpacity
+              style={StyleSheet.absoluteFill}
+              activeOpacity={1}
+              onPress={() => setShowQuickActions(false)}
+            >
+              <Animated.View
+                style={[
+                  styles.quickActionBackdrop,
+                  {
+                    opacity: quickActionAnimation.interpolate({
+                      inputRange: [0, 1],
+                      outputRange: [0, 1],
+                    }),
+                  },
+                ]}
+              />
+            </TouchableOpacity>
+          </View>
+
+          <Animated.View
+            pointerEvents={showQuickActions ? "auto" : "none"}
+            style={[
+              styles.quickActionMenu,
+              { bottom: 82 + (insets.bottom > 0 ? insets.bottom : 0) },
+              {
+                opacity: quickActionAnimation,
+                transform: [
+                  {
+                    translateY: quickActionAnimation.interpolate({
+                      inputRange: [0, 1],
+                      outputRange: [18, 0],
+                    }),
+                  },
+                  {
+                    scale: quickActionAnimation.interpolate({
+                      inputRange: [0, 1],
+                      outputRange: [0.96, 1],
+                    }),
+                  },
+                ],
+              },
+            ]}
+          >
+            <View style={styles.quickActionHeader}>
+              <Text style={styles.quickActionTitle}>Quick Actions</Text>
+              <Text style={styles.quickActionSubtitle}>Finance tools</Text>
+            </View>
+
+            {quickActions.map((action) => (
+              <TouchableOpacity
+                key={action.label}
+                style={styles.quickActionItem}
+                onPress={() => handleQuickActionPress(action)}
+                activeOpacity={0.84}
+              >
+                <View
+                  style={[
+                    styles.quickActionIcon,
+                    { backgroundColor: action.backgroundColor },
+                  ]}
+                >
+                  <Ionicons name={action.icon} size={18} color={action.tone} />
+                </View>
+                <View style={styles.quickActionTextWrap}>
+                  <Text style={styles.quickActionItemTitle} numberOfLines={1}>
+                    {action.label}
+                  </Text>
+                  <Text style={styles.quickActionItemSubtitle} numberOfLines={1}>
+                    {action.subtitle}
+                  </Text>
+                </View>
+                <Ionicons name="chevron-forward" size={17} color={action.tone} />
+              </TouchableOpacity>
+            ))}
+          </Animated.View>
+
+          <TouchableOpacity
+            style={[
+              styles.quickActionFab,
+              { bottom: 10 + (insets.bottom > 0 ? insets.bottom : 0) },
+              showQuickActions && styles.quickActionFabOpen,
+            ]}
+            onPress={() => setShowQuickActions((current) => !current)}
+            activeOpacity={0.86}
+            accessibilityRole="button"
+            accessibilityLabel={showQuickActions ? "Close quick actions" : "Open quick actions"}
+          >
+            <Animated.View
+              style={{
+                transform: [
+                  {
+                    rotate: quickActionAnimation.interpolate({
+                      inputRange: [0, 1],
+                      outputRange: ["0deg", "45deg"],
+                    }),
+                  },
+                ],
+              }}
+            >
+              <Ionicons name="add" size={32} color="#FFFFFF" />
+            </Animated.View>
+          </TouchableOpacity>
+        </>
+      ) : null}
     </View>
   );
 }
@@ -295,14 +478,16 @@ function SummaryCard({
   value,
   icon,
   tone,
+  cardStyle,
 }: {
   label: string;
   value: string;
   icon: React.ComponentProps<typeof Ionicons>["name"];
   tone: string;
+  cardStyle?: StyleProp<ViewStyle>;
 }) {
   return (
-    <View style={styles.summaryCard}>
+    <View style={[styles.summaryCard, cardStyle]}>
       <View style={[styles.summaryIcon, { backgroundColor: `${tone}14` }]}>
         <Ionicons name={icon} size={19} color={tone} />
       </View>
@@ -319,43 +504,34 @@ function SummaryCard({
 
 function PaymentBucket({
   label,
+  status,
   value,
   total,
   tone,
+  onPress,
 }: {
   label: string;
+  status: PaymentBucketStatus;
   value: number;
   total: number;
   tone: string;
+  onPress: (status: PaymentBucketStatus) => void;
 }) {
   const percent = total > 0 ? Math.round((value / total) * 100) : 0;
 
   return (
-    <View style={styles.bucketCard}>
+    <TouchableOpacity
+      style={styles.bucketCard}
+      onPress={() => onPress(status)}
+      activeOpacity={0.82}
+      accessibilityRole="button"
+      accessibilityLabel={`Open ${label} payments`}
+    >
       <Text style={styles.bucketValue}>{value}</Text>
       <Text style={styles.bucketLabel}>{label}</Text>
       <View style={styles.progressTrack}>
         <View style={[styles.progressFill, { width: `${percent}%`, backgroundColor: tone }]} />
       </View>
-    </View>
-  );
-}
-
-function QuickAction({
-  label,
-  icon,
-  onPress,
-}: {
-  label: string;
-  icon: React.ComponentProps<typeof Ionicons>["name"];
-  onPress: () => void;
-}) {
-  return (
-    <TouchableOpacity style={styles.quickActionCard} onPress={onPress} activeOpacity={0.82}>
-      <View style={styles.quickActionIcon}>
-        <Ionicons name={icon} size={20} color={Colors.primary} />
-      </View>
-      <Text style={styles.quickActionLabel}>{label}</Text>
     </TouchableOpacity>
   );
 }
@@ -471,7 +647,6 @@ const styles = StyleSheet.create({
     marginBottom: 18,
   },
   summaryCard: {
-    width: "48.2%",
     minHeight: 112,
     backgroundColor: "#FFFFFF",
     borderRadius: 8,
@@ -539,37 +714,100 @@ const styles = StyleSheet.create({
     height: "100%",
     borderRadius: 3,
   },
-  quickActionsGrid: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 12,
-    marginBottom: 18,
+  quickActionOverlayLayer: {
+    ...StyleSheet.absoluteFillObject,
+    zIndex: 20,
   },
-  quickActionCard: {
-    width: "48.2%",
-    minHeight: 74,
+  quickActionBackdrop: {
+    flex: 1,
+    backgroundColor: "rgba(3, 24, 14, 0.46)",
+  },
+  quickActionMenu: {
+    position: "absolute",
+    right: 20,
+    width: 280,
+    maxWidth: "86%",
     backgroundColor: "#FFFFFF",
-    borderRadius: 8,
-    padding: 10,
-    alignItems: "center",
-    justifyContent: "center",
+    borderRadius: 22,
     borderWidth: 1,
-    borderColor: "#EEF2F7",
+    borderColor: "#DDE9E1",
+    padding: 12,
+    zIndex: 30,
+    elevation: 12,
+    shadowColor: "#0B3D24",
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.18,
+    shadowRadius: 18,
+  },
+  quickActionHeader: {
+    paddingHorizontal: 8,
+    paddingTop: 4,
+    paddingBottom: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: "#EEF4F0",
+  },
+  quickActionTitle: {
+    fontSize: 15,
+    fontWeight: "900",
+    color: Colors.text,
+  },
+  quickActionSubtitle: {
+    fontSize: 11,
+    fontWeight: "700",
+    color: Colors.textSecondary,
+    marginTop: 2,
+  },
+  quickActionItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    backgroundColor: "#F8FBF8",
+    borderRadius: 16,
+    padding: 10,
+    marginTop: 8,
+    borderWidth: 1,
+    borderColor: "#EDF4EF",
   },
   quickActionIcon: {
-    width: 38,
-    height: 38,
-    borderRadius: 8,
+    width: 42,
+    height: 42,
+    borderRadius: 21,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "#E8F5E9",
-    marginBottom: 6,
   },
-  quickActionLabel: {
-    color: "#1F2937",
-    fontSize: 11,
+  quickActionTextWrap: {
+    flex: 1,
+    minWidth: 0,
+  },
+  quickActionItemTitle: {
+    fontSize: 13,
     fontWeight: "900",
-    textAlign: "center",
+    color: Colors.text,
+  },
+  quickActionItemSubtitle: {
+    fontSize: 11,
+    fontWeight: "600",
+    color: Colors.textSecondary,
+    marginTop: 2,
+  },
+  quickActionFab: {
+    position: "absolute",
+    right: 20,
+    width: 62,
+    height: 62,
+    borderRadius: 31,
+    backgroundColor: Colors.primary,
+    justifyContent: "center",
+    alignItems: "center",
+    zIndex: 40,
+    elevation: 14,
+    shadowColor: "#0B3D24",
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.28,
+    shadowRadius: 12,
+  },
+  quickActionFabOpen: {
+    backgroundColor: "#094B2C",
   },
   transactionsHeader: {
     flexDirection: "row",
