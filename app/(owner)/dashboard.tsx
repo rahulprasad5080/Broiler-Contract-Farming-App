@@ -429,7 +429,7 @@ export default function OwnerDashboard() {
           ) : null}
           {/* Total Live Birds */}
           {canViewReports ? (
-            <TouchableOpacity style={styles.glanceCard} onPress={() => router.navigate("/(owner)/reports" as Href)} activeOpacity={0.82}>
+                  <TouchableOpacity style={styles.glanceCard} onPress={() => router.navigate("/(owner)/manage/batches" as Href)} activeOpacity={0.82}>
               <Text style={styles.glanceValue}>
                 {formatNumber(dashboard?.today?.liveBirds)}
               </Text>
@@ -438,7 +438,7 @@ export default function OwnerDashboard() {
           ) : null}
           {/* Mortality Today */}
           {canCreateDailyEntry ? (
-            <TouchableOpacity style={styles.glanceCard} onPress={() => router.navigate("/(owner)/manage/daily-entry" as Href)} activeOpacity={0.82}>
+                  <TouchableOpacity style={styles.glanceCard} onPress={() => router.navigate("/(owner)/manage/batches" as Href)} activeOpacity={0.82}>
               <View style={styles.glanceRow}>
                 <Text style={styles.glanceValueSmall}>
                   {formatNumber(dashboard?.today?.mortalityToday)}
@@ -452,7 +452,7 @@ export default function OwnerDashboard() {
           ) : null}
           {/* Mortality Total */}
           {canViewReports ? (
-            <TouchableOpacity style={styles.glanceCard} onPress={() => router.navigate("/(owner)/reports" as Href)} activeOpacity={0.82}>
+                  <TouchableOpacity style={styles.glanceCard} onPress={() => router.navigate("/(owner)/manage/batches" as Href)} activeOpacity={0.82}>
               <View style={styles.glanceRow}>
                 <Text style={styles.glanceValueSmall}>
                   {formatNumber(dashboard?.today?.mortalityTotal)}

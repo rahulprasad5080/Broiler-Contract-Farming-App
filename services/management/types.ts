@@ -144,6 +144,7 @@ export type ApiFarm = {
 export type ApiBatchSummary = {
   currentAgeDays?: number | null;
   liveBirds?: number | null;
+  todayMortality?: number | null;
   mortalityCount?: number | null;
   cullCount?: number | null;
   mortalityPercent?: number | null;

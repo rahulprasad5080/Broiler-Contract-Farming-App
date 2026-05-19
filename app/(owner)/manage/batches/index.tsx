@@ -1,5 +1,8 @@
+import { ScreenState } from '@/components/ui/ScreenState';
+import { TopAppBar } from '@/components/ui/TopAppBar';
 import { Colors } from '@/constants/Colors';
 import { useAuth } from '@/context/AuthContext';
+import { showRequestErrorToast } from '@/services/apiFeedback';
 import {
   ApiBatch,
   listAllBatches,
@@ -17,9 +20,6 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { ScreenState } from '@/components/ui/ScreenState';
-import { TopAppBar } from '@/components/ui/TopAppBar';
-import { showRequestErrorToast } from '@/services/apiFeedback';
 
 const THEME_GREEN = "#0B5C36";
 
@@ -244,12 +244,12 @@ export default function BatchManagementScreen() {
                     </Text>
                   </View>
                   <View style={styles.metricColCenter}>
-                    <Text style={styles.metricLabel}>Mortality</Text>
-                    <Text style={styles.metricValue}>{batch.summary?.mortalityPercent ?? 0}%</Text>
+                    <Text style={styles.metricLabel}>Today Mortality</Text>
+                    <Text style={styles.metricValue}>{batch.summary?.todayMortality ?? 0}%</Text>
                   </View>
                   <View style={styles.metricColRight}>
-                    <Text style={styles.metricLabel}>FCR</Text>
-                    <Text style={styles.metricValue}>{batch.summary?.fcr ?? '0'}</Text>
+                    <Text style={styles.metricLabel}>Total Mortality</Text>
+                    <Text style={styles.metricValue}>{batch.summary?.mortalityPercent ?? '0'}</Text>
                   </View>
                 </View>
               </TouchableOpacity>
