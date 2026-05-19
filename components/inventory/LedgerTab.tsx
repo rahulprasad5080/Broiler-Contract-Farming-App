@@ -1,11 +1,24 @@
-import React from 'react';
-import { View, Text, TextInput, TouchableOpacity, ScrollView, ActivityIndicator } from 'react-native';
+import { SearchableSelectField } from '@/components/ui/SearchableSelectField';
 import { Colors } from '@/constants/Colors';
+import React, { useMemo } from 'react';
+import { View, Text, TouchableOpacity, ScrollView, ActivityIndicator } from 'react-native';
 import { styles } from './inventoryStyles';
-import { ApiCatalogItem, ApiInventoryLedgerEntry } from '@/services/managementApi';
+import { ApiBatch, ApiCatalogItem, ApiInventoryLedgerEntry } from '@/services/managementApi';
+
+function formatDate(value?: string | null) {
+  if (!value) return "";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  return date.toLocaleDateString("en-IN", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+  });
+}
 
 interface LedgerTabProps {
   catalogItems: ApiCatalogItem[];
+  batches: ApiBatch[];
   ledgerRows: ApiInventoryLedgerEntry[];
   ledgerCatalogItemId: string;
   setLedgerCatalogItemId: (id: string) => void;
@@ -13,12 +26,14 @@ interface LedgerTabProps {
   setLedgerBatchId: (id: string) => void;
   loadLedger: () => Promise<void>;
   loadingLedger: boolean;
+  loadingBatches: boolean;
   labelize: (val: string) => string;
   formatQuantity: (val?: number | null, unit?: string | null) => string;
 }
 
 export const LedgerTab: React.FC<LedgerTabProps> = ({
   catalogItems,
+  batches,
   ledgerRows,
   ledgerCatalogItemId,
   setLedgerCatalogItemId,
@@ -26,15 +41,29 @@ export const LedgerTab: React.FC<LedgerTabProps> = ({
   setLedgerBatchId,
   loadLedger,
   loadingLedger,
+  loadingBatches,
   labelize,
   formatQuantity,
 }) => {
+  const batchOptions = useMemo(
+    () => [
+      { label: "All Batches", value: "", description: "Show every batch" },
+      ...batches.map((batch) => ({
+        label: batch.code,
+        value: batch.id,
+        description: batch.farmName ?? labelize(batch.status),
+        keywords: `${batch.farmName ?? ""} ${batch.status} ${batch.id}`,
+      })),
+    ],
+    [batches, labelize],
+  );
+
   return (
     <>
       <View style={styles.panel}>
         <Text style={styles.panelTitle}>Stock Ledger Filters</Text>
         <Text style={styles.panelSubtitle}>
-          Filter movement history by catalog item and optional batch ID.
+          Filter movement history by catalog item and optional batch.
         </Text>
 
         <Text style={styles.fieldLabel}>Catalog Item</Text>
@@ -60,16 +89,16 @@ export const LedgerTab: React.FC<LedgerTabProps> = ({
           ))}
         </ScrollView>
 
-        <Text style={styles.fieldLabel}>Batch ID</Text>
-        <View style={styles.inputBox}>
-          <TextInput
-            style={styles.input}
-            value={ledgerBatchId}
-            onChangeText={setLedgerBatchId}
-            placeholder="Optional batch ID"
-            placeholderTextColor={Colors.textSecondary}
-          />
-        </View>
+        <SearchableSelectField
+          label="Batch"
+          value={ledgerBatchId}
+          options={batchOptions}
+          onSelect={setLedgerBatchId}
+          placeholder={loadingBatches ? "Loading batches..." : "All Batches"}
+          searchPlaceholder="Search batch or farm"
+          emptyMessage="No batches found"
+          disabled={loadingBatches}
+        />
 
         <TouchableOpacity
           style={styles.primaryBtn}
@@ -98,7 +127,7 @@ export const LedgerTab: React.FC<LedgerTabProps> = ({
                   {item.catalogItemName || item.catalogItemId}
                 </Text>
                 <Text style={styles.listSub}>
-                  {[labelize(item.movementType), item.movementDate, item.batchId]
+                  {[labelize(item.movementType), formatDate(item.movementDate), item.batchId]
                     .filter(Boolean)
                     .join(" | ")}
                 </Text>

@@ -1,9 +1,7 @@
-import { StyleSheet, Dimensions } from 'react-native';
+import { StyleSheet } from 'react-native';
 import { Colors } from '@/constants/Colors';
 import { Layout } from '@/constants/Layout';
-const THEME_GREEN = '#0B5C36';
-const { width } = Dimensions.get('window');
-const CARD_WIDTH = (width - 48) / 2;
+
 export const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
@@ -152,6 +150,25 @@ export const styles = StyleSheet.create({
     marginBottom: 8,
     gap: 12,
   },
+  panelHeaderActions: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  headerIconButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    backgroundColor: Colors.surface,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  headerIconButtonPrimary: {
+    backgroundColor: Colors.primary,
+    borderColor: Colors.primary,
+  },
   panelTitle: {
     fontSize: 16,
     fontWeight: "800",
@@ -274,6 +291,7 @@ export const styles = StyleSheet.create({
   },
   listMeta: {
     flex: 1,
+    minWidth: 0,
   },
   listTitle: {
     fontSize: 14,
@@ -320,10 +338,45 @@ export const styles = StyleSheet.create({
   smallBtnTextActive: {
     color: Colors.primary,
   },
+  smallIconButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    backgroundColor: Colors.surface,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  listActions: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
   linkText: {
     fontSize: 12,
     fontWeight: "800",
     color: Colors.primary,
+  },
+  emptyStateBox: {
+    alignItems: "center",
+    paddingVertical: 14,
+    gap: 12,
+  },
+  emptyStateButton: {
+    minHeight: 42,
+    paddingHorizontal: 14,
+    borderRadius: 10,
+    backgroundColor: Colors.primary,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+  },
+  emptyStateButtonText: {
+    color: "#FFF",
+    fontSize: 13,
+    fontWeight: "800",
   },
   emptyText: {
     fontSize: 13,
@@ -340,6 +393,99 @@ export const styles = StyleSheet.create({
     fontSize: 11,
     marginTop: 4,
     fontWeight: "600",
+  },
+  modalOverlay: {
+    flex: 1,
+    justifyContent: "flex-end",
+  },
+  modalBackdrop: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: "rgba(3, 24, 14, 0.48)",
+  },
+  modalKeyboardWrap: {
+    justifyContent: "flex-end",
+  },
+  modalSheet: {
+    maxHeight: "88%",
+    backgroundColor: Colors.surface,
+    borderTopLeftRadius: 22,
+    borderTopRightRadius: 22,
+    paddingHorizontal: 18,
+    paddingTop: 16,
+    paddingBottom: 8,
+    shadowColor: "#0B3D24",
+    shadowOffset: { width: 0, height: -8 },
+    shadowOpacity: 0.16,
+    shadowRadius: 18,
+    elevation: 18,
+  },
+  modalHeader: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    justifyContent: "space-between",
+    gap: 12,
+    paddingBottom: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.border,
+  },
+  modalTitle: {
+    fontSize: 17,
+    fontWeight: "900",
+    color: Colors.text,
+  },
+  modalSubtitle: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: Colors.textSecondary,
+    marginTop: 3,
+    lineHeight: 17,
+  },
+  modalCloseButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    backgroundColor: "#F3F4F6",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  modalContent: {
+    paddingBottom: 18,
+  },
+  modalActions: {
+    flexDirection: "row",
+    gap: 10,
+    marginTop: 16,
+  },
+  modalCancelButton: {
+    flex: 1,
+    minHeight: 48,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: Colors.surface,
+  },
+  modalCancelButtonText: {
+    color: Colors.text,
+    fontSize: 14,
+    fontWeight: "800",
+  },
+  modalSaveButton: {
+    flex: 1,
+    minHeight: 48,
+    borderRadius: 10,
+    backgroundColor: Colors.primary,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  modalSaveButtonText: {
+    color: "#FFF",
+    fontSize: 14,
+    fontWeight: "800",
+  },
+  disabledButton: {
+    opacity: 0.65,
   },
   ledgerNumbers: {
     alignItems: "flex-end",

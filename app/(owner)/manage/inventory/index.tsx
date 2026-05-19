@@ -1,58 +1,51 @@
 import { CatalogTab } from '@/components/inventory/CatalogTab';
-import { LedgerTab } from '@/components/inventory/LedgerTab';
 import { ExpensesTab } from '@/components/inventory/ExpensesTab';
 import { styles } from '@/components/inventory/inventoryStyles';
 import {
-  CATALOG_TYPES,
-  EXPENSE_CATEGORIES,
-  LEDGERS,
-  catalogSchema,
-  expenseSchema,
-  CatalogFormData,
-  ExpenseFormData,
   CATALOG_DEFAULTS,
+  CatalogFormData,
   EXPENSE_DEFAULTS,
+  ExpenseFormData,
+  catalogSchema,
+  expenseSchema
 } from '@/components/inventory/inventoryTypes';
+import { LedgerTab } from '@/components/inventory/LedgerTab';
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useFocusEffect } from "@react-navigation/native";
 import { useRouter } from "expo-router";
 import React, { useCallback, useMemo, useState } from "react";
+import { useForm } from "react-hook-form";
 import {
-  ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
-  StyleSheet,
   Text,
-  TextInput,
   TouchableOpacity,
-  View,
+  View
 } from "react-native";
-import { Controller, useForm } from "react-hook-form";
-import { z } from "zod";
 
 import { TopAppBar } from "@/components/ui/TopAppBar";
 import { Colors } from "@/constants/Colors";
-import { Layout } from "@/constants/Layout";
 import { useAuth } from "@/context/AuthContext";
 import {
   showRequestErrorToast,
   showSuccessToast,
 } from "@/services/apiFeedback";
-import { getLocalDateValue } from "@/services/dateUtils";
 import {
   createBatchExpense,
   createCatalogItem,
+  listAllBatches,
   listBatchExpenses,
   listCatalogItems,
   listInventoryLedger,
+  updateCatalogItem,
+  type ApiBatch,
   type ApiBatchExpense,
   type ApiCatalogItem,
   type ApiCatalogItemType,
   type ApiExpenseCategoryCode,
-  type ApiExpenseLedger,
-  type ApiInventoryLedgerEntry,
+  type ApiInventoryLedgerEntry
 } from "@/services/managementApi";
 
 type TabKey = "catalog" | "ledger" | "expenses";
@@ -95,15 +88,19 @@ export default function InventoryScreen() {
   const { accessToken, hasPermission } = useAuth();
   const [activeTab, setActiveTab] = useState<TabKey>("catalog");
   const [catalogItems, setCatalogItems] = useState<ApiCatalogItem[]>([]);
+  const [batches, setBatches] = useState<ApiBatch[]>([]);
   const [ledgerRows, setLedgerRows] = useState<ApiInventoryLedgerEntry[]>([]);
   const [expenses, setExpenses] = useState<ApiBatchExpense[]>([]);
   const [ledgerCatalogItemId, setLedgerCatalogItemId] = useState("");
   const [ledgerBatchId, setLedgerBatchId] = useState("");
   const [loadingCatalog, setLoadingCatalog] = useState(false);
+  const [loadingBatches, setLoadingBatches] = useState(false);
   const [loadingLedger, setLoadingLedger] = useState(false);
   const [loadingExpenses, setLoadingExpenses] = useState(false);
   const [savingCatalog, setSavingCatalog] = useState(false);
   const [savingExpense, setSavingExpense] = useState(false);
+  const [catalogModalVisible, setCatalogModalVisible] = useState(false);
+  const [editingCatalogItem, setEditingCatalogItem] = useState<ApiCatalogItem | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const {
@@ -162,6 +159,30 @@ export default function InventoryScreen() {
       setLoadingCatalog(false);
     }
   }, [accessToken, selectedExpenseItemId, setExpenseValue]);
+
+  const loadBatches = useCallback(async () => {
+    if (!accessToken) {
+      setError("Missing access token. Please sign in again.");
+      return;
+    }
+
+    setLoadingBatches(true);
+    setError(null);
+
+    try {
+      const response = await listAllBatches(accessToken);
+      setBatches(response.data);
+    } catch (err) {
+      setError(
+        showRequestErrorToast(err, {
+          title: "Unable to load batches",
+          fallbackMessage: "Failed to load batch options.",
+        }),
+      );
+    } finally {
+      setLoadingBatches(false);
+    }
+  }, [accessToken]);
 
   const loadLedger = useCallback(async () => {
     if (!accessToken) {
@@ -225,7 +246,8 @@ export default function InventoryScreen() {
   useFocusEffect(
     useCallback(() => {
       void loadCatalog();
-    }, [loadCatalog]),
+      void loadBatches();
+    }, [loadBatches, loadCatalog]),
   );
 
   const selectedExpenseItem = useMemo(
@@ -248,6 +270,36 @@ export default function InventoryScreen() {
     0,
   );
   const canCreatePurchase = hasPermission("create:purchase");
+  const openCreateCatalogModal = useCallback(() => {
+    setEditingCatalogItem(null);
+    resetCatalog(CATALOG_DEFAULTS);
+    setCatalogModalVisible(true);
+  }, [resetCatalog]);
+
+  const openEditCatalogModal = useCallback(
+    (item: ApiCatalogItem) => {
+      setEditingCatalogItem(item);
+      resetCatalog({
+        name: item.name ?? "",
+        type: item.type,
+        sku: item.sku ?? "",
+        unit: item.unit ?? "kg",
+        defaultRate: item.defaultRate?.toString() ?? "",
+        reorderLevel: item.reorderLevel?.toString() ?? "",
+        currentStock: item.currentStock?.toString() ?? "",
+        manufacturer: item.manufacturer ?? "",
+      });
+      setCatalogModalVisible(true);
+    },
+    [resetCatalog],
+  );
+
+  const closeCatalogModal = useCallback(() => {
+    if (savingCatalog) return;
+    setCatalogModalVisible(false);
+    setEditingCatalogItem(null);
+    resetCatalog(CATALOG_DEFAULTS);
+  }, [resetCatalog, savingCatalog]);
 
   const submitCatalogItem = async (data: CatalogFormData) => {
     if (!accessToken) {
@@ -259,7 +311,7 @@ export default function InventoryScreen() {
     setError(null);
 
     try {
-      const created = await createCatalogItem(accessToken, {
+      const payload = {
         name: data.name.trim(),
         type: data.type,
         sku: data.sku?.trim() || undefined,
@@ -268,18 +320,43 @@ export default function InventoryScreen() {
         reorderLevel: toOptionalNumber(data.reorderLevel),
         currentStock: toOptionalNumber(data.currentStock),
         manufacturer: data.manufacturer?.trim() || undefined,
-      });
+      };
+
+      if (editingCatalogItem) {
+        const updated = await updateCatalogItem(
+          accessToken,
+          editingCatalogItem.id,
+          payload,
+        );
+
+        setCatalogItems((prev) =>
+          prev.map((item) => (item.id === updated.id ? updated : item)),
+        );
+        if (selectedExpenseItemId === updated.id) {
+          setExpenseValue("unit", updated.unit);
+        }
+        resetCatalog(CATALOG_DEFAULTS);
+        setEditingCatalogItem(null);
+        setCatalogModalVisible(false);
+        showSuccessToast("Catalog item updated successfully.", "Updated");
+        return;
+      }
+
+      const created = await createCatalogItem(accessToken, payload);
 
       setCatalogItems((prev) => [created, ...prev]);
       setLedgerCatalogItemId(created.id);
       setExpenseValue("catalogItemId", created.id);
       resetCatalog(CATALOG_DEFAULTS);
+      setCatalogModalVisible(false);
       showSuccessToast("Catalog item created successfully.", "Saved");
     } catch (err) {
       setError(
         showRequestErrorToast(err, {
           title: "Catalog save failed",
-          fallbackMessage: "Failed to create catalog item.",
+          fallbackMessage: editingCatalogItem
+            ? "Failed to update catalog item."
+            : "Failed to create catalog item.",
         }),
       );
     } finally {
@@ -348,24 +425,6 @@ export default function InventoryScreen() {
         title="Stock, Purchases, Expenses"
         eyebrow="Inventory operations"
         subtitle="Catalog, ledger, and expense tracking"
-        right={
-          <>
-            {canCreatePurchase ? (
-              <TouchableOpacity
-                style={styles.iconButton}
-                onPress={() => router.navigate("/(owner)/manage/inventory/purchase")}
-              >
-                <MaterialCommunityIcons name="cart-plus" size={19} color="#FFF" />
-              </TouchableOpacity>
-            ) : null}
-            <TouchableOpacity
-              style={styles.iconButton}
-              onPress={() => router.navigate("/(owner)/manage/inventory/allocate")}
-            >
-              <MaterialCommunityIcons name="truck-delivery-outline" size={19} color="#FFF" />
-            </TouchableOpacity>
-          </>
-        }
       />
       <KeyboardAvoidingView
         behavior={Platform.OS === "ios" ? "padding" : "height"}
@@ -451,20 +510,23 @@ export default function InventoryScreen() {
             handleCatalogSubmit={handleCatalogSubmit}
             submitCatalogItem={submitCatalogItem}
             savingCatalog={savingCatalog}
+            catalogModalVisible={catalogModalVisible}
+            catalogModalMode={editingCatalogItem ? "edit" : "create"}
             loadingCatalog={loadingCatalog}
             catalogItems={catalogItems}
             loadCatalog={loadCatalog}
+            openCreateCatalogModal={openCreateCatalogModal}
+            openEditCatalogModal={openEditCatalogModal}
+            closeCatalogModal={closeCatalogModal}
             labelize={labelize}
             formatQuantity={formatQuantity}
-            selectedExpenseItemId={selectedExpenseItemId}
-            setExpenseValue={setExpenseValue}
-            setLedgerCatalogItemId={setLedgerCatalogItemId}
           />
         )}
 
         {activeTab === "ledger" && (
           <LedgerTab
             catalogItems={catalogItems}
+            batches={batches}
             ledgerRows={ledgerRows}
             ledgerCatalogItemId={ledgerCatalogItemId}
             setLedgerCatalogItemId={setLedgerCatalogItemId}
@@ -472,6 +534,7 @@ export default function InventoryScreen() {
             setLedgerBatchId={setLedgerBatchId}
             loadLedger={loadLedger}
             loadingLedger={loadingLedger}
+            loadingBatches={loadingBatches}
             labelize={labelize}
             formatQuantity={formatQuantity}
           />
