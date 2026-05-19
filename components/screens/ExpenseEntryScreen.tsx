@@ -69,10 +69,11 @@ type ExpenseEntryScreenProps = {
 };
 
 export function ExpenseEntryScreen({ title = "Expense Entry", subtitle }: ExpenseEntryScreenProps) {
-  const { accessToken } = useAuth();
+  const { accessToken, hasPermission } = useAuth();
   const [batches, setBatches] = useState<ApiBatch[]>([]);
   const [submitting, setSubmitting] = useState(false);
   const [savedMessage, setSavedMessage] = useState<string | null>(null);
+  const canCreateCompanyExpense = hasPermission("create:company-expense");
 
   const {
     control,
@@ -95,7 +96,8 @@ export function ExpenseEntryScreen({ title = "Expense Entry", subtitle }: Expens
   const selectedLedger = watch("ledger");
   const selectedBatchId = watch("batchId");
   const selectedBatch = batches.find((b) => b.id === selectedBatchId) ?? null;
-  const categories = selectedLedger === "COMPANY" ? COMPANY_CATEGORIES : FARMER_CATEGORIES;
+  const effectiveLedger = canCreateCompanyExpense ? selectedLedger : "FARMER";
+  const categories = effectiveLedger === "COMPANY" ? COMPANY_CATEGORIES : FARMER_CATEGORIES;
   const selectedFarmId = selectedBatch?.farmId ?? "";
   const farmOptions = useMemo(() => {
     const farmsById = new Map<string, { label: string; value: string }>();
@@ -128,6 +130,13 @@ export function ExpenseEntryScreen({ title = "Expense Entry", subtitle }: Expens
     [categories],
   );
 
+  React.useEffect(() => {
+    if (!canCreateCompanyExpense && selectedLedger === "COMPANY") {
+      setValue("ledger", "FARMER", { shouldDirty: true, shouldValidate: true });
+      setValue("category", FARMER_CATEGORIES[0], { shouldDirty: true, shouldValidate: true });
+    }
+  }, [canCreateCompanyExpense, selectedLedger, setValue]);
+
   const loadBatches = useCallback(async () => {
     if (!accessToken) return;
     try {
@@ -147,11 +156,17 @@ export function ExpenseEntryScreen({ title = "Expense Entry", subtitle }: Expens
     setSavedMessage(null);
     setSubmitting(true);
     try {
+      const payloadLedger = canCreateCompanyExpense ? data.ledger : "FARMER";
+      const payloadCategory =
+        payloadLedger === "COMPANY" ||
+        FARMER_CATEGORIES.includes(data.category as (typeof FARMER_CATEGORIES)[number])
+          ? data.category
+          : FARMER_CATEGORIES[0];
       const payload = {
-        ledger: data.ledger,
-        category: data.category as ApiExpenseCategoryCode,
+        ledger: payloadLedger,
+        category: payloadCategory as ApiExpenseCategoryCode,
         expenseDate: data.expenseDate,
-        description: data.notes || data.category,
+        description: data.notes || payloadCategory,
         totalAmount: Number(data.totalAmount),
         clientReferenceId: `expense-${Date.now()}`,
       };
@@ -208,29 +223,31 @@ export function ExpenseEntryScreen({ title = "Expense Entry", subtitle }: Expens
             ) : null}
 
             {/* Expense For Segmented Control */}
-            <View style={styles.inputGroup}>
-              <Text style={styles.label}>Expense For</Text>
-              <View style={styles.ledgerTabs}>
-                <TouchableOpacity
-                  style={[styles.ledgerTab, selectedLedger === "COMPANY" && styles.ledgerTabActive]}
-                  onPress={() => {
-                    setValue("ledger", "COMPANY");
-                    setValue("category", COMPANY_CATEGORIES[0]);
-                  }}
-                >
-                  <Text style={[styles.ledgerTabText, selectedLedger === "COMPANY" && styles.ledgerTabTextActive]}>Company Expense</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={[styles.ledgerTab, selectedLedger === "FARMER" && styles.ledgerTabActive]}
-                  onPress={() => {
-                    setValue("ledger", "FARMER");
-                    setValue("category", FARMER_CATEGORIES[0]);
-                  }}
-                >
-                  <Text style={[styles.ledgerTabText, selectedLedger === "FARMER" && styles.ledgerTabTextActive]}>Farmer Expense</Text>
-                </TouchableOpacity>
+            {canCreateCompanyExpense ? (
+              <View style={styles.inputGroup}>
+                <Text style={styles.label}>Expense For</Text>
+                <View style={styles.ledgerTabs}>
+                  <TouchableOpacity
+                    style={[styles.ledgerTab, selectedLedger === "COMPANY" && styles.ledgerTabActive]}
+                    onPress={() => {
+                      setValue("ledger", "COMPANY");
+                      setValue("category", COMPANY_CATEGORIES[0]);
+                    }}
+                  >
+                    <Text style={[styles.ledgerTabText, selectedLedger === "COMPANY" && styles.ledgerTabTextActive]}>Company Expense</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[styles.ledgerTab, selectedLedger === "FARMER" && styles.ledgerTabActive]}
+                    onPress={() => {
+                      setValue("ledger", "FARMER");
+                      setValue("category", FARMER_CATEGORIES[0]);
+                    }}
+                  >
+                    <Text style={[styles.ledgerTabText, selectedLedger === "FARMER" && styles.ledgerTabTextActive]}>Farmer Expense</Text>
+                  </TouchableOpacity>
+                </View>
               </View>
-            </View>
+            ) : null}
 
             {/* Date */}
             <Controller
