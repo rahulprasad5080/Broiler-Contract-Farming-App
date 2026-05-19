@@ -6,7 +6,6 @@ import {
   listAllBatches,
   listAllTraders,
 } from "@/services/managementApi";
-import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect } from "@react-navigation/native";
 import React, {
   useCallback,
@@ -83,21 +82,25 @@ const SALES_ENTRY_DEFAULTS: SalesEntryFormData = {
   notes: "",
 };
 
+const STATUS_MESSAGE_TIMEOUT_MS = 4000;
+
 interface SalesEntryScreenProps {
   title?: string;
   subtitle?: string;
 }
 
 export function SalesEntryScreen({ title = "Sales Entry", subtitle }: SalesEntryScreenProps) {
-  const { accessToken } = useAuth();
+  const { accessToken, user } = useAuth();
   const [batches, setBatches] = useState<ApiBatch[]>([]);
   const [traders, setTraders] = useState<ApiTrader[]>([]);
   const [submitting, setSubmitting] = useState(false);
   const [savedMessage, setSavedMessage] = useState<string | null>(null);
+  const [showRestoredMessage, setShowRestoredMessage] = useState(false);
 
   const {
     control,
     handleSubmit,
+    setError,
     setValue,
     watch,
     reset,
@@ -119,6 +122,7 @@ export function SalesEntryScreen({ title = "Sales Entry", subtitle }: SalesEntry
   const totalWeightKg = watch("totalWeightKg");
   const ratePerKg = watch("ratePerKg");
   const rateType = watch("rateType");
+  const canUseLiveRate = user?.role === "OWNER";
 
   const activeBatches = useMemo(
     () => batches.filter((batch) => batch.status === "ACTIVE" || batch.status === "SALES_RUNNING"),
@@ -145,7 +149,11 @@ export function SalesEntryScreen({ title = "Sales Entry", subtitle }: SalesEntry
     [traders],
   );
 
-  const selectedBatch = batches.find((b) => b.id === selectedBatchId) ?? null;
+  const selectedBatch = batches.find((batch) => batch.id === selectedBatchId) ?? null;
+  const liveBirdCount =
+    selectedBatch?.summary?.liveBirds ?? selectedBatch?.placementCount ?? null;
+  const liveBirdDisplay =
+    liveBirdCount !== null ? Number(liveBirdCount).toLocaleString("en-IN") : "Not available";
 
   const averageWeightKg = useMemo(() => {
     const qty = parseNumberInput(birdCount) || 0;
@@ -159,6 +167,33 @@ export function SalesEntryScreen({ title = "Sales Entry", subtitle }: SalesEntry
   useEffect(() => {
     setValue("averageWeightKg", averageWeightDisplay, { shouldValidate: true });
   }, [averageWeightDisplay, setValue]);
+
+  useEffect(() => {
+    if (user && !canUseLiveRate && rateType !== "DRESSED") {
+      setValue("rateType", "DRESSED", { shouldDirty: true, shouldValidate: true });
+    }
+  }, [canUseLiveRate, rateType, setValue, user]);
+
+  useEffect(() => {
+    if (!isRestored) return;
+
+    setShowRestoredMessage(true);
+    const timeoutId = setTimeout(() => {
+      setShowRestoredMessage(false);
+    }, STATUS_MESSAGE_TIMEOUT_MS);
+
+    return () => clearTimeout(timeoutId);
+  }, [isRestored]);
+
+  useEffect(() => {
+    if (!savedMessage) return;
+
+    const timeoutId = setTimeout(() => {
+      setSavedMessage(null);
+    }, STATUS_MESSAGE_TIMEOUT_MS);
+
+    return () => clearTimeout(timeoutId);
+  }, [savedMessage]);
 
   const totalAmount = useMemo(() => {
     const totalWeight = parseNumberInput(totalWeightKg) || 0;
@@ -197,6 +232,16 @@ export function SalesEntryScreen({ title = "Sales Entry", subtitle }: SalesEntry
     setSubmitting(true);
     try {
       const qty = parseNumberInput(data.birdCount) || 0;
+      if (liveBirdCount !== null && qty > liveBirdCount) {
+        const message =
+          liveBirdCount <= 0
+            ? "No live birds available in this batch."
+            : `Only ${Number(liveBirdCount).toLocaleString("en-IN")} live birds available.`;
+        setError("birdCount", { type: "validate", message });
+        showRequestErrorToast(new Error(message), { title: "Invalid quantity" });
+        return;
+      }
+
       const totalWeight = parseNumberInput(data.totalWeightKg) || 0;
       const weight = qty > 0 ? totalWeight / qty : 0;
       const rate = parseNumberInput(data.ratePerKg) || 0;
@@ -252,7 +297,7 @@ export function SalesEntryScreen({ title = "Sales Entry", subtitle }: SalesEntry
           keyboardShouldPersistTaps="handled"
         >
           <View style={styles.form}>
-            {isRestored ? (
+            {showRestoredMessage ? (
               <ScreenState
                 title="Draft restored"
                 message="Your unsaved sales entry was restored."
@@ -283,15 +328,6 @@ export function SalesEntryScreen({ title = "Sales Entry", subtitle }: SalesEntry
               )}
             />
 
-            {/* Farm */}
-            <View style={styles.inputGroup}>
-              <Text style={styles.label}>Farm</Text>
-              <View style={styles.inputMock}>
-                <Text style={styles.inputValue}>{selectedBatch?.farmName || "Select Farm"}</Text>
-                <Ionicons name="chevron-down" size={20} color="#E5E7EB" />
-              </View>
-            </View>
-
             {/* Batch */}
             <SearchableSelectField
               label="Batch"
@@ -303,6 +339,14 @@ export function SalesEntryScreen({ title = "Sales Entry", subtitle }: SalesEntry
               emptyMessage="No sales-ready batches found"
               error={errors.batchId?.message}
             />
+            {selectedBatch ? (
+              <View style={styles.liveBirdBox}>
+                <Text style={styles.liveBirdLabel}>Live Birds Available</Text>
+                <Text style={[styles.liveBirdValue, liveBirdCount === 0 && styles.liveBirdValueDanger]}>
+                  {liveBirdDisplay}
+                </Text>
+              </View>
+            ) : null}
 
             {/* Customer / Buyer */}
             <SearchableSelectField
@@ -370,28 +414,35 @@ export function SalesEntryScreen({ title = "Sales Entry", subtitle }: SalesEntry
               {errors.averageWeightKg && <Text style={styles.errorText}>{errors.averageWeightKg.message}</Text>}
             </View>
 
-            {/* Rate Type */}
-            <View style={styles.inputGroup}>
-              <Text style={styles.label}>Rate Type</Text>
-              <View style={styles.toggleContainer}>
-                <TouchableOpacity
-                  style={[styles.toggleBtn, rateType === 'LIVE' && styles.toggleBtnActive]}
-                  onPress={() => setValue("rateType", "LIVE")}
-                >
-                  <Text style={[styles.toggleBtnText, rateType === 'LIVE' && styles.toggleBtnTextActive]}>Live Rate</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={[styles.toggleBtn, rateType === 'DRESSED' && styles.toggleBtnActive]}
-                  onPress={() => setValue("rateType", "DRESSED")}
-                >
-                  <Text style={[styles.toggleBtnText, rateType === 'DRESSED' && styles.toggleBtnTextActive]}>Dressed Rate</Text>
-                </TouchableOpacity>
+            {canUseLiveRate ? (
+              <View style={styles.inputGroup}>
+                <Text style={styles.label}>Rate Type</Text>
+                <View style={styles.toggleContainer}>
+                  <TouchableOpacity
+                    style={[styles.toggleBtn, rateType === "LIVE" && styles.toggleBtnActive]}
+                    onPress={() => setValue("rateType", "LIVE")}
+                  >
+                    <Text style={[styles.toggleBtnText, rateType === "LIVE" && styles.toggleBtnTextActive]}>
+                      Live Rate
+                    </Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[styles.toggleBtn, rateType === "DRESSED" && styles.toggleBtnActive]}
+                    onPress={() => setValue("rateType", "DRESSED")}
+                  >
+                    <Text style={[styles.toggleBtnText, rateType === "DRESSED" && styles.toggleBtnTextActive]}>
+                      Dressed Rate
+                    </Text>
+                  </TouchableOpacity>
+                </View>
               </View>
-            </View>
+            ) : null}
 
             {/* Rate */}
             <View style={styles.inputGroup}>
-              <Text style={styles.label}>{rateType === 'LIVE' ? 'Live Rate' : 'Dressed Rate'} (₹ / kg)</Text>
+              <Text style={styles.label}>
+                {canUseLiveRate && rateType === "LIVE" ? "Live Rate" : "Dressed Rate"} (₹ / kg)
+              </Text>
               <Controller
                 control={control}
                 name="ratePerKg"
@@ -525,6 +576,30 @@ const styles = StyleSheet.create({
   inputValue: {
     fontSize: 15,
     color: "#374151",
+  },
+  liveBirdBox: {
+    backgroundColor: "#F0FDF4",
+    borderWidth: 1,
+    borderColor: "#BBF7D0",
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    marginTop: -8,
+    marginBottom: 20,
+  },
+  liveBirdLabel: {
+    fontSize: 12,
+    fontWeight: "700",
+    color: "#166534",
+    marginBottom: 4,
+  },
+  liveBirdValue: {
+    fontSize: 18,
+    fontWeight: "800",
+    color: "#0B5C36",
+  },
+  liveBirdValueDanger: {
+    color: "#DC2626",
   },
   placeholderText: {
     color: "#9CA3AF",
