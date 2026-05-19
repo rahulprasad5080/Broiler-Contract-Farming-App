@@ -11,7 +11,6 @@ import {
   listAllUsers,
   updateUserStatus,
 } from "@/services/managementApi";
-import { listNotifications } from "../../services/notificationApi";
 import {
   Feather,
   Ionicons,
@@ -45,6 +44,7 @@ import {
   type ApiDashboardSummary,
   type ApiFinancialDashboard,
 } from "../../services/dashboardApi";
+import { listNotifications } from "../../services/notificationApi";
 
 // Using a custom deeper green based on the image
 const THEME_GREEN = "#0B5C36";
@@ -54,7 +54,7 @@ function formatNumber(value?: number | null) {
 }
 
 function formatINR(value?: number | null) {
-  return `Rs. ${Number(value ?? 0).toLocaleString("en-IN")}`;
+  return `₹${Number(value ?? 0).toLocaleString("en-IN")}`;
 }
 
 function formatPercent(value?: number | null) {
@@ -94,33 +94,6 @@ function getTransactionMeta(type?: string | null, direction?: string | null) {
   };
 }
 
-function getAlertMeta(severity?: string | null) {
-  if (severity === "CRITICAL") {
-    return {
-      icon: "alert-triangle",
-      label: "Critical",
-      color: "#D32F2F",
-      bgColor: "#FFF4F4",
-    };
-  }
-
-  if (severity === "WARNING") {
-    return {
-      icon: "alert-circle",
-      label: "Warning",
-      color: "#D97706",
-      bgColor: "#FFFBEB",
-    };
-  }
-
-  return {
-    icon: "info",
-    label: "Info",
-    color: "#1976D2",
-    bgColor: "#EFF6FF",
-  };
-}
-
 export default function OwnerDashboard() {
   const { hasPermission, user, accessToken } = useAuth();
   const router = useRouter();
@@ -140,7 +113,6 @@ export default function OwnerDashboard() {
     useState<ApiFinancialDashboard | null>(null);
   const [unreadNotificationsCount, setUnreadNotificationsCount] = useState(0);
   const [loadingDashboard, setLoadingDashboard] = useState(false);
-  const [activeBatchIndex, setActiveBatchIndex] = useState(0);
 
   const loadDashboard = useCallback(async () => {
     if (!accessToken) return;
@@ -273,18 +245,9 @@ export default function OwnerDashboard() {
   const firstFarmName =
     dashboard?.activeBatches.find((batch) => batch.farmName)?.farmName ??
     (dashboard?.farmCount ? `${formatNumber(dashboard.farmCount)} farms` : "No active farms");
-  const alertCount = dashboard?.alerts?.length ?? 0;
-  const latestAlerts = dashboard?.alerts?.slice(0, 3) ?? [];
-  const paymentStatus =
-    financialDashboard?.paymentStatus ?? dashboard?.paymentStatus ?? {
-      paid: 0,
-      partial: 0,
-      pending: 0,
-    };
   const financialSummary = financialDashboard?.summary;
   const netProfitOrLoss = financialSummary?.netProfitOrLoss ?? 0;
   const recentTransactions = financialDashboard?.recentTransactions?.slice(0, 3) ?? [];
-  const visibleBatches = dashboard?.activeBatches?.slice(0, 3) ?? [];
   const canCreateDailyEntry = hasPermission("create:daily-entry");
   const canManageBatches = hasPermission("manage:batches");
   const canViewNotifications = hasPermission("view:notifications");
@@ -294,18 +257,9 @@ export default function OwnerDashboard() {
   const canManageInventory = hasPermission("manage:inventory");
   const canViewFinancialDashboard = hasPermission("view:financial-dashboard");
   const canCreateExpenses = hasPermission("create:expenses");
-  const canManageSettlements = hasPermission("manage:settlements");
   const hasGlanceCards = canManageBatches || canViewReports || canCreateDailyEntry;
-  const hasAlertPills =
-    canCreateSales || canCreateDailyEntry || canManageInventory || canViewReports;
-  const shouldShowDashboardAlerts =
-    loadingDashboard || alertCount > 0 || canViewNotifications;
-  const activeBatch =
-    visibleBatches.length > 0
-      ? visibleBatches[activeBatchIndex % visibleBatches.length]
-      : null;
-  const activeBatchDotIndex =
-    visibleBatches.length > 0 ? activeBatchIndex % visibleBatches.length : 0;
+  const hasAttentionCards =
+    canCreateDailyEntry || canManageInventory || canViewReports;
   const mortalityTodayPercent =
     dashboard?.today?.liveBirds && dashboard.today.liveBirds > 0
       ? ((dashboard?.today?.mortalityToday ?? 0) / dashboard.today.liveBirds) * 100
@@ -314,19 +268,6 @@ export default function OwnerDashboard() {
     dashboard?.today?.liveBirds && dashboard.today.liveBirds > 0
       ? ((dashboard?.today?.mortalityTotal ?? 0) / dashboard.today.liveBirds) * 100
       : 0;
-
-  useEffect(() => {
-    if (visibleBatches.length <= 1) {
-      setActiveBatchIndex(0);
-      return;
-    }
-
-    const timer = setInterval(() => {
-      setActiveBatchIndex((current) => (current + 1) % visibleBatches.length);
-    }, 3500);
-
-    return () => clearInterval(timer);
-  }, [visibleBatches.length]);
 
   return (
     <View style={styles.container}>
@@ -437,203 +378,72 @@ export default function OwnerDashboard() {
           </>
         ) : null}
 
-        {/* Alert Pills */}
-        {hasAlertPills ? (
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.alertPillsContainer}
-          >
-          {canCreateSales ? (
-            <TouchableOpacity style={styles.alertPill} onPress={() => router.navigate("/(owner)/manage/sales" as Href)} activeOpacity={0.82}>
-              <Text style={[styles.alertPillValue, { color: THEME_GREEN }]}>
-                {formatNumber(dashboard?.today?.salesReady)}
-              </Text>
-              <Text style={styles.alertPillLabel}>Sales Ready</Text>
-            </TouchableOpacity>
-          ) : null}
+        {hasAttentionCards ? (
+          <>
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitleNoMargin}>Action Required</Text>
+            </View>
+            <View style={styles.attentionGrid}>
           {canCreateDailyEntry ? (
-            <TouchableOpacity style={styles.alertPill} onPress={() => router.navigate("/(owner)/manage/daily-entry" as Href)} activeOpacity={0.82}>
-              <Text style={[styles.alertPillValue, { color: "#1976D2" }]}>
+            <TouchableOpacity style={styles.attentionCard} onPress={() => router.navigate("/(owner)/manage/daily-entry" as Href)} activeOpacity={0.82}>
+              <View style={styles.attentionCardHeader}>
+                <View style={[styles.attentionIcon, { backgroundColor: "#EFF6FF" }]}>
+                  <Feather name="clock" size={16} color="#1976D2" />
+                </View>
+              </View>
+              <Text style={[styles.attentionValue, { color: "#1976D2" }]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.75}>
                 {formatNumber(dashboard?.today?.pendingEntries)}
               </Text>
-              <Text style={styles.alertPillLabel}>Pending{"\n"}Entries</Text>
+              <Text style={styles.attentionLabel}>Pending{"\n"}Entries</Text>
             </TouchableOpacity>
           ) : null}
           {canManageInventory ? (
-            <TouchableOpacity style={styles.alertPill} onPress={() => router.navigate("/(owner)/manage/inventory" as Href)} activeOpacity={0.82}>
-              <Text style={[styles.alertPillValue, { color: "#F57C00" }]}>
+            <TouchableOpacity style={styles.attentionCard} onPress={() => router.navigate("/(owner)/manage/inventory" as Href)} activeOpacity={0.82}>
+              <View style={styles.attentionCardHeader}>
+                <View style={[styles.attentionIcon, { backgroundColor: "#FFF7ED" }]}>
+                  <Feather name="package" size={16} color="#F57C00" />
+                </View>
+              </View>
+              <Text style={[styles.attentionValue, { color: "#F57C00" }]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.75}>
                 {formatNumber(dashboard?.today?.feedAlert)}
               </Text>
-              <Text style={styles.alertPillLabel}>Feed Alert</Text>
+              <Text style={styles.attentionLabel}>Feed{"\n"}Alert</Text>
             </TouchableOpacity>
           ) : null}
           {canViewReports ? (
-            <TouchableOpacity style={styles.alertPill} onPress={() => router.navigate("/(owner)/reports" as Href)} activeOpacity={0.82}>
-              <Text style={[styles.alertPillValue, { color: "#D32F2F" }]}>
+            <TouchableOpacity style={styles.attentionCard} onPress={() => router.navigate("/(owner)/reports" as Href)} activeOpacity={0.82}>
+              <View style={styles.attentionCardHeader}>
+                <View style={[styles.attentionIcon, { backgroundColor: "#FFF4F4" }]}>
+                  <Feather name="trending-up" size={16} color="#D32F2F" />
+                </View>
+              </View>
+              <Text style={[styles.attentionValue, { color: "#D32F2F" }]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.75}>
                 {formatNumber(dashboard?.today?.fcrAlert)}
               </Text>
-              <Text style={styles.alertPillLabel}>FCR Alert</Text>
+              <Text style={styles.attentionLabel}>FCR{"\n"}Alert</Text>
             </TouchableOpacity>
           ) : null}
-          </ScrollView>
-        ) : null}
-
-        {shouldShowDashboardAlerts ? (
-          <>
-            <View style={styles.sectionHeader}>
-              <View style={styles.alertTitleWrap}>
-                <Text style={styles.sectionTitleNoMargin}>Alerts</Text>
-                {alertCount > 0 ? (
-                  <Text style={styles.alertCountBadge}>{formatNumber(alertCount)}</Text>
-                ) : null}
-              </View>
-              {canViewNotifications ? (
-                <TouchableOpacity onPress={() => router.navigate("/(owner)/notifications" as Href)}>
-                  <Text style={styles.viewAllText}>View All</Text>
-                </TouchableOpacity>
-              ) : null}
-            </View>
-
-            <View style={styles.dashboardAlertsCard}>
-              {loadingDashboard && !dashboard ? (
-                <View style={styles.alertLoadingRow}>
-                  <ActivityIndicator color={THEME_GREEN} />
-                  <Text style={styles.loadingText}>Loading alerts...</Text>
-                </View>
-              ) : latestAlerts.length > 0 ? (
-                latestAlerts.map((alert, index) => {
-                  const meta = getAlertMeta(alert.severity);
-                  const target = alert.batchId && canManageBatches
-                    ? ({ pathname: "/(owner)/manage/batches/[id]", params: { id: alert.batchId } } as any)
-                    : alert.farmId && canManageFarms
-                      ? ({ pathname: "/(owner)/manage/farms/[id]", params: { id: alert.farmId } } as any)
-                      : canViewNotifications
-                        ? ("/(owner)/notifications" as Href)
-                        : null;
-
-                  return (
-                    <TouchableOpacity
-                      key={alert.id || `${alert.type}-${alert.createdAt}-${index}`}
-                      style={[
-                        styles.dashboardAlertRow,
-                        index < latestAlerts.length - 1 && styles.dashboardAlertBorder,
-                      ]}
-                      onPress={() => {
-                        if (target) router.navigate(target);
-                      }}
-                      disabled={!target}
-                      activeOpacity={0.82}
-                    >
-                      <View style={[styles.dashboardAlertIcon, { backgroundColor: meta.bgColor }]}>
-                        <Feather name={meta.icon as any} size={17} color={meta.color} />
-                      </View>
-                      <View style={styles.dashboardAlertTextWrap}>
-                        <Text style={styles.dashboardAlertTitle} numberOfLines={1}>
-                          {alert.title || "Alert"}
-                        </Text>
-                        <Text style={styles.dashboardAlertMessage} numberOfLines={2}>
-                          {alert.message}
-                        </Text>
-                        <Text style={styles.dashboardAlertMeta}>
-                          {formatDate(alert.createdAt)} | {meta.label}
-                        </Text>
-                      </View>
-                    </TouchableOpacity>
-                  );
-                })
-              ) : (
-                <View style={styles.alertEmptyRow}>
-                  <Feather name="check-circle" size={22} color={THEME_GREEN} />
-                  <Text style={styles.alertEmptyText}>No active alerts right now.</Text>
-                </View>
-              )}
             </View>
           </>
         ) : null}
 
-        {/* Active Batches Section */}
-        <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitleNoMargin}>Active Batches</Text>
-          {canManageBatches ? (
-            <TouchableOpacity onPress={() => router.navigate("/(owner)/manage/batches" as Href)}>
-              <Text style={styles.viewAllText}>View All</Text>
-            </TouchableOpacity>
-          ) : null}
-        </View>
-        
-        {loadingDashboard && !dashboard ? (
-          <View style={styles.loadingDashboardCard}>
-            <ActivityIndicator color={THEME_GREEN} />
-            <Text style={styles.loadingText}>Loading dashboard...</Text>
-          </View>
-        ) : activeBatch ? (
-          <TouchableOpacity
-            style={styles.activeBatchCard}
-            onPress={() =>
-              router.navigate(
-                activeBatch?.batchId
-                  ? ({ pathname: "/(owner)/manage/batches/[id]", params: { id: activeBatch.batchId } } as any)
-                  : ("/(owner)/manage/batches" as Href),
-              )
-            }
-            disabled={!canManageBatches}
-          >
-            <View style={styles.batchCardHeader}>
-              <View>
-                <Text style={styles.batchFarmName}>{activeBatch.farmName ?? "Farm"}</Text>
-                <Text style={styles.batchCode}>{activeBatch.batchCode}</Text>
-                </View>
-            </View>
-            <View style={styles.batchStatsRow}>
-              <View style={styles.batchStatCol}>
-                <Text style={styles.batchStatLabel}>Age</Text>
-                <Text style={styles.batchStatValue}>{formatNumber(activeBatch.currentAgeDays)} Days</Text>
-              </View>
-              <View style={styles.batchStatCol}>
-                <Text style={styles.batchStatLabel}>Live Birds</Text>
-                <Text style={styles.batchStatValue}>{formatNumber(activeBatch.liveBirds)}</Text>
-              </View>
-              <View style={styles.batchStatCol}>
-                <Text style={styles.batchStatLabel}>Mortality</Text>
-                <Text style={styles.batchStatValue}>{formatPercent(activeBatch.mortalityPercent)}</Text>
-              </View>
-            </View>
-            <View style={styles.paginationDots}>
-              {visibleBatches.map((item, dotIndex) => (
-                <TouchableOpacity
-                  key={item.batchId}
-                  onPress={() => setActiveBatchIndex(dotIndex)}
-                  style={[styles.dot, dotIndex === activeBatchDotIndex && styles.dotActive]}
-                  accessibilityRole="button"
-                  accessibilityLabel={`Show batch ${dotIndex + 1}`}
-                />
-              ))}
-            </View>
-          </TouchableOpacity>
-        ) : (
-          <View style={styles.emptyDashboardCard}>
-            <Text style={styles.emptyText}>No active batches found.</Text>
-          </View>
-        )}
-
         {canViewFinancialDashboard ? (
           <>
-            {/* Overall P&L */}
+            {/* Financial Summary */}
             <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitleNoMargin}>Overall P&L (This Month)</Text>
+              <Text style={styles.sectionTitleNoMargin}>Financial Summary</Text>
             </View>
 
             <View style={styles.plGrid}>
               <TouchableOpacity style={styles.plCard} onPress={() => router.navigate("/(owner)/financials" as Href)} activeOpacity={0.82}>
-                <Text style={[styles.plValue, { color: THEME_GREEN }]}>
+                <Text style={[styles.plValue, { color: THEME_GREEN }]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.75}>
                   {formatINR(financialSummary?.investment)}
                 </Text>
                 <Text style={styles.plLabel}>Investment</Text>
               </TouchableOpacity>
               {canCreateExpenses ? (
                 <TouchableOpacity style={styles.plCard} onPress={() => router.navigate("/(owner)/manage/expenses" as Href)} activeOpacity={0.82}>
-                  <Text style={[styles.plValue, { color: THEME_GREEN }]}>
+                  <Text style={[styles.plValue, { color: THEME_GREEN }]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.75}>
                     {formatINR(financialSummary?.expenses)}
                   </Text>
                   <Text style={styles.plLabel}>Expenses</Text>
@@ -641,14 +451,14 @@ export default function OwnerDashboard() {
               ) : null}
               {canCreateSales ? (
                 <TouchableOpacity style={styles.plCard} onPress={() => router.navigate("/(owner)/manage/sales" as Href)} activeOpacity={0.82}>
-                  <Text style={[styles.plValue, { color: THEME_GREEN }]}>
+                  <Text style={[styles.plValue, { color: THEME_GREEN }]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.75}>
                     {formatINR(financialSummary?.sales)}
                   </Text>
                   <Text style={styles.plLabel}>Sales</Text>
                 </TouchableOpacity>
               ) : null}
               <TouchableOpacity style={styles.plCard} onPress={() => router.navigate("/(owner)/financials" as Href)} activeOpacity={0.82}>
-                <Text style={[styles.plValue, { color: netProfitOrLoss >= 0 ? THEME_GREEN : "#D32F2F" }]}>
+                <Text style={[styles.plValue, { color: netProfitOrLoss >= 0 ? THEME_GREEN : "#D32F2F" }]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.75}>
                   {formatINR(netProfitOrLoss)}
                 </Text>
                 <Text style={styles.plLabel}>{netProfitOrLoss >= 0 ? "Profit" : "Loss"}</Text>
@@ -713,46 +523,6 @@ export default function OwnerDashboard() {
           </>
         ) : null}
 
-        {canManageSettlements ? (
-          <>
-            {/* Payment Status */}
-            <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitleNoMargin}>Payment Status</Text>
-            </View>
-
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.paymentCardsContainer}
-            >
-              <TouchableOpacity style={styles.paymentCard} onPress={() => router.navigate("/(owner)/manage/payments" as Href)} activeOpacity={0.82}>
-                <View style={styles.paymentCardHeader}>
-                  <Text style={styles.paymentCardTitle}>Pending{"\n"}Payments</Text>
-                  <Feather name="clock" size={16} color="#D32F2F" />
-                </View>
-                <Text style={styles.paymentCardAmount}>{formatNumber(paymentStatus.pending)}</Text>
-                <Text style={styles.paymentCardSub}>Pending</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.paymentCard} onPress={() => router.navigate("/(owner)/manage/payments" as Href)} activeOpacity={0.82}>
-                <View style={styles.paymentCardHeader}>
-                  <Text style={styles.paymentCardTitle}>Partial{"\n"}Payments</Text>
-                  <Feather name="minus-circle" size={16} color="#D97706" />
-                </View>
-                <Text style={styles.paymentCardAmount}>{formatNumber(paymentStatus.partial)}</Text>
-                <Text style={styles.paymentCardSub}>Partial</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.paymentCard} onPress={() => router.navigate("/(owner)/manage/payments" as Href)} activeOpacity={0.82}>
-                <View style={styles.paymentCardHeader}>
-                  <Text style={styles.paymentCardTitle}>Paid{"\n"}Payments</Text>
-                  <Feather name="check-circle" size={16} color={THEME_GREEN} />
-                </View>
-                <Text style={styles.paymentCardAmount}>{formatNumber(paymentStatus.paid)}</Text>
-                <Text style={styles.paymentCardSub}>Paid</Text>
-              </TouchableOpacity>
-            </ScrollView>
-          </>
-        ) : null}
-        
         {/* Bottom padding for FAB */}
         <View style={{ height: 80 }} />
       </ScrollView>
@@ -1007,124 +777,56 @@ const styles = StyleSheet.create({
     color: Colors.textSecondary,
     lineHeight: 16,
   },
-  alertPillsContainer: {
+  attentionGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
     paddingHorizontal: 20,
-    marginBottom: 24,
+    justifyContent: "space-between",
+    marginBottom: 18,
   },
-  alertPill: {
+  attentionCard: {
+    width: "31.5%",
     backgroundColor: "#FFF",
     borderWidth: 1,
-    borderColor: "#F0F0F0",
+    borderColor: "#E8EFEA",
     borderRadius: 12,
     paddingVertical: 12,
-    paddingHorizontal: 16,
-    marginRight: 10,
+    paddingHorizontal: 8,
+    marginBottom: 12,
+    minHeight: 112,
     alignItems: "center",
-    justifyContent: "center",
-    minWidth: 90,
+    justifyContent: "space-between",
     elevation: 1,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.05,
     shadowRadius: 2,
   },
-  alertPillValue: {
-    fontSize: 20,
-    fontWeight: "bold",
-    marginBottom: 4,
-  },
-  alertPillLabel: {
-    fontSize: 10,
-    color: Colors.textSecondary,
-    textAlign: "center",
-  },
-  alertTitleWrap: {
+  attentionCardHeader: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 8,
+    justifyContent: "center",
   },
-  alertCountBadge: {
-    minWidth: 22,
-    height: 22,
-    borderRadius: 11,
-    paddingHorizontal: 7,
-    backgroundColor: "#FFF4F4",
-    color: "#D32F2F",
-    fontSize: 12,
+  attentionIcon: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  attentionValue: {
+    fontSize: 22,
     fontWeight: "900",
+    fontVariant: ["tabular-nums"],
+    marginTop: 8,
     textAlign: "center",
-    lineHeight: 22,
-    overflow: "hidden",
   },
-  dashboardAlertsCard: {
-    backgroundColor: "#FFF",
-    borderWidth: 1,
-    borderColor: "#F0F0F0",
-    borderRadius: 12,
-    marginHorizontal: 20,
-    marginBottom: 24,
-    paddingHorizontal: 14,
-    elevation: 1,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
-  },
-  dashboardAlertRow: {
-    flexDirection: "row",
-    alignItems: "flex-start",
-    paddingVertical: 13,
-    gap: 10,
-  },
-  dashboardAlertBorder: {
-    borderBottomWidth: 1,
-    borderBottomColor: "#F3F4F6",
-  },
-  dashboardAlertIcon: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  dashboardAlertTextWrap: {
-    flex: 1,
-    minWidth: 0,
-  },
-  dashboardAlertTitle: {
-    fontSize: 13,
-    fontWeight: "800",
-    color: Colors.text,
-    marginBottom: 3,
-  },
-  dashboardAlertMessage: {
-    fontSize: 12,
-    color: Colors.textSecondary,
-    lineHeight: 16,
-    marginBottom: 4,
-  },
-  dashboardAlertMeta: {
+  attentionLabel: {
     fontSize: 11,
-    color: Colors.textSecondary,
     fontWeight: "700",
-  },
-  alertLoadingRow: {
-    alignItems: "center",
-    justifyContent: "center",
-    paddingVertical: 18,
-    gap: 8,
-  },
-  alertEmptyRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    paddingVertical: 18,
-    gap: 8,
-  },
-  alertEmptyText: {
-    fontSize: 13,
     color: Colors.textSecondary,
-    fontWeight: "600",
+    lineHeight: 14,
+    textAlign: "center",
   },
   sectionHeader: {
     flexDirection: "row",
@@ -1137,93 +839,6 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: "bold",
     color: THEME_GREEN,
-  },
-  activeBatchCard: {
-    backgroundColor: "#FFF",
-    borderWidth: 1,
-    borderColor: "#F0F0F0",
-    borderRadius: 16,
-    marginHorizontal: 20,
-    padding: 16,
-    marginBottom: 24,
-    elevation: 2,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-  },
-  loadingDashboardCard: {
-    backgroundColor: "#FFF",
-    borderWidth: 1,
-    borderColor: "#F0F0F0",
-    borderRadius: 16,
-    marginHorizontal: 20,
-    padding: 20,
-    marginBottom: 24,
-    alignItems: "center",
-    gap: 8,
-  },
-  emptyDashboardCard: {
-    backgroundColor: "#FFF",
-    borderWidth: 1,
-    borderColor: "#F0F0F0",
-    borderRadius: 16,
-    marginHorizontal: 20,
-    padding: 20,
-    marginBottom: 24,
-    alignItems: "center",
-  },
-  batchCardHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: 16,
-  },
-  batchFarmName: {
-    fontSize: 14,
-    fontWeight: "bold",
-    color: Colors.text,
-    marginBottom: 2,
-  },
-  batchCode: {
-    fontSize: 12,
-    color: Colors.textSecondary,
-  },
-  batchStatsRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    marginBottom: 16,
-  },
-  batchStatCol: {
-    flex: 1,
-  },
-  batchStatLabel: {
-    fontSize: 11,
-    color: Colors.textSecondary,
-    marginBottom: 4,
-  },
-  batchStatValue: {
-    fontSize: 14,
-    fontWeight: "bold",
-    color: Colors.text,
-  },
-  paginationDots: {
-    flexDirection: "row",
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  dot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: "#E0E0E0",
-    marginHorizontal: 3,
-  },
-  dotActive: {
-    backgroundColor: THEME_GREEN,
-    width: 8,
-    height: 8,
-    borderRadius: 4,
   },
   dropdownBtn: {
     flexDirection: "row",
@@ -1242,21 +857,23 @@ const styles = StyleSheet.create({
   },
   plGrid: {
     flexDirection: "row",
+    flexWrap: "wrap",
     paddingHorizontal: 20,
     justifyContent: "space-between",
-    marginBottom: 24,
+    marginBottom: 12,
   },
   plCard: {
+    width: "48%",
     backgroundColor: "#FFF",
     borderWidth: 1,
     borderColor: "#F0F0F0",
     borderRadius: 12,
-    paddingVertical: 12,
-    paddingHorizontal: 4,
-    flex: 1,
-    marginHorizontal: 4,
+    paddingVertical: 16,
+    paddingHorizontal: 12,
+    marginBottom: 12,
     alignItems: "center",
     justifyContent: "center",
+    minHeight: 88,
     elevation: 1,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 1 },
@@ -1264,13 +881,15 @@ const styles = StyleSheet.create({
     shadowRadius: 2,
   },
   plValue: {
-    fontSize: 11,
-    fontWeight: "bold",
-    marginBottom: 8,
+    fontSize: 15,
+    fontWeight: "900",
+    fontVariant: ["tabular-nums"],
+    marginBottom: 6,
     textAlign: "center",
   },
   plLabel: {
-    fontSize: 9,
+    fontSize: 11,
+    fontWeight: "700",
     color: Colors.textSecondary,
     textAlign: "center",
   },
@@ -1342,41 +961,6 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: Colors.textSecondary,
     fontWeight: "600",
-  },
-  paymentCardsContainer: {
-    paddingHorizontal: 20,
-    paddingBottom: 20,
-  },
-  paymentCard: {
-    backgroundColor: "#FFF5F5",
-    borderRadius: 12,
-    padding: 16,
-    marginRight: 12,
-    width: 130,
-    borderWidth: 1,
-    borderColor: "#FFEBEE",
-  },
-  paymentCardHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "flex-start",
-    marginBottom: 12,
-  },
-  paymentCardTitle: {
-    fontSize: 12,
-    color: Colors.text,
-    fontWeight: "500",
-    lineHeight: 16,
-  },
-  paymentCardAmount: {
-    fontSize: 16,
-    fontWeight: "bold",
-    color: Colors.text,
-    marginBottom: 4,
-  },
-  paymentCardSub: {
-    fontSize: 11,
-    color: Colors.textSecondary,
   },
   fab: {
     position: "absolute",
