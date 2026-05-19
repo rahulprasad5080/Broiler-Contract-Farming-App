@@ -10,6 +10,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect } from "@react-navigation/native";
 import React, {
   useCallback,
+  useEffect,
   useMemo,
   useState
 } from "react";
@@ -44,14 +45,15 @@ function todayValue() {
   return getLocalDateValue();
 }
 
-function toOptionalNumber(value: string) {
-  if (!value || value.trim() === "") return undefined;
-  const next = Number(value.replace(/,/g, ''));
+function parseNumberInput(value: string) {
+  const normalized = value.replace(/,/g, "").trim();
+  if (!normalized) return undefined;
+  const next = Number(normalized);
   return Number.isNaN(next) ? undefined : next;
 }
 
 const numericField = (label: string) =>
-  z.string().min(1, `${label} is required`).refine((value) => !Number.isNaN(Number(value.replace(/,/g, ''))), {
+  z.string().min(1, `${label} is required`).refine((value) => parseNumberInput(value) !== undefined, {
     message: `${label} must be a number`,
   });
 
@@ -60,7 +62,8 @@ const salesEntrySchema = z.object({
   traderId: z.string().min(1, "Please select a customer"),
   saleDate: z.string().min(1, "Date is required"),
   birdCount: numericField("Quantity sold"),
-  averageWeightKg: numericField("Average weight"),
+  totalWeightKg: numericField("Total weight"),
+  averageWeightKg: z.string().optional(),
   ratePerKg: numericField("Rate"),
   rateType: z.enum(["LIVE", "DRESSED"]),
   notes: z.string().optional(),
@@ -73,6 +76,7 @@ const SALES_ENTRY_DEFAULTS: SalesEntryFormData = {
   traderId: "",
   saleDate: todayValue(),
   birdCount: "",
+  totalWeightKg: "",
   averageWeightKg: "",
   ratePerKg: "",
   rateType: "LIVE",
@@ -88,7 +92,6 @@ export function SalesEntryScreen({ title = "Sales Entry", subtitle }: SalesEntry
   const { accessToken } = useAuth();
   const [batches, setBatches] = useState<ApiBatch[]>([]);
   const [traders, setTraders] = useState<ApiTrader[]>([]);
-  const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [savedMessage, setSavedMessage] = useState<string | null>(null);
 
@@ -113,7 +116,7 @@ export function SalesEntryScreen({ title = "Sales Entry", subtitle }: SalesEntry
   const selectedBatchId = watch("batchId");
   const selectedTraderId = watch("traderId");
   const birdCount = watch("birdCount");
-  const averageWeightKg = watch("averageWeightKg");
+  const totalWeightKg = watch("totalWeightKg");
   const ratePerKg = watch("ratePerKg");
   const rateType = watch("rateType");
 
@@ -143,18 +146,28 @@ export function SalesEntryScreen({ title = "Sales Entry", subtitle }: SalesEntry
   );
 
   const selectedBatch = batches.find((b) => b.id === selectedBatchId) ?? null;
-  const selectedTrader = traders.find((t) => t.id === selectedTraderId) ?? null;
+
+  const averageWeightKg = useMemo(() => {
+    const qty = parseNumberInput(birdCount) || 0;
+    const totalWeight = parseNumberInput(totalWeightKg) || 0;
+    if (qty <= 0 || totalWeight <= 0) return 0;
+    return totalWeight / qty;
+  }, [birdCount, totalWeightKg]);
+
+  const averageWeightDisplay = averageWeightKg > 0 ? averageWeightKg.toFixed(3) : "";
+
+  useEffect(() => {
+    setValue("averageWeightKg", averageWeightDisplay, { shouldValidate: true });
+  }, [averageWeightDisplay, setValue]);
 
   const totalAmount = useMemo(() => {
-    const qty = Number(birdCount.replace(/,/g, '')) || 0;
-    const weight = Number(averageWeightKg) || 0;
-    const rate = Number(ratePerKg) || 0;
-    return qty * weight * rate;
-  }, [birdCount, averageWeightKg, ratePerKg]);
+    const totalWeight = parseNumberInput(totalWeightKg) || 0;
+    const rate = parseNumberInput(ratePerKg) || 0;
+    return totalWeight * rate;
+  }, [totalWeightKg, ratePerKg]);
 
   const loadData = useCallback(async () => {
     if (!accessToken) return;
-    setLoading(true);
     try {
       const [batchesRes, tradersRes] = await Promise.all([
         listAllBatches(accessToken),
@@ -169,8 +182,6 @@ export function SalesEntryScreen({ title = "Sales Entry", subtitle }: SalesEntry
       }
     } catch (error) {
       showRequestErrorToast(error, { title: "Unable to load data" });
-    } finally {
-      setLoading(false);
     }
   }, [accessToken, selectedBatchId, setValue]);
 
@@ -185,14 +196,16 @@ export function SalesEntryScreen({ title = "Sales Entry", subtitle }: SalesEntry
     setSavedMessage(null);
     setSubmitting(true);
     try {
-      const qty = Number(data.birdCount.replace(/,/g, ''));
-      const weight = Number(data.averageWeightKg);
-      const rate = Number(data.ratePerKg);
-      const total = qty * weight * rate;
+      const qty = parseNumberInput(data.birdCount) || 0;
+      const totalWeight = parseNumberInput(data.totalWeightKg) || 0;
+      const weight = qty > 0 ? totalWeight / qty : 0;
+      const rate = parseNumberInput(data.ratePerKg) || 0;
+      const total = totalWeight * rate;
       const payload = {
         traderId: data.traderId,
         saleDate: data.saleDate,
         birdCount: qty,
+        totalWeightKg: totalWeight,
         averageWeightKg: weight,
         ratePerKg: rate,
         grossAmount: total,
@@ -326,23 +339,34 @@ export function SalesEntryScreen({ title = "Sales Entry", subtitle }: SalesEntry
               {errors.birdCount && <Text style={styles.errorText}>{errors.birdCount.message}</Text>}
             </View>
 
-            {/* Average Weight */}
+            {/* Total Weight */}
             <View style={styles.inputGroup}>
-              <Text style={styles.label}>Average Weight (kg)</Text>
+              <Text style={styles.label}>Total Weight (kg)</Text>
               <Controller
                 control={control}
-                name="averageWeightKg"
+                name="totalWeightKg"
                 render={({ field: { value, onChange } }) => (
                   <TextInput
                     style={styles.input}
                     value={value}
                     onChangeText={onChange}
                     keyboardType="numeric"
-                    placeholder="2.150"
+                    placeholder="10,750"
                     placeholderTextColor="#9CA3AF"
                   />
                 )}
               />
+              {errors.totalWeightKg && <Text style={styles.errorText}>{errors.totalWeightKg.message}</Text>}
+            </View>
+
+            {/* Average Weight */}
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Average Weight (kg)</Text>
+              <View style={styles.inputMock}>
+                <Text style={[styles.inputValue, !averageWeightDisplay && styles.placeholderText]}>
+                  {averageWeightDisplay || "Auto calculated"}
+                </Text>
+              </View>
               {errors.averageWeightKg && <Text style={styles.errorText}>{errors.averageWeightKg.message}</Text>}
             </View>
 
@@ -501,6 +525,9 @@ const styles = StyleSheet.create({
   inputValue: {
     fontSize: 15,
     color: "#374151",
+  },
+  placeholderText: {
+    color: "#9CA3AF",
   },
   textArea: {
     height: 100,
