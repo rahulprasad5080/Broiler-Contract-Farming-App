@@ -22,6 +22,7 @@ import {
   markNotificationRead,
   type ApiNotification
 } from "@/services/notificationApi";
+import { resolveNotificationRoute } from "@/services/notificationRouting";
 
 type NotificationGroup = {
   title: string;
@@ -61,38 +62,15 @@ export function NotificationsScreen() {
   const handleNotificationPress = React.useCallback(async (notification: ApiNotification) => {
     if (!accessToken) return;
 
-    // First handle deep link navigation
     const navigateToTarget = () => {
       if (!user?.role) return;
-      const isOwnerOrAccounts = user.role === "OWNER" || user.role === "ACCOUNTS";
-      const isSupervisor = user.role === "SUPERVISOR";
-      const isFarmer = user.role === "FARMER";
 
-      if (notification.batchId) {
-        if (isOwnerOrAccounts) {
-          router.navigate({
-            pathname: "/(owner)/manage/batches/[id]",
-            params: { id: notification.batchId },
-          } as any);
-        } else if (isSupervisor) {
-          router.navigate({
-            pathname: "/(supervisor)/review/[batchId]",
-            params: { batchId: notification.batchId },
-          } as any);
-        }
-      } else if (notification.farmId) {
-        if (isOwnerOrAccounts) {
-          router.navigate({
-            pathname: "/(owner)/manage/farms/[id]",
-            params: { id: notification.farmId },
-          } as any);
-        } else if (isFarmer) {
-          router.navigate({
-            pathname: "/(farmer)/farms/[id]",
-            params: { id: notification.farmId },
-          } as any);
-        }
-      }
+      router.navigate(
+        resolveNotificationRoute({
+          role: user.role,
+          data: notification as unknown as Record<string, unknown>,
+        }).href as never,
+      );
     };
 
     if (notification.isRead || markingIds[notification.id]) {

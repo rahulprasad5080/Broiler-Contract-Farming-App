@@ -13,6 +13,7 @@
     "services/apiEnums.ts",
     "services/authRevocation.ts",
     "services/dateUtils.ts",
+    "services/notificationRouting.ts",
     "services/permissionRules.ts",
     "services/routeGuards.ts",
     "hooks/formPersistenceController.ts"

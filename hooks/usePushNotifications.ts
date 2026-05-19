@@ -1,8 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
 import * as Notifications from 'expo-notifications';
+import { useRootNavigationState, useRouter } from 'expo-router';
 import Toast from 'react-native-toast-message';
 
 import { useAuth } from '@/context/AuthContext';
+import { resolveNotificationRoute } from '@/services/notificationRouting';
 import {
   syncFcmTokenWithServer,
   syncKnownFcmTokenWithServer,
@@ -24,14 +26,35 @@ Notifications.setNotificationHandler({
 });
 
 export const usePushNotifications = (): PushNotificationState => {
-  const { accessToken, user } = useAuth();
+  const { accessToken, isAppUnlocked, isReady, user } = useAuth();
+  const router = useRouter();
+  const rootNavigationState = useRootNavigationState();
   const [fcmToken, setFcmToken] = useState<string | undefined>();
   const [notification, setNotification] = useState<Notifications.Notification | undefined>();
+  const [pendingResponse, setPendingResponse] =
+    useState<Notifications.NotificationResponse | null>(null);
 
   const notificationListener = useRef<Notifications.EventSubscription | null>(null);
   const responseListener = useRef<Notifications.EventSubscription | null>(null);
   const pushTokenListener = useRef<Notifications.EventSubscription | null>(null);
+  const handledResponseIds = useRef<Set<string>>(new Set());
   const canRegisterPushToken = Boolean(accessToken && user?.id);
+
+  const queueNotificationResponse = (response: Notifications.NotificationResponse | null) => {
+    if (!response) return;
+
+    const responseId = [
+      response.notification.request.identifier,
+      response.actionIdentifier,
+      response.notification.date,
+    ].join(':');
+
+    if (handledResponseIds.current.has(responseId)) {
+      return;
+    }
+
+    setPendingResponse(response);
+  };
 
   useEffect(() => {
     notificationListener.current = Notifications.addNotificationReceivedListener((notification) => {
@@ -57,7 +80,7 @@ export const usePushNotifications = (): PushNotificationState => {
     });
 
     responseListener.current = Notifications.addNotificationResponseReceivedListener((response) => {
-      console.log('Notification response:', response);
+      queueNotificationResponse(response);
     });
 
     pushTokenListener.current = Notifications.addPushTokenListener((token) => {
@@ -77,6 +100,75 @@ export const usePushNotifications = (): PushNotificationState => {
       pushTokenListener.current?.remove();
     };
   }, [accessToken]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    Notifications.getLastNotificationResponseAsync()
+      .then((response) => {
+        if (!cancelled) {
+          queueNotificationResponse(response);
+        }
+      })
+      .catch((error) => {
+        console.warn('Failed to read initial notification response:', error);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!pendingResponse || !rootNavigationState?.key || !isReady || !isAppUnlocked || !user?.role) {
+      return;
+    }
+
+    const responseId = [
+      pendingResponse.notification.request.identifier,
+      pendingResponse.actionIdentifier,
+      pendingResponse.notification.date,
+    ].join(':');
+
+    if (handledResponseIds.current.has(responseId)) {
+      setPendingResponse(null);
+      return;
+    }
+
+    handledResponseIds.current.add(responseId);
+    setPendingResponse(null);
+
+    const data = pendingResponse.notification.request.content.data ?? {};
+    const { href, usedFallback } = resolveNotificationRoute({
+      role: user.role,
+      data,
+    });
+
+    if (usedFallback) {
+      Toast.show({
+        type: 'info',
+        text1: 'Opening notifications',
+        text2: 'Notification details were incomplete.',
+        position: 'top',
+        visibilityTime: 2500,
+        autoHide: true,
+        topOffset: 50,
+      });
+    }
+
+    const timer = setTimeout(() => {
+      try {
+        router.navigate(href as never);
+      } catch (error) {
+        console.warn('Failed to navigate from notification tap:', error);
+        router.navigate(resolveNotificationRoute({ role: user.role, data: null }).href as never);
+      } finally {
+        Notifications.clearLastNotificationResponseAsync().catch(() => {});
+      }
+    }, 120);
+
+    return () => clearTimeout(timer);
+  }, [isAppUnlocked, isReady, pendingResponse, rootNavigationState?.key, router, user?.role]);
 
   useEffect(() => {
     if (!canRegisterPushToken) {
