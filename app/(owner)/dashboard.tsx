@@ -18,9 +18,11 @@ import {
 } from "@expo/vector-icons";
 import { useFocusEffect } from "@react-navigation/native";
 import { useRouter, type Href } from "expo-router";
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
+  Animated,
+  Easing,
   FlatList,
   Image,
   KeyboardAvoidingView,
@@ -48,6 +50,15 @@ import { listNotifications } from "../../services/notificationApi";
 
 // Using a custom deeper green based on the image
 const THEME_GREEN = "#0B5C36";
+
+type QuickAction = {
+  title: string;
+  subtitle: string;
+  icon: string;
+  href: Href;
+  accentColor: string;
+  backgroundColor: string;
+};
 
 function formatNumber(value?: number | null) {
   return Number(value ?? 0).toLocaleString("en-IN");
@@ -113,6 +124,8 @@ export default function OwnerDashboard() {
     useState<ApiFinancialDashboard | null>(null);
   const [unreadNotificationsCount, setUnreadNotificationsCount] = useState(0);
   const [loadingDashboard, setLoadingDashboard] = useState(false);
+  const [showQuickActions, setShowQuickActions] = useState(false);
+  const quickActionAnimation = useRef(new Animated.Value(0)).current;
 
   const loadDashboard = useCallback(async () => {
     if (!accessToken) return;
@@ -257,6 +270,69 @@ export default function OwnerDashboard() {
   const canManageInventory = hasPermission("manage:inventory");
   const canViewFinancialDashboard = hasPermission("view:financial-dashboard");
   const canCreateExpenses = hasPermission("create:expenses");
+  const quickActions: QuickAction[] = [
+    ...(canManageBatches
+      ? [
+          {
+            title: "Add Batch",
+            subtitle: "Start a new flock",
+            icon: "layers",
+            href: "/(owner)/manage/batches/create" as Href,
+            accentColor: THEME_GREEN,
+            backgroundColor: "#EAF7EF",
+          },
+        ]
+      : []),
+    ...(canManageInventory
+      ? [
+          {
+            title: "Add Purchase",
+            subtitle: "Record feed or stock",
+            icon: "shopping-bag",
+            href: "/(owner)/manage/inventory/purchase" as Href,
+            accentColor: "#D97706",
+            backgroundColor: "#FFF7ED",
+          },
+        ]
+      : []),
+    ...(canCreateSales
+      ? [
+          {
+            title: "Add Sales",
+            subtitle: "Create sales entry",
+            icon: "shopping-cart",
+            href: "/(owner)/manage/sales" as Href,
+            accentColor: "#1976D2",
+            backgroundColor: "#EFF6FF",
+          },
+        ]
+      : []),
+    ...(canCreateExpenses
+      ? [
+          {
+            title: "Add Expense",
+            subtitle: "Track farm cost",
+            icon: "credit-card",
+            href: "/(owner)/manage/expenses" as Href,
+            accentColor: "#D32F2F",
+            backgroundColor: "#FFF4F4",
+          },
+        ]
+      : []),
+    ...(canCreateDailyEntry
+      ? [
+          {
+            title: "Daily Entry",
+            subtitle: "Update today",
+            icon: "edit-3",
+            href: "/(owner)/manage/daily-entry" as Href,
+            accentColor: "#0F766E",
+            backgroundColor: "#ECFDF5",
+          },
+        ]
+      : []),
+  ];
+  const hasQuickActions = quickActions.length > 0;
   const hasGlanceCards = canManageBatches || canViewReports || canCreateDailyEntry;
   const hasAttentionCards =
     canCreateDailyEntry || canManageInventory || canViewReports;
@@ -268,6 +344,20 @@ export default function OwnerDashboard() {
     dashboard?.today?.liveBirds && dashboard.today.liveBirds > 0
       ? ((dashboard?.today?.mortalityTotal ?? 0) / dashboard.today.liveBirds) * 100
       : 0;
+
+  useEffect(() => {
+    Animated.timing(quickActionAnimation, {
+      toValue: showQuickActions ? 1 : 0,
+      duration: 260,
+      easing: Easing.out(Easing.cubic),
+      useNativeDriver: true,
+    }).start();
+  }, [quickActionAnimation, showQuickActions]);
+
+  const handleQuickActionPress = (href: Href) => {
+    setShowQuickActions(false);
+    router.navigate(href);
+  };
 
   return (
     <View style={styles.container}>
@@ -527,14 +617,119 @@ export default function OwnerDashboard() {
         <View style={{ height: 80 }} />
       </ScrollView>
 
-      {/* Floating Action Button */}
-      {canCreateDailyEntry ? (
-        <TouchableOpacity
-          style={[styles.fab, { bottom: 20 + (insets.bottom > 0 ? insets.bottom : 0) }]}
-          onPress={() => router.navigate("/(owner)/manage/daily-entry" as Href)}
-        >
-          <Feather name="plus" size={28} color="#FFF" />
-        </TouchableOpacity>
+      {hasQuickActions ? (
+        <>
+          <View
+            style={styles.quickActionOverlayLayer}
+            pointerEvents={showQuickActions ? "auto" : "none"}
+          >
+            <TouchableOpacity
+              style={StyleSheet.absoluteFill}
+              activeOpacity={1}
+              onPress={() => setShowQuickActions(false)}
+            >
+              <Animated.View
+                style={[
+                  styles.quickActionBackdrop,
+                  {
+                    opacity: quickActionAnimation.interpolate({
+                      inputRange: [0, 1],
+                      outputRange: [0, 1],
+                    }),
+                  },
+                ]}
+              />
+            </TouchableOpacity>
+          </View>
+
+          <Animated.View
+            pointerEvents={showQuickActions ? "auto" : "none"}
+            style={[
+              styles.quickActionMenu,
+              { bottom: 82 + (insets.bottom > 0 ? insets.bottom : 0) },
+              {
+                opacity: quickActionAnimation,
+                transform: [
+                  {
+                    translateY: quickActionAnimation.interpolate({
+                      inputRange: [0, 1],
+                      outputRange: [18, 0],
+                    }),
+                  },
+                  {
+                    scale: quickActionAnimation.interpolate({
+                      inputRange: [0, 1],
+                      outputRange: [0.96, 1],
+                    }),
+                  },
+                ],
+              },
+            ]}
+          >
+            <View style={styles.quickActionHeader}>
+              <Text style={styles.quickActionTitle}>Quick Actions</Text>
+              <Text style={styles.quickActionSubtitle}>Farm operations</Text>
+            </View>
+
+            {quickActions.map((action) => (
+              <TouchableOpacity
+                key={action.title}
+                style={styles.quickActionItem}
+                onPress={() => handleQuickActionPress(action.href)}
+                activeOpacity={0.84}
+              >
+                <View
+                  style={[
+                    styles.quickActionIcon,
+                    { backgroundColor: action.backgroundColor },
+                  ]}
+                >
+                  <Feather
+                    name={action.icon as any}
+                    size={18}
+                    color={action.accentColor}
+                  />
+                </View>
+                <View style={styles.quickActionTextWrap}>
+                  <Text style={styles.quickActionItemTitle} numberOfLines={1}>
+                    {action.title}
+                  </Text>
+                  <Text style={styles.quickActionItemSubtitle} numberOfLines={1}>
+                    {action.subtitle}
+                  </Text>
+                </View>
+                <Feather name="chevron-right" size={17} color={action.accentColor} />
+              </TouchableOpacity>
+            ))}
+          </Animated.View>
+
+          <TouchableOpacity
+            style={[
+              styles.quickActionFab,
+              { bottom: 10 + (insets.bottom > 0 ? insets.bottom : 0) },
+              showQuickActions && styles.quickActionFabOpen,
+            ]}
+            onPress={() => setShowQuickActions((current) => !current)}
+            activeOpacity={0.86}
+            accessibilityRole="button"
+            accessibilityLabel={showQuickActions ? "Close quick actions" : "Open quick actions"}
+          >
+            <Animated.View
+              style={{
+                transform: [
+                  {
+                    rotate: quickActionAnimation.interpolate({
+                      inputRange: [0, 1],
+                      outputRange: ["0deg", "45deg"],
+                    }),
+                  },
+                ],
+              }}
+            >
+              <Feather name="plus" size={28} color="#FFF" />
+            </Animated.View>
+          </TouchableOpacity>
+        </>
       ) : null}
 
       {/* DashboardSidebar is rendered by GlobalSidebarOverlay in _layout.tsx */}
@@ -962,20 +1157,100 @@ const styles = StyleSheet.create({
     color: Colors.textSecondary,
     fontWeight: "600",
   },
-  fab: {
+  quickActionOverlayLayer: {
+    ...StyleSheet.absoluteFillObject,
+    zIndex: 20,
+  },
+  quickActionBackdrop: {
+    flex: 1,
+    backgroundColor: "rgba(3, 24, 14, 0.46)",
+  },
+  quickActionMenu: {
     position: "absolute",
     right: 20,
-    width: 56,
-    height: 56,
-    borderRadius: 28,
+    width: 280,
+    maxWidth: "86%",
+    backgroundColor: "#FFFFFF",
+    borderRadius: 22,
+    borderWidth: 1,
+    borderColor: "#DDE9E1",
+    padding: 12,
+    zIndex: 30,
+    elevation: 12,
+    shadowColor: "#0B3D24",
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.18,
+    shadowRadius: 18,
+  },
+  quickActionHeader: {
+    paddingHorizontal: 8,
+    paddingTop: 4,
+    paddingBottom: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: "#EEF4F0",
+  },
+  quickActionTitle: {
+    fontSize: 15,
+    fontWeight: "900",
+    color: Colors.text,
+  },
+  quickActionSubtitle: {
+    fontSize: 11,
+    fontWeight: "700",
+    color: Colors.textSecondary,
+    marginTop: 2,
+  },
+  quickActionItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    backgroundColor: "#F8FBF8",
+    borderRadius: 16,
+    padding: 10,
+    marginTop: 8,
+    borderWidth: 1,
+    borderColor: "#EDF4EF",
+  },
+  quickActionIcon: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  quickActionTextWrap: {
+    flex: 1,
+    minWidth: 0,
+  },
+  quickActionItemTitle: {
+    fontSize: 13,
+    fontWeight: "900",
+    color: Colors.text,
+  },
+  quickActionItemSubtitle: {
+    fontSize: 11,
+    fontWeight: "600",
+    color: Colors.textSecondary,
+    marginTop: 2,
+  },
+  quickActionFab: {
+    position: "absolute",
+    right: 20,
+    width: 62,
+    height: 62,
+    borderRadius: 31,
     backgroundColor: THEME_GREEN,
     justifyContent: "center",
     alignItems: "center",
-    elevation: 6,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.3,
-    shadowRadius: 4.65,
+    zIndex: 40,
+    elevation: 14,
+    shadowColor: "#0B3D24",
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.28,
+    shadowRadius: 12,
+  },
+  quickActionFabOpen: {
+    backgroundColor: "#094B2C",
   },
   // Settings Panel Styles (preserved)
   modalOverlay: {

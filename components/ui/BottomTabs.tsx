@@ -43,7 +43,7 @@ export function BottomTabs({ state, descriptors, navigation, hiddenTabs = [] }: 
     { name: 'manage', label: 'Entries', activeIcon: 'briefcase', inactiveIcon: 'briefcase-outline' },
     { name: 'financials', label: 'Finance', activeIcon: 'wallet', inactiveIcon: 'wallet-outline' },
     { name: 'reports', label: 'Reports', activeIcon: 'stats-chart', inactiveIcon: 'stats-chart-outline' },
-    { name: 'profile', label: 'Profile', activeIcon: 'person', inactiveIcon: 'person-outline' },
+    { name: 'profile', label: 'More', activeIcon: 'person', inactiveIcon: 'person-outline' },
   ];
 
   const bottomPadding = insets.bottom > 0 ? insets.bottom : 6;
