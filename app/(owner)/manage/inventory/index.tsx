@@ -311,14 +311,12 @@ export default function InventoryScreen() {
     setError(null);
 
     try {
-      const payload = {
+      const sharedPayload = {
         name: data.name.trim(),
-        type: data.type,
         sku: data.sku?.trim() || undefined,
         unit: data.unit.trim(),
         defaultRate: toOptionalNumber(data.defaultRate),
         reorderLevel: toOptionalNumber(data.reorderLevel),
-        currentStock: toOptionalNumber(data.currentStock),
         manufacturer: data.manufacturer?.trim() || undefined,
       };
 
@@ -326,7 +324,7 @@ export default function InventoryScreen() {
         const updated = await updateCatalogItem(
           accessToken,
           editingCatalogItem.id,
-          payload,
+          sharedPayload,
         );
 
         setCatalogItems((prev) =>
@@ -342,7 +340,11 @@ export default function InventoryScreen() {
         return;
       }
 
-      const created = await createCatalogItem(accessToken, payload);
+      const created = await createCatalogItem(accessToken, {
+        ...sharedPayload,
+        type: data.type,
+        currentStock: toOptionalNumber(data.currentStock),
+      });
 
       setCatalogItems((prev) => [created, ...prev]);
       setLedgerCatalogItemId(created.id);

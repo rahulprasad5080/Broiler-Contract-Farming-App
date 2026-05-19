@@ -244,6 +244,9 @@ export const styles = StyleSheet.create({
     backgroundColor: "#E8F5E9",
     borderColor: Colors.primary,
   },
+  chipDisabled: {
+    opacity: 0.62,
+  },
   chipText: {
     fontSize: 12,
     fontWeight: "700",
@@ -251,6 +254,9 @@ export const styles = StyleSheet.create({
   },
   chipTextActive: {
     color: Colors.primary,
+  },
+  chipTextDisabled: {
+    color: Colors.textSecondary,
   },
   primaryBtn: {
     backgroundColor: Colors.primary,

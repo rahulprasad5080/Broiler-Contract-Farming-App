@@ -131,10 +131,21 @@ export const CatalogTab: React.FC<CatalogTabProps> = ({
                         {CATALOG_TYPES.map((type) => (
                           <TouchableOpacity
                             key={type}
-                            style={[styles.chip, value === type && styles.chipActive]}
+                            style={[
+                              styles.chip,
+                              value === type && styles.chipActive,
+                              isEditMode && styles.chipDisabled,
+                            ]}
                             onPress={() => onChange(type)}
+                            disabled={isEditMode}
                           >
-                            <Text style={[styles.chipText, value === type && styles.chipTextActive]}>
+                            <Text
+                              style={[
+                                styles.chipText,
+                                value === type && styles.chipTextActive,
+                                isEditMode && styles.chipTextDisabled,
+                              ]}
+                            >
                               {labelize(type)}
                             </Text>
                           </TouchableOpacity>
