@@ -345,11 +345,13 @@ export default function AddFarmScreen() {
         primaryFarmerId: data.primaryFarmerId || undefined,
         supervisorId: data.supervisorId || undefined,
         assignmentUserIds: data.assignmentUserIds?.length ? data.assignmentUserIds : undefined,
-        status: data.status,
       };
 
       if (isEditMode && farmId) {
-        await updateFarm(accessToken, farmId, payload);
+        await updateFarm(accessToken, farmId, {
+          ...payload,
+          status: data.status,
+        });
         Toast.show({
           type: 'success',
           text1: 'Success',
