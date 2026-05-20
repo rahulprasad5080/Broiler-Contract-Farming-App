@@ -199,6 +199,7 @@ export default function ProfileScreen() {
   }, [user?.biometricEnabled]);
 
   const personalInfo = profileUser ?? user;
+  const companyName = personalInfo?.organization?.name;
 
   const initials =
     user?.name
@@ -318,11 +319,11 @@ export default function ProfileScreen() {
             ) : null}
             {profileError ? <Text style={styles.infoErrorText}>{profileError}</Text> : null}
             <PersonalInfoRow label="Name" value={personalInfo?.name} />
+            <PersonalInfoRow label="Company Name" value={companyName} />
             <PersonalInfoRow label="Phone" value={personalInfo?.phone} />
             <PersonalInfoRow label="Email" value={personalInfo?.email} />
             <PersonalInfoRow label="Role" value={getRoleLabel(personalInfo?.role)} />
             <PersonalInfoRow label="Status" value={personalInfo?.status} />
-            <PersonalInfoRow label="Last Login" value={formatDateTime(profileUser?.lastLoginAt)} isLast />
           </SurfaceCard>
 
           {canManageUsers ? (

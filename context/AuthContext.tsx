@@ -60,6 +60,14 @@ export type Permission = AppPermission;
 interface User {
   id: string;
   organizationId?: string;
+  organization?: {
+    id: string;
+    name: string;
+    slug?: string | null;
+    email?: string | null;
+    phone?: string | null;
+    settings?: Record<string, unknown> | null;
+  } | null;
   name: string;
   email?: string | null;
   phone?: string | null;
@@ -75,6 +83,14 @@ interface User {
 type UserLike = {
   id: string;
   organizationId?: string;
+  organization?: {
+    id: string;
+    name: string;
+    slug?: string | null;
+    email?: string | null;
+    phone?: string | null;
+    settings?: Record<string, unknown> | null;
+  } | null;
   name: string;
   email?: string | null;
   phone?: string | null;

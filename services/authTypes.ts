@@ -29,6 +29,15 @@ export type ApiPermissionMatrix = {
   financialDashboard: boolean;
 };
 
+export type ApiOrganization = {
+  id: string;
+  name: string;
+  slug?: string | null;
+  email?: string | null;
+  phone?: string | null;
+  settings?: Record<string, unknown> | null;
+};
+
 /**
  * User record as returned by /auth/me, /auth/login, /auth/refresh,
  * /auth/register-owner, and the /users/* endpoints.
@@ -41,6 +50,7 @@ export type ApiUser = {
   phone?: string | null;
   role: ApiRole;
   status: ApiUserStatus;
+  organization?: ApiOrganization | null;
   mustChangePassword?: boolean | null;
   biometricEnabled?: boolean | null;
   permissions?: ApiPermissionMatrix | null;
