@@ -17,6 +17,8 @@ import Toast from 'react-native-toast-message';
 import { SurfaceCard } from '@/components/ui/SurfaceCard';
 import { TopAppBar } from '@/components/ui/TopAppBar';
 import { useAuth } from '@/context/AuthContext';
+import { getRequestErrorMessage } from '@/services/apiFeedback';
+import { fetchMe, type ApiUser } from '@/services/authApi';
 import { authenticateWithBiometrics, getBiometricAvailability } from '@/services/authSecurity';
 
 type SettingItemProps = {
@@ -34,6 +36,12 @@ type BiometricToggleItemProps = {
   isEnabled: boolean;
   isLoading: boolean;
   onToggle: () => void;
+  isLast?: boolean;
+};
+
+type PersonalInfoRowProps = {
+  label: string;
+  value?: string | null;
   isLast?: boolean;
 };
 
@@ -100,12 +108,42 @@ const BiometricToggleItem = ({
   </View>
 );
 
+const PersonalInfoRow = ({ label, value, isLast }: PersonalInfoRowProps) => (
+  <View style={[styles.infoRow, isLast && { borderBottomWidth: 0 }]}>
+    <Text style={styles.infoLabel}>{label}</Text>
+    <Text style={styles.infoValue}>{value?.trim() || 'Not available'}</Text>
+  </View>
+);
+
+function getRoleLabel(role?: string | null) {
+  if (role === 'OWNER') return 'Owner';
+  if (role === 'ACCOUNTS') return 'Accounts';
+  if (role === 'SUPERVISOR') return 'Supervisor';
+  if (role === 'FARMER') return 'Farmer';
+  return 'Staff';
+}
+
+function formatDateTime(value?: string | null) {
+  if (!value) return null;
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+
+  return date.toLocaleDateString('en-IN', {
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+  });
+}
+
 export default function ProfileScreen() {
-  const { hasPermission, signOut, user, setBiometricPreference } = useAuth();
+  const { accessToken, hasPermission, signOut, user, setBiometricPreference } = useAuth();
   const router = useRouter();
   const canManageUsers = hasPermission('manage:users');
-  const canManageFarms = hasPermission('manage:farms');
 
+  const [profileUser, setProfileUser] = React.useState<ApiUser | null>(null);
+  const [isLoadingProfile, setIsLoadingProfile] = React.useState(false);
+  const [profileError, setProfileError] = React.useState<string | null>(null);
   const [biometricEnabled, setBiometricEnabled] = React.useState(user?.biometricEnabled ?? false);
   const [isTogglingBiometric, setIsTogglingBiometric] = React.useState(false);
   const [biometricAvailable, setBiometricAvailable] = React.useState(true);
@@ -119,6 +157,48 @@ export default function ProfileScreen() {
 
     checkBiometric();
   }, []);
+
+  React.useEffect(() => {
+    if (!accessToken) {
+      setProfileUser(null);
+      return;
+    }
+
+    let cancelled = false;
+
+    const loadProfile = async () => {
+      setIsLoadingProfile(true);
+      setProfileError(null);
+
+      try {
+        const apiUser = await fetchMe(accessToken);
+        if (!cancelled) {
+          setProfileUser(apiUser);
+          setBiometricEnabled(Boolean(apiUser.biometricEnabled));
+        }
+      } catch (error) {
+        if (!cancelled) {
+          setProfileError(getRequestErrorMessage(error, 'Unable to refresh profile details.'));
+        }
+      } finally {
+        if (!cancelled) {
+          setIsLoadingProfile(false);
+        }
+      }
+    };
+
+    void loadProfile();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [accessToken]);
+
+  React.useEffect(() => {
+    setBiometricEnabled(user?.biometricEnabled ?? false);
+  }, [user?.biometricEnabled]);
+
+  const personalInfo = profileUser ?? user;
 
   const initials =
     user?.name
@@ -204,7 +284,7 @@ export default function ProfileScreen() {
 
   return (
     <View style={styles.safeArea}>
-      <TopAppBar title="Profile & Settings" subtitle={user?.role ? `${user.role} account` : "Account settings"} />
+      <TopAppBar title="Profile & Settings" subtitle={`${getRoleLabel(user?.role)} account`} />
 
       <KeyboardAvoidingView
         behavior={Platform.OS === "ios" ? "padding" : "height"}
@@ -218,28 +298,46 @@ export default function ProfileScreen() {
                 <Text style={styles.avatarText}>{initials}</Text>
               </View>
               <View style={styles.profileDetails}>
-                <Text style={styles.name}>{user?.name || 'User'}</Text>
-                <Text style={styles.role}>{user?.role === 'OWNER' ? 'Admin' : user?.role ? user.role : 'Staff'}</Text>
-                <Text style={styles.email}>{user?.email || user?.phone || 'Contact not available'}</Text>
+                <Text style={styles.name}>{personalInfo?.name || 'User'}</Text>
+                <Text style={styles.role}>{getRoleLabel(personalInfo?.role)}</Text>
+                <Text style={styles.email}>{personalInfo?.email || personalInfo?.phone || 'Contact not available'}</Text>
 
 
               </View>
             </View>
           </SurfaceCard>
 
-          {/* Account Settings */}
-          <Text style={styles.sectionTitle}>Account Settings</Text>
+          {/* Personal Information */}
+          <Text style={styles.sectionTitle}>Personal Information</Text>
           <SurfaceCard padded={false} style={styles.settingsGroup}>
-            <SettingItem icon="person-outline" label="Personal Information" />
-            {canManageUsers ? (
-              <SettingItem
-                icon="settings-outline"
-                label="App Settings"
-                onPress={() => router.navigate('/(owner)/manage/settings' as any)}
-                isLast
-              />
+            {isLoadingProfile ? (
+              <View style={styles.infoLoadingRow}>
+                <ActivityIndicator size="small" color="#0B5C36" />
+                <Text style={styles.infoLoadingText}>Loading profile details...</Text>
+              </View>
             ) : null}
+            {profileError ? <Text style={styles.infoErrorText}>{profileError}</Text> : null}
+            <PersonalInfoRow label="Name" value={personalInfo?.name} />
+            <PersonalInfoRow label="Phone" value={personalInfo?.phone} />
+            <PersonalInfoRow label="Email" value={personalInfo?.email} />
+            <PersonalInfoRow label="Role" value={getRoleLabel(personalInfo?.role)} />
+            <PersonalInfoRow label="Status" value={personalInfo?.status} />
+            <PersonalInfoRow label="Last Login" value={formatDateTime(profileUser?.lastLoginAt)} isLast />
           </SurfaceCard>
+
+          {canManageUsers ? (
+            <>
+              <Text style={styles.sectionTitle}>Account Settings</Text>
+              <SurfaceCard padded={false} style={styles.settingsGroup}>
+                <SettingItem
+                  icon="settings-outline"
+                  label="App Settings"
+                  onPress={() => router.navigate('/(owner)/manage/settings' as any)}
+                  isLast
+                />
+              </SurfaceCard>
+            </>
+          ) : null}
 
           {/* Billing & Subscription */}
           {/* {user?.role === 'OWNER' ? (
@@ -347,6 +445,53 @@ const styles = StyleSheet.create({
   settingDescription: { fontSize: 12, color: "#9CA3AF", marginTop: 2 },
   settingItemRight: { flexShrink: 0, flexDirection: "row", alignItems: "center", marginLeft: 12 },
   settingValue: { fontSize: 13, color: "#9CA3AF", marginRight: 8 },
+  infoRow: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    justifyContent: "space-between",
+    gap: 14,
+    paddingVertical: 13,
+    paddingHorizontal: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: "#F3F4F6",
+  },
+  infoLabel: {
+    flex: 0.8,
+    fontSize: 12,
+    fontWeight: "700",
+    color: "#6B7280",
+  },
+  infoValue: {
+    flex: 1.2,
+    textAlign: "right",
+    fontSize: 13,
+    fontWeight: "700",
+    color: "#111827",
+  },
+  infoLoadingRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: "#F3F4F6",
+  },
+  infoLoadingText: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: "#6B7280",
+  },
+  infoErrorText: {
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: "#FEE2E2",
+    backgroundColor: "#FFF7F7",
+    color: "#EF4444",
+    fontSize: 12,
+    fontWeight: "600",
+  },
   biometricTextBlock: { flex: 1, minWidth: 0, marginRight: 12 },
   toggleContainer: { flexShrink: 0, flexDirection: "row", alignItems: "center", minWidth: 58, justifyContent: "flex-end" },
   biometricSwitch: {
