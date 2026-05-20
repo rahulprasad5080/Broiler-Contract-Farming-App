@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useCallback, useState } from 'react';
 import {
   ActivityIndicator,
@@ -25,7 +25,7 @@ import { TopAppBar } from '@/components/ui/TopAppBar';
 import { Colors } from '@/constants/Colors';
 import { useAuth } from '@/context/AuthContext';
 import { getLocalDateValue } from '@/services/dateUtils';
-import { ApiFarm, createBatch, listAllFarms } from '@/services/managementApi';
+import { ApiFarm, createBatch, fetchBatch, listAllFarms, updateBatch } from '@/services/managementApi';
 import {
   showRequestErrorToast,
   showSuccessToast,
@@ -50,6 +50,14 @@ function parseNumberValue(value: string | undefined) {
 
 function toOptionalNumber(value: string | undefined) {
   return parseNumberValue(value);
+}
+
+function toFormNumber(value?: number | null) {
+  return value === undefined || value === null ? '' : String(value);
+}
+
+function toDateInput(value?: string | null) {
+  return value?.split('T')[0] ?? '';
 }
 
 function getBatchCodePrefix(farm?: ApiFarm | null) {
@@ -194,6 +202,8 @@ function InputField({
 
 export default function CreateBatchScreen() {
   const router = useRouter();
+  const { id: batchId } = useLocalSearchParams<{ id?: string }>();
+  const isEditMode = Boolean(batchId);
   const { accessToken } = useAuth();
   const insets = useSafeAreaInsets();
   const [farms, setFarms] = useState<ApiFarm[]>([]);
@@ -205,6 +215,7 @@ export default function CreateBatchScreen() {
   const {
     control,
     handleSubmit,
+    reset,
     setValue,
     watch,
     formState: { errors: formErrors },
@@ -215,40 +226,74 @@ export default function CreateBatchScreen() {
 
   const selectedFarmId = watch('farmId');
 
-  const loadFarms = useCallback(async () => {
+  const loadBatchForm = useCallback(async () => {
     if (!accessToken) return;
 
     setLoading(true);
     try {
       setLoadError(null);
-      const response = await listAllFarms(accessToken);
-      setFarms(response.data);
-      const firstEligible = response.data.find((farm) => farm.activeBatchCount === 0);
+      const [farmsResponse, batchResponse] = await Promise.all([
+        listAllFarms(accessToken),
+        isEditMode && batchId ? fetchBatch(accessToken, batchId) : Promise.resolve(null),
+      ]);
+
+      setFarms(farmsResponse.data);
+
+      if (batchResponse) {
+        reset({
+          ...BATCH_FORM_DEFAULTS,
+          farmId: batchResponse.farmId,
+          code: batchResponse.code ?? '',
+          placementDate: toDateInput(batchResponse.placementDate) || todayValue(),
+          placementCount: toFormNumber(batchResponse.placementCount),
+          totalChicksPurchased: toFormNumber(batchResponse.totalChicksPurchased),
+          freeChicks: toFormNumber(batchResponse.freeChicks),
+          chargeableChicks: toFormNumber(batchResponse.chargeableChicks),
+          placementMortality: toFormNumber(batchResponse.placementMortality),
+          chickCostTotal: toFormNumber(batchResponse.chickCostTotal),
+          chickRatePerBird: toFormNumber(batchResponse.chickRatePerBird),
+          ratePerChick: toFormNumber(batchResponse.ratePerChick),
+          chickTransportCharge: toFormNumber(batchResponse.chickTransportCharge),
+          sourceHatchery: batchResponse.sourceHatchery ?? '',
+          vendorName: batchResponse.vendorName ?? '',
+          targetCloseDate: toDateInput(batchResponse.targetCloseDate),
+          notes: batchResponse.notes ?? '',
+        });
+        setAutoCodeOffset(0);
+        return;
+      }
+
+      const firstEligible = farmsResponse.data.find((farm) => farm.activeBatchCount === 0);
       if (firstEligible) {
-        setValue('farmId', firstEligible.id);
-        setValue('code', generateBatchCode(firstEligible));
+        reset({
+          ...BATCH_FORM_DEFAULTS,
+          farmId: firstEligible.id,
+          code: generateBatchCode(firstEligible),
+        });
         setAutoCodeOffset(0);
       }
     } catch (error) {
       setLoadError(
         showRequestErrorToast(error, {
-          title: 'Unable to load farms',
-          fallbackMessage: 'Failed to load farms for batch creation.',
+          title: isEditMode ? 'Unable to load batch' : 'Unable to load farms',
+          fallbackMessage: isEditMode
+            ? 'Failed to load batch details for editing.'
+            : 'Failed to load farms for batch creation.',
         }),
       );
     } finally {
       setLoading(false);
     }
-  }, [accessToken, setValue]);
+  }, [accessToken, batchId, isEditMode, reset]);
 
   useFocusEffect(
     useCallback(() => {
-      void loadFarms();
-    }, [loadFarms]),
+      void loadBatchForm();
+    }, [loadBatchForm]),
   );
 
   const farmOptions = farms
-    .filter((farm) => (farm.activeBatchCount ?? 0) === 0)
+    .filter((farm) => (isEditMode ? farm.id === selectedFarmId || (farm.activeBatchCount ?? 0) === 0 : (farm.activeBatchCount ?? 0) === 0))
     .map(farm => ({ label: farm.name, value: farm.id }));
 
   const shedOptions = [
@@ -282,8 +327,7 @@ export default function CreateBatchScreen() {
     setSubmitting(true);
 
     try {
-      await createBatch(accessToken, {
-        farmId: data.farmId,
+      const payload = {
         code: data.code.trim(),
         placementDate: data.placementDate,
         placementCount: Number(parseNumberValue(data.placementCount)),
@@ -299,14 +343,23 @@ export default function CreateBatchScreen() {
         vendorName: toOptionalText(data.vendorName),
         targetCloseDate: toOptionalText(data.targetCloseDate),
         notes: toOptionalText(data.notes),
-      });
+      };
 
-      showSuccessToast('Batch created successfully.');
+      if (isEditMode && batchId) {
+        await updateBatch(accessToken, batchId, payload);
+      } else {
+        await createBatch(accessToken, {
+          farmId: data.farmId,
+          ...payload,
+        });
+      }
+
+      showSuccessToast(isEditMode ? 'Batch updated successfully.' : 'Batch created successfully.');
       router.back();
     } catch (error) {
       showRequestErrorToast(error, {
-        title: 'Batch create failed',
-        fallbackMessage: 'Failed to create batch.',
+        title: isEditMode ? 'Batch update failed' : 'Batch create failed',
+        fallbackMessage: isEditMode ? 'Failed to update batch.' : 'Failed to create batch.',
       });
     } finally {
       setSubmitting(false);
@@ -315,7 +368,10 @@ export default function CreateBatchScreen() {
 
   return (
     <View style={styles.safeArea}>
-      <TopAppBar title="Create New Batch" subtitle="Configure batch settings and starting inventory" />
+      <TopAppBar
+        title={isEditMode ? "Edit Batch" : "Create New Batch"}
+        subtitle={isEditMode ? "Update batch master details" : "Configure batch settings and starting inventory"}
+      />
       <KeyboardAvoidingView
         behavior={Platform.OS === "ios" ? "padding" : "height"}
         style={{ flex: 1 }}
@@ -332,7 +388,7 @@ export default function CreateBatchScreen() {
             icon="cloud-offline-outline"
             tone="error"
             actionLabel="Retry"
-            onAction={() => void loadFarms()}
+            onAction={() => void loadBatchForm()}
             style={styles.stateSpacing}
           />
         ) : null}
@@ -360,6 +416,7 @@ export default function CreateBatchScreen() {
               searchPlaceholder="Search farm"
               emptyMessage="No eligible farms found"
               error={formErrors.farmId?.message}
+              locked={isEditMode}
             />
           )}
         />
@@ -696,7 +753,7 @@ export default function CreateBatchScreen() {
           {submitting ? (
             <ActivityIndicator color="#FFF" />
           ) : (
-            <Text style={styles.createButtonText}>Create Batch</Text>
+            <Text style={styles.createButtonText}>{isEditMode ? "Update Batch" : "Create Batch"}</Text>
           )}
         </TouchableOpacity>
       </View>

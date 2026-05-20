@@ -208,11 +208,28 @@ export default function BatchManagementScreen() {
                 }
               >
                 <View style={styles.cardHeader}>
-                  <Text style={styles.batchTitle}>
+                  <Text style={styles.batchTitle} numberOfLines={1}>
                     {batch.code} {batch.farmName ? `(${batch.farmName.split(' ')[1] || 'Shed'})` : ''}
                   </Text>
-                  <View style={[styles.badge, { backgroundColor: badge.bg }]}>
-                    <Text style={[styles.badgeText, { color: badge.text }]}>{badge.label}</Text>
+                  <View style={styles.cardActions}>
+                    <View style={[styles.badge, { backgroundColor: badge.bg }]}>
+                      <Text style={[styles.badgeText, { color: badge.text }]}>{badge.label}</Text>
+                    </View>
+                    <TouchableOpacity
+                      style={styles.editIconBtn}
+                      activeOpacity={0.82}
+                      onPress={(event) => {
+                        event.stopPropagation();
+                        router.navigate({
+                          pathname: '/(owner)/manage/batches/create',
+                          params: { id: batch.id },
+                        });
+                      }}
+                      accessibilityRole="button"
+                      accessibilityLabel={`Edit batch ${batch.code}`}
+                    >
+                      <Ionicons name="create-outline" size={17} color={THEME_GREEN} />
+                    </TouchableOpacity>
                   </View>
                 </View>
 
@@ -329,17 +346,34 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+    gap: 10,
     marginBottom: 16,
   },
   batchTitle: {
+    flex: 1,
     fontSize: 16,
     fontWeight: '700',
     color: Colors.text,
+  },
+  cardActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
   },
   badge: {
     paddingHorizontal: 10,
     paddingVertical: 4,
     borderRadius: 6,
+  },
+  editIconBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#F0FDF4',
+    borderWidth: 1,
+    borderColor: '#CFE8D6',
   },
   badgeText: {
     fontSize: 12,

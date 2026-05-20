@@ -1,64 +1,55 @@
+import { DailyEntriesTab } from '@/components/batches/tabs/DailyEntriesTab';
+import { ExpensesTab } from '@/components/batches/tabs/ExpensesTab';
+import { OverviewTab } from '@/components/batches/tabs/OverviewTab';
+import { PnlTab } from '@/components/batches/tabs/PnlTab';
+import { SalesTab } from '@/components/batches/tabs/SalesTab';
+import { ScreenState } from '@/components/ui/ScreenState';
+import { TopAppBar } from '@/components/ui/TopAppBar';
+import { Colors } from '@/constants/Colors';
 import { useAuth } from '@/context/AuthContext';
+import { showRequestErrorToast, showSuccessToast } from '@/services/apiFeedback';
 import {
+  createBatchComment,
   fetchBatch,
   fetchBatchPnl,
-  listBatchExpenses,
   listBatchComments,
-  listDailyLogs,
-  listSales,
-  listInventoryLedger,
+  listBatchExpenses,
   listCatalogItems,
-  updateBatch,
+  listDailyLogs,
+  listInventoryLedger,
+  listSales,
   updateBatchStatus,
-  createBatchComment,
   type ApiBatch,
   type ApiBatchExpense,
   type ApiBatchPnl,
+  type ApiCatalogItem,
   type ApiComment,
   type ApiDailyLog,
-  type ApiSale,
   type ApiInventoryLedgerEntry,
-  type ApiCatalogItem,
+  type ApiSale,
 } from '@/services/managementApi';
 import {
   downloadBatchExcelReport,
   downloadBatchPdfReport,
 } from '@/services/reportApi';
 import { saveAndShareReport } from '@/services/reportExport';
-import { Feather, Ionicons } from '@expo/vector-icons';
+import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { OverviewTab } from '@/components/batches/tabs/OverviewTab';
-import { DailyEntriesTab } from '@/components/batches/tabs/DailyEntriesTab';
-import { ExpensesTab } from '@/components/batches/tabs/ExpensesTab';
-import { SalesTab } from '@/components/batches/tabs/SalesTab';
-import { PnlTab } from '@/components/batches/tabs/PnlTab';
-import {
-  GridCard,
-  DailyMetric,
-  PnlRow,
-  ExpenseHistoryCard,
-  SaleHistoryCard,
-  CommentCard,
-  ExpenseRow,
-} from './components/HistoryCards';
 import React, { useCallback, useState } from 'react';
 import {
   ActivityIndicator,
-  Linking,
+  Modal,
   ScrollView,
   StyleSheet,
   Text,
-  TouchableOpacity,
-  View,
-  Modal,
   TextInput,
-  KeyboardAvoidingView,
-  Platform,
+  TouchableOpacity,
+  View
 } from 'react-native';
-import { ScreenState } from '@/components/ui/ScreenState';
-import { TopAppBar } from '@/components/ui/TopAppBar';
-import { showRequestErrorToast, showSuccessToast } from '@/services/apiFeedback';
+import {
+  CommentCard
+} from './components/HistoryCards';
 
 type TabKey = 'overview' | 'daily' | 'expenses' | 'sales' | 'pnl' | 'comments';
 
@@ -85,16 +76,57 @@ function formatNumber(value?: number | null, suffix = '') {
   return `${Number(value).toLocaleString('en-IN')}${suffix}`;
 }
 
-function formatMoney(value?: number | null) {
-  return `Rs. ${formatNumber(value)}`;
-}
-
 function labelize(value?: string | null) {
   if (!value) return 'Not set';
   return value
     .split('_')
     .map((part) => part.charAt(0).toUpperCase() + part.slice(1).toLowerCase())
     .join(' ');
+}
+
+function getLifecycleStatusMeta(status: ApiBatch['status']) {
+  switch (status) {
+    case 'ACTIVE':
+      return {
+        label: 'Active',
+        subtitle: 'Daily entries and operations are open',
+        icon: 'play-circle-outline',
+        tone: THEME_GREEN,
+        bg: '#E8F5E9',
+      };
+    case 'SALES_RUNNING':
+      return {
+        label: 'Sales Ready',
+        subtitle: 'Batch is ready for sale entries',
+        icon: 'cash-outline',
+        tone: '#E65100',
+        bg: '#FFF3E0',
+      };
+    case 'SETTLEMENT_PENDING':
+      return {
+        label: 'Settling',
+        subtitle: 'Settlement and P&L review stage',
+        icon: 'receipt-outline',
+        tone: '#1565C0',
+        bg: '#E3F2FD',
+      };
+    case 'CLOSED':
+      return {
+        label: 'Closed',
+        subtitle: 'Lock this batch after completion',
+        icon: 'lock-closed-outline',
+        tone: '#6B7280',
+        bg: '#F3F4F6',
+      };
+    default:
+      return {
+        label: labelize(status),
+        subtitle: 'Batch lifecycle status',
+        icon: 'ellipse-outline',
+        tone: Colors.textSecondary,
+        bg: '#F9FAFB',
+      };
+  }
 }
 
 function sumExpenses(expenses: ApiBatchExpense[]) {
@@ -145,11 +177,8 @@ export default function BatchDetailsScreen() {
   const [correctionNote, setCorrectionNote] = useState('');
   const [submittingComment, setSubmittingComment] = useState(false);
 
-  // Edit & Status Modal States
+  // Lifecycle modal state
   const [showActionsModal, setShowActionsModal] = useState(false);
-  const [editCode, setEditCode] = useState('');
-  const [editPlacementCount, setEditPlacementCount] = useState('');
-  const [editNotes, setEditNotes] = useState('');
   const [editStatus, setEditStatus] = useState<ApiBatch['status']>('ACTIVE');
   const [savingActions, setSavingActions] = useState(false);
 
@@ -180,9 +209,6 @@ export default function BatchDetailsScreen() {
         listCatalogItems(accessToken, { limit: 100 }),
       ]);
       setBatch(batchRes);
-      setEditCode(batchRes.code || '');
-      setEditPlacementCount(String(batchRes.placementCount || ''));
-      setEditNotes(batchRes.notes || '');
       setEditStatus(batchRes.status || 'ACTIVE');
       setDailyLogs(dailyLogsRes.data);
       setCompanyExpenses(companyExpensesRes.data);
@@ -296,32 +322,23 @@ export default function BatchDetailsScreen() {
 
   const handleSaveActions = async () => {
     if (!accessToken || !id || !batch) return;
+    if (editStatus === batch.status) {
+      setShowActionsModal(false);
+      return;
+    }
+
     setSavingActions(true);
     try {
-      if (editStatus !== batch.status) {
-        await updateBatchStatus(accessToken, id, {
-          status: editStatus,
-          actualCloseDate: editStatus === 'CLOSED' ? getLocalDateValue() : null,
-        });
-      }
+      await updateBatchStatus(accessToken, id, {
+        status: editStatus,
+        ...(editStatus === 'CLOSED' ? { actualCloseDate: getLocalDateValue() } : {}),
+      });
 
-      if (
-        editCode !== batch.code ||
-        Number(editPlacementCount) !== batch.placementCount ||
-        editNotes !== batch.notes
-      ) {
-        await updateBatch(accessToken, id, {
-          code: editCode.trim(),
-          placementCount: Number(editPlacementCount),
-          notes: editNotes.trim() || undefined,
-        });
-      }
-
-      showSuccessToast('Batch actions updated successfully.');
+      showSuccessToast('Batch lifecycle updated successfully.');
       setShowActionsModal(false);
       void loadBatchDetails();
     } catch (error) {
-      showRequestErrorToast(error, { title: 'Failed to update batch details' });
+      showRequestErrorToast(error, { title: 'Failed to update batch lifecycle' });
     } finally {
       setSavingActions(false);
     }
@@ -368,13 +385,7 @@ export default function BatchDetailsScreen() {
         subtitle={batch?.code ? `${batch.code} | ${batch.farmName ?? 'Farm not loaded'}` : 'Batch performance and records'}
         right={
           <>
-            <TouchableOpacity
-              style={styles.headerIcon}
-              onPress={() => void exportReport('pdf')}
-              disabled={Boolean(exporting)}
-            >
-              <Ionicons name="share-social-outline" size={22} color="#FFF" />
-            </TouchableOpacity>
+
             <TouchableOpacity
               style={styles.headerIcon}
               onPress={() => setShowActionsModal(true)}
@@ -582,11 +593,11 @@ export default function BatchDetailsScreen() {
         )}
       </ScrollView>
 
-      {/* Actions & Edit Modal */}
+      {/* Lifecycle Modal */}
       <Modal
         visible={showActionsModal}
         transparent
-        animationType="slide"
+        animationType="fade"
         onRequestClose={() => setShowActionsModal(false)}
       >
         <TouchableOpacity
@@ -594,115 +605,79 @@ export default function BatchDetailsScreen() {
           activeOpacity={1}
           onPress={() => setShowActionsModal(false)}
         >
-          <KeyboardAvoidingView
-            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-            style={styles.keyboardAvoid}
+          <View
+            style={styles.lifecycleMenu}
+            onStartShouldSetResponder={() => true}
           >
-            <View
-              style={styles.modalSheet}
-              onStartShouldSetResponder={() => true}
-            >
-              {/* Drag Handle */}
-              <View style={styles.dragHandle} />
-
-              <Text style={styles.modalTitle}>Batch Actions & Lifecycle</Text>
-              
-              <ScrollView showsVerticalScrollIndicator={false} style={{ maxHeight: 420 }}>
-                {/* Status Selector */}
-                <Text style={styles.fieldLabel}>Change Lifecycle Status</Text>
-                <View style={styles.statusSelectorRow}>
-                  {(['ACTIVE', 'SALES_RUNNING', 'SETTLEMENT_PENDING', 'CLOSED'] as const).map((status) => {
-                    const isSelected = editStatus === status;
-                    const statusLabel =
-                      status === 'ACTIVE'
-                        ? 'Active'
-                        : status === 'SALES_RUNNING'
-                        ? 'Sales Ready'
-                        : status === 'SETTLEMENT_PENDING'
-                        ? 'Settling'
-                        : 'Closed';
-
-                    return (
-                      <TouchableOpacity
-                        key={status}
-                        style={[
-                          styles.statusOptionChip,
-                          isSelected && styles.statusOptionChipActive,
-                        ]}
-                        onPress={() => setEditStatus(status)}
-                      >
-                        <Text
-                          style={[
-                            styles.statusOptionText,
-                            isSelected && styles.statusOptionTextActive,
-                          ]}
-                        >
-                          {statusLabel}
-                        </Text>
-                      </TouchableOpacity>
-                    );
-                  })}
-                </View>
-
-                {/* Edit Form */}
-                <View style={styles.formGroup}>
-                  <Text style={styles.fieldLabel}>Batch Code / ID</Text>
-                  <TextInput
-                    style={styles.modalInput}
-                    value={editCode}
-                    onChangeText={setEditCode}
-                    placeholder="e.g. GV-B-2307"
-                    placeholderTextColor="#9CA3AF"
-                  />
-                </View>
-
-                <View style={styles.formGroup}>
-                  <Text style={styles.fieldLabel}>Chicks Placed</Text>
-                  <TextInput
-                    style={styles.modalInput}
-                    value={editPlacementCount}
-                    onChangeText={setEditPlacementCount}
-                    keyboardType="numeric"
-                    placeholder="e.g. 5000"
-                    placeholderTextColor="#9CA3AF"
-                  />
-                </View>
-
-                <View style={styles.formGroup}>
-                  <Text style={styles.fieldLabel}>Notes</Text>
-                  <TextInput
-                    style={[styles.modalInput, { height: 70, paddingTop: 10 }]}
-                    value={editNotes}
-                    onChangeText={setEditNotes}
-                    multiline
-                    placeholder="Batch notes..."
-                    placeholderTextColor="#9CA3AF"
-                  />
-                </View>
-              </ScrollView>
-
-              {/* Action Buttons */}
-              <View style={styles.modalActionRow}>
-                <TouchableOpacity
-                  style={[styles.modalBtn, styles.modalBtnCancel]}
-                  onPress={() => setShowActionsModal(false)}
-                >
-                  <Text style={styles.modalBtnCancelText}>Cancel</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={[styles.modalBtn, styles.modalBtnSave, savingActions && styles.exportButtonDisabled]}
-                  onPress={handleSaveActions}
-                  disabled={savingActions}
-                >
-                  {savingActions ? (
-                    <ActivityIndicator color="#FFF" />
-                  ) : (
-                    <Text style={styles.modalBtnSaveText}>Save Changes</Text>
-                  )}
-                </TouchableOpacity>
+            <View style={styles.lifecyclePointer} />
+            <View style={styles.lifecycleHeader}>
+              <View>
+                <Text style={styles.modalTitle}>Batch Lifecycle</Text>
+                <Text style={styles.fieldLabel}>Current: {labelize(batch?.status)}</Text>
               </View>
+              <TouchableOpacity
+                style={styles.lifecycleCloseButton}
+                onPress={() => setShowActionsModal(false)}
+                accessibilityRole="button"
+                accessibilityLabel="Close lifecycle menu"
+              >
+                <Ionicons name="close" size={17} color={Colors.textSecondary} />
+              </TouchableOpacity>
             </View>
-          </KeyboardAvoidingView>
+
+            <View style={styles.lifecycleList}>
+              {(['ACTIVE', 'SALES_RUNNING', 'SETTLEMENT_PENDING', 'CLOSED'] as const).map((status) => {
+                const isSelected = editStatus === status;
+                const meta = getLifecycleStatusMeta(status);
+
+                return (
+                  <TouchableOpacity
+                    key={status}
+                    style={[styles.lifecycleItem, isSelected && styles.lifecycleItemActive]}
+                    onPress={() => setEditStatus(status)}
+                    activeOpacity={0.84}
+                  >
+                    <View style={[styles.lifecycleIcon, { backgroundColor: meta.bg }]}>
+                      <Ionicons name={meta.icon as any} size={18} color={meta.tone} />
+                    </View>
+                    <View style={styles.lifecycleTextWrap}>
+                      <Text style={styles.lifecycleItemTitle} numberOfLines={1}>
+                        {meta.label}
+                      </Text>
+                      <Text style={styles.lifecycleItemSubtitle} numberOfLines={1}>
+                        {meta.subtitle}
+                      </Text>
+                    </View>
+                    <Ionicons
+                      name={isSelected ? 'checkmark-circle' : 'chevron-forward'}
+                      size={18}
+                      color={isSelected ? THEME_GREEN : '#CBD5E1'}
+                    />
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+
+            <View style={styles.modalActionRow}>
+              <TouchableOpacity
+                style={[styles.modalBtn, styles.modalBtnCancel]}
+                onPress={() => setShowActionsModal(false)}
+              >
+                <Text style={styles.modalBtnCancelText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.modalBtn, styles.modalBtnSave, savingActions && styles.exportButtonDisabled]}
+                onPress={handleSaveActions}
+                disabled={savingActions}
+              >
+                {savingActions ? (
+                  <ActivityIndicator color="#FFF" />
+                ) : (
+                  <Text style={styles.modalBtnSaveText}>Save</Text>
+                )}
+              </TouchableOpacity>
+            </View>
+          </View>
         </TouchableOpacity>
       </Modal>
     </View>
@@ -1510,92 +1485,115 @@ const styles = StyleSheet.create({
   },
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    justifyContent: 'flex-end',
+    alignItems: 'flex-end',
+    backgroundColor: 'rgba(3, 24, 14, 0.32)',
+    paddingTop: 54,
+    paddingRight: 14,
   },
-  keyboardAvoid: {
-    flex: 1,
-    justifyContent: 'flex-end',
-  },
-  modalSheet: {
+  lifecycleMenu: {
+    width: 306,
+    maxWidth: '88%',
     backgroundColor: '#FFF',
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    paddingHorizontal: 20,
-    paddingTop: 12,
-    paddingBottom: 32,
+    borderRadius: 22,
+    borderWidth: 1,
+    borderColor: '#DDE9E1',
+    padding: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.18,
+    shadowRadius: 18,
+    elevation: 12,
   },
-  dragHandle: {
-    width: 40,
-    height: 5,
-    backgroundColor: '#E5E7EB',
-    borderRadius: 3,
-    alignSelf: 'center',
-    marginBottom: 16,
+  lifecyclePointer: {
+    position: 'absolute',
+    top: -8,
+    right: 18,
+    width: 16,
+    height: 16,
+    backgroundColor: '#FFF',
+    borderLeftWidth: 1,
+    borderTopWidth: 1,
+    borderColor: '#DDE9E1',
+    transform: [{ rotate: '45deg' }],
+  },
+  lifecycleHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    borderBottomWidth: 1,
+    borderBottomColor: '#EEF4F0',
+    paddingHorizontal: 8,
+    paddingTop: 4,
+    paddingBottom: 10,
   },
   modalTitle: {
-    fontSize: 18,
-    fontWeight: '800',
+    fontSize: 15,
+    fontWeight: '900',
     color: '#111827',
-    marginBottom: 20,
-    textAlign: 'center',
   },
   fieldLabel: {
-    fontSize: 13,
+    fontSize: 11,
     fontWeight: '700',
-    color: '#374151',
-    marginBottom: 8,
-    marginTop: 12,
+    color: Colors.textSecondary,
+    marginTop: 2,
   },
-  statusSelectorRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
+  lifecycleCloseButton: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#F3F7F4',
+  },
+  lifecycleList: {
     gap: 8,
-    marginBottom: 16,
+    paddingTop: 8,
   },
-  statusOptionChip: {
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 8,
+  lifecycleItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    backgroundColor: '#F8FBF8',
+    borderRadius: 16,
+    padding: 10,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
-    backgroundColor: '#F9FAFB',
+    borderColor: '#EDF4EF',
   },
-  statusOptionChipActive: {
-    backgroundColor: '#ECFDF5',
+  lifecycleItemActive: {
+    backgroundColor: '#F0FDF4',
     borderColor: THEME_GREEN,
   },
-  statusOptionText: {
-    fontSize: 12,
-    color: '#4B5563',
+  lifecycleIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  lifecycleTextWrap: {
+    flex: 1,
+    minWidth: 0,
+  },
+  lifecycleItemTitle: {
+    fontSize: 13,
+    fontWeight: '900',
+    color: Colors.text,
+  },
+  lifecycleItemSubtitle: {
+    fontSize: 11,
     fontWeight: '600',
-  },
-  statusOptionTextActive: {
-    color: THEME_GREEN,
-    fontWeight: '700',
-  },
-  formGroup: {
-    marginBottom: 16,
-  },
-  modalInput: {
-    backgroundColor: '#F9FAFB',
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
-    borderRadius: 10,
-    paddingHorizontal: 16,
-    height: 48,
-    fontSize: 14,
-    color: '#111827',
+    color: Colors.textSecondary,
+    marginTop: 2,
   },
   modalActionRow: {
     flexDirection: 'row',
-    gap: 12,
-    marginTop: 20,
+    gap: 10,
+    marginTop: 12,
   },
   modalBtn: {
     flex: 1,
-    height: 48,
-    borderRadius: 10,
+    height: 42,
+    borderRadius: 14,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -1606,15 +1604,15 @@ const styles = StyleSheet.create({
   },
   modalBtnCancelText: {
     color: '#4B5563',
-    fontSize: 14,
-    fontWeight: '700',
+    fontSize: 13,
+    fontWeight: '800',
   },
   modalBtnSave: {
     backgroundColor: THEME_GREEN,
   },
   modalBtnSaveText: {
     color: '#FFF',
-    fontSize: 14,
-    fontWeight: '700',
+    fontSize: 13,
+    fontWeight: '800',
   },
 });
