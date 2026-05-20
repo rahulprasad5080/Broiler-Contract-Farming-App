@@ -20,7 +20,7 @@ import { debugLogger } from "./debugLogger";
 
 export const API_BASE_URL =
   process.env.EXPO_PUBLIC_API_BASE_URL ??
-  "https://boiler-backend-production.up.railway.app/api/v1";
+  "https://broiler-dusky.vercel.app/api/v1";
 
 export const API_ROOT_URL = API_BASE_URL.replace(/\/api\/v1\/?$/, "");
 const REQUEST_TIMEOUT_MS = Number(process.env.EXPO_PUBLIC_API_TIMEOUT_MS ?? 30000);
