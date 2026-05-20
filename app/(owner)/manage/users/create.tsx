@@ -16,6 +16,7 @@ import {
   createUser,
   fetchUser,
   listAllFarms,
+  resetUserPassword,
   updateUser,
   updateUserStatus,
   type ApiFarm,
@@ -214,6 +215,12 @@ export default function CreateUserScreen() {
   const [error, setError] = useState<string | null>(null);
   const [passwordError, setPasswordError] = useState<string | null>(null);
   const [showPassword, setShowPassword] = useState(false);
+  const [resetPasswordValue, setResetPasswordValue] = useState('');
+  const [resetPasswordError, setResetPasswordError] = useState<string | null>(null);
+  const [isResettingPassword, setIsResettingPassword] = useState(false);
+  const [showResetPassword, setShowResetPassword] = useState(false);
+  const [isResetSectionOpen, setIsResetSectionOpen] = useState(false);
+  const [isSavingStatus, setIsSavingStatus] = useState(false);
   const [roleDropdownOpen, setRoleDropdownOpen] = useState(false);
   const [statusDropdownOpen, setStatusDropdownOpen] = useState(false);
   const [farmDropdownOpen, setFarmDropdownOpen] = useState(false);
@@ -308,6 +315,9 @@ export default function CreateUserScreen() {
         mustChangePassword: user.mustChangePassword ?? false,
       });
       setPasswordError(null);
+      setResetPasswordValue('');
+      setResetPasswordError(null);
+      setIsResetSectionOpen(false);
     } catch (err) {
       setError(getRequestErrorMessage(err, 'Failed to load user details.'));
     } finally {
@@ -339,6 +349,76 @@ export default function CreateUserScreen() {
       !permissions[permission],
       { shouldDirty: true, shouldValidate: true },
     );
+  };
+
+  const handleResetPasswordAction = async () => {
+    if (isResettingPassword || !isEditMode || !userId) return;
+
+    if (!accessToken) {
+      setError('Your session has expired. Please sign in again.');
+      return;
+    }
+
+    const trimmedPassword = resetPasswordValue.trim();
+    const validationError = getPasswordValidationError(trimmedPassword);
+
+    if (validationError) {
+      setResetPasswordError(validationError);
+      return;
+    }
+
+    setIsResettingPassword(true);
+    setResetPasswordError(null);
+
+    try {
+      await resetUserPassword(accessToken, userId, {
+        newPassword: trimmedPassword,
+        mustChangePassword: true,
+      });
+
+      setValue('mustChangePassword', true, { shouldDirty: true, shouldValidate: true });
+      setResetPasswordValue('');
+      setIsResetSectionOpen(false);
+      showSuccessToast('Password reset successfully.', 'Success');
+    } catch (err) {
+      const msg = showRequestErrorToast(err, {
+        title: 'Reset password failed',
+        fallbackMessage: 'Failed to reset user password.',
+      });
+      setResetPasswordError(msg);
+    } finally {
+      setIsResettingPassword(false);
+    }
+  };
+
+  const handleToggleStatus = async () => {
+    if (isSavingStatus || !isEditMode || !userId) return;
+
+    if (!accessToken) {
+      setError('Your session has expired. Please sign in again.');
+      return;
+    }
+
+    const nextStatus = selectedStatus === 'Active' ? 'DISABLED' : 'ACTIVE';
+
+    setIsSavingStatus(true);
+
+    try {
+      const updated = await updateUserStatus(accessToken, userId, { status: nextStatus });
+      setValue('status', toStatus(updated.status), { shouldDirty: true, shouldValidate: true });
+      showSuccessToast(
+        `User account ${updated.status === 'ACTIVE' ? 'enabled' : 'disabled'} successfully.`,
+        'Status Updated',
+      );
+    } catch (err) {
+      const msg = showRequestErrorToast(err, {
+        title: 'Status update failed',
+        fallbackMessage: 'Failed to update user status.',
+      });
+      setError(msg);
+    } finally {
+      setIsSavingStatus(false);
+    }
   };
 
   const onSubmit = async (data: UserFormData) => {
@@ -778,6 +858,116 @@ export default function CreateUserScreen() {
           </View>
 
 
+          {isEditMode ? (
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>Account Actions</Text>
+
+              <TouchableOpacity
+                style={styles.secondaryActionButton}
+                onPress={() => {
+                  setResetPasswordError(null);
+                  setIsResetSectionOpen((prev) => !prev);
+                }}
+                activeOpacity={0.85}
+              >
+                <Ionicons name="key-outline" size={20} color="#374151" />
+                <Text style={styles.secondaryActionText}>
+                  {isResetSectionOpen ? 'Close Password Reset' : 'Reset Password'}
+                </Text>
+              </TouchableOpacity>
+
+              {isResetSectionOpen ? (
+                <View style={styles.inlineResetForm}>
+                  <Text style={styles.inlineResetTitle}>Reset Password Immediately</Text>
+                  <Text style={styles.inlineResetHelper}>
+                    Set a new password for this user. They will be required to change it on their first login.
+                  </Text>
+
+                  <View style={[styles.inputGroup, { marginBottom: 0 }]}>
+                    <Text style={styles.label}>New Password</Text>
+                    <View style={[styles.inputBox, styles.passwordRow, resetPasswordError && styles.inputError]}>
+                      <TextInput
+                        style={[styles.textInput, { flex: 1 }]}
+                        placeholder="Enter new password"
+                        placeholderTextColor={Colors.textSecondary}
+                        value={resetPasswordValue}
+                        onChangeText={(nextValue) => {
+                          setResetPasswordError(null);
+                          setResetPasswordValue(nextValue);
+                        }}
+                        secureTextEntry={!showResetPassword}
+                        autoCapitalize="none"
+                        autoCorrect={false}
+                      />
+                      <TouchableOpacity
+                        onPress={() => setShowResetPassword((prev) => !prev)}
+                        style={styles.iconButton}
+                      >
+                        <Ionicons
+                          name={showResetPassword ? 'eye-off-outline' : 'eye-outline'}
+                          size={20}
+                          color={Colors.textSecondary}
+                        />
+                      </TouchableOpacity>
+                    </View>
+                    {resetPasswordError ? (
+                      <Text style={styles.fieldErrorText}>{resetPasswordError}</Text>
+                    ) : (
+                      <Text style={styles.helperText}>{PASSWORD_REQUIREMENT_TEXT}</Text>
+                    )}
+                  </View>
+
+                  <TouchableOpacity
+                    style={[styles.resetSubmitButton, isResettingPassword && styles.buttonDisabled]}
+                    onPress={handleResetPasswordAction}
+                    disabled={isResettingPassword}
+                    activeOpacity={0.85}
+                  >
+                    {isResettingPassword ? (
+                      <ActivityIndicator color="#FFF" />
+                    ) : (
+                      <Text style={styles.resetSubmitButtonText}>Apply Password Reset</Text>
+                    )}
+                  </TouchableOpacity>
+                </View>
+              ) : null}
+
+              <TouchableOpacity
+                style={[
+                  styles.statusActionButton,
+                  selectedStatus === 'Active' ? styles.disableActionButton : styles.enableActionButton,
+                  isSavingStatus && styles.buttonDisabled,
+                ]}
+                onPress={handleToggleStatus}
+                disabled={isSavingStatus}
+                activeOpacity={0.85}
+              >
+                {isSavingStatus ? (
+                  <ActivityIndicator
+                    color={selectedStatus === 'Active' ? Colors.tertiary : Colors.primary}
+                    size="small"
+                  />
+                ) : (
+                  <>
+                    <Ionicons
+                      name={selectedStatus === 'Active' ? 'ban-outline' : 'checkmark-done-circle-outline'}
+                      size={20}
+                      color={selectedStatus === 'Active' ? Colors.tertiary : Colors.primary}
+                    />
+                    <Text
+                      style={[
+                        styles.statusActionText,
+                        { color: selectedStatus === 'Active' ? Colors.tertiary : Colors.primary },
+                      ]}
+                    >
+                      {selectedStatus === 'Active' ? 'Disable Account' : 'Enable Account'}
+                    </Text>
+                  </>
+                )}
+              </TouchableOpacity>
+            </View>
+          ) : null}
+
 
           <TouchableOpacity
             style={[styles.submitButton, isSubmitting && styles.buttonDisabled]}
@@ -1057,16 +1247,72 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     padding: 24,
   },
-  resetPasswordBtn: {
-    backgroundColor: '#DC2626',
+  secondaryActionButton: {
     minHeight: 46,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    backgroundColor: '#F3F4F6',
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexDirection: 'row',
+    gap: 8,
+  },
+  secondaryActionText: {
+    color: '#374151',
+    fontSize: 14,
+    fontWeight: '800',
+  },
+  inlineResetForm: {
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    backgroundColor: '#F9FAFB',
+    borderRadius: 8,
+    padding: 14,
+    gap: 12,
+    marginTop: 12,
+  },
+  inlineResetTitle: {
+    color: Colors.text,
+    fontSize: 14,
+    fontWeight: '800',
+  },
+  inlineResetHelper: {
+    color: Colors.textSecondary,
+    fontSize: 12,
+    lineHeight: 16,
+  },
+  resetSubmitButton: {
+    backgroundColor: Colors.primary,
+    minHeight: 42,
     borderRadius: 8,
     alignItems: 'center',
     justifyContent: 'center',
-    marginTop: 18,
   },
-  resetPasswordBtnText: {
+  resetSubmitButtonText: {
     color: '#FFF',
+    fontSize: 13,
+    fontWeight: '800',
+  },
+  statusActionButton: {
+    minHeight: 46,
+    borderRadius: 8,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexDirection: 'row',
+    gap: 8,
+    marginTop: 12,
+  },
+  disableActionButton: {
+    backgroundColor: '#FEF2F2',
+    borderColor: '#FECACA',
+  },
+  enableActionButton: {
+    backgroundColor: '#EEF8F0',
+    borderColor: '#B7E2BD',
+  },
+  statusActionText: {
     fontSize: 14,
     fontWeight: '800',
   },
