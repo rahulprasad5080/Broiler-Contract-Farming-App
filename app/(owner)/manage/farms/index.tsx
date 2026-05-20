@@ -6,7 +6,6 @@ import {
   ActivityIndicator,
   FlatList,
   KeyboardAvoidingView,
-  Modal,
   Platform,
   ScrollView,
   StyleSheet,
@@ -20,6 +19,7 @@ import { Layout } from '@/constants/Layout';
 import { useAuth } from '@/context/AuthContext';
 import Toast from 'react-native-toast-message';
 import { TopAppBar } from '@/components/ui/TopAppBar';
+import { NativeBottomSheet } from '@/components/ui/NativeBottomSheet';
 import { getRequestErrorMessage } from '@/services/apiFeedback';
 import {
   API_FARM_STATUS_VALUES,
@@ -732,13 +732,12 @@ export default function FarmListScreen() {
       </KeyboardAvoidingView>
 
 
-      <Modal visible={showAssignmentPicker} transparent animationType="slide">
-        <TouchableOpacity
-          style={styles.modalOverlay}
-          onPress={closeAssignmentPicker}
-          activeOpacity={1}
-        >
-          <View style={styles.pickerSheet} onStartShouldSetResponder={() => true}>
+      <NativeBottomSheet
+        visible={showAssignmentPicker}
+        onClose={closeAssignmentPicker}
+        maxHeight="88%"
+        contentStyle={styles.pickerSheet}
+      >
             <Text style={styles.modalTitle}>
               {assignmentField === 'primaryFarmerId'
                 ? 'Select Primary Farmer'
@@ -854,10 +853,8 @@ export default function FarmListScreen() {
                 <Text style={styles.doneButtonText}>Done</Text>
               </TouchableOpacity>
             ) : null}
-          </View>
-          <Toast position="bottom" bottomOffset={100} />
-        </TouchableOpacity>
-      </Modal>
+        <Toast position="bottom" bottomOffset={100} />
+      </NativeBottomSheet>
     </View>
   );
 }
@@ -1343,7 +1340,6 @@ const styles = StyleSheet.create({
   },
   buttonDisabled: { opacity: 0.75 },
   createButtonText: { color: '#FFF', fontSize: 15, fontWeight: '700' },
-  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'flex-end' },
   editSheet: {
     backgroundColor: '#FFF',
     borderTopLeftRadius: 20,
@@ -1353,12 +1349,8 @@ const styles = StyleSheet.create({
     maxHeight: '92%',
   },
   pickerSheet: {
-    backgroundColor: '#FFF',
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
     padding: 20,
     paddingBottom: 24,
-    maxHeight: '88%',
   },
   filterRow: { gap: 8, paddingBottom: 12 },
   assignmentList: { flexGrow: 0 },

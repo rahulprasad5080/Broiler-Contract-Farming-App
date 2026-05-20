@@ -11,7 +11,6 @@ import {
   Animated,
   FlatList,
   KeyboardAvoidingView,
-  Modal,
   Platform,
   ScrollView,
   StyleSheet,
@@ -23,6 +22,7 @@ import {
 import Toast from 'react-native-toast-message';
 
 import { TopAppBar } from '@/components/ui/TopAppBar';
+import { NativeBottomSheet } from '@/components/ui/NativeBottomSheet';
 import { getRequestErrorMessage } from '@/services/apiFeedback';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Controller, useForm } from 'react-hook-form';
@@ -755,22 +755,12 @@ export default function AddFarmScreen() {
         </ScrollView>
       </KeyboardAvoidingView>
 
-      <Modal
+      <NativeBottomSheet
         visible={showAssignmentPicker}
-        transparent
-        animationType="slide"
-        onRequestClose={closeAssignmentPicker}
+        onClose={closeAssignmentPicker}
+        maxHeight="88%"
+        contentStyle={styles.pickerSheet}
       >
-        <KeyboardAvoidingView
-          behavior={Platform.OS === "ios" ? "padding" : "height"}
-          style={styles.keyboardAvoidingOverlay}
-        >
-          <TouchableOpacity
-            style={styles.modalOverlay}
-            activeOpacity={1}
-            onPress={closeAssignmentPicker}
-          >
-            <View style={styles.pickerSheet} onStartShouldSetResponder={() => true}>
               <View style={styles.sheetHandle} />
               <Text style={styles.modalTitle}>{pickerTitle}</Text>
 
@@ -873,10 +863,7 @@ export default function AddFarmScreen() {
                   <Text style={styles.doneButtonText}>Done</Text>
                 </TouchableOpacity>
               ) : null}
-            </View>
-          </TouchableOpacity>
-        </KeyboardAvoidingView>
-      </Modal>
+      </NativeBottomSheet>
     </View>
   );
 }
@@ -1355,35 +1342,10 @@ const styles = StyleSheet.create({
   },
   buttonDisabled: { opacity: 0.75 },
   saveButtonText: { color: '#FFF', fontSize: 16, fontWeight: 'bold' },
-  keyboardAvoidingOverlay: {
-    flex: 1,
-    width: '100%',
-  },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.4)',
-    justifyContent: 'flex-end',
-  },
   pickerSheet: {
-    backgroundColor: '#FFF',
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
     paddingHorizontal: 24,
-    paddingTop: 8,
+    paddingTop: 0,
     paddingBottom: Platform.OS === 'ios' ? 40 : 24,
-    maxHeight: '88%',
-    width: '100%',
-    ...Platform.select({
-      ios: {
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: -4 },
-        shadowOpacity: 0.08,
-        shadowRadius: 12,
-      },
-      android: {
-        elevation: 8,
-      },
-    }),
   },
   sheetHandle: {
     width: 40,
