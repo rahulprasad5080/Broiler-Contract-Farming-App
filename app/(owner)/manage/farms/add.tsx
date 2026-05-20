@@ -109,6 +109,8 @@ const FARM_FORM_DEFAULTS: FarmFormData = {
   status: 'ACTIVE',
 };
 
+const CREATE_FARM_DRAFT_KEY = 'form_draft_create_farm_v2';
+
 export default function AddFarmScreen() {
   const router = useRouter();
   const { id: farmId } = useLocalSearchParams<{ id?: string }>();
@@ -147,11 +149,29 @@ export default function AddFarmScreen() {
   });
 
   const { clearPersistedData, isRestored } = useFormPersistence(
-    'form_draft_add_farm',
+    CREATE_FARM_DRAFT_KEY,
     watch,
     reset,
     FARM_FORM_DEFAULTS,
+    { enabled: !isEditMode },
   );
+
+  useEffect(() => {
+    if (!isEditMode) {
+      reset(FARM_FORM_DEFAULTS);
+      setError(null);
+      setAssignmentField(null);
+      setAssignmentSearch('');
+      setAssignmentRoleFilter('all');
+      setShowAssignmentPicker(false);
+    }
+
+    return () => {
+      if (isEditMode) {
+        reset(FARM_FORM_DEFAULTS);
+      }
+    };
+  }, [isEditMode, reset]);
 
   // Load farm details if in edit mode
   useEffect(() => {

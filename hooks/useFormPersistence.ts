@@ -36,9 +36,12 @@ export function useFormPersistence<T extends FieldValues>(
    * sensible default even when the persisted draft pre-dates a schema change.
    */
   defaultValues: T,
+  options: { enabled?: boolean } = {},
 ): { clearPersistedData: () => Promise<void>; isRestored: boolean } {
+  const enabled = options.enabled ?? true;
   const [isRestored, setIsRestored] = useState(false);
   const draftControllerRef = useRef(createDraftPersistenceController());
+  const hasLoadedDraftRef = useRef(false);
   // Keep a stable ref to `watch` so AppState handler always reads current values
   const watchRef = useRef(watch);
   watchRef.current = watch;
@@ -46,33 +49,63 @@ export function useFormPersistence<T extends FieldValues>(
   // ── 1. Load saved draft on mount ─────────────────────────────────────────
   useEffect(() => {
     let cancelled = false;
+    const draftController = draftControllerRef.current;
+    setIsRestored(false);
+    hasLoadedDraftRef.current = false;
 
-    AsyncStorage.getItem(storageKey).then((raw) => {
-      if (cancelled || !raw) return;
-      try {
-        const saved = JSON.parse(raw) as Partial<T>;
-        // Merge with defaultValues so missing keys always have a value
-        reset({ ...defaultValues, ...saved } as T);
-        setIsRestored(true);
-      } catch {
-        // Silently ignore corrupt / non-JSON data
-      }
-    });
+    if (!enabled) {
+      draftController.cancelPendingSave();
+      return () => {
+        cancelled = true;
+      };
+    }
+
+    AsyncStorage.getItem(storageKey)
+      .then((raw) => {
+        if (cancelled) return;
+        if (!raw) {
+          hasLoadedDraftRef.current = true;
+          return;
+        }
+
+        try {
+          const saved = JSON.parse(raw) as Partial<T>;
+          // Merge with defaultValues so missing keys always have a value
+          reset({ ...defaultValues, ...saved } as T);
+          setIsRestored(true);
+        } catch {
+          // Silently ignore corrupt / non-JSON data
+        } finally {
+          hasLoadedDraftRef.current = true;
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          hasLoadedDraftRef.current = true;
+        }
+      });
 
     return () => {
       cancelled = true;
+      draftController.cancelPendingSave();
     };
-    // We intentionally run this only once on mount.
     // defaultValues reference is stable (defined outside the component render).
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [storageKey]);
-
-  //rahul
+  }, [storageKey, enabled]);
 
   // ── 2. Debounced save on every field change ───────────────────────────────
   useEffect(() => {
+    const draftController = draftControllerRef.current;
+
+    if (!enabled) {
+      draftController.cancelPendingSave();
+      return;
+    }
+
     const subscription = watch((values) => {
-      draftControllerRef.current.scheduleSave(
+      if (!hasLoadedDraftRef.current) return;
+
+      draftController.scheduleSave(
         () => {
           AsyncStorage.setItem(storageKey, JSON.stringify(values)).catch((err) =>
             console.warn("[useFormPersistence] Failed to save draft:", err),
@@ -84,14 +117,20 @@ export function useFormPersistence<T extends FieldValues>(
 
     return () => {
       subscription.unsubscribe();
-      draftControllerRef.current.cancelPendingSave();
+      draftController.cancelPendingSave();
     };
-  }, [watch, storageKey]);
+  }, [watch, storageKey, enabled]);
 
   // ── 3. Immediate save when app moves to background ───────────────────────
   useEffect(() => {
+    if (!enabled) {
+      return;
+    }
+
     const handleAppState = (nextState: AppStateStatus) => {
       if (nextState === "background" || nextState === "inactive") {
+        if (!hasLoadedDraftRef.current) return;
+
         const values = watchRef.current();
         draftControllerRef.current.saveImmediately(() =>
           AsyncStorage.setItem(storageKey, JSON.stringify(values)).catch((err) =>
@@ -106,7 +145,7 @@ export function useFormPersistence<T extends FieldValues>(
 
     const subscription = AppState.addEventListener("change", handleAppState);
     return () => subscription.remove();
-  }, [storageKey]);
+  }, [storageKey, enabled]);
 
   // ── 4. Cleanup helper — call after successful submission ──────────────────
   const clearPersistedData = useCallback(async () => {
