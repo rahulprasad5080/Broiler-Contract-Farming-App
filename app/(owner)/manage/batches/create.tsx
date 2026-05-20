@@ -106,9 +106,7 @@ const optionalNumberField = (label: string) =>
 
 const batchSchema = z.object({
   farmId: z.string().min(1, 'Farm is required'),
-  shed: z.string().optional(),
   code: z.string().min(1, 'Batch ID is required'),
-  birdType: z.string().min(1, 'Bird type is required'),
   placementDate: z.string().min(1, 'Placement date is required'),
   placementCount: requiredNumberField('Placement count'),
   totalChicksPurchased: optionalNumberField('Total chicks purchased'),
@@ -117,12 +115,8 @@ const batchSchema = z.object({
   placementMortality: optionalNumberField('Placement mortality'),
   chickCostTotal: optionalNumberField('Chick cost total'),
   chickRatePerBird: optionalNumberField('Chick rate per bird'),
-  ratePerChick: optionalNumberField('Rate per chick'),
   chickTransportCharge: optionalNumberField('Chick transport charge'),
-  sourceHatchery: z.string().optional(),
   vendorName: z.string().optional(),
-  placementWeight: z.string().optional(),
-  expectedSaleAge: z.string().optional(),
   targetCloseDate: z.string().optional(),
   notes: z.string().optional(),
 });
@@ -131,9 +125,7 @@ type BatchFormData = z.infer<typeof batchSchema>;
 
 const BATCH_FORM_DEFAULTS: BatchFormData = {
   farmId: '',
-  shed: 'Shed 1',
   code: '',
-  birdType: 'Cobb 430',
   placementDate: todayValue(),
   placementCount: '',
   totalChicksPurchased: '',
@@ -142,12 +134,8 @@ const BATCH_FORM_DEFAULTS: BatchFormData = {
   placementMortality: '',
   chickCostTotal: '',
   chickRatePerBird: '',
-  ratePerChick: '',
   chickTransportCharge: '',
-  sourceHatchery: '',
   vendorName: '',
-  placementWeight: '',
-  expectedSaleAge: '',
   targetCloseDate: '',
   notes: '',
 };
@@ -252,9 +240,7 @@ export default function CreateBatchScreen() {
           placementMortality: toFormNumber(batchResponse.placementMortality),
           chickCostTotal: toFormNumber(batchResponse.chickCostTotal),
           chickRatePerBird: toFormNumber(batchResponse.chickRatePerBird),
-          ratePerChick: toFormNumber(batchResponse.ratePerChick),
           chickTransportCharge: toFormNumber(batchResponse.chickTransportCharge),
-          sourceHatchery: batchResponse.sourceHatchery ?? '',
           vendorName: batchResponse.vendorName ?? '',
           targetCloseDate: toDateInput(batchResponse.targetCloseDate),
           notes: batchResponse.notes ?? '',
@@ -263,12 +249,12 @@ export default function CreateBatchScreen() {
         return;
       }
 
-      const firstEligible = farmsResponse.data.find((farm) => farm.activeBatchCount === 0);
-      if (firstEligible) {
+      const firstFarm = farmsResponse.data[0];
+      if (firstFarm) {
         reset({
           ...BATCH_FORM_DEFAULTS,
-          farmId: firstEligible.id,
-          code: generateBatchCode(firstEligible),
+          farmId: firstFarm.id,
+          code: generateBatchCode(firstFarm),
         });
         setAutoCodeOffset(0);
       }
@@ -292,27 +278,7 @@ export default function CreateBatchScreen() {
     }, [loadBatchForm]),
   );
 
-  const farmOptions = farms
-    .filter((farm) => (isEditMode ? farm.id === selectedFarmId || (farm.activeBatchCount ?? 0) === 0 : (farm.activeBatchCount ?? 0) === 0))
-    .map(farm => ({ label: farm.name, value: farm.id }));
-
-  const shedOptions = [
-    { label: 'Shed 1', value: 'Shed 1' },
-    { label: 'Shed 2', value: 'Shed 2' },
-    { label: 'Shed 3', value: 'Shed 3' },
-  ];
-
-  const birdTypeOptions = [
-    { label: 'Cobb 430', value: 'Cobb 430' },
-    { label: 'Ross 308', value: 'Ross 308' },
-    { label: 'Hubbard', value: 'Hubbard' },
-  ];
-
-  const supplierOptions = [
-    { label: 'ABC Hatcheries', value: 'ABC Hatcheries' },
-    { label: 'Sunrise Hatchery', value: 'Sunrise Hatchery' },
-    { label: 'Premium Birds', value: 'Premium Birds' },
-  ];
+  const farmOptions = farms.map(farm => ({ label: farm.name, value: farm.id }));
 
   const autoGenerateBatchId = () => {
     const selectedFarm = farms.find((farm) => farm.id === selectedFarmId) ?? null;
@@ -337,9 +303,7 @@ export default function CreateBatchScreen() {
         placementMortality: toOptionalNumber(data.placementMortality),
         chickCostTotal: toOptionalNumber(data.chickCostTotal),
         chickRatePerBird: toOptionalNumber(data.chickRatePerBird),
-        ratePerChick: toOptionalNumber(data.ratePerChick),
         chickTransportCharge: toOptionalNumber(data.chickTransportCharge),
-        sourceHatchery: toOptionalText(data.sourceHatchery),
         vendorName: toOptionalText(data.vendorName),
         targetCloseDate: toOptionalText(data.targetCloseDate),
         notes: toOptionalText(data.notes),
@@ -423,22 +387,6 @@ export default function CreateBatchScreen() {
 
         <Controller
           control={control}
-          name="shed"
-          render={({ field: { onChange, value } }) => (
-            <SearchableSelectField
-              label="Shed / House"
-              required
-              value={value}
-              onSelect={onChange}
-              options={shedOptions}
-              placeholder="Select Shed"
-              searchPlaceholder="Search shed"
-            />
-          )}
-        />
-
-        <Controller
-          control={control}
           name="code"
           render={({ field: { onChange, value } }) => (
             <View style={styles.inputGroup}>
@@ -470,23 +418,6 @@ export default function CreateBatchScreen() {
                 <Text style={styles.fieldErrorText}>{formErrors.code.message}</Text>
               ) : null}
             </View>
-          )}
-        />
-
-        <Controller
-          control={control}
-          name="birdType"
-          render={({ field: { onChange, value } }) => (
-            <SearchableSelectField
-              label="Bird Type"
-              required
-              value={value}
-              onSelect={onChange}
-              options={birdTypeOptions}
-              placeholder="Select Bird Type"
-              searchPlaceholder="Search bird type"
-              error={formErrors.birdType?.message}
-            />
           )}
         />
 
@@ -623,22 +554,6 @@ export default function CreateBatchScreen() {
 
         <Controller
           control={control}
-          name="ratePerChick"
-          render={({ field: { onChange, value } }) => (
-            <InputField
-              label="Rate Per Chick"
-              value={value}
-              onChangeText={onChange}
-              placeholder="25"
-              keyboardType="decimal-pad"
-              suffix="₹"
-              error={formErrors.ratePerChick?.message}
-            />
-          )}
-        />
-
-        <Controller
-          control={control}
           name="chickTransportCharge"
           render={({ field: { onChange, value } }) => (
             <InputField
@@ -655,21 +570,6 @@ export default function CreateBatchScreen() {
 
         <Controller
           control={control}
-          name="sourceHatchery"
-          render={({ field: { onChange, value } }) => (
-            <SearchableSelectField
-              label="Supplier"
-              value={value}
-              onSelect={onChange}
-              options={supplierOptions}
-              placeholder="Select Supplier"
-              searchPlaceholder="Search supplier"
-            />
-          )}
-        />
-
-        <Controller
-          control={control}
           name="vendorName"
           render={({ field: { onChange, value } }) => (
             <InputField
@@ -677,36 +577,6 @@ export default function CreateBatchScreen() {
               value={value}
               onChangeText={onChange}
               placeholder="ABC Hatcheries"
-            />
-          )}
-        />
-
-        <Controller
-          control={control}
-          name="placementWeight"
-          render={({ field: { onChange, value } }) => (
-            <InputField
-              label="Placement Weight"
-              value={value}
-              onChangeText={onChange}
-              placeholder="40"
-              keyboardType="numeric"
-              suffix="grams"
-            />
-          )}
-        />
-
-        <Controller
-          control={control}
-          name="expectedSaleAge"
-          render={({ field: { onChange, value } }) => (
-            <InputField
-              label="Expected Sale Age"
-              value={value}
-              onChangeText={onChange}
-              placeholder="45"
-              keyboardType="numeric"
-              suffix="days"
             />
           )}
         />
@@ -740,23 +610,23 @@ export default function CreateBatchScreen() {
         />
         <View style={{ height: 40 }} />
       </ScrollView>
-      </KeyboardAvoidingView>
 
-      {/* Bottom Button */}
-      <View style={[styles.bottomContainer, { paddingBottom: Math.max(insets.bottom, 16) }]}>
-        <TouchableOpacity
-          style={[styles.createButton, submitting && styles.createButtonDisabled]}
-          activeOpacity={0.8}
-          onPress={handleSubmit(handleSave)}
-          disabled={submitting}
-        >
-          {submitting ? (
-            <ActivityIndicator color="#FFF" />
-          ) : (
-            <Text style={styles.createButtonText}>{isEditMode ? "Update Batch" : "Create Batch"}</Text>
-          )}
-        </TouchableOpacity>
-      </View>
+        {/* Bottom Button */}
+        <View style={[styles.bottomContainer, { paddingBottom: Math.max(insets.bottom, 16) }]}>
+          <TouchableOpacity
+            style={[styles.createButton, submitting && styles.createButtonDisabled]}
+            activeOpacity={0.8}
+            onPress={handleSubmit(handleSave)}
+            disabled={submitting}
+          >
+            {submitting ? (
+              <ActivityIndicator color="#FFF" />
+            ) : (
+              <Text style={styles.createButtonText}>{isEditMode ? "Update Batch" : "Create Batch"}</Text>
+            )}
+          </TouchableOpacity>
+        </View>
+      </KeyboardAvoidingView>
     </View>
   );
 }
@@ -773,7 +643,7 @@ const styles = StyleSheet.create({
   scrollContent: {
     paddingHorizontal: 20,
     paddingTop: 24,
-    paddingBottom: 100,
+    paddingBottom: 24,
   },
   stateSpacing: {
     marginBottom: 18,
@@ -899,13 +769,11 @@ const styles = StyleSheet.create({
     color: '#000',
   },
   bottomContainer: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
     backgroundColor: '#FFF',
     paddingHorizontal: 20,
     paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: '#EFEFEF',
   },
   createButton: {
     backgroundColor: THEME_GREEN,
