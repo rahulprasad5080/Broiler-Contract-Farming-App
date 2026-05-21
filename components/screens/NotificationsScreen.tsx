@@ -11,7 +11,6 @@ import {
   TouchableOpacity,
   View
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
 
 import { ScreenState } from "@/components/ui/ScreenState";
 import { TopAppBar } from "@/components/ui/TopAppBar";
@@ -29,6 +28,7 @@ type NotificationGroup = {
   data: ApiNotification[];
 };
 
+//new 
 export function NotificationsScreen() {
   const { accessToken, user } = useAuth();
   const router = useRouter();
