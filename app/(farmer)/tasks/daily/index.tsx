@@ -1,11 +1,11 @@
 import { DailyEntryListScreen } from '@/components/screens';
 
-export default function OwnerDailyEntryScreen() {
+export default function FarmerDailyEntryListScreen() {
   return (
     <DailyEntryListScreen
       title="Daily Entries"
       subtitle="Review daily flock logs"
-      formPath="/(owner)/manage/daily-entry/form"
+      formPath="/(farmer)/tasks/daily/form"
     />
   );
 }

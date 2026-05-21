@@ -31,13 +31,13 @@ const optionalNumericField = (label: string) =>
 export const dailyEntryValidationSchema = z.object({
   batchId: z.string().min(1, "Please select a batch"),
   logDate: z.string().min(1, "Date is required"),
-  openingBirdCount: optionalNumericField("Opening bird count"),
-  mortalityCount: optionalNumericField("Mortality"),
-  cullCount: optionalNumericField("Cull"),
-  feedConsumedKg: optionalNumericField("Feed consumed"),
-  waterConsumedLtr: optionalNumericField("Water consumed"),
-  avgWeightGrams: optionalNumericField("Average weight"),
-  notes: z.string().optional(),
+  openingBirdCount: numericField("Opening bird count"),
+  mortalityCount: numericField("Mortality"),
+  cullCount: numericField("Cull"),
+  feedConsumedKg: numericField("Feed consumed"),
+  waterConsumedLtr: numericField("Water consumed"),
+  avgWeightGrams: numericField("Average weight"),
+  notes: z.string().trim().min(1, "Remarks are required"),
 });
 
 export const expenseEntryValidationSchema = z.object({

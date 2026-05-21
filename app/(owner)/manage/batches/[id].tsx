@@ -292,7 +292,7 @@ export default function BatchDetailsScreen() {
     (dailyLogId?: string) => {
       if (!id) return;
       router.navigate({
-        pathname: '/(owner)/manage/daily-entry',
+        pathname: '/(owner)/manage/daily-entry/form',
         params: dailyLogId ? { batchId: id, dailyLogId } : { batchId: id },
       });
     },

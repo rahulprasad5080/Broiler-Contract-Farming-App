@@ -2,9 +2,11 @@ import { useAuth } from "@/context/AuthContext";
 import {
   ApiBatch,
   ApiDailyLog,
+  CreateDailyLogRequest,
   createDailyLog,
   listAllBatches,
   listDailyLogs,
+  UpdateDailyLogRequest,
   updateDailyLog,
 } from "@/services/managementApi";
 import { Ionicons } from "@expo/vector-icons";
@@ -27,8 +29,6 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
-
 import { DatePickerField } from "@/components/ui/DatePickerField";
 import { ScreenState } from "@/components/ui/ScreenState";
 import { SearchableSelectField } from "@/components/ui/SearchableSelectField";
@@ -55,21 +55,25 @@ function toOptionalNumber(value: string) {
   return Number.isNaN(next) ? undefined : next;
 }
 
-const optionalNumericField = (label: string) =>
-  z.string().optional().refine((value) => !value || !Number.isNaN(Number(value.replace(/,/g, ""))), {
-    message: `${label} must be a number`,
-  });
+const requiredNumericField = (label: string) =>
+  z
+    .string()
+    .trim()
+    .min(1, `${label} is required`)
+    .refine((value) => !Number.isNaN(Number(value.replace(/,/g, ""))), {
+      message: `${label} must be a number`,
+    });
 
 const dailyEntrySchema = z.object({
   batchId: z.string().min(1, "Please select a batch"),
   logDate: z.string().min(1, "Date is required"),
-  openingBirdCount: optionalNumericField("Opening bird count"),
-  mortalityCount: optionalNumericField("Mortality"),
-  cullCount: optionalNumericField("Cull"),
-  feedConsumedKg: optionalNumericField("Feed consumed"),
-  waterConsumedLtr: optionalNumericField("Water consumed"),
-  avgWeightGrams: optionalNumericField("Average weight"),
-  notes: z.string().optional(),
+  openingBirdCount: requiredNumericField("Opening bird count"),
+  mortalityCount: requiredNumericField("Mortality"),
+  cullCount: requiredNumericField("Cull"),
+  feedConsumedKg: requiredNumericField("Feed consumed"),
+  waterConsumedLtr: requiredNumericField("Water consumed"),
+  avgWeightGrams: requiredNumericField("Average weight"),
+  notes: z.string().trim().min(1, "Remarks are required"),
 });
 
 type DailyEntryFormData = z.infer<typeof dailyEntrySchema>;
@@ -109,7 +113,10 @@ function toFormValues(log: ApiDailyLog): DailyEntryFormData {
   };
 }
 
-function buildDailyLogPayload(data: DailyEntryFormData) {
+function buildDailyLogPayload(
+  data: DailyEntryFormData,
+  clientReferenceId: string,
+): CreateDailyLogRequest {
   return {
     logDate: data.logDate,
     openingBirdCount: toOptionalNumber(data.openingBirdCount ?? ""),
@@ -118,8 +125,14 @@ function buildDailyLogPayload(data: DailyEntryFormData) {
     feedConsumedKg: toOptionalNumber(data.feedConsumedKg ?? ""),
     waterConsumedLtr: toOptionalNumber(data.waterConsumedLtr ?? ""),
     avgWeightGrams: toOptionalNumber(data.avgWeightGrams ?? ""),
-    notes: data.notes?.trim() || undefined,
+    notes: data.notes.trim(),
+    clientReferenceId,
   };
+}
+
+function buildDailyLogUpdatePayload(payload: CreateDailyLogRequest): UpdateDailyLogRequest {
+  const { clientReferenceId: _clientReferenceId, ...updatePayload } = payload;
+  return updatePayload;
 }
 
 export function DailyEntryScreen({ title = "Daily Entry", subtitle }: DailyEntryScreenProps) {
@@ -242,21 +255,22 @@ export function DailyEntryScreen({ title = "Daily Entry", subtitle }: DailyEntry
     setSavedMessage(null);
     setSubmitting(true);
     try {
-      const payload = buildDailyLogPayload(data);
       const clientReferenceId = `daily-${Date.now()}`;
+      const payload = buildDailyLogPayload(data, clientReferenceId);
+      const updatePayload = buildDailyLogUpdatePayload(payload);
 
       if (!(await isNetworkConnected())) {
         if (isEditMode && typeof dailyLogId === "string") {
           await enqueueOfflineSubmission({
             type: "daily-entry-update",
-            payload: { batchId: data.batchId, dailyLogId, body: payload },
+            payload: { batchId: data.batchId, dailyLogId, body: updatePayload },
           });
         } else {
           await enqueueOfflineSubmission({
             type: "daily-entry",
             payload: {
               batchId: data.batchId,
-              body: { ...payload, clientReferenceId },
+              body: payload,
             },
           });
         }
@@ -269,16 +283,13 @@ export function DailyEntryScreen({ title = "Daily Entry", subtitle }: DailyEntry
       }
 
       if (isEditMode && typeof dailyLogId === "string") {
-        await updateDailyLog(accessToken, data.batchId, dailyLogId, payload);
+        await updateDailyLog(accessToken, data.batchId, dailyLogId, updatePayload);
         showSuccessToast("Daily log updated successfully.");
         setSavedMessage("Daily log updated successfully.");
         await clearPersistedData();
         router.back();
       } else {
-        await createDailyLog(accessToken, data.batchId, {
-          ...payload,
-          clientReferenceId,
-        });
+        await createDailyLog(accessToken, data.batchId, payload);
         showSuccessToast("Daily log saved successfully.");
         setSavedMessage("Daily log saved successfully.");
         await clearPersistedData();
@@ -494,7 +505,7 @@ export function DailyEntryScreen({ title = "Daily Entry", subtitle }: DailyEntry
 
           {/* Remarks */}
           <View style={styles.inputGroup}>
-            <Text style={styles.label}>Remarks (Optional)</Text>
+            <Text style={styles.label}>Remarks</Text>
             <Controller
               control={control}
               name="notes"
@@ -509,6 +520,7 @@ export function DailyEntryScreen({ title = "Daily Entry", subtitle }: DailyEntry
                 />
               )}
             />
+            {errors.notes && <Text style={styles.errorText}>{errors.notes.message}</Text>}
           </View>
 
           <TouchableOpacity
