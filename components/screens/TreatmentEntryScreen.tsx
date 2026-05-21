@@ -52,11 +52,10 @@ function todayValue() {
 
 const treatmentSchema = z.object({
   batchId: z.string().min(1, 'Please select a batch'),
-  dailyLogId: z.string().optional(),
   treatmentDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Date must be in YYYY-MM-DD format'),
   kind: z.enum(API_TREATMENT_KIND_VALUES),
   catalogItemId: z.string().optional(),
-  treatmentName: z.string().optional(),
+  treatmentName: z.string().min(1, 'Treatment name is required'),
   dosage: z.string().optional(),
   birdCount: z.string().optional().refine((val) => !val || !isNaN(Number(val)), {
     message: 'Bird count must be a number',
@@ -73,7 +72,6 @@ const TREATMENT_KIND_OPTIONS = [
 
 const TREATMENT_DEFAULTS = {
   batchId: '',
-  dailyLogId: '',
   treatmentDate: todayValue(),
   kind: 'MEDICATION' as const,
   catalogItemId: '',
@@ -134,7 +132,6 @@ export function TreatmentEntryScreen({
   }, [isRestored, draftBannerOpacity]);
 
   const selectedBatchId = watch('batchId');
-  const kind = watch('kind');
   const catalogItemId = watch('catalogItemId');
 
   const activeBatches = useMemo(
@@ -151,20 +148,19 @@ export function TreatmentEntryScreen({
       })),
     [activeBatches],
   );
-
-  const filteredCatalogItems = useMemo(
-    () => catalogItems.filter(item => item.type === (kind === 'VACCINATION' ? 'VACCINE' : kind === 'MEDICATION' ? 'MEDICINE' : 'OTHER')),
-    [catalogItems, kind]
-  );
   const catalogOptions = useMemo(
     () =>
-      filteredCatalogItems.map((item) => ({
+      catalogItems.map((item) => ({
         label: item.name,
         value: item.id,
         description: `${item.type} - ${item.unit}`,
-        keywords: `${item.type} ${item.unit}`,
+        keywords: `${item.type} ${item.unit} ${item.sku ?? ''}`,
       })),
-    [filteredCatalogItems],
+    [catalogItems],
+  );
+  const selectedCatalogItem = useMemo(
+    () => catalogItems.find((item) => item.id === catalogItemId) ?? null,
+    [catalogItems, catalogItemId],
   );
 
   const loadData = useCallback(async () => {
@@ -174,10 +170,10 @@ export function TreatmentEntryScreen({
     try {
       const [batchesRes, catalogRes] = await Promise.all([
         listAllBatches(accessToken),
-        listCatalogItems(accessToken, { limit: 100 }), // fetch all active items
+        listCatalogItems(accessToken, { limit: 100 }),
       ]);
       setBatches(batchesRes.data);
-      setCatalogItems(catalogRes.data.filter(item => item.isActive !== false));
+      setCatalogItems(catalogRes.data.filter((item) => item.isActive !== false));
 
       const firstActiveId = batchesRes.data.find((b) => b.status === 'ACTIVE')?.id;
       if (firstActiveId && !selectedBatchId) {
@@ -201,14 +197,6 @@ export function TreatmentEntryScreen({
     }, [loadData]),
   );
 
-  useEffect(() => {
-    // Reset catalog selection when kind changes if it's no longer valid
-    if (catalogItemId) {
-      const valid = filteredCatalogItems.some(i => i.id === catalogItemId);
-      if (!valid) setValue('catalogItemId', '');
-    }
-  }, [kind, filteredCatalogItems, catalogItemId, setValue]);
-
   const onSubmit = async (data: TreatmentFormData) => {
     if (submitting) return;
 
@@ -220,21 +208,14 @@ export function TreatmentEntryScreen({
     setSubmitting(true);
     setMessage(null);
     try {
-      const selectedCatalogItem =
-        filteredCatalogItems.find((item) => item.id === data.catalogItemId) ?? null;
       const payload = {
-        dailyLogId: data.dailyLogId?.trim() || undefined,
         treatmentDate: data.treatmentDate,
         kind: data.kind,
-        catalogItemId: data.catalogItemId || undefined,
-        treatmentName:
-          data.treatmentName?.trim() ||
-          selectedCatalogItem?.name ||
-          `${data.kind.charAt(0)}${data.kind.slice(1).toLowerCase()}`,
+        catalogItemId: data.catalogItemId?.trim() || undefined,
+        treatmentName: data.treatmentName.trim(),
         dosage: data.dosage?.trim() || undefined,
         birdCount: data.birdCount ? Number(data.birdCount) : undefined,
         notes: data.notes?.trim() || undefined,
-        clientReferenceId: `tx-${Date.now()}`,
       };
 
       if (!(await isNetworkConnected())) {
@@ -249,7 +230,6 @@ export function TreatmentEntryScreen({
           birdCount: '',
           notes: '',
           catalogItemId: '',
-          dailyLogId: '',
           treatmentName: '',
         });
         await clearPersistedData();
@@ -269,7 +249,6 @@ export function TreatmentEntryScreen({
         birdCount: '',
         notes: '',
         catalogItemId: '',
-        dailyLogId: '',
         treatmentName: '',
       };
       reset(nextValues);
@@ -373,27 +352,6 @@ export function TreatmentEntryScreen({
 
           <Controller
             control={control}
-            name="dailyLogId"
-            render={({ field: { onChange, value } }) => (
-              <View style={styles.inputGroup}>
-                <Text style={styles.label}>Daily Log ID (Optional)</Text>
-                <View style={[styles.inputMock, formErrors.dailyLogId && { borderColor: Colors.tertiary }]}>
-                  <TextInput
-                    style={styles.textInput}
-                    value={value}
-                    onChangeText={onChange}
-                    placeholder="Link to daily log"
-                    placeholderTextColor={Colors.textSecondary}
-                  />
-                  <MaterialCommunityIcons name="link-variant" size={20} color={Colors.textSecondary} />
-                </View>
-                {formErrors.dailyLogId && <Text style={styles.fieldErrorText}>{formErrors.dailyLogId.message}</Text>}
-              </View>
-            )}
-          />
-
-          <Controller
-            control={control}
             name="kind"
             render={({ field: { onChange, value } }) => (
               <View style={styles.inputGroup}>
@@ -421,13 +379,16 @@ export function TreatmentEntryScreen({
             name="catalogItemId"
             render={({ field: { onChange, value } }) => (
               <SearchableSelectField
-                label="Item Used (Optional)"
+                label="Catalog Item"
                 value={value}
                 options={catalogOptions}
-                onSelect={(nextValue) => onChange(nextValue === value ? '' : nextValue)}
-                placeholder="Select Item"
+                onSelect={(nextValue) => {
+                  const next = nextValue === value ? '' : nextValue;
+                  onChange(next);
+                }}
+                placeholder="Select catalog item"
                 searchPlaceholder="Search catalog item"
-                emptyMessage={`No ${kind.toLowerCase()} items found in catalog`}
+                emptyMessage="No active catalog items found"
                 error={formErrors.catalogItemId?.message}
               />
             )}
@@ -444,7 +405,7 @@ export function TreatmentEntryScreen({
                     style={styles.textInput}
                     value={value}
                     onChangeText={onChange}
-                    placeholder={filteredCatalogItems.find((item) => item.id === catalogItemId)?.name ?? 'Newcastle Vaccine'}
+                    placeholder={selectedCatalogItem?.name ?? 'Newcastle Vaccine'}
                     placeholderTextColor={Colors.textSecondary}
                   />
                   <MaterialCommunityIcons name="needle" size={20} color={Colors.textSecondary} />
@@ -517,6 +478,7 @@ export function TreatmentEntryScreen({
               </View>
             )}
           />
+
         </View>
 
         <TouchableOpacity
@@ -586,23 +548,7 @@ const styles = StyleSheet.create({
   },
   loadingBox: { minHeight: 80, justifyContent: 'center', alignItems: 'center', gap: 8 },
   loadingText: { fontSize: 13, color: "#6B7280" },
-  emptyBox: { paddingVertical: 12 },
-  emptyText: { fontSize: 14, color: "#6B7280", textAlign: 'center' },
   chipRow: { gap: 10, paddingBottom: 4, flexDirection: 'row' },
-  batchChip: {
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 12,
-    borderWidth: 1.5,
-    borderColor: "#E5E7EB",
-    backgroundColor: "#FFF",
-  },
-  batchChipActive: {
-    borderColor: "#0B5C36",
-    backgroundColor: "#E7F5ED",
-  },
-  batchChipText: { fontSize: 13, fontWeight: '600', color: "#4B5563" },
-  batchChipTextActive: { color: "#0B5C36" },
   typeChip: {
     flex: 1,
     paddingVertical: 12,
@@ -619,20 +565,6 @@ const styles = StyleSheet.create({
   },
   typeChipText: { fontSize: 13, fontWeight: '600', color: "#6B7280" },
   typeChipTextActive: { color: "#0B5C36" },
-  catalogChip: {
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: "#E5E7EB",
-    backgroundColor: "#F9FAFB",
-  },
-  catalogChipActive: {
-    borderColor: "#0B5C36",
-    backgroundColor: "#E7F5ED",
-  },
-  catalogChipText: { fontSize: 12, color: "#4B5563", fontWeight: '500' },
-  catalogChipTextActive: { color: "#0B5C36", fontWeight: '700' },
   inputGroup: { marginBottom: 18 },
   label: { fontSize: 14, fontWeight: '600', color: "#374151", marginBottom: 8 },
   inputMock: {
