@@ -8,6 +8,7 @@ export default function FarmerTasksLayout() {
       <Stack.Screen name="expenses" />
       <Stack.Screen name="sales" />
       <Stack.Screen name="treatments" />
+      <Stack.Screen name="treatments/add" />
       <Stack.Screen name="comments" />
     </Stack>
   );

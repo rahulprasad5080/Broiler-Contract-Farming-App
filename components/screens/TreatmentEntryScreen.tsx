@@ -11,6 +11,7 @@ import {
 } from '@/services/managementApi';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
@@ -24,7 +25,6 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { DatePickerField } from '@/components/ui/DatePickerField';
 import { SearchableSelectField } from '@/components/ui/SearchableSelectField';
@@ -43,15 +43,11 @@ import { z } from 'zod';
 type TreatmentEntryScreenProps = {
   title?: string;
   subtitle?: string;
+  closeOnSave?: boolean;
 };
 
 function todayValue() {
   return getLocalDateValue();
-}
-
-function batchLabel(batch: ApiBatch) {
-  const farm = batch.farmName ? ` | ${batch.farmName}` : '';
-  return `${batch.code}${farm}`;
 }
 
 const treatmentSchema = z.object({
@@ -88,10 +84,14 @@ const TREATMENT_DEFAULTS = {
 } satisfies TreatmentFormData;
 
 export function TreatmentEntryScreen({
-  title = 'Treatments',
+  title = 'Add Treatment',
   subtitle,
+  closeOnSave = false,
 }: TreatmentEntryScreenProps) {
   const { accessToken } = useAuth();
+  const router = useRouter();
+  const params = useLocalSearchParams<{ batchId?: string }>();
+  const initialBatchId = typeof params.batchId === 'string' ? params.batchId : '';
 
   const [batches, setBatches] = useState<ApiBatch[]>([]);
   const [catalogItems, setCatalogItems] = useState<ApiCatalogItem[]>([]);
@@ -101,17 +101,24 @@ export function TreatmentEntryScreen({
   const [message, setMessage] = useState<string | null>(null);
 
   const draftBannerOpacity = useRef(new Animated.Value(0)).current;
+  const formDefaults = useMemo(
+    () => ({
+      ...TREATMENT_DEFAULTS,
+      batchId: initialBatchId,
+    }),
+    [initialBatchId],
+  );
 
   const { control, handleSubmit, setValue, watch, reset, formState: { errors: formErrors } } = useForm<TreatmentFormData>({
     resolver: zodResolver(treatmentSchema),
-    defaultValues: TREATMENT_DEFAULTS,
+    defaultValues: formDefaults,
   });
 
   const { clearPersistedData, isRestored } = useFormPersistence(
     'form_draft_treatment_entry',
     watch,
     reset,
-    TREATMENT_DEFAULTS,
+    formDefaults,
   );
 
   const [showBanner, setShowBanner] = useState(false);
@@ -246,6 +253,9 @@ export function TreatmentEntryScreen({
           treatmentName: '',
         });
         await clearPersistedData();
+        if (closeOnSave) {
+          router.back();
+        }
         showSuccessToast('Saved offline. It will sync automatically.');
         return;
       }
@@ -264,6 +274,9 @@ export function TreatmentEntryScreen({
       };
       reset(nextValues);
       await clearPersistedData();
+      if (closeOnSave) {
+        router.back();
+      }
       showSuccessToast('Treatment logged successfully.');
     } catch (error) {
       setMessage(
@@ -330,6 +343,13 @@ export function TreatmentEntryScreen({
             )}
           />
         </View>
+
+        {message ? (
+          <View style={styles.messageBox}>
+            <Ionicons name="information-circle-outline" size={18} color={Colors.primary} />
+            <Text style={styles.messageText}>{message}</Text>
+          </View>
+        ) : null}
 
         <View style={styles.card}>
           <View style={styles.sectionHeader}>
@@ -499,13 +519,6 @@ export function TreatmentEntryScreen({
           />
         </View>
 
-        {message ? (
-          <View style={styles.messageBox}>
-            <Ionicons name="information-circle-outline" size={18} color={Colors.primary} />
-            <Text style={styles.messageText}>{message}</Text>
-          </View>
-        ) : null}
-
         <TouchableOpacity
           style={[styles.submitBtn, submitting && styles.submitBtnDisabled]}
           onPress={handleSubmit(onSubmit)}
@@ -574,7 +587,7 @@ const styles = StyleSheet.create({
   loadingBox: { minHeight: 80, justifyContent: 'center', alignItems: 'center', gap: 8 },
   loadingText: { fontSize: 13, color: "#6B7280" },
   emptyBox: { paddingVertical: 12 },
-  emptyText: { fontSize: 14, color: "#6B7280" },
+  emptyText: { fontSize: 14, color: "#6B7280", textAlign: 'center' },
   chipRow: { gap: 10, paddingBottom: 4, flexDirection: 'row' },
   batchChip: {
     paddingHorizontal: 16,

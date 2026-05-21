@@ -22,6 +22,11 @@ class DebugLogger {
     return this.logs;
   }
 
+  clear() {
+    this.logs = [];
+    this.listeners.forEach((listener) => listener(this.logs));
+  }
+
   subscribe(listener: (logs: NetworkLog[]) => void) {
     this.listeners.add(listener);
     return () => { this.listeners.delete(listener); };

@@ -7,6 +7,7 @@ export default function SupervisorTasksLayout() {
       <Stack.Screen name="daily" />
       <Stack.Screen name="expenses" />
       <Stack.Screen name="treatments" />
+      <Stack.Screen name="treatments/add" />
       <Stack.Screen name="comments" />
       <Stack.Screen name="sales" />
     </Stack>

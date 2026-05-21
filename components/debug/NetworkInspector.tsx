@@ -26,6 +26,11 @@ export function NetworkInspector() {
 
   const selectedLog = logs.find(l => l.id === selectedLogId);
 
+  const handleClearLogs = () => {
+    debugLogger.clear();
+    setSelectedLogId(null);
+  };
+
   const renderJson = (data: any) => {
     if (!data) return <Text style={styles.jsonText}>null</Text>;
     return (
@@ -92,9 +97,26 @@ export function NetworkInspector() {
                   {selectedLogId ? 'Request Details' : 'API History'}
                 </Text>
               </View>
-              <TouchableOpacity onPress={() => setVisible(false)}>
-                <Ionicons name="close" size={24} color="#1F2937" />
-              </TouchableOpacity>
+              <View style={styles.headerActions}>
+                {logs.length > 0 && (
+                  <TouchableOpacity
+                    onPress={handleClearLogs}
+                    style={styles.headerActionButton}
+                    accessibilityRole="button"
+                    accessibilityLabel="Clear API history"
+                  >
+                    <Ionicons name="trash-outline" size={21} color="#EF4444" />
+                  </TouchableOpacity>
+                )}
+                <TouchableOpacity
+                  onPress={() => setVisible(false)}
+                  style={styles.headerActionButton}
+                  accessibilityRole="button"
+                  accessibilityLabel="Close API history"
+                >
+                  <Ionicons name="close" size={24} color="#1F2937" />
+                </TouchableOpacity>
+              </View>
             </View>
 
             {selectedLogId && selectedLog ? (
@@ -213,6 +235,14 @@ const styles = StyleSheet.create({
   },
   backButton: {
     padding: 2,
+  },
+  headerActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  headerActionButton: {
+    padding: 4,
   },
   headerTitle: {
     fontSize: 16,

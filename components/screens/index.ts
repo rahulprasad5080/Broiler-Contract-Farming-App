@@ -7,3 +7,4 @@ export { default as ReportsScreen } from "./ReportsScreen";
 export { SalesEntryScreen } from "./SalesEntryScreen";
 export { SplashScreen } from "./SplashScreen";
 export { TreatmentEntryScreen } from "./TreatmentEntryScreen";
+export { TreatmentListScreen } from "./TreatmentListScreen";
