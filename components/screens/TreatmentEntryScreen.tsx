@@ -132,8 +132,6 @@ export function TreatmentEntryScreen({
   }, [isRestored, draftBannerOpacity]);
 
   const selectedBatchId = watch('batchId');
-  const catalogItemId = watch('catalogItemId');
-
   const activeBatches = useMemo(
     () => batches.filter((batch) => batch.status === 'ACTIVE'),
     [batches],
@@ -158,11 +156,6 @@ export function TreatmentEntryScreen({
       })),
     [catalogItems],
   );
-  const selectedCatalogItem = useMemo(
-    () => catalogItems.find((item) => item.id === catalogItemId) ?? null,
-    [catalogItems, catalogItemId],
-  );
-
   const loadData = useCallback(async () => {
     if (!accessToken) return;
 
@@ -405,7 +398,7 @@ export function TreatmentEntryScreen({
                     style={styles.textInput}
                     value={value}
                     onChangeText={onChange}
-                    placeholder={selectedCatalogItem?.name ?? 'Newcastle Vaccine'}
+                    placeholder="Treatment Name"
                     placeholderTextColor={Colors.textSecondary}
                   />
                   <MaterialCommunityIcons name="needle" size={20} color={Colors.textSecondary} />
@@ -426,7 +419,7 @@ export function TreatmentEntryScreen({
                     style={styles.textInput}
                     value={value}
                     onChangeText={onChange}
-                    placeholder="1 ml / 10 birds"
+                    placeholder="Dosage"
                     placeholderTextColor={Colors.textSecondary}
                   />
                   <MaterialCommunityIcons name="beaker-outline" size={20} color={Colors.textSecondary} />
@@ -447,7 +440,7 @@ export function TreatmentEntryScreen({
                     style={styles.textInput}
                     value={value}
                     onChangeText={onChange}
-                    placeholder="5000"
+                    placeholder="Bird Count"
                     placeholderTextColor={Colors.textSecondary}
                     keyboardType="numeric"
                   />
@@ -469,7 +462,7 @@ export function TreatmentEntryScreen({
                     style={[styles.textInput, styles.multiLine]}
                     value={value}
                     onChangeText={onChange}
-                    placeholder="Optional remarks"
+                    placeholder="Notes"
                     placeholderTextColor={Colors.textSecondary}
                     multiline
                   />

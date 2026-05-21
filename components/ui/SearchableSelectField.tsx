@@ -7,10 +7,11 @@ import {
   TextInput,
   TouchableOpacity,
   View,
+  useWindowDimensions,
 } from "react-native";
 
-import { Colors } from "@/constants/Colors";
 import { NativeBottomSheet } from "@/components/ui/NativeBottomSheet";
+import { Colors } from "@/constants/Colors";
 
 export type SearchableSelectOption = {
   label: string;
@@ -46,8 +47,10 @@ export function SearchableSelectField({
   locked = false,
   required = false,
 }: SearchableSelectFieldProps) {
+  const { height } = useWindowDimensions();
   const [visible, setVisible] = useState(false);
   const [query, setQuery] = useState("");
+  const optionListMaxHeight = Math.max(height * 0.7 - 150, 160);
 
   const selectedOption = useMemo(
     () => options.find((option) => option.value === value) ?? null,
@@ -122,7 +125,7 @@ export function SearchableSelectField({
       <NativeBottomSheet
         visible={visible}
         onClose={closePicker}
-        maxHeight="82%"
+        maxHeight="60%"
         contentStyle={styles.sheetContent}
       >
         <View style={styles.sheetHeader}>
@@ -149,7 +152,8 @@ export function SearchableSelectField({
           data={filteredOptions}
           keyExtractor={(item) => item.value}
           keyboardShouldPersistTaps="handled"
-          style={styles.optionList}
+          style={[styles.optionList, { maxHeight: optionListMaxHeight }]}
+          showsVerticalScrollIndicator={filteredOptions.length > 6}
           ListEmptyComponent={
             <View style={styles.emptyBox}>
               <Text style={styles.emptyText}>{emptyMessage}</Text>
