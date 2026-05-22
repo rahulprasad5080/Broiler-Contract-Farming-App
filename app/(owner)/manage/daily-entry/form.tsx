@@ -4,7 +4,7 @@ export default function OwnerDailyEntryFormScreen() {
   return (
     <DailyEntryScreen
       title="Daily Entry"
-      subtitle="Record mortality, feed, water, and weight directly against an active batch."
+      subtitle="Record mortality, feed, water, and weight directly "
     />
   );
 }

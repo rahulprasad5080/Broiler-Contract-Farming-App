@@ -9,7 +9,6 @@ import {
   UpdateDailyLogRequest,
   updateDailyLog,
 } from "@/services/managementApi";
-import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect } from "@react-navigation/native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import React, {
@@ -190,7 +189,6 @@ export function DailyEntryScreen({ title = "Daily Entry", subtitle }: DailyEntry
       })),
     [activeBatches],
   );
-  const selectedBatch = batches.find((b) => b.id === selectedBatchId) ?? null;
 
   useEffect(() => {
     if (lockedBatchId && selectedBatchId !== lockedBatchId) {
@@ -350,15 +348,6 @@ export function DailyEntryScreen({ title = "Daily Entry", subtitle }: DailyEntry
               />
             )}
           />
-
-          {/* Farm */}
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Farm</Text>
-            <View style={styles.inputMock}>
-              <Text style={styles.inputValue}>{selectedBatch?.farmName || "Select Farm"}</Text>
-              <Ionicons name="chevron-down" size={20} color="#6B7280" />
-            </View>
-          </View>
 
           {/* Batch */}
           <SearchableSelectField
@@ -577,21 +566,6 @@ const styles = StyleSheet.create({
     height: 52,
     fontSize: 15,
     color: "#111827",
-  },
-  inputMock: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    backgroundColor: "#FFF",
-    borderWidth: 1,
-    borderColor: "#E5E7EB",
-    borderRadius: 12,
-    paddingHorizontal: 16,
-    height: 52,
-  },
-  inputValue: {
-    fontSize: 15,
-    color: "#374151",
   },
   textArea: {
     height: 100,
