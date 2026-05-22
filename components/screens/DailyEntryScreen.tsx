@@ -89,6 +89,8 @@ const DAILY_ENTRY_DEFAULTS = {
   notes: "",
 };
 
+const RESTORED_MESSAGE_TIMEOUT_MS = 4000;
+
 type DailyEntryScreenProps = {
   title?: string;
   subtitle?: string;
@@ -146,6 +148,7 @@ export function DailyEntryScreen({ title = "Daily Entry", subtitle }: DailyEntry
   const [loadingLog, setLoadingLog] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [savedMessage, setSavedMessage] = useState<string | null>(null);
+  const [showRestoredMessage, setShowRestoredMessage] = useState(false);
 
   const {
     control,
@@ -189,6 +192,25 @@ export function DailyEntryScreen({ title = "Daily Entry", subtitle }: DailyEntry
       })),
     [activeBatches],
   );
+
+  useEffect(() => {
+    if (!isRestored) {
+      setShowRestoredMessage(false);
+      return;
+    }
+
+    setShowRestoredMessage(true);
+  }, [isRestored]);
+
+  useEffect(() => {
+    if (!showRestoredMessage) return;
+
+    const timeoutId = setTimeout(() => {
+      setShowRestoredMessage(false);
+    }, RESTORED_MESSAGE_TIMEOUT_MS);
+
+    return () => clearTimeout(timeoutId);
+  }, [showRestoredMessage]);
 
   useEffect(() => {
     if (lockedBatchId && selectedBatchId !== lockedBatchId) {
@@ -318,7 +340,7 @@ export function DailyEntryScreen({ title = "Daily Entry", subtitle }: DailyEntry
       >
         <View style={styles.form}>
           {loading || loadingLog ? <ActivityIndicator color="#0B5C36" style={styles.formLoader} /> : null}
-          {isRestored ? (
+          {showRestoredMessage ? (
             <ScreenState
               title="Draft restored"
               message="Your unsaved daily entry was restored."
