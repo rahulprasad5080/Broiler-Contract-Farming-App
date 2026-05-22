@@ -23,37 +23,50 @@ import {
 } from '@/services/apiFeedback';
 import {
   ApiTrader,
+  ApiVendor,
   createTrader,
+  createVendor,
   updateTrader,
+  updateVendor,
   listAllTraders,
+  listAllVendors,
 } from '@/services/managementApi';
 import TraderModal, { TraderFormData } from './components/TraderModal';
+
+type PartnerTab = 'vendors' | 'traders';
+type PartnerRecord = ApiVendor | ApiTrader;
 
 export default function PartnerManagementScreen() {
   const router = useRouter();
   const { accessToken, hasPermission } = useAuth();
   const [traders, setTraders] = useState<ApiTrader[]>([]);
+  const [vendors, setVendors] = useState<ApiVendor[]>([]);
+  const [activeTab, setActiveTab] = useState<PartnerTab>('vendors');
   const [search, setSearch] = useState('');
   const [showAddModal, setShowAddModal] = useState(false);
-  const [editingTrader, setEditingTrader] = useState<ApiTrader | null>(null);
+  const [editingPartner, setEditingPartner] = useState<PartnerRecord | null>(null);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const canManagePartners = hasPermission('manage:partners');
 
-  const loadTraders = useCallback(async () => {
+  const loadPartners = useCallback(async () => {
     if (!accessToken) return;
 
     setLoading(true);
     setMessage(null);
     try {
-      const response = await listAllTraders(accessToken);
-      setTraders(response.data);
+      const [vendorsRes, tradersRes] = await Promise.all([
+        listAllVendors(accessToken),
+        listAllTraders(accessToken),
+      ]);
+      setVendors(vendorsRes.data);
+      setTraders(tradersRes.data);
     } catch (error) {
       setMessage(
         showRequestErrorToast(error, {
-          title: 'Unable to load traders',
-          fallbackMessage: 'Failed to load trader master.',
+          title: 'Unable to load partners',
+          fallbackMessage: 'Failed to load vendor and trader masters.',
         }),
       );
     } finally {
@@ -63,33 +76,34 @@ export default function PartnerManagementScreen() {
 
   useFocusEffect(
     useCallback(() => {
-      void loadTraders();
-    }, [loadTraders]),
+      void loadPartners();
+    }, [loadPartners]),
   );
 
-  const filteredTraders = useMemo(() => {
+  const currentPartners = activeTab === 'vendors' ? vendors : traders;
+  const filteredPartners = useMemo(() => {
     const query = search.trim().toLowerCase();
-    if (!query) return traders;
+    if (!query) return currentPartners;
 
-    return traders.filter(
-      (trader) =>
-        trader.name.toLowerCase().includes(query) ||
-        (trader.phone ?? '').includes(query) ||
-        (trader.email ?? '').toLowerCase().includes(query),
+    return currentPartners.filter(
+      (partner) =>
+        partner.name.toLowerCase().includes(query) ||
+        (partner.phone ?? '').includes(query) ||
+        (partner.email ?? '').toLowerCase().includes(query),
     );
-  }, [search, traders]);
+  }, [currentPartners, search]);
 
   const handleOpenAdd = () => {
-    setEditingTrader(null);
+    setEditingPartner(null);
     setShowAddModal(true);
   };
 
-  const handleOpenEdit = (trader: ApiTrader) => {
-    setEditingTrader(trader);
+  const handleOpenEdit = (partner: PartnerRecord) => {
+    setEditingPartner(partner);
     setShowAddModal(true);
   };
 
-  const handleSaveTrader = async (data: TraderFormData) => {
+  const handleSavePartner = async (data: TraderFormData) => {
     if (!accessToken) {
       setMessage('Missing access token. Please sign in again.');
       return;
@@ -98,8 +112,26 @@ export default function PartnerManagementScreen() {
     setSaving(true);
     setMessage(null);
     try {
-      if (editingTrader) {
-        const updated = await updateTrader(accessToken, editingTrader.id, {
+      const payload = {
+        name: data.name.trim(),
+        phone: data.phone?.trim() || undefined,
+        email: data.email?.trim() || undefined,
+        address: data.address?.trim() || undefined,
+        notes: data.notes?.trim() || undefined,
+      };
+
+      if (activeTab === 'vendors') {
+        if (editingPartner) {
+          const updated = await updateVendor(accessToken, editingPartner.id, payload);
+          setVendors((current) => current.map((vendor) => (vendor.id === updated.id ? updated : vendor)));
+          showSuccessToast('Vendor updated successfully.', 'Updated');
+        } else {
+          const created = await createVendor(accessToken, payload);
+          setVendors((current) => [created, ...current]);
+          showSuccessToast('Vendor saved successfully.', 'Saved');
+        }
+      } else if (editingPartner) {
+        const updated = await updateTrader(accessToken, editingPartner.id, {
           name: data.name.trim(),
           phone: data.phone?.trim() || undefined,
           email: data.email?.trim() || undefined,
@@ -112,24 +144,18 @@ export default function PartnerManagementScreen() {
         );
         showSuccessToast('Trader updated successfully.', 'Updated');
       } else {
-        const created = await createTrader(accessToken, {
-          name: data.name.trim(),
-          phone: data.phone?.trim() || undefined,
-          email: data.email?.trim() || undefined,
-          address: data.address?.trim() || undefined,
-          notes: data.notes?.trim() || undefined,
-        });
+        const created = await createTrader(accessToken, payload);
 
         setTraders((current) => [created, ...current]);
         showSuccessToast('Trader saved successfully.', 'Saved');
       }
       setShowAddModal(false);
-      setEditingTrader(null);
+      setEditingPartner(null);
     } catch (error) {
       setMessage(
         showRequestErrorToast(error, {
-          title: 'Trader save failed',
-          fallbackMessage: 'Failed to save trader.',
+          title: `${activeTab === 'vendors' ? 'Vendor' : 'Trader'} save failed`,
+          fallbackMessage: `Failed to save ${activeTab === 'vendors' ? 'vendor' : 'trader'}.`,
         }),
       );
     } finally {
@@ -144,7 +170,7 @@ export default function PartnerManagementScreen() {
         <View style={styles.lockedState}>
           <ScreenState
             title="Permission required"
-            message="You do not have access to manage trader master data."
+            message="You do not have access to manage partner master data."
             icon="shield-outline"
             tone="error"
           />
@@ -156,8 +182,8 @@ export default function PartnerManagementScreen() {
   return (
     <View style={styles.safeArea}>
       <TopAppBar
-        title="Trader Master"
-        subtitle="Used by sale entry and settlement review"
+        title="Partner Master"
+        subtitle="Vendors for purchases, traders for sales"
         right={
           <TouchableOpacity style={styles.headerAction} onPress={handleOpenAdd}>
             <Ionicons name="add" size={24} color="#FFF" />
@@ -166,7 +192,7 @@ export default function PartnerManagementScreen() {
       />
 
       <FlatList
-        data={loading ? [] : filteredTraders}
+        data={loading ? [] : filteredPartners}
         keyExtractor={(item) => item.id}
         contentContainerStyle={styles.container}
         showsVerticalScrollIndicator={false}
@@ -177,9 +203,27 @@ export default function PartnerManagementScreen() {
             <View style={styles.summaryPanel}>
               <View>
                 <Text style={styles.kicker}>MASTER DATA</Text>
-                <Text style={styles.summaryTitle}>Traders</Text>
+                <Text style={styles.summaryTitle}>{activeTab === 'vendors' ? 'Vendors' : 'Traders'}</Text>
               </View>
-              {loading ? <ActivityIndicator color={Colors.primary} /> : <Text style={styles.summaryCount}>{traders.length}</Text>}
+              {loading ? <ActivityIndicator color={Colors.primary} /> : <Text style={styles.summaryCount}>{currentPartners.length}</Text>}
+            </View>
+
+            <View style={styles.tabRow}>
+              {(['vendors', 'traders'] as PartnerTab[]).map((tab) => (
+                <TouchableOpacity
+                  key={tab}
+                  style={[styles.tabBtn, activeTab === tab && styles.tabBtnActive]}
+                  onPress={() => {
+                    setActiveTab(tab);
+                    setSearch('');
+                    setEditingPartner(null);
+                  }}
+                >
+                  <Text style={[styles.tabBtnText, activeTab === tab && styles.tabBtnTextActive]}>
+                    {tab === 'vendors' ? 'Vendors' : 'Traders'}
+                  </Text>
+                </TouchableOpacity>
+              ))}
             </View>
 
             <View style={styles.searchBox}>
@@ -194,36 +238,46 @@ export default function PartnerManagementScreen() {
             </View>
 
             <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>Trader Directory</Text>
-              <TouchableOpacity style={styles.textAction} onPress={() => void loadTraders()}>
+              <Text style={styles.sectionTitle}>
+                {activeTab === 'vendors' ? 'Vendor Directory' : 'Trader Directory'}
+              </Text>
+              <TouchableOpacity style={styles.textAction} onPress={() => void loadPartners()}>
                 <Text style={styles.textActionLabel}>Refresh</Text>
                 <Ionicons name="refresh-outline" size={16} color={Colors.primary} />
               </TouchableOpacity>
             </View>
           </>
         }
-        renderItem={({ item: trader }) => (
+        renderItem={({ item: partner }) => (
           <View style={styles.partnerCard}>
               <View style={styles.avatarBox}>
-                <MaterialCommunityIcons name="account-cash-outline" size={24} color={Colors.primary} />
+                <MaterialCommunityIcons
+                  name={activeTab === 'vendors' ? 'truck-outline' : 'account-cash-outline'}
+                  size={24}
+                  color={Colors.primary}
+                />
               </View>
               <View style={styles.partnerMain}>
-                <Text style={styles.partnerName}>{trader.name}</Text>
+                <Text style={styles.partnerName}>{partner.name}</Text>
                 <Text style={styles.partnerMeta}>
-                  {[trader.phone, trader.email].filter(Boolean).join(' | ') || 'No contact saved'}
+                  {[partner.phone, partner.email].filter(Boolean).join(' | ') || 'No contact saved'}
                 </Text>
-                {trader.address ? <Text style={styles.partnerMeta}>{trader.address}</Text> : null}
+                {partner.address ? <Text style={styles.partnerMeta}>{partner.address}</Text> : null}
               </View>
-              <TouchableOpacity onPress={() => handleOpenEdit(trader)} style={styles.editBtn}>
+              <TouchableOpacity onPress={() => handleOpenEdit(partner)} style={styles.editBtn}>
                 <Ionicons name="pencil" size={20} color={Colors.textSecondary} />
               </TouchableOpacity>
             </View>
         )}
         ListEmptyComponent={
           loading ? (
-            <ScreenState title="Loading traders" message="Fetching trader master data." loading />
+            <ScreenState title="Loading partners" message="Fetching vendor and trader master data." loading />
           ) : (
-            <ScreenState title="No traders found" message="Create a trader to use in sales and settlements." icon="people-outline" />
+            <ScreenState
+              title={`No ${activeTab === 'vendors' ? 'vendors' : 'traders'} found`}
+              message={`Create a ${activeTab === 'vendors' ? 'vendor' : 'trader'} to use in ${activeTab === 'vendors' ? 'purchases and payments' : 'sales and receipts'}.`}
+              icon="people-outline"
+            />
           )
         }
       />
@@ -231,9 +285,10 @@ export default function PartnerManagementScreen() {
       <TraderModal
         visible={showAddModal}
         onClose={() => setShowAddModal(false)}
-        editingTrader={editingTrader}
-        onSave={handleSaveTrader}
+        editingTrader={editingPartner}
+        onSave={handleSavePartner}
         saving={saving}
+        partnerKind={activeTab === 'vendors' ? 'vendor' : 'trader'}
       />
     </View>
   );
@@ -297,6 +352,33 @@ const styles = StyleSheet.create({
     fontSize: 24,
     fontWeight: '900',
     color: Colors.text,
+  },
+  tabRow: {
+    flexDirection: 'row',
+    gap: 8,
+    marginBottom: 12,
+  },
+  tabBtn: {
+    flex: 1,
+    minHeight: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    backgroundColor: Colors.surface,
+  },
+  tabBtnActive: {
+    borderColor: Colors.primary,
+    backgroundColor: Colors.primary,
+  },
+  tabBtnText: {
+    fontSize: 13,
+    fontWeight: '800',
+    color: Colors.textSecondary,
+  },
+  tabBtnTextActive: {
+    color: '#FFF',
   },
   searchBox: {
     minHeight: 46,

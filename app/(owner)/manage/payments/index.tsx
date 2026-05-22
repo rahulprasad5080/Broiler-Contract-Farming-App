@@ -5,15 +5,22 @@ import {
   API_PAYMENT_ENTRY_TYPE_VALUES,
   createFinancePayment,
   listAllBatches,
+  listAllTraders,
+  listAllVendors,
   listFinancePayments,
   type ApiBatch,
   type ApiFinancePayment,
   type ApiPaymentDirection,
   type ApiPaymentEntryType,
+  type ApiTrader,
+  type ApiVendor,
 } from '@/services/managementApi';
 import { showRequestErrorToast, showSuccessToast } from '@/services/apiFeedback';
 import { getLocalDateValue } from '@/services/dateUtils';
-import { Ionicons } from '@expo/vector-icons';
+import {
+  getDirectionForPaymentType,
+  getPaymentPartnerKind,
+} from '@/services/paymentPartnerRules';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useFocusEffect } from '@react-navigation/native';
 import React, { useCallback, useMemo, useState } from 'react';
@@ -48,21 +55,35 @@ const DIRECTIONS = [
   API_PAYMENT_DIRECTION_VALUES[0],
 ] as const satisfies readonly ApiPaymentDirection[];
 const METHODS = ['Cash', 'UPI', 'Bank Transfer', 'Cheque'];
-const PARTY_OPTIONS = ['Agro Feed Suppliers', 'Zenith Pharma', 'City Bank', 'General Expenses'];
 const ACCOUNT_OPTIONS = ['HDFC Bank - 1234', 'ICICI Bank - 5678', 'Cash in Hand'];
 
-const paymentSchema = z.object({
-  direction: z.enum(DIRECTIONS),
-  paymentType: z.enum(PAYMENT_TYPES),
-  batchId: z.string().optional(),
-  partyName: z.string().trim().min(1, 'Paid To / Received From is required'),
-  amount: z.string().trim().min(1, 'Amount is required').refine((value) => !Number.isNaN(Number(value.replace(/,/g, ''))), 'Amount must be a number'),
-  paymentDate: z.string().trim().min(1, 'Payment date is required'),
-  referenceId: z.string().optional(),
-  notes: z.string().optional(),
-  paymentMethod: z.string().min(1, 'Payment method is required'),
-  fromAccount: z.string().optional(),
-});
+const paymentSchema = z
+  .object({
+    direction: z.enum(DIRECTIONS),
+    paymentType: z.enum(PAYMENT_TYPES),
+    batchId: z.string().optional(),
+    vendorId: z.string().optional(),
+    traderId: z.string().optional(),
+    partyName: z.string().optional(),
+    amount: z.string().trim().min(1, 'Amount is required').refine((value) => !Number.isNaN(Number(value.replace(/,/g, ''))), 'Amount must be a number'),
+    paymentDate: z.string().trim().min(1, 'Payment date is required'),
+    referenceId: z.string().optional(),
+    notes: z.string().optional(),
+    paymentMethod: z.string().min(1, 'Payment method is required'),
+    fromAccount: z.string().optional(),
+  })
+  .superRefine((value, ctx) => {
+    const partnerKind = getPaymentPartnerKind(value.paymentType);
+    if (partnerKind === 'vendor' && !value.vendorId?.trim()) {
+      ctx.addIssue({ code: 'custom', path: ['vendorId'], message: 'Please select a vendor' });
+    }
+    if (partnerKind === 'trader' && !value.traderId?.trim()) {
+      ctx.addIssue({ code: 'custom', path: ['traderId'], message: 'Please select a trader' });
+    }
+    if (partnerKind === 'freeText' && !value.partyName?.trim()) {
+      ctx.addIssue({ code: 'custom', path: ['partyName'], message: 'Paid To / Received From is required' });
+    }
+  });
 
 type PaymentFormData = z.infer<typeof paymentSchema>;
 
@@ -70,6 +91,8 @@ const DEFAULTS: PaymentFormData = {
   direction: 'OUTBOUND',
   paymentType: 'EXPENSE',
   batchId: '',
+  vendorId: '',
+  traderId: '',
   partyName: '',
   amount: '',
   paymentDate: getLocalDateValue(),
@@ -82,6 +105,8 @@ const DEFAULTS: PaymentFormData = {
 export default function PaymentEntryScreen() {
   const { accessToken } = useAuth();
   const [batches, setBatches] = useState<ApiBatch[]>([]);
+  const [vendors, setVendors] = useState<ApiVendor[]>([]);
+  const [traders, setTraders] = useState<ApiTrader[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [savedMessage, setSavedMessage] = useState<string | null>(null);
@@ -102,10 +127,26 @@ export default function PaymentEntryScreen() {
   const paymentType = watch('paymentType');
   const paymentMethod = watch('paymentMethod');
   const fromAccount = watch('fromAccount');
-  const partyName = watch('partyName');
-  const partyOptions = useMemo(
-    () => PARTY_OPTIONS.map((party) => ({ label: party, value: party })),
-    [],
+  const vendorId = watch('vendorId');
+  const traderId = watch('traderId');
+  const partnerKind = getPaymentPartnerKind(paymentType);
+  const vendorOptions = useMemo(
+    () => vendors.map((vendor) => ({
+      label: vendor.name,
+      value: vendor.id,
+      description: vendor.phone ?? undefined,
+      keywords: [vendor.phone, vendor.email, vendor.address].filter(Boolean).join(' '),
+    })),
+    [vendors],
+  );
+  const traderOptions = useMemo(
+    () => traders.map((trader) => ({
+      label: trader.name,
+      value: trader.id,
+      description: trader.phone ?? undefined,
+      keywords: [trader.phone, trader.email, trader.address].filter(Boolean).join(' '),
+    })),
+    [traders],
   );
   const paymentTypeOptions = useMemo(
     () =>
@@ -125,7 +166,13 @@ export default function PaymentEntryScreen() {
     setLoading(true);
     try {
       const batchRes = await listAllBatches(accessToken);
+      const [vendorRes, traderRes] = await Promise.all([
+        listAllVendors(accessToken),
+        listAllTraders(accessToken),
+      ]);
       setBatches(batchRes.data);
+      setVendors(vendorRes.data);
+      setTraders(traderRes.data);
     } catch (err) {
       showRequestErrorToast(err, { title: 'Unable to load data' });
     } finally {
@@ -139,21 +186,46 @@ export default function PaymentEntryScreen() {
     }, [loadData]),
   );
 
+  React.useEffect(() => {
+    const nextDirection = getDirectionForPaymentType(paymentType, direction);
+    if (nextDirection !== direction) {
+      setValue('direction', nextDirection, { shouldDirty: true, shouldValidate: true });
+    }
+    if (partnerKind === 'vendor') {
+      setValue('traderId', '');
+      setValue('partyName', '');
+    } else if (partnerKind === 'trader') {
+      setValue('vendorId', '');
+      setValue('partyName', '');
+    } else {
+      setValue('vendorId', '');
+      setValue('traderId', '');
+    }
+  }, [direction, partnerKind, paymentType, setValue]);
+
   const onSubmit = async (data: PaymentFormData) => {
     if (!accessToken || saving) return;
     setSavedMessage(null);
     setSaving(true);
     try {
+      const selectedVendor = vendors.find((vendor) => vendor.id === data.vendorId);
+      const selectedTrader = traders.find((trader) => trader.id === data.traderId);
+      const resolvedPartyName =
+        selectedVendor?.name || selectedTrader?.name || data.partyName?.trim() || undefined;
       await createFinancePayment(accessToken, {
         direction: data.direction,
         paymentType: data.paymentType,
         batchId: data.batchId || undefined,
-        partyName: data.partyName,
+        vendorId: data.vendorId || undefined,
+        traderId: data.traderId || undefined,
+        partyName: resolvedPartyName,
         amount: Number(data.amount.replace(/,/g, '')),
         paymentDate: data.paymentDate,
-        referenceType: data.paymentMethod,
+        referenceType: data.referenceId?.trim() ? data.paymentType : undefined,
         referenceId: data.referenceId?.trim() || undefined,
-        notes: data.notes?.trim() || undefined,
+        notes: [data.notes?.trim(), data.paymentMethod ? `Method: ${data.paymentMethod}` : ""]
+          .filter(Boolean)
+          .join(" | ") || undefined,
       });
       showSuccessToast('Payment saved successfully.');
       setSavedMessage('Payment saved successfully.');
@@ -224,18 +296,6 @@ export default function PaymentEntryScreen() {
             )}
           />
 
-          {/* Paid To / Received From */}
-          <SearchableSelectField
-            label={direction === 'OUTBOUND' ? 'Paid To' : 'Received From'}
-            value={partyName}
-            options={partyOptions}
-            onSelect={(value) => setValue('partyName', value, { shouldDirty: true, shouldValidate: true })}
-            placeholder={direction === 'OUTBOUND' ? 'Select Party' : 'Select Sender'}
-            searchPlaceholder="Search party"
-            emptyMessage="No parties found"
-            error={errors.partyName?.message}
-          />
-
           {/* Against */}
           <SearchableSelectField
             label="Against"
@@ -247,6 +307,50 @@ export default function PaymentEntryScreen() {
             emptyMessage="No references found"
             error={errors.paymentType?.message}
           />
+
+          {partnerKind === 'vendor' ? (
+            <SearchableSelectField
+              label="Vendor"
+              value={vendorId}
+              options={vendorOptions}
+              onSelect={(value) => setValue('vendorId', value, { shouldDirty: true, shouldValidate: true })}
+              placeholder="Select Vendor"
+              searchPlaceholder="Search vendor"
+              emptyMessage="No vendors found"
+              error={errors.vendorId?.message}
+              required
+            />
+          ) : partnerKind === 'trader' ? (
+            <SearchableSelectField
+              label="Trader"
+              value={traderId}
+              options={traderOptions}
+              onSelect={(value) => setValue('traderId', value, { shouldDirty: true, shouldValidate: true })}
+              placeholder="Select Trader"
+              searchPlaceholder="Search trader"
+              emptyMessage="No traders found"
+              error={errors.traderId?.message}
+              required
+            />
+          ) : (
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>{direction === 'OUTBOUND' ? 'Paid To' : 'Received From'}</Text>
+              <Controller
+                control={control}
+                name="partyName"
+                render={({ field: { value, onChange } }) => (
+                  <TextInput
+                    style={styles.input}
+                    value={value}
+                    onChangeText={onChange}
+                    placeholder={direction === 'OUTBOUND' ? 'Enter payee' : 'Enter sender'}
+                    placeholderTextColor="#9CA3AF"
+                  />
+                )}
+              />
+              {errors.partyName ? <Text style={styles.errorText}>{errors.partyName.message}</Text> : null}
+            </View>
+          )}
 
           {/* Amount */}
           <View style={styles.inputGroup}>
@@ -331,22 +435,6 @@ export default function PaymentEntryScreen() {
                 />
               )}
             />
-          </View>
-
-          {/* Attachment */}
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Attachment (Optional)</Text>
-            <View style={styles.attachmentBox}>
-              <View style={styles.attachmentInfo}>
-                <View style={styles.attachmentIcon}>
-                   <Ionicons name="image-outline" size={18} color="#059669" />
-                </View>
-                <Text style={styles.attachmentName} numberOfLines={1}>payment_proof.jpg</Text>
-              </View>
-              <TouchableOpacity>
-                <Ionicons name="trash-outline" size={18} color="#EF4444" />
-              </TouchableOpacity>
-            </View>
           </View>
 
           <TouchableOpacity 

@@ -3,8 +3,9 @@ import { View, Text, TextInput, TouchableOpacity, ScrollView, ActivityIndicator 
 import { Controller, Control, FieldErrors, UseFormHandleSubmit } from 'react-hook-form';
 import { Colors } from '@/constants/Colors';
 import { DatePickerField } from '@/components/ui/DatePickerField';
+import { SearchableSelectField, type SearchableSelectOption } from '@/components/ui/SearchableSelectField';
 import { styles } from './inventoryStyles';
-import { ExpenseFormData, LEDGERS, EXPENSE_CATEGORIES } from './inventoryTypes';
+import { ExpenseFormData, LEDGERS } from './inventoryTypes';
 import { ApiCatalogItem, ApiBatchExpense } from '@/services/managementApi';
 
 interface ExpensesTabProps {
@@ -25,6 +26,10 @@ interface ExpensesTabProps {
   catalogTypeToExpenseCategory: (type: any) => any;
   canSeeCost: boolean;
   loadedExpenseTotal: number;
+  expenseCategoryOptions: SearchableSelectOption[];
+  loadingExpenseCategories: boolean;
+  expenseCategoryError?: string | null;
+  vendorOptions: SearchableSelectOption[];
 }
 
 export const ExpensesTab: React.FC<ExpensesTabProps> = ({
@@ -45,6 +50,10 @@ export const ExpensesTab: React.FC<ExpensesTabProps> = ({
   catalogTypeToExpenseCategory,
   canSeeCost,
   loadedExpenseTotal,
+  expenseCategoryOptions,
+  loadingExpenseCategories,
+  expenseCategoryError,
+  vendorOptions,
 }) => {
   return (
     <>
@@ -103,22 +112,18 @@ export const ExpensesTab: React.FC<ExpensesTabProps> = ({
           control={expenseControl}
           name="category"
           render={({ field: { onChange, value } }) => (
-            <>
-              <Text style={styles.fieldLabel}>Category</Text>
-              <View style={styles.chipRow}>
-                {EXPENSE_CATEGORIES.map((category) => (
-                  <TouchableOpacity
-                    key={category}
-                    style={[styles.chip, value === category && styles.chipActive]}
-                    onPress={() => onChange(category)}
-                  >
-                    <Text style={[styles.chipText, value === category && styles.chipTextActive]}>
-                      {labelize(category)}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-            </>
+            <SearchableSelectField
+              label="Category"
+              value={value}
+              options={expenseCategoryOptions}
+              onSelect={onChange}
+              placeholder={loadingExpenseCategories ? "Loading categories..." : "Select category"}
+              searchPlaceholder="Search category"
+              emptyMessage="No categories found"
+              error={expenseErrors.category?.message || expenseCategoryError || undefined}
+              disabled={loadingExpenseCategories}
+              required
+            />
           )}
         />
 
@@ -293,20 +298,21 @@ export const ExpensesTab: React.FC<ExpensesTabProps> = ({
           <View style={styles.flexHalf}>
             <Controller
               control={expenseControl}
-              name="vendorName"
+              name="vendorId"
               render={({ field: { onChange, value } }) => (
-                <>
-                  <Text style={styles.fieldLabel}>Vendor</Text>
-                  <View style={styles.inputBox}>
-                    <TextInput
-                      style={styles.input}
-                      value={value}
-                      onChangeText={onChange}
-                      placeholder="Optional"
-                      placeholderTextColor={Colors.textSecondary}
-                    />
-                  </View>
-                </>
+                <SearchableSelectField
+                  label="Vendor"
+                  value={value}
+                  options={[{ label: "No vendor", value: "" }, ...vendorOptions]}
+                  onSelect={(nextValue) => {
+                    onChange(nextValue);
+                    const selected = vendorOptions.find((option) => option.value === nextValue);
+                    setExpenseValue("vendorName", selected?.label ?? "");
+                  }}
+                  placeholder="Optional"
+                  searchPlaceholder="Search vendor"
+                  emptyMessage="No vendors found"
+                />
               )}
             />
           </View>

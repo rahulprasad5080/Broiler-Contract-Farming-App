@@ -21,30 +21,29 @@ import { SearchableSelectField } from "@/components/ui/SearchableSelectField";
 import { TopAppBar } from "@/components/ui/TopAppBar";
 import { useAuth } from "@/context/AuthContext";
 import { useFormPersistence } from "@/hooks/useFormPersistence";
+import { useMasterDataTypeOptions } from "@/hooks/useMasterDataTypeOptions";
 import {
   showRequestErrorToast,
   showSuccessToast,
 } from "@/services/apiFeedback";
 import { getLocalDateValue } from "@/services/dateUtils";
 import {
-  API_COMPANY_EXPENSE_CATEGORY_CODE_VALUES,
   API_EXPENSE_LEDGER_VALUES,
-  API_FARMER_EXPENSE_CATEGORY_CODE_VALUES,
   createBatchExpense,
   listAllBatches,
+  listAllVendors,
   type ApiBatch,
   type ApiExpenseCategoryCode,
+  type ApiVendor,
 } from "@/services/managementApi";
 import { enqueueOfflineSubmission, isNetworkConnected } from "@/services/offlineSyncQueue";
-
-const COMPANY_CATEGORIES = API_COMPANY_EXPENSE_CATEGORY_CODE_VALUES;
-const FARMER_CATEGORIES = API_FARMER_EXPENSE_CATEGORY_CODE_VALUES;
 
 const PAYMENT_TYPES = ["Cash", "UPI", "Bank", "Credit"];
 const EXPENSE_DEFAULTS: ExpenseFormData = {
   batchId: "",
   ledger: "COMPANY",
-  category: "CHICKS",
+  category: "",
+  vendorId: "",
   totalAmount: "",
   expenseDate: getLocalDateValue(),
   notes: "",
@@ -55,6 +54,7 @@ const expenseSchema = z.object({
   batchId: z.string().min(1, "Please select a batch"),
   ledger: z.enum(API_EXPENSE_LEDGER_VALUES),
   category: z.string().min(1, "Select category"),
+  vendorId: z.string().optional(),
   totalAmount: z.string().min(1, "Amount is required"),
   expenseDate: z.string().min(1, "Date is required"),
   notes: z.string().optional(),
@@ -71,6 +71,7 @@ type ExpenseEntryScreenProps = {
 export function ExpenseEntryScreen({ title = "Expense Entry", subtitle }: ExpenseEntryScreenProps) {
   const { accessToken, hasPermission } = useAuth();
   const [batches, setBatches] = useState<ApiBatch[]>([]);
+  const [vendors, setVendors] = useState<ApiVendor[]>([]);
   const [submitting, setSubmitting] = useState(false);
   const [savedMessage, setSavedMessage] = useState<string | null>(null);
   const canCreateCompanyExpense = hasPermission("create:company-expense");
@@ -95,9 +96,25 @@ export function ExpenseEntryScreen({ title = "Expense Entry", subtitle }: Expens
 
   const selectedLedger = watch("ledger");
   const selectedBatchId = watch("batchId");
+  const selectedVendorId = watch("vendorId");
+  const selectedCategory = watch("category");
   const selectedBatch = batches.find((b) => b.id === selectedBatchId) ?? null;
   const effectiveLedger = canCreateCompanyExpense ? selectedLedger : "FARMER";
-  const categories = effectiveLedger === "COMPANY" ? COMPANY_CATEGORIES : FARMER_CATEGORIES;
+  const {
+    selectOptions: categoryOptions,
+    loading: loadingCategories,
+    errorMessage: categoryError,
+  } = useMasterDataTypeOptions("EXPENSE_CATEGORY");
+  const vendorOptions = useMemo(
+    () =>
+      vendors.map((vendor) => ({
+        label: vendor.name,
+        value: vendor.id,
+        description: vendor.phone ?? undefined,
+        keywords: [vendor.phone, vendor.email, vendor.address].filter(Boolean).join(" "),
+      })),
+    [vendors],
+  );
   const selectedFarmId = selectedBatch?.farmId ?? "";
   const farmOptions = useMemo(() => {
     const farmsById = new Map<string, { label: string; value: string }>();
@@ -121,35 +138,35 @@ export function ExpenseEntryScreen({ title = "Expense Entry", subtitle }: Expens
         })),
     [batches, selectedFarmId],
   );
-  const categoryOptions = useMemo(
-    () =>
-      categories.map((category) => ({
-        label: category.replace(/_/g, " "),
-        value: category,
-      })),
-    [categories],
-  );
-
   React.useEffect(() => {
     if (!canCreateCompanyExpense && selectedLedger === "COMPANY") {
       setValue("ledger", "FARMER", { shouldDirty: true, shouldValidate: true });
-      setValue("category", FARMER_CATEGORIES[0], { shouldDirty: true, shouldValidate: true });
     }
   }, [canCreateCompanyExpense, selectedLedger, setValue]);
 
-  const loadBatches = useCallback(async () => {
+  React.useEffect(() => {
+    if (!selectedCategory && categoryOptions[0]) {
+      setValue("category", categoryOptions[0].value, { shouldDirty: false, shouldValidate: true });
+    }
+  }, [categoryOptions, selectedCategory, setValue]);
+
+  const loadData = useCallback(async () => {
     if (!accessToken) return;
     try {
-      const response = await listAllBatches(accessToken);
+      const [response, vendorsRes] = await Promise.all([
+        listAllBatches(accessToken),
+        listAllVendors(accessToken),
+      ]);
       setBatches(response.data);
+      setVendors(vendorsRes.data);
       const firstActive = response.data.find(b => b.status === "ACTIVE")?.id;
       if (firstActive && !selectedBatchId) setValue("batchId", firstActive);
     } catch (error) {
-      showRequestErrorToast(error, { title: "Unable to load batches" });
+      showRequestErrorToast(error, { title: "Unable to load expense data" });
     }
   }, [accessToken, selectedBatchId, setValue]);
 
-  useFocusEffect(useCallback(() => { void loadBatches(); }, [loadBatches]));
+  useFocusEffect(useCallback(() => { void loadData(); }, [loadData]));
 
   const onSubmit = async (data: ExpenseFormData) => {
     if (!accessToken || submitting) return;
@@ -157,14 +174,11 @@ export function ExpenseEntryScreen({ title = "Expense Entry", subtitle }: Expens
     setSubmitting(true);
     try {
       const payloadLedger = canCreateCompanyExpense ? data.ledger : "FARMER";
-      const payloadCategory =
-        payloadLedger === "COMPANY" ||
-        FARMER_CATEGORIES.includes(data.category as (typeof FARMER_CATEGORIES)[number])
-          ? data.category
-          : FARMER_CATEGORIES[0];
+      const payloadCategory = data.category;
       const payload = {
         ledger: payloadLedger,
         category: payloadCategory as ApiExpenseCategoryCode,
+        vendorId: data.vendorId?.trim() || undefined,
         expenseDate: data.expenseDate,
         description: data.notes || payloadCategory,
         totalAmount: Number(data.totalAmount),
@@ -231,7 +245,6 @@ export function ExpenseEntryScreen({ title = "Expense Entry", subtitle }: Expens
                     style={[styles.ledgerTab, selectedLedger === "COMPANY" && styles.ledgerTabActive]}
                     onPress={() => {
                       setValue("ledger", "COMPANY");
-                      setValue("category", COMPANY_CATEGORIES[0]);
                     }}
                   >
                     <Text style={[styles.ledgerTabText, selectedLedger === "COMPANY" && styles.ledgerTabTextActive]}>Company Expense</Text>
@@ -240,7 +253,7 @@ export function ExpenseEntryScreen({ title = "Expense Entry", subtitle }: Expens
                     style={[styles.ledgerTab, selectedLedger === "FARMER" && styles.ledgerTabActive]}
                     onPress={() => {
                       setValue("ledger", "FARMER");
-                      setValue("category", FARMER_CATEGORIES[0]);
+                      setValue("vendorId", "");
                     }}
                   >
                     <Text style={[styles.ledgerTabText, selectedLedger === "FARMER" && styles.ledgerTabTextActive]}>Farmer Expense</Text>
@@ -295,14 +308,29 @@ export function ExpenseEntryScreen({ title = "Expense Entry", subtitle }: Expens
             {/* Expense Category Select */}
             <SearchableSelectField
               label="Expense Category"
-              value={watch("category")}
+              value={selectedCategory}
               options={categoryOptions}
               onSelect={(value) => setValue("category", value, { shouldDirty: true, shouldValidate: true })}
-              placeholder="Select Category"
+              placeholder={loadingCategories ? "Loading categories..." : "Select Category"}
               searchPlaceholder="Search category"
               emptyMessage="No categories found"
-              error={errors.category?.message}
+              error={errors.category?.message || categoryError || undefined}
+              disabled={loadingCategories}
+              required
             />
+
+            {effectiveLedger === "COMPANY" ? (
+              <SearchableSelectField
+                label="Vendor"
+                value={selectedVendorId}
+                options={[{ label: "No vendor", value: "" }, ...vendorOptions]}
+                onSelect={(value) => setValue("vendorId", value, { shouldDirty: true, shouldValidate: true })}
+                placeholder="Optional vendor"
+                searchPlaceholder="Search vendor"
+                emptyMessage="No vendors found"
+                error={errors.vendorId?.message}
+              />
+            ) : null}
 
             {/* Amount Input */}
             <View style={styles.inputGroup}>

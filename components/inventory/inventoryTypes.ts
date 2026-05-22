@@ -20,7 +20,7 @@ export const LEDGERS = [
 
 export const catalogSchema = z.object({
   name: z.string().trim().min(1, "Name is required"),
-  type: z.enum(CATALOG_TYPES),
+    type: z.string().trim().min(1, "Type is required"),
   sku: z.string().optional(),
   unit: z.string().trim().min(1, "Unit is required"),
   defaultRate: z.string().optional().refine((value) => !value || !Number.isNaN(Number(value)), {
@@ -39,7 +39,7 @@ export const expenseSchema = z
   .object({
     batchId: z.string().trim().min(1, "Batch ID is required"),
     ledger: z.enum(LEDGERS),
-    category: z.enum(EXPENSE_CATEGORIES),
+    category: z.string().trim().min(1, "Category is required"),
     catalogItemId: z.string().optional(),
     expenseDate: z.string().trim().min(1, "Expense date is required"),
     description: z.string().optional(),
@@ -53,6 +53,7 @@ export const expenseSchema = z
     totalAmount: z.string().optional().refine((value) => !value || !Number.isNaN(Number(value)), {
       message: "Must be a number",
     }),
+    vendorId: z.string().optional(),
     vendorName: z.string().optional(),
     invoiceNumber: z.string().optional(),
     billPhotoUrl: z.string().optional(),
@@ -97,6 +98,7 @@ export const EXPENSE_DEFAULTS = {
   rate: "",
   totalAmount: "",
   vendorName: "",
+  vendorId: "",
   invoiceNumber: "",
   billPhotoUrl: "",
   notes: "",

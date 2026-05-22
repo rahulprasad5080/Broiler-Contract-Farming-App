@@ -3,6 +3,7 @@ import type {
   ApiFinanceEntry,
   ApiFinancePayment,
   ApiFinancePurchase,
+  ApiPaymentEntryType,
   CreateFinanceEntryRequest,
   CreateFinancePaymentRequest,
   CreateFinancePurchaseRequest,
@@ -13,7 +14,7 @@ import type {
 
 export async function listFinancePurchases(
   token: string,
-  params: ListParams = {},
+  params: ListParams & { vendorId?: string } = {},
 ) {
   return apiRequest<ListResponse<ApiFinancePurchase>>("/finance/purchases", {
     method: "GET",
@@ -69,7 +70,11 @@ export async function createFinanceEntry(
 
 export async function listFinancePayments(
   token: string,
-  params: ListParams = {},
+  params: ListParams & {
+    vendorId?: string;
+    traderId?: string;
+    referenceType?: ApiPaymentEntryType | string;
+  } = {},
 ) {
   return apiRequest<ListResponse<ApiFinancePayment>>("/finance/payments", {
     method: "GET",

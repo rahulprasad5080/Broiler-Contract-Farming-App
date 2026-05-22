@@ -1,12 +1,11 @@
 import { useAuth } from "@/context/AuthContext";
 import {
   ApiCatalogItem,
-  ApiTrader,
+  ApiVendor,
   createFinancePurchase,
-  listAllTraders,
+  listAllVendors,
   listCatalogItems,
 } from "@/services/managementApi";
-import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect } from "@react-navigation/native";
 import React, {
   useCallback,
@@ -29,11 +28,13 @@ import { DatePickerField } from "@/components/ui/DatePickerField";
 import { ScreenState } from "@/components/ui/ScreenState";
 import { SearchableSelectField } from "@/components/ui/SearchableSelectField";
 import { TopAppBar } from "@/components/ui/TopAppBar";
+import { useMasterDataTypeOptions } from "@/hooks/useMasterDataTypeOptions";
 import {
   showRequestErrorToast,
   showSuccessToast,
 } from "@/services/apiFeedback";
 import { getLocalDateValue } from "@/services/dateUtils";
+import { buildFinancePurchasePayload } from "@/services/entryPayloads";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Controller, useForm } from "react-hook-form";
 import { z } from "zod";
@@ -49,13 +50,14 @@ const numericField = (label: string) =>
 
 const purchaseEntrySchema = z.object({
   purchaseDate: z.string().min(1, "Date is required"),
-  purchaseType: z.enum(["INVENTORY", "OTHER"]),
-  traderId: z.string().min(1, "Please select a supplier"),
+  purchaseType: z.string().min(1, "Please select purchase type"),
+  vendorId: z.string().min(1, "Please select a vendor"),
   catalogItemId: z.string().min(1, "Please select an item"),
   quantity: numericField("Quantity"),
   ratePerUnit: numericField("Rate"),
   store: z.string().min(1, "Please select a store"),
   paymentType: z.enum(["CASH", "UPI", "BANK", "CREDIT"]),
+  invoiceNumber: z.string().optional(),
   remarks: z.string().optional(),
   attachmentUrl: z.string().optional(),
 });
@@ -64,13 +66,14 @@ type PurchaseEntryFormData = z.infer<typeof purchaseEntrySchema>;
 
 const PURCHASE_ENTRY_DEFAULTS: PurchaseEntryFormData = {
   purchaseDate: todayValue(),
-  purchaseType: "INVENTORY",
-  traderId: "",
+  purchaseType: "",
+  vendorId: "",
   catalogItemId: "",
   quantity: "",
   ratePerUnit: "",
   store: "Main Store",
   paymentType: "CASH",
+  invoiceNumber: "",
   remarks: "",
   attachmentUrl: "",
 };
@@ -79,7 +82,7 @@ const STORE_OPTIONS = ["Main Store", "Warehouse A", "Secondary Godown"];
 
 export function PurchaseEntryScreen() {
   const { accessToken } = useAuth();
-  const [traders, setTraders] = useState<ApiTrader[]>([]);
+  const [vendors, setVendors] = useState<ApiVendor[]>([]);
   const [catalogItems, setCatalogItems] = useState<ApiCatalogItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
@@ -98,24 +101,28 @@ export function PurchaseEntryScreen() {
   });
 
   const purchaseType = watch("purchaseType");
-  const selectedTraderId = watch("traderId");
+  const selectedVendorId = watch("vendorId");
   const selectedCatalogItemId = watch("catalogItemId");
   const quantity = watch("quantity");
   const ratePerUnit = watch("ratePerUnit");
   const paymentType = watch("paymentType");
   const store = watch("store");
-  const attachmentUrl = watch("attachmentUrl");
+  const {
+    selectOptions: purchaseTypeOptions,
+    loading: loadingPurchaseTypes,
+    errorMessage: purchaseTypeError,
+  } = useMasterDataTypeOptions("PURCHASE_TYPE");
 
   const selectedCatalogItem = catalogItems.find((c) => c.id === selectedCatalogItemId) ?? null;
-  const traderOptions = useMemo(
+  const vendorOptions = useMemo(
     () =>
-      traders.map((trader) => ({
-        label: trader.name,
-        value: trader.id,
-        description: trader.phone ?? undefined,
-        keywords: trader.phone ?? "",
+      vendors.map((vendor) => ({
+        label: vendor.name,
+        value: vendor.id,
+        description: vendor.phone ?? undefined,
+        keywords: [vendor.phone, vendor.email, vendor.address].filter(Boolean).join(" "),
       })),
-    [traders],
+    [vendors],
   );
   const catalogOptions = useMemo(
     () =>
@@ -142,11 +149,11 @@ export function PurchaseEntryScreen() {
     if (!accessToken) return;
     setLoading(true);
     try {
-      const [tradersRes, catalogRes] = await Promise.all([
-        listAllTraders(accessToken),
+      const [vendorsRes, catalogRes] = await Promise.all([
+        listAllVendors(accessToken),
         listCatalogItems(accessToken, { limit: 100 }),
       ]);
-      setTraders(tradersRes.data);
+      setVendors(vendorsRes.data);
       setCatalogItems(catalogRes.data);
     } catch (error) {
       showRequestErrorToast(error, { title: "Unable to load data" });
@@ -161,6 +168,15 @@ export function PurchaseEntryScreen() {
     }, [loadData])
   );
 
+  React.useEffect(() => {
+    if (!purchaseType && purchaseTypeOptions[0]) {
+      setValue("purchaseType", purchaseTypeOptions[0].value, {
+        shouldDirty: false,
+        shouldValidate: true,
+      });
+    }
+  }, [purchaseType, purchaseTypeOptions, setValue]);
+
   const onSubmit = async (data: PurchaseEntryFormData) => {
     if (!accessToken || submitting) return;
     setSavedMessage(null);
@@ -168,21 +184,30 @@ export function PurchaseEntryScreen() {
     try {
       const qty = Number(data.quantity.replace(/,/g, ''));
       const rate = Number(data.ratePerUnit.replace(/,/g, ''));
+      const vendor = vendors.find((item) => item.id === data.vendorId);
+      const catalogItem = catalogItems.find((item) => item.id === data.catalogItemId) ?? null;
 
-      await createFinancePurchase(accessToken, {
+      if (!vendor) {
+        throw new Error("Please select a valid vendor.");
+      }
+
+      await createFinancePurchase(accessToken, buildFinancePurchasePayload({
         purchaseDate: data.purchaseDate,
-        purchaseType: "FEED", // Mocked as FEED for now or map accordingly
-        vendorName: traders.find(t => t.id === data.traderId)?.name || "Unknown",
+        purchaseType: data.purchaseType,
+        vendor,
+        catalogItem,
         catalogItemId: data.catalogItemId,
-        itemName: catalogItems.find(c => c.id === data.catalogItemId)?.name || "Unknown",
-        quantity: qty,
-        unitCost: rate,
-        totalAmount: qty * rate,
+        quantity: String(qty),
+        ratePerUnit: String(rate),
+        unit: catalogItem?.unit,
+        invoiceNumber: data.invoiceNumber,
         paymentStatus: data.paymentType === "CREDIT" ? "PENDING" : "PAID",
-        remarks: data.remarks?.trim() || undefined,
-        attachmentUrl: data.attachmentUrl?.trim() || undefined,
+        remarks: [data.remarks?.trim(), data.store ? `Store: ${data.store}` : ""]
+          .filter(Boolean)
+          .join(" | "),
+        attachmentUrl: data.attachmentUrl,
         clientReferenceId: `purchase-${Date.now()}`,
-      });
+      }));
       showSuccessToast("Purchase entry saved successfully.");
       setSavedMessage("Purchase entry saved successfully.");
       reset(PURCHASE_ENTRY_DEFAULTS);
@@ -233,35 +258,39 @@ export function PurchaseEntryScreen() {
               )}
             />
 
-            {/* Purchase Type */}
-            <View style={styles.inputGroup}>
-              <Text style={styles.label}>Purchase Type</Text>
-              <View style={styles.toggleContainer}>
-                <TouchableOpacity
-                  style={[styles.toggleBtn, purchaseType === 'INVENTORY' && styles.toggleBtnActive]}
-                  onPress={() => setValue("purchaseType", "INVENTORY")}
-                >
-                  <Text style={[styles.toggleBtnText, purchaseType === 'INVENTORY' && styles.toggleBtnTextActive]}>Inventory Purchase</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={[styles.toggleBtn, purchaseType === 'OTHER' && styles.toggleBtnActive]}
-                  onPress={() => setValue("purchaseType", "OTHER")}
-                >
-                  <Text style={[styles.toggleBtnText, purchaseType === 'OTHER' && styles.toggleBtnTextActive]}>Other Purchase</Text>
-                </TouchableOpacity>
-              </View>
-            </View>
+            {purchaseTypeError ? (
+              <ScreenState
+                title="Using fallback purchase types"
+                message={purchaseTypeError}
+                compact
+                style={styles.stateSpacing}
+              />
+            ) : null}
 
-            {/* Supplier */}
             <SearchableSelectField
-              label="Supplier"
-              value={selectedTraderId}
-              options={traderOptions}
-              onSelect={(value) => setValue("traderId", value, { shouldDirty: true, shouldValidate: true })}
-              placeholder="Select Supplier"
-              searchPlaceholder="Search supplier"
-              emptyMessage="No suppliers found"
-              error={errors.traderId?.message}
+              label="Purchase Type"
+              value={purchaseType}
+              options={purchaseTypeOptions}
+              onSelect={(value) => setValue("purchaseType", value, { shouldDirty: true, shouldValidate: true })}
+              placeholder={loadingPurchaseTypes ? "Loading purchase types..." : "Select Purchase Type"}
+              searchPlaceholder="Search purchase type"
+              emptyMessage="No purchase types found"
+              error={errors.purchaseType?.message}
+              disabled={loadingPurchaseTypes}
+              required
+            />
+
+            {/* Vendor */}
+            <SearchableSelectField
+              label="Vendor"
+              value={selectedVendorId}
+              options={vendorOptions}
+              onSelect={(value) => setValue("vendorId", value, { shouldDirty: true, shouldValidate: true })}
+              placeholder="Select Vendor"
+              searchPlaceholder="Search vendor"
+              emptyMessage="No vendors found"
+              error={errors.vendorId?.message}
+              required
             />
 
             {/* Item */}
@@ -339,6 +368,24 @@ export function PurchaseEntryScreen() {
               error={errors.store?.message}
             />
 
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Invoice Number (Optional)</Text>
+              <Controller
+                control={control}
+                name="invoiceNumber"
+                render={({ field: { value, onChange } }) => (
+                  <TextInput
+                    style={styles.input}
+                    value={value}
+                    onChangeText={onChange}
+                    placeholder="INV-1234"
+                    placeholderTextColor="#9CA3AF"
+                    autoCapitalize="characters"
+                  />
+                )}
+              />
+            </View>
+
             {/* Payment Type */}
             <View style={styles.inputGroup}>
               <Text style={styles.label}>Payment Type</Text>
@@ -374,28 +421,23 @@ export function PurchaseEntryScreen() {
               />
             </View>
 
-            {/* Bill Photo */}
             <View style={styles.inputGroup}>
-              <Text style={styles.label}>Bill / Invoice Photo (Optional)</Text>
-              {attachmentUrl ? (
-                <View style={styles.attachmentBox}>
-                  <View style={styles.attachmentInfo}>
-                    <Ionicons name="document-text-outline" size={20} color="#0B5C36" />
-                    <Text style={styles.attachmentName} numberOfLines={1}>{attachmentUrl}</Text>
-                  </View>
-                  <TouchableOpacity onPress={() => setValue("attachmentUrl", "")}>
-                    <Ionicons name="trash-outline" size={20} color="#EF4444" />
-                  </TouchableOpacity>
-                </View>
-              ) : (
-                <TouchableOpacity
-                  style={styles.uploadBtn}
-                  onPress={() => setValue("attachmentUrl", "invoice_20052024.jpg")} // Simulation
-                >
-                  <Ionicons name="camera-outline" size={24} color="#6B7280" />
-                  <Text style={styles.uploadBtnText}>Upload Photo</Text>
-                </TouchableOpacity>
-              )}
+              <Text style={styles.label}>Bill / Invoice URL (Optional)</Text>
+              <Controller
+                control={control}
+                name="attachmentUrl"
+                render={({ field: { value, onChange } }) => (
+                  <TextInput
+                    style={styles.input}
+                    value={value}
+                    onChangeText={onChange}
+                    placeholder="https://..."
+                    placeholderTextColor="#9CA3AF"
+                    autoCapitalize="none"
+                    keyboardType="url"
+                  />
+                )}
+              />
             </View>
 
             <TouchableOpacity

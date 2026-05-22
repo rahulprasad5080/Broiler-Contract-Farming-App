@@ -1,5 +1,6 @@
 export * from "./types";
 export * from "./pagination";
+export * from "./typeOptionUtils";
 export * from "./usersApi";
 export * from "./farmsApi";
 export * from "./batchesApi";

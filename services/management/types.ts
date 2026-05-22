@@ -53,16 +53,22 @@ export type ApiUserStatus = (typeof API_USER_STATUS_VALUES)[number];
 export type ApiFarmStatus = (typeof API_FARM_STATUS_VALUES)[number];
 export type ApiBatchStatus = (typeof API_BATCH_STATUS_VALUES)[number];
 export type ApiSaleStatus = (typeof API_SALE_STATUS_VALUES)[number];
-export type ApiTreatmentKind = (typeof API_TREATMENT_KIND_VALUES)[number];
-export type ApiExpenseCategoryCode = (typeof API_EXPENSE_CATEGORY_CODE_VALUES)[number];
+export type MasterDataTypeCategory =
+  | "CATALOG_ITEM_TYPE"
+  | "PURCHASE_TYPE"
+  | "EXPENSE_CATEGORY"
+  | "TREATMENT_KIND";
+
+export type ApiTreatmentKind = string;
+export type ApiExpenseCategoryCode = string;
 
 export type ApiCostCategory = ApiExpenseCategoryCode;
 export type ApiExpenseLedger = (typeof API_EXPENSE_LEDGER_VALUES)[number];
 export type ApiExpenseApprovalStatus = (typeof API_EXPENSE_APPROVAL_STATUS_VALUES)[number];
 export type ApiTransactionPaymentStatus = (typeof API_TRANSACTION_PAYMENT_STATUS_VALUES)[number];
 export type ApiInventoryMovementType = (typeof API_INVENTORY_MOVEMENT_TYPE_VALUES)[number];
-export type ApiPurchaseType = (typeof API_PURCHASE_TYPE_VALUES)[number];
-export type ApiCatalogItemType = (typeof API_CATALOG_ITEM_TYPE_VALUES)[number];
+export type ApiPurchaseType = string;
+export type ApiCatalogItemType = string;
 export type ApiFinanceEntryType = (typeof API_FINANCE_ENTRY_TYPE_VALUES)[number];
 export type ApiPaymentDirection = (typeof API_PAYMENT_DIRECTION_VALUES)[number];
 export type ApiPaymentEntryType = (typeof API_PAYMENT_ENTRY_TYPE_VALUES)[number];
@@ -80,6 +86,19 @@ export type PaginationMeta = {
 export type ListResponse<T> = {
   data: T[];
   meta: PaginationMeta;
+};
+
+export type ApiMasterDataTypeOption = {
+  id: string;
+  organizationId?: string | null;
+  category: MasterDataTypeCategory | string;
+  value: string;
+  label?: string | null;
+  description?: string | null;
+  isSystem?: boolean | null;
+  isActive?: boolean | null;
+  createdAt?: string | null;
+  updatedAt?: string | null;
 };
 
 export type ApiUser = {
@@ -172,6 +191,7 @@ export type ApiBatch = {
   ratePerChick?: number | null;
   chickTransportCharge?: number | null;
   sourceHatchery?: string | null;
+  vendorId?: string | null;
   vendorName?: string | null;
   targetCloseDate?: string | null;
   actualCloseDate?: string | null;
@@ -184,6 +204,18 @@ export type ApiBatch = {
 };
 
 export type ApiTrader = {
+  id: string;
+  organizationId: string;
+  name: string;
+  phone?: string | null;
+  email?: string | null;
+  address?: string | null;
+  notes?: string | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type ApiVendor = {
   id: string;
   organizationId: string;
   name: string;
@@ -322,6 +354,8 @@ export type ApiInventoryLedgerEntry = {
   balanceAfter?: number | null;
   referenceType?: string | null;
   referenceId?: string | null;
+  vendorId?: string | null;
+  vendorName?: string | null;
   notes?: string | null;
   createdById?: string | null;
   createdAt: string;
@@ -332,6 +366,7 @@ export type ApiFinancePurchase = {
   organizationId: string;
   batchId?: string | null;
   purchaseType: ApiPurchaseType;
+  vendorId?: string | null;
   vendorName?: string | null;
   catalogItemId?: string | null;
   itemName: string;
@@ -369,6 +404,10 @@ export type ApiFinancePayment = {
   id: string;
   organizationId: string;
   batchId?: string | null;
+  vendorId?: string | null;
+  vendorName?: string | null;
+  traderId?: string | null;
+  traderName?: string | null;
   partyName?: string | null;
   paymentType: ApiPaymentEntryType;
   direction: ApiPaymentDirection;
@@ -507,6 +546,7 @@ export type CreateBatchRequest = {
   ratePerChick?: number;
   chickTransportCharge?: number;
   sourceHatchery?: string;
+  vendorId?: string;
   vendorName?: string;
   targetCloseDate?: string;
   notes?: string;
@@ -584,6 +624,29 @@ export type CreateTraderRequest = {
 
 export type UpdateTraderRequest = Partial<CreateTraderRequest>;
 
+export type CreateVendorRequest = {
+  name: string;
+  phone?: string;
+  email?: string;
+  address?: string;
+  notes?: string;
+};
+
+export type UpdateVendorRequest = Partial<CreateVendorRequest>;
+
+export type CreateMasterDataTypeOptionRequest = {
+  category: MasterDataTypeCategory;
+  value: string;
+  description?: string;
+  isActive?: boolean;
+};
+
+export type UpdateMasterDataTypeOptionRequest = {
+  value?: string;
+  description?: string;
+  isActive?: boolean;
+};
+
 export type CreateCatalogItemRequest = {
   name: string;
   type: ApiCatalogItemType;
@@ -603,6 +666,7 @@ export type CreateBatchExpenseRequest = {
   ledger: ApiExpenseLedger;
   category: ApiExpenseCategoryCode;
   catalogItemId?: string;
+  vendorId?: string;
   expenseDate: string;
   description: string;
   quantity?: number;
@@ -633,6 +697,7 @@ export type CreateBatchCostRequest = CreateBatchExpenseRequest;
 export type CreateFinancePurchaseRequest = {
   batchId?: string;
   purchaseType: ApiPurchaseType;
+  vendorId?: string;
   vendorName?: string;
   catalogItemId?: string;
   itemName: string;
@@ -663,6 +728,8 @@ export type CreateFinanceEntryRequest = {
 
 export type CreateFinancePaymentRequest = {
   batchId?: string;
+  vendorId?: string;
+  traderId?: string;
   partyName?: string;
   paymentType: ApiPaymentEntryType;
   direction: ApiPaymentDirection;

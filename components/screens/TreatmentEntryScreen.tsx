@@ -1,8 +1,8 @@
 import { Colors } from '@/constants/Colors';
 import { Layout } from '@/constants/Layout';
 import { useAuth } from '@/context/AuthContext';
+import { useMasterDataTypeOptions } from '@/hooks/useMasterDataTypeOptions';
 import {
-  API_TREATMENT_KIND_VALUES,
   ApiBatch,
   ApiCatalogItem,
   createTreatment,
@@ -53,7 +53,7 @@ function todayValue() {
 const treatmentSchema = z.object({
   batchId: z.string().min(1, 'Please select a batch'),
   treatmentDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Date must be in YYYY-MM-DD format'),
-  kind: z.enum(API_TREATMENT_KIND_VALUES),
+  kind: z.string().min(1, 'Type is required'),
   catalogItemId: z.string().optional(),
   treatmentName: z.string().min(1, 'Treatment name is required'),
   dosage: z.string().optional(),
@@ -64,16 +64,11 @@ const treatmentSchema = z.object({
 });
 
 type TreatmentFormData = z.infer<typeof treatmentSchema>;
-const TREATMENT_KIND_OPTIONS = [
-  API_TREATMENT_KIND_VALUES[2],
-  API_TREATMENT_KIND_VALUES[1],
-  API_TREATMENT_KIND_VALUES[0],
-] as const;
 
 const TREATMENT_DEFAULTS = {
   batchId: '',
   treatmentDate: todayValue(),
-  kind: 'MEDICATION' as const,
+  kind: '',
   catalogItemId: '',
   treatmentName: '',
   dosage: '',
@@ -120,6 +115,11 @@ export function TreatmentEntryScreen({
   );
 
   const [showBanner, setShowBanner] = useState(false);
+  const {
+    selectOptions: treatmentKindOptions,
+    loading: loadingTreatmentKinds,
+    errorMessage: treatmentKindError,
+  } = useMasterDataTypeOptions('TREATMENT_KIND');
 
   useEffect(() => {
     if (!isRestored) return;
@@ -132,6 +132,15 @@ export function TreatmentEntryScreen({
   }, [isRestored, draftBannerOpacity]);
 
   const selectedBatchId = watch('batchId');
+  const selectedKind = watch('kind');
+  useEffect(() => {
+    if (!selectedKind && treatmentKindOptions[0]) {
+      setValue('kind', treatmentKindOptions[0].value, {
+        shouldDirty: false,
+        shouldValidate: true,
+      });
+    }
+  }, [selectedKind, setValue, treatmentKindOptions]);
   const activeBatches = useMemo(
     () => batches.filter((batch) => batch.status === 'ACTIVE'),
     [batches],
@@ -347,23 +356,18 @@ export function TreatmentEntryScreen({
             control={control}
             name="kind"
             render={({ field: { onChange, value } }) => (
-              <View style={styles.inputGroup}>
-                <Text style={styles.label}>Type *</Text>
-                <View style={styles.chipRow}>
-                  {TREATMENT_KIND_OPTIONS.map((k) => (
-                    <TouchableOpacity
-                      key={k}
-                      style={[styles.typeChip, value === k && styles.typeChipActive, formErrors.kind && { borderColor: Colors.tertiary }]}
-                      onPress={() => onChange(k)}
-                    >
-                      <Text style={[styles.typeChipText, value === k && styles.typeChipTextActive]}>
-                        {k.charAt(0) + k.slice(1).toLowerCase()}
-                      </Text>
-                    </TouchableOpacity>
-                  ))}
-                </View>
-                {formErrors.kind && <Text style={styles.fieldErrorText}>{formErrors.kind.message}</Text>}
-              </View>
+              <SearchableSelectField
+                label="Type"
+                value={value}
+                options={treatmentKindOptions}
+                onSelect={onChange}
+                placeholder={loadingTreatmentKinds ? 'Loading treatment types...' : 'Select type'}
+                searchPlaceholder="Search treatment type"
+                emptyMessage="No treatment types found"
+                error={formErrors.kind?.message || treatmentKindError || undefined}
+                disabled={loadingTreatmentKinds}
+                required
+              />
             )}
           />
 

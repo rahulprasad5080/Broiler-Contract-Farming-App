@@ -4,12 +4,12 @@ import { Colors } from '@/constants/Colors';
 import { Layout } from '@/constants/Layout';
 import { useAuth } from '@/context/AuthContext';
 import { useFormPersistence } from '@/hooks/useFormPersistence';
+import { useMasterDataTypeOptions } from '@/hooks/useMasterDataTypeOptions';
 import {
   showRequestErrorToast,
   showSuccessToast,
 } from '@/services/apiFeedback';
 import {
-  API_CATALOG_ITEM_TYPE_VALUES,
   ApiCatalogItem,
   createCatalogItem,
   listCatalogItems,
@@ -31,12 +31,11 @@ import {
   View,
 } from 'react-native';
 import { z } from 'zod';
-
-const CATALOG_TYPES = API_CATALOG_ITEM_TYPE_VALUES;
+import { SearchableSelectField } from '@/components/ui/SearchableSelectField';
 
 const catalogSchema = z.object({
   name: z.string().min(1, 'Name is required'),
-  type: z.enum(CATALOG_TYPES),
+  type: z.string().min(1, 'Type is required'),
   unit: z.string().min(1, 'Unit is required'),
   manufacturer: z.string().optional(),
 });
@@ -56,6 +55,11 @@ export default function SupervisorCatalogScreen() {
   const [items, setItems] = useState<ApiCatalogItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const {
+    selectOptions: catalogTypeOptions,
+    loading: loadingCatalogTypes,
+    errorMessage: catalogTypeError,
+  } = useMasterDataTypeOptions('CATALOG_ITEM_TYPE');
 
   const draftBannerOpacity = useRef(new Animated.Value(0)).current;
 
@@ -179,21 +183,18 @@ export default function SupervisorCatalogScreen() {
                   control={control}
                   name="type"
                   render={({ field: { onChange, value } }) => (
-                    <>
-                      <Text style={styles.label}>Type *</Text>
-                      <View style={styles.chipRow}>
-                        {CATALOG_TYPES.map((type) => (
-                          <TouchableOpacity
-                            key={type}
-                            style={[styles.chip, value === type && styles.chipActive]}
-                            onPress={() => onChange(type)}
-                          >
-                            <Text style={[styles.chipText, value === type && styles.chipTextActive]}>{type}</Text>
-                          </TouchableOpacity>
-                        ))}
-                      </View>
-                      {formErrors.type && <Text style={styles.fieldErrorText}>{formErrors.type.message}</Text>}
-                    </>
+                    <SearchableSelectField
+                      label="Type"
+                      value={value}
+                      options={catalogTypeOptions}
+                      onSelect={onChange}
+                      placeholder={loadingCatalogTypes ? 'Loading types...' : 'Select type'}
+                      searchPlaceholder="Search catalog type"
+                      emptyMessage="No catalog types found"
+                      error={formErrors.type?.message || catalogTypeError || undefined}
+                      disabled={loadingCatalogTypes}
+                      required
+                    />
                   )}
                 />
 

@@ -19,6 +19,8 @@ import { useAuth } from "@/context/AuthContext";
 import { ScreenState } from "@/components/ui/ScreenState";
 import { SurfaceCard } from "@/components/ui/SurfaceCard";
 import { TopAppBar } from "@/components/ui/TopAppBar";
+import { DatePickerField } from "@/components/ui/DatePickerField";
+import { SearchableSelectField } from "@/components/ui/SearchableSelectField";
 import {
   fetchBatchSummary,
   downloadBatchExcelReport,
@@ -29,6 +31,10 @@ import {
   fetchOverviewReport,
   fetchProfitabilityReport,
   fetchSettlementReport,
+  fetchVendorLedgerReport,
+  fetchTraderLedgerReport,
+  type ApiPartnerLedgerReport,
+  type ApiPartnerLedgerRow,
   type ApiBatchSummary,
   type ApiExpenseReportRow,
   type ApiFarmSummary,
@@ -37,6 +43,12 @@ import {
   type ApiProfitabilityReportRow,
   type ApiSettlementReportRow,
 } from "@/services/reportApi";
+import {
+  listAllTraders,
+  listAllVendors,
+  type ApiTrader,
+  type ApiVendor,
+} from "@/services/managementApi";
 import { getRequestErrorMessage, showRequestErrorToast, showSuccessToast } from "@/services/apiFeedback";
 import { saveAndShareReport } from "@/services/reportExport";
 
@@ -44,6 +56,14 @@ const THEME_GREEN = "#0B5C36";
 
 function formatINR(value?: number | null) {
   return `₹${Number(value ?? 0).toLocaleString("en-IN")}`;
+}
+
+function formatLedgerDate(row: ApiPartnerLedgerRow) {
+  const value = row.date ?? row.entryDate ?? row.transactionDate;
+  if (!value) return "";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  return date.toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" });
 }
 
 export default function ReportsScreen() {
@@ -57,6 +77,14 @@ export default function ReportsScreen() {
   const [inventory, setInventory] = useState<ApiInventoryReportRow[]>([]);
   const [profitability, setProfitability] = useState<ApiProfitabilityReportRow[]>([]);
   const [settlements, setSettlements] = useState<ApiSettlementReportRow[]>([]);
+  const [vendors, setVendors] = useState<ApiVendor[]>([]);
+  const [traders, setTraders] = useState<ApiTrader[]>([]);
+  const [partnerStatementKind, setPartnerStatementKind] = useState<"vendor" | "trader">("vendor");
+  const [selectedPartnerId, setSelectedPartnerId] = useState("");
+  const [partnerDateFrom, setPartnerDateFrom] = useState("");
+  const [partnerDateTo, setPartnerDateTo] = useState("");
+  const [partnerLedger, setPartnerLedger] = useState<ApiPartnerLedgerReport | null>(null);
+  const [loadingPartnerLedger, setLoadingPartnerLedger] = useState(false);
   const [farmSummary, setFarmSummary] = useState<ApiFarmSummary | null>(null);
   const [batchSummary, setBatchSummary] = useState<ApiBatchSummary | null>(null);
   const [loading, setLoading] = useState(true);
@@ -126,6 +154,22 @@ export default function ReportsScreen() {
     };
   }, [calcFeed, calcFeedUnit, calcBirds, calcAvgWeight, calcFeedPrice, calcBirdPrice]);
 
+  const partnerOptions = useMemo(
+    () =>
+      (partnerStatementKind === "vendor" ? vendors : traders).map((partner) => ({
+        label: partner.name,
+        value: partner.id,
+        description: partner.phone ?? undefined,
+        keywords: [partner.phone, partner.email, partner.address].filter(Boolean).join(" "),
+      })),
+    [partnerStatementKind, traders, vendors],
+  );
+
+  const partnerLedgerRows = useMemo(
+    () => partnerLedger?.rows ?? partnerLedger?.entries ?? partnerLedger?.data ?? [],
+    [partnerLedger],
+  );
+
   const loadReports = useCallback(async (isRefresh = false) => {
     if (!accessToken) return;
 
@@ -138,12 +182,14 @@ export default function ReportsScreen() {
     setError(null);
 
     try {
-      const [overviewRes, expenseRes, inventoryRes, profitabilityRes, settlementRes] = await Promise.all([
+      const [overviewRes, expenseRes, inventoryRes, profitabilityRes, settlementRes, vendorRes, traderRes] = await Promise.all([
         fetchOverviewReport(accessToken),
         fetchExpenseReport(accessToken),
         fetchInventoryReport(accessToken),
         fetchProfitabilityReport(accessToken),
         fetchSettlementReport(accessToken),
+        listAllVendors(accessToken),
+        listAllTraders(accessToken),
       ]);
 
       setOverview(overviewRes);
@@ -151,6 +197,8 @@ export default function ReportsScreen() {
       setInventory(inventoryRes);
       setProfitability(profitabilityRes);
       setSettlements(settlementRes);
+      setVendors(vendorRes.data);
+      setTraders(traderRes.data);
 
       const firstFarmId = expenseRes[0]?.farmId;
       const firstBatchId =
@@ -170,6 +218,36 @@ export default function ReportsScreen() {
       setRefreshing(false);
     }
   }, [accessToken]);
+
+  const loadPartnerLedger = useCallback(async () => {
+    if (!accessToken || !selectedPartnerId || loadingPartnerLedger) {
+      return;
+    }
+
+    setLoadingPartnerLedger(true);
+    try {
+      const params = {
+        dateFrom: partnerDateFrom || undefined,
+        dateTo: partnerDateTo || undefined,
+      };
+      const response =
+        partnerStatementKind === "vendor"
+          ? await fetchVendorLedgerReport(accessToken, selectedPartnerId, params)
+          : await fetchTraderLedgerReport(accessToken, selectedPartnerId, params);
+      setPartnerLedger(response);
+    } catch (err) {
+      showRequestErrorToast(err, { title: "Partner ledger failed" });
+    } finally {
+      setLoadingPartnerLedger(false);
+    }
+  }, [
+    accessToken,
+    loadingPartnerLedger,
+    partnerDateFrom,
+    partnerDateTo,
+    partnerStatementKind,
+    selectedPartnerId,
+  ]);
 
   useFocusEffect(
     useCallback(() => {
@@ -372,6 +450,78 @@ export default function ReportsScreen() {
                     bgColor="#FFF7ED"
                   />
                 </View>
+
+                <SurfaceCard style={styles.statementCard}>
+                  <View style={styles.statementHeader}>
+                    <Text style={styles.categoryTitle}>Partner Statements</Text>
+                    {loadingPartnerLedger ? <ActivityIndicator color={THEME_GREEN} /> : null}
+                  </View>
+                  <View style={styles.statementToggle}>
+                    {(["vendor", "trader"] as const).map((kind) => (
+                      <TouchableOpacity
+                        key={kind}
+                        style={[styles.statementToggleBtn, partnerStatementKind === kind && styles.statementToggleBtnActive]}
+                        onPress={() => {
+                          setPartnerStatementKind(kind);
+                          setSelectedPartnerId("");
+                          setPartnerLedger(null);
+                        }}
+                      >
+                        <Text style={[styles.statementToggleText, partnerStatementKind === kind && styles.statementToggleTextActive]}>
+                          {kind === "vendor" ? "Vendor" : "Trader"}
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                  <SearchableSelectField
+                    label={partnerStatementKind === "vendor" ? "Vendor" : "Trader"}
+                    value={selectedPartnerId}
+                    options={partnerOptions}
+                    onSelect={(value) => {
+                      setSelectedPartnerId(value);
+                      setPartnerLedger(null);
+                    }}
+                    placeholder={`Select ${partnerStatementKind}`}
+                    searchPlaceholder={`Search ${partnerStatementKind}`}
+                    emptyMessage={`No ${partnerStatementKind}s found`}
+                  />
+                  <View style={styles.statementDateRow}>
+                    <View style={styles.statementDateCell}>
+                      <DatePickerField label="From" value={partnerDateFrom} onChange={setPartnerDateFrom} />
+                    </View>
+                    <View style={styles.statementDateCell}>
+                      <DatePickerField label="To" value={partnerDateTo} onChange={setPartnerDateTo} />
+                    </View>
+                  </View>
+                  <TouchableOpacity
+                    style={[styles.statementLoadBtn, (!selectedPartnerId || loadingPartnerLedger) && styles.statementLoadBtnDisabled]}
+                    onPress={() => void loadPartnerLedger()}
+                    disabled={!selectedPartnerId || loadingPartnerLedger}
+                  >
+                    <Text style={styles.statementLoadText}>Load Statement</Text>
+                  </TouchableOpacity>
+                  {partnerLedger ? (
+                    <View style={styles.statementSummary}>
+                      <Text style={styles.statementBalance}>Opening {formatINR(partnerLedger.openingBalance)}</Text>
+                      {partnerLedger.closingBalance !== undefined ? (
+                        <Text style={styles.statementBalance}>Closing {formatINR(partnerLedger.closingBalance)}</Text>
+                      ) : null}
+                    </View>
+                  ) : null}
+                  {partnerLedgerRows.map((row, index) => (
+                    <View key={row.id ?? `${row.referenceType ?? "row"}-${index}`} style={styles.statementRow}>
+                      <View style={styles.statementRowMain}>
+                        <Text style={styles.statementRowTitle}>{row.description || row.referenceType || "Ledger row"}</Text>
+                        <Text style={styles.statementRowMeta}>{[formatLedgerDate(row), row.referenceId].filter(Boolean).join(" | ")}</Text>
+                      </View>
+                      <View style={styles.statementRowAmounts}>
+                        <Text style={styles.statementDebit}>Dr {formatINR(row.debit)}</Text>
+                        <Text style={styles.statementCredit}>Cr {formatINR(row.credit)}</Text>
+                        <Text style={styles.statementRunning}>Bal {formatINR(row.runningBalance ?? row.balance)}</Text>
+                      </View>
+                    </View>
+                  ))}
+                </SurfaceCard>
               </View>
             )}
 
@@ -902,6 +1052,110 @@ const styles = StyleSheet.create({
   // Category Layout
   categoryTitle: { fontSize: 14, fontWeight: "800", color: "#111827", marginBottom: 12, marginTop: 4 },
   grid: { flexDirection: "row", flexWrap: "wrap", justifyContent: "space-between", gap: 10 },
+  statementCard: {
+    marginTop: 16,
+    marginBottom: 8,
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
+    backgroundColor: "#FFF",
+  },
+  statementHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  statementToggle: {
+    flexDirection: "row",
+    gap: 8,
+    marginBottom: 12,
+  },
+  statementToggleBtn: {
+    flex: 1,
+    minHeight: 42,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#F9FAFB",
+  },
+  statementToggleBtnActive: {
+    backgroundColor: THEME_GREEN,
+    borderColor: THEME_GREEN,
+  },
+  statementToggleText: {
+    fontSize: 13,
+    fontWeight: "800",
+    color: "#4B5563",
+  },
+  statementToggleTextActive: {
+    color: "#FFF",
+  },
+  statementDateRow: {
+    flexDirection: "row",
+    gap: 10,
+  },
+  statementDateCell: {
+    flex: 1,
+  },
+  statementLoadBtn: {
+    minHeight: 48,
+    borderRadius: 10,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: THEME_GREEN,
+    marginTop: 4,
+  },
+  statementLoadBtnDisabled: {
+    opacity: 0.55,
+  },
+  statementLoadText: {
+    color: "#FFF",
+    fontSize: 14,
+    fontWeight: "800",
+  },
+  statementSummary: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    gap: 10,
+    marginTop: 12,
+    paddingVertical: 10,
+    borderTopWidth: 1,
+    borderTopColor: "#E5E7EB",
+  },
+  statementBalance: {
+    fontSize: 12,
+    fontWeight: "800",
+    color: THEME_GREEN,
+  },
+  statementRow: {
+    flexDirection: "row",
+    gap: 10,
+    paddingVertical: 12,
+    borderTopWidth: 1,
+    borderTopColor: "#F3F4F6",
+  },
+  statementRowMain: {
+    flex: 1,
+  },
+  statementRowTitle: {
+    fontSize: 13,
+    fontWeight: "800",
+    color: "#111827",
+  },
+  statementRowMeta: {
+    marginTop: 3,
+    fontSize: 11,
+    fontWeight: "600",
+    color: "#6B7280",
+  },
+  statementRowAmounts: {
+    alignItems: "flex-end",
+    minWidth: 100,
+  },
+  statementDebit: { fontSize: 11, fontWeight: "700", color: "#EF4444" },
+  statementCredit: { fontSize: 11, fontWeight: "700", color: "#059669" },
+  statementRunning: { fontSize: 11, fontWeight: "900", color: "#111827", marginTop: 2 },
   widgetCard: {
     width: "48.5%",
     backgroundColor: "#FFF",

@@ -16,7 +16,7 @@ import {
 import { z } from 'zod';
 
 import { Colors } from '@/constants/Colors';
-import { ApiTrader } from '@/services/managementApi';
+import { ApiTrader, ApiVendor } from '@/services/managementApi';
 
 const traderSchema = z.object({
   name: z.string().trim().min(1, 'Trader name is required'),
@@ -39,9 +39,10 @@ const TRADER_DEFAULTS: TraderFormData = {
 interface TraderModalProps {
   visible: boolean;
   onClose: () => void;
-  editingTrader: ApiTrader | null;
+  editingTrader: ApiTrader | ApiVendor | null;
   onSave: (data: TraderFormData) => Promise<void>;
   saving: boolean;
+  partnerKind?: 'vendor' | 'trader';
 }
 
 export default function TraderModal({
@@ -50,6 +51,7 @@ export default function TraderModal({
   editingTrader,
   onSave,
   saving,
+  partnerKind = 'trader',
 }: TraderModalProps) {
   const {
     control,
@@ -106,7 +108,9 @@ export default function TraderModal({
             <View style={styles.dragHandle} />
 
             <Text style={styles.modalTitle}>
-              {editingTrader ? 'Edit Trader' : 'Add Trader'}
+              {editingTrader
+                ? `Edit ${partnerKind === 'vendor' ? 'Vendor' : 'Trader'}`
+                : `Add ${partnerKind === 'vendor' ? 'Vendor' : 'Trader'}`}
             </Text>
 
             <ScrollView
@@ -118,9 +122,9 @@ export default function TraderModal({
               <Field
                 control={control}
                 name="name"
-                label="Trader Name"
+                label={partnerKind === 'vendor' ? 'Vendor Name' : 'Trader Name'}
                 error={errors.name?.message}
-                placeholder="Mahadev Traders"
+                placeholder={partnerKind === 'vendor' ? 'Mahadev Feeds' : 'Mahadev Traders'}
               />
               <Field
                 control={control}
@@ -135,7 +139,7 @@ export default function TraderModal({
                 name="email"
                 label="Email"
                 error={errors.email?.message}
-                placeholder="trader@example.com"
+                placeholder={partnerKind === 'vendor' ? 'vendor@example.com' : 'trader@example.com'}
               />
               <Field
                 control={control}
@@ -162,7 +166,9 @@ export default function TraderModal({
                   <ActivityIndicator color="#FFF" />
                 ) : (
                   <Text style={styles.submitBtnText}>
-                    {editingTrader ? 'Save Changes' : 'Create Trader'}
+                    {editingTrader
+                      ? 'Save Changes'
+                      : `Create ${partnerKind === 'vendor' ? 'Vendor' : 'Trader'}`}
                   </Text>
                 )}
               </TouchableOpacity>

@@ -7,7 +7,13 @@ import type {
 
 export async function listInventoryLedger(
   token: string,
-  params: { catalogItemId?: string; batchId?: string; page?: number; limit?: number } = {},
+  params: {
+    catalogItemId?: string;
+    batchId?: string;
+    vendorId?: string;
+    page?: number;
+    limit?: number;
+  } = {},
 ) {
   return apiRequest<ListResponse<ApiInventoryLedgerEntry>>("/inventory/ledger", {
     method: "GET",

@@ -1,6 +1,9 @@
 import "./authRevocation.test";
 import "./dateUtils.test";
+import "./dynamicTypeOptions.test";
+import "./entryPayloads.test";
 import "./enumReference.test";
 import "./formPersistenceController.test";
 import "./notificationRouting.test";
+import "./paymentPartnerRules.test";
 import "./routeGuards.test";

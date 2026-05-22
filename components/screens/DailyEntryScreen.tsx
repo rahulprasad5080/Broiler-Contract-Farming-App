@@ -162,6 +162,7 @@ export function DailyEntryScreen({
   const {
     control,
     handleSubmit,
+    setError,
     setValue,
     watch,
     reset,
@@ -319,6 +320,14 @@ export function DailyEntryScreen({
         await clearPersistedData();
         router.replace(listPath as never);
       } else {
+        const existingLogs = await listDailyLogs(accessToken, data.batchId);
+        const duplicateLog = existingLogs.data.find((log) => log.logDate === data.logDate);
+        if (duplicateLog) {
+          const message = "A daily entry already exists for this batch and date.";
+          setError("logDate", { type: "validate", message });
+          showRequestErrorToast(new Error(message), { title: "Duplicate daily entry" });
+          return;
+        }
         await createDailyLog(accessToken, data.batchId, payload);
         showSuccessToast("Daily log saved successfully.");
         setSavedMessage("Daily log saved successfully.");

@@ -1,16 +1,83 @@
 import { apiRequest } from "../api";
 import { fetchAllPages } from "./pagination";
+import { normalizeTypeOptionDropdown } from "./typeOptionUtils";
 import type {
   ApiCatalogItem,
   ApiCatalogItemType,
+  ApiMasterDataTypeOption,
   ApiTrader,
+  ApiVendor,
   CreateCatalogItemRequest,
+  CreateMasterDataTypeOptionRequest,
   CreateTraderRequest,
+  CreateVendorRequest,
   ListParams,
   ListResponse,
+  MasterDataTypeCategory,
   UpdateCatalogItemRequest,
+  UpdateMasterDataTypeOptionRequest,
   UpdateTraderRequest,
+  UpdateVendorRequest,
 } from "./types";
+
+export type TypeOptionListParams = ListParams & {
+  category?: MasterDataTypeCategory;
+  includeInactive?: boolean;
+};
+
+export type TypeOptionDropdownParams = {
+  category: MasterDataTypeCategory;
+  search?: string;
+  limit?: number;
+  includeInactive?: boolean;
+};
+
+export async function listMasterDataTypeOptions(
+  token: string,
+  params: TypeOptionListParams = {},
+) {
+  return apiRequest<ListResponse<ApiMasterDataTypeOption>>("/master-data/type-options", {
+    method: "GET",
+    token,
+    query: params,
+  });
+}
+
+export async function listMasterDataTypeOptionDropdown(
+  token: string,
+  params: TypeOptionDropdownParams,
+) {
+  const response = await apiRequest<unknown>("/master-data/type-options/dropdown", {
+    method: "GET",
+    token,
+    query: params,
+  });
+
+  return normalizeTypeOptionDropdown(params.category, response);
+}
+
+export async function createMasterDataTypeOption(
+  token: string,
+  payload: CreateMasterDataTypeOptionRequest,
+) {
+  return apiRequest<ApiMasterDataTypeOption>("/master-data/type-options", {
+    method: "POST",
+    token,
+    body: payload,
+  });
+}
+
+export async function updateMasterDataTypeOption(
+  token: string,
+  optionId: string,
+  payload: UpdateMasterDataTypeOptionRequest,
+) {
+  return apiRequest<ApiMasterDataTypeOption>(`/master-data/type-options/${optionId}`, {
+    method: "PUT",
+    token,
+    body: payload,
+  });
+}
 
 // ─────────────────────────────────────────────
 // Traders
@@ -67,6 +134,63 @@ export async function createTrader(token: string, payload: CreateTraderRequest) 
  */
 export async function updateTrader(token: string, traderId: string, payload: UpdateTraderRequest) {
   return apiRequest<ApiTrader>(`/master-data/traders/${traderId}`, {
+    method: "PUT",
+    token,
+    body: payload,
+  });
+}
+
+/**
+ * GET /api/v1/master-data/vendors
+ * Paginated list of vendors used by purchase entry, vendor payments, and ledgers.
+ * Roles: OWNER, ACCOUNTS, SUPERVISOR, FARMER
+ */
+export async function listVendors(
+  token: string,
+  params: ListParams = {},
+) {
+  return apiRequest<ListResponse<ApiVendor>>("/master-data/vendors", {
+    method: "GET",
+    token,
+    query: params,
+  });
+}
+
+/**
+ * Convenience helper: fetches all vendor pages and returns a single flattened
+ * ListResponse.
+ */
+export async function listAllVendors(token: string, search?: string) {
+  return fetchAllPages(
+    (page, limit) =>
+      listVendors(token, {
+        page,
+        limit,
+        search,
+      }),
+  );
+}
+
+/**
+ * POST /api/v1/master-data/vendors
+ * Create a new vendor master record.
+ * Roles: OWNER, ACCOUNTS, SUPERVISOR
+ */
+export async function createVendor(token: string, payload: CreateVendorRequest) {
+  return apiRequest<ApiVendor>("/master-data/vendors", {
+    method: "POST",
+    token,
+    body: payload,
+  });
+}
+
+/**
+ * PUT /api/v1/master-data/vendors/{vendorId}
+ * Update an existing vendor record.
+ * Roles: OWNER, ACCOUNTS, SUPERVISOR
+ */
+export async function updateVendor(token: string, vendorId: string, payload: UpdateVendorRequest) {
+  return apiRequest<ApiVendor>(`/master-data/vendors/${vendorId}`, {
     method: "PUT",
     token,
     body: payload,

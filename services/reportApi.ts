@@ -115,6 +115,47 @@ export type ApiSettlementReportRow = {
   status: ApiSettlementStatus | string;
 };
 
+export type ReportFilterParams = {
+  dateFrom?: string;
+  dateTo?: string;
+  farmId?: string;
+  batchId?: string;
+  farmerId?: string;
+  supervisorId?: string;
+};
+
+export type ApiPartnerLedgerRow = {
+  id?: string;
+  date?: string | null;
+  entryDate?: string | null;
+  transactionDate?: string | null;
+  referenceType?: string | null;
+  referenceId?: string | null;
+  description?: string | null;
+  debit?: number | null;
+  credit?: number | null;
+  amount?: number | null;
+  balance?: number | null;
+  runningBalance?: number | null;
+  remarks?: string | null;
+};
+
+export type ApiPartnerLedgerReport = {
+  partnerId?: string | null;
+  vendorId?: string | null;
+  traderId?: string | null;
+  partnerName?: string | null;
+  vendorName?: string | null;
+  traderName?: string | null;
+  dateFrom?: string | null;
+  dateTo?: string | null;
+  openingBalance?: number | null;
+  closingBalance?: number | null;
+  rows?: ApiPartnerLedgerRow[];
+  entries?: ApiPartnerLedgerRow[];
+  data?: ApiPartnerLedgerRow[];
+};
+
 export async function fetchOverviewReport(token: string) {
   return apiRequest<ApiOverviewReport>("/reports/overview", {
     method: "GET",
@@ -136,10 +177,14 @@ export async function fetchBatchSummary(token: string, batchId: string) {
   });
 }
 
-export async function fetchExpenseReport(token: string) {
+export async function fetchExpenseReport(
+  token: string,
+  params: ReportFilterParams & { ledger?: ApiExpenseLedger } = {},
+) {
   return apiRequest<ApiExpenseReportRow[]>("/reports/expenses", {
     method: "GET",
     token,
+    query: params,
   });
 }
 
@@ -150,17 +195,43 @@ export async function fetchInventoryReport(token: string) {
   });
 }
 
-export async function fetchProfitabilityReport(token: string) {
+export async function fetchProfitabilityReport(token: string, params: ReportFilterParams = {}) {
   return apiRequest<ApiProfitabilityReportRow[]>("/reports/profitability", {
     method: "GET",
     token,
+    query: params,
   });
 }
 
-export async function fetchSettlementReport(token: string) {
+export async function fetchSettlementReport(token: string, params: ReportFilterParams = {}) {
   return apiRequest<ApiSettlementReportRow[]>("/reports/settlements", {
     method: "GET",
     token,
+    query: params,
+  });
+}
+
+export async function fetchVendorLedgerReport(
+  token: string,
+  vendorId: string,
+  params: Pick<ReportFilterParams, "dateFrom" | "dateTo"> = {},
+) {
+  return apiRequest<ApiPartnerLedgerReport>(`/reports/vendors/${vendorId}/ledger`, {
+    method: "GET",
+    token,
+    query: params,
+  });
+}
+
+export async function fetchTraderLedgerReport(
+  token: string,
+  traderId: string,
+  params: Pick<ReportFilterParams, "dateFrom" | "dateTo"> = {},
+) {
+  return apiRequest<ApiPartnerLedgerReport>(`/reports/traders/${traderId}/ledger`, {
+    method: "GET",
+    token,
+    query: params,
   });
 }
 

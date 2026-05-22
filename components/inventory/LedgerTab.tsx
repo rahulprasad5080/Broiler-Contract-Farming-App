@@ -1,4 +1,4 @@
-import { SearchableSelectField } from '@/components/ui/SearchableSelectField';
+import { SearchableSelectField, type SearchableSelectOption } from '@/components/ui/SearchableSelectField';
 import { Colors } from '@/constants/Colors';
 import React, { useMemo } from 'react';
 import { View, Text, TouchableOpacity, ScrollView, ActivityIndicator } from 'react-native';
@@ -24,6 +24,9 @@ interface LedgerTabProps {
   setLedgerCatalogItemId: (id: string) => void;
   ledgerBatchId: string;
   setLedgerBatchId: (id: string) => void;
+  ledgerVendorId: string;
+  setLedgerVendorId: (id: string) => void;
+  vendorOptions: SearchableSelectOption[];
   loadLedger: () => Promise<void>;
   loadingLedger: boolean;
   loadingBatches: boolean;
@@ -39,6 +42,9 @@ export const LedgerTab: React.FC<LedgerTabProps> = ({
   setLedgerCatalogItemId,
   ledgerBatchId,
   setLedgerBatchId,
+  ledgerVendorId,
+  setLedgerVendorId,
+  vendorOptions,
   loadLedger,
   loadingLedger,
   loadingBatches,
@@ -98,6 +104,16 @@ export const LedgerTab: React.FC<LedgerTabProps> = ({
           searchPlaceholder="Search batch or farm"
           emptyMessage="No batches found"
           disabled={loadingBatches}
+        />
+
+        <SearchableSelectField
+          label="Vendor"
+          value={ledgerVendorId}
+          options={[{ label: "All Vendors", value: "", description: "Show every vendor" }, ...vendorOptions]}
+          onSelect={setLedgerVendorId}
+          placeholder="All Vendors"
+          searchPlaceholder="Search vendor"
+          emptyMessage="No vendors found"
         />
 
         <TouchableOpacity

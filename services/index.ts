@@ -141,6 +141,8 @@ export {
   fetchInventoryReport,
   fetchProfitabilityReport,
   fetchSettlementReport,
+  fetchVendorLedgerReport,
+  fetchTraderLedgerReport,
   downloadBatchExcelReport,
   downloadBatchPdfReport,
 } from "./reportApi";
@@ -152,6 +154,9 @@ export type {
   ApiInventoryReportRow,
   ApiProfitabilityReportRow,
   ApiSettlementReportRow,
+  ApiPartnerLedgerReport,
+  ApiPartnerLedgerRow,
+  ReportFilterParams,
 } from "./reportApi";
 
 // ── Settings — /settings/organization (2 routes) ──

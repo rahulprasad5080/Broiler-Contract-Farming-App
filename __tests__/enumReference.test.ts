@@ -3,13 +3,9 @@ import test from "node:test";
 
 import {
   API_BATCH_STATUS_VALUES,
-  API_CATALOG_ITEM_TYPE_VALUES,
-  API_COMPANY_EXPENSE_CATEGORY_CODE_VALUES,
   API_COMMENT_TARGET_TYPE_VALUES,
   API_EXPENSE_APPROVAL_STATUS_VALUES,
-  API_EXPENSE_CATEGORY_CODE_VALUES,
   API_EXPENSE_LEDGER_VALUES,
-  API_FARMER_EXPENSE_CATEGORY_CODE_VALUES,
   API_FARM_STATUS_VALUES,
   API_FINANCE_ENTRY_TYPE_VALUES,
   API_INVENTORY_MOVEMENT_TYPE_VALUES,
@@ -20,13 +16,11 @@ import {
   API_PAYMENT_ENTRY_TYPE_VALUES,
   API_PAYMENT_STATUS_VALUES,
   API_PAYOUT_UNIT_VALUES,
-  API_PURCHASE_TYPE_VALUES,
   API_ROLE_VALUES,
   API_SALE_STATUS_VALUES,
   API_SETTLEMENT_STATUS_VALUES,
   API_SUBSCRIPTION_STATUS_VALUES,
   API_TRANSACTION_PAYMENT_STATUS_VALUES,
-  API_TREATMENT_KIND_VALUES,
   API_USER_STATUS_VALUES,
 } from "../services/apiEnums";
 
@@ -38,14 +32,6 @@ test("API enum reference values match the frontend contract", () => {
     "SALES_RUNNING",
     "SETTLEMENT_PENDING",
     "CLOSED",
-  ]);
-  assert.deepEqual([...API_CATALOG_ITEM_TYPE_VALUES], [
-    "CHICKS",
-    "FEED",
-    "MEDICINE",
-    "VACCINE",
-    "EQUIPMENT",
-    "OTHER",
   ]);
   assert.deepEqual([...API_COMMENT_TARGET_TYPE_VALUES], [
     "PURCHASE",
@@ -62,46 +48,6 @@ test("API enum reference values match the frontend contract", () => {
     "PENDING",
     "APPROVED",
     "REJECTED",
-  ]);
-  assert.deepEqual([...API_EXPENSE_CATEGORY_CODE_VALUES], [
-    "CHICKS",
-    "FEED",
-    "MEDICINE",
-    "VACCINE",
-    "TRANSPORT",
-    "OFFICE_EXPENSE",
-    "SUPERVISOR_EXPENSE",
-    "OTHER_COMPANY",
-    "ELECTRICITY",
-    "COCO_PITH",
-    "LABOUR",
-    "WATER",
-    "DIESEL",
-    "SHED_MAINTENANCE",
-    "REPAIRS",
-    "MISCELLANEOUS",
-    "OTHER_FARMER",
-  ]);
-  assert.deepEqual([...API_COMPANY_EXPENSE_CATEGORY_CODE_VALUES], [
-    "CHICKS",
-    "FEED",
-    "MEDICINE",
-    "VACCINE",
-    "TRANSPORT",
-    "OFFICE_EXPENSE",
-    "SUPERVISOR_EXPENSE",
-    "OTHER_COMPANY",
-  ]);
-  assert.deepEqual([...API_FARMER_EXPENSE_CATEGORY_CODE_VALUES], [
-    "ELECTRICITY",
-    "COCO_PITH",
-    "LABOUR",
-    "WATER",
-    "DIESEL",
-    "SHED_MAINTENANCE",
-    "REPAIRS",
-    "MISCELLANEOUS",
-    "OTHER_FARMER",
   ]);
   assert.deepEqual([...API_EXPENSE_LEDGER_VALUES], ["FARMER", "COMPANY"]);
   assert.deepEqual([...API_FARM_STATUS_VALUES], ["ACTIVE", "INACTIVE"]);
@@ -152,14 +98,6 @@ test("API enum reference values match the frontend contract", () => {
     "PER_BIRD_SOLD",
     "PER_KG_SOLD",
   ]);
-  assert.deepEqual([...API_PURCHASE_TYPE_VALUES], [
-    "CHICKS",
-    "FEED",
-    "MEDICINE",
-    "VACCINE",
-    "EQUIPMENT",
-    "OTHER",
-  ]);
   assert.deepEqual([...API_SALE_STATUS_VALUES], [
     "CANCELLED",
     "DRAFT",
@@ -184,11 +122,6 @@ test("API enum reference values match the frontend contract", () => {
     "PENDING",
     "PARTIAL",
     "PAID",
-  ]);
-  assert.deepEqual([...API_TREATMENT_KIND_VALUES], [
-    "OTHER",
-    "VACCINATION",
-    "MEDICATION",
   ]);
   assert.deepEqual([...API_ROLE_VALUES], [
     "OWNER",

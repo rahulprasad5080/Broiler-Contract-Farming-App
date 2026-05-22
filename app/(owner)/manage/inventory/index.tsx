@@ -28,6 +28,7 @@ import {
 import { TopAppBar } from "@/components/ui/TopAppBar";
 import { Colors } from "@/constants/Colors";
 import { useAuth } from "@/context/AuthContext";
+import { useMasterDataTypeOptions } from "@/hooks/useMasterDataTypeOptions";
 import {
   showRequestErrorToast,
   showSuccessToast,
@@ -38,6 +39,7 @@ import {
   listAllBatches,
   listBatchExpenses,
   listCatalogItems,
+  listAllVendors,
   listInventoryLedger,
   updateCatalogItem,
   type ApiBatch,
@@ -45,7 +47,8 @@ import {
   type ApiCatalogItem,
   type ApiCatalogItemType,
   type ApiExpenseCategoryCode,
-  type ApiInventoryLedgerEntry
+  type ApiInventoryLedgerEntry,
+  type ApiVendor
 } from "@/services/managementApi";
 
 type TabKey = "catalog" | "ledger" | "expenses";
@@ -90,9 +93,11 @@ export default function InventoryScreen() {
   const [catalogItems, setCatalogItems] = useState<ApiCatalogItem[]>([]);
   const [batches, setBatches] = useState<ApiBatch[]>([]);
   const [ledgerRows, setLedgerRows] = useState<ApiInventoryLedgerEntry[]>([]);
+  const [vendors, setVendors] = useState<ApiVendor[]>([]);
   const [expenses, setExpenses] = useState<ApiBatchExpense[]>([]);
   const [ledgerCatalogItemId, setLedgerCatalogItemId] = useState("");
   const [ledgerBatchId, setLedgerBatchId] = useState("");
+  const [ledgerVendorId, setLedgerVendorId] = useState("");
   const [loadingCatalog, setLoadingCatalog] = useState(false);
   const [loadingBatches, setLoadingBatches] = useState(false);
   const [loadingLedger, setLoadingLedger] = useState(false);
@@ -128,6 +133,27 @@ export default function InventoryScreen() {
   const expenseBatchId = watchExpense("batchId");
   const expenseLedger = watchExpense("ledger");
   const canSeeCost = hasPermission("view:inventory-cost");
+  const {
+    selectOptions: catalogTypeOptions,
+    loading: loadingCatalogTypes,
+    errorMessage: catalogTypeError,
+  } = useMasterDataTypeOptions("CATALOG_ITEM_TYPE");
+  const {
+    selectOptions: expenseCategoryOptions,
+    loading: loadingExpenseCategories,
+    errorMessage: expenseCategoryError,
+  } = useMasterDataTypeOptions("EXPENSE_CATEGORY");
+
+  const vendorOptions = useMemo(
+    () =>
+      vendors.map((vendor) => ({
+        label: vendor.name,
+        value: vendor.id,
+        description: vendor.phone ?? undefined,
+        keywords: [vendor.phone, vendor.email, vendor.address].filter(Boolean).join(" "),
+      })),
+    [vendors],
+  );
 
   const loadCatalog = useCallback(async () => {
     if (!accessToken) {
@@ -184,6 +210,24 @@ export default function InventoryScreen() {
     }
   }, [accessToken]);
 
+  const loadVendors = useCallback(async () => {
+    if (!accessToken) {
+      return;
+    }
+
+    try {
+      const response = await listAllVendors(accessToken);
+      setVendors(response.data);
+    } catch (err) {
+      setError(
+        showRequestErrorToast(err, {
+          title: "Unable to load vendors",
+          fallbackMessage: "Failed to load vendor options.",
+        }),
+      );
+    }
+  }, [accessToken]);
+
   const loadLedger = useCallback(async () => {
     if (!accessToken) {
       setError("Missing access token. Please sign in again.");
@@ -197,6 +241,7 @@ export default function InventoryScreen() {
       const response = await listInventoryLedger(accessToken, {
         catalogItemId: ledgerCatalogItemId || undefined,
         batchId: ledgerBatchId.trim() || undefined,
+        vendorId: ledgerVendorId.trim() || undefined,
       });
       setLedgerRows(response.data);
     } catch (err) {
@@ -209,7 +254,7 @@ export default function InventoryScreen() {
     } finally {
       setLoadingLedger(false);
     }
-  }, [accessToken, ledgerBatchId, ledgerCatalogItemId]);
+  }, [accessToken, ledgerBatchId, ledgerCatalogItemId, ledgerVendorId]);
 
   const loadExpenses = useCallback(async () => {
     if (!accessToken) {
@@ -247,7 +292,8 @@ export default function InventoryScreen() {
     useCallback(() => {
       void loadCatalog();
       void loadBatches();
-    }, [loadBatches, loadCatalog]),
+      void loadVendors();
+    }, [loadBatches, loadCatalog, loadVendors]),
   );
 
   const selectedExpenseItem = useMemo(
@@ -378,10 +424,12 @@ export default function InventoryScreen() {
     try {
       const selectedItem =
         catalogItems.find((item) => item.id === data.catalogItemId) ?? null;
+      const selectedVendor = vendors.find((vendor) => vendor.id === data.vendorId) ?? null;
       const created = await createBatchExpense(accessToken, data.batchId.trim(), {
         ledger: data.ledger,
         category: data.category,
         catalogItemId: data.catalogItemId || undefined,
+        vendorId: data.vendorId?.trim() || undefined,
         expenseDate: data.expenseDate.trim(),
         description:
           data.description?.trim() ||
@@ -391,7 +439,7 @@ export default function InventoryScreen() {
         unit: data.unit?.trim() || selectedItem?.unit || undefined,
         rate: toOptionalNumber(data.rate),
         totalAmount: toOptionalNumber(data.totalAmount),
-        vendorName: data.vendorName?.trim() || undefined,
+        vendorName: selectedVendor?.name || data.vendorName?.trim() || undefined,
         invoiceNumber: data.invoiceNumber?.trim() || undefined,
         billPhotoUrl: data.billPhotoUrl?.trim() || undefined,
         notes: data.notes?.trim() || undefined,
@@ -405,6 +453,7 @@ export default function InventoryScreen() {
       setExpenseValue("rate", "");
       setExpenseValue("totalAmount", "");
       setExpenseValue("vendorName", "");
+      setExpenseValue("vendorId", "");
       setExpenseValue("invoiceNumber", "");
       setExpenseValue("billPhotoUrl", "");
       setExpenseValue("notes", "");
@@ -522,6 +571,9 @@ export default function InventoryScreen() {
             closeCatalogModal={closeCatalogModal}
             labelize={labelize}
             formatQuantity={formatQuantity}
+            catalogTypeOptions={catalogTypeOptions}
+            loadingCatalogTypes={loadingCatalogTypes}
+            catalogTypeError={catalogTypeError}
           />
         )}
 
@@ -534,6 +586,9 @@ export default function InventoryScreen() {
             setLedgerCatalogItemId={setLedgerCatalogItemId}
             ledgerBatchId={ledgerBatchId}
             setLedgerBatchId={setLedgerBatchId}
+            ledgerVendorId={ledgerVendorId}
+            setLedgerVendorId={setLedgerVendorId}
+            vendorOptions={vendorOptions}
             loadLedger={loadLedger}
             loadingLedger={loadingLedger}
             loadingBatches={loadingBatches}
@@ -561,6 +616,10 @@ export default function InventoryScreen() {
             catalogTypeToExpenseCategory={catalogTypeToExpenseCategory}
             canSeeCost={canSeeCost}
             loadedExpenseTotal={loadedExpenseTotal}
+            expenseCategoryOptions={expenseCategoryOptions}
+            loadingExpenseCategories={loadingExpenseCategories}
+            expenseCategoryError={expenseCategoryError}
+            vendorOptions={vendorOptions}
           />
         )}
 <View style={{ height: 24 }} />

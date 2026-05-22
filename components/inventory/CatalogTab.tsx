@@ -16,7 +16,8 @@ import {
 
 import { ApiCatalogItem } from '@/services/managementApi';
 import { styles } from './inventoryStyles';
-import { CatalogFormData, CATALOG_TYPES } from './inventoryTypes';
+import { CatalogFormData } from './inventoryTypes';
+import { SearchableSelectField, type SearchableSelectOption } from '@/components/ui/SearchableSelectField';
 
 interface CatalogTabProps {
   catalogControl: Control<CatalogFormData>;
@@ -34,6 +35,9 @@ interface CatalogTabProps {
   closeCatalogModal: () => void;
   labelize: (val: string) => string;
   formatQuantity: (val?: number | null, unit?: string | null) => string;
+  catalogTypeOptions: SearchableSelectOption[];
+  loadingCatalogTypes: boolean;
+  catalogTypeError?: string | null;
 }
 
 export const CatalogTab: React.FC<CatalogTabProps> = ({
@@ -52,6 +56,9 @@ export const CatalogTab: React.FC<CatalogTabProps> = ({
   closeCatalogModal,
   labelize,
   formatQuantity,
+  catalogTypeOptions,
+  loadingCatalogTypes,
+  catalogTypeError,
 }) => {
   const isEditMode = catalogModalMode === 'edit';
 
@@ -125,33 +132,19 @@ export const CatalogTab: React.FC<CatalogTabProps> = ({
                   control={catalogControl}
                   name="type"
                   render={({ field: { onChange, value } }) => (
-                    <>
-                      <Text style={styles.fieldLabel}>Type</Text>
-                      <View style={styles.chipRow}>
-                        {CATALOG_TYPES.map((type) => (
-                          <TouchableOpacity
-                            key={type}
-                            style={[
-                              styles.chip,
-                              value === type && styles.chipActive,
-                              isEditMode && styles.chipDisabled,
-                            ]}
-                            onPress={() => onChange(type)}
-                            disabled={isEditMode}
-                          >
-                            <Text
-                              style={[
-                                styles.chipText,
-                                value === type && styles.chipTextActive,
-                                isEditMode && styles.chipTextDisabled,
-                              ]}
-                            >
-                              {labelize(type)}
-                            </Text>
-                          </TouchableOpacity>
-                        ))}
-                      </View>
-                    </>
+                    <SearchableSelectField
+                      label="Type"
+                      value={value}
+                      options={catalogTypeOptions}
+                      onSelect={onChange}
+                      placeholder={loadingCatalogTypes ? "Loading types..." : "Select type"}
+                      searchPlaceholder="Search catalog type"
+                      emptyMessage="No catalog types found"
+                      error={catalogErrors.type?.message || catalogTypeError || undefined}
+                      disabled={loadingCatalogTypes}
+                      locked={isEditMode}
+                      required
+                    />
                   )}
                 />
 
