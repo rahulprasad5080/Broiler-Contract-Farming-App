@@ -392,7 +392,7 @@ export default function CreateBatchScreen() {
             <View style={styles.inputGroup}>
               <View style={styles.labelRow}>
                 <Text style={styles.label}>
-                  Batch ID <Text style={{ color: 'red' }}>*</Text>
+                  Batch Code <Text style={{ color: 'red' }}>*</Text>
                 </Text>
                 <TouchableOpacity
                   style={styles.autoButton}
@@ -444,7 +444,7 @@ export default function CreateBatchScreen() {
               required
               value={value}
               onChangeText={onChange}
-              placeholder="10,000"
+              placeholder="Enter number of chicks placed"
               keyboardType="numeric"
               suffix="birds"
               error={formErrors.placementCount?.message}
@@ -462,7 +462,7 @@ export default function CreateBatchScreen() {
               label="Total Chicks Purchased"
               value={value}
               onChangeText={onChange}
-              placeholder="10,000"
+              placeholder="Enter total chicks purchased"
               keyboardType="numeric"
               suffix="birds"
               error={formErrors.totalChicksPurchased?.message}
@@ -478,7 +478,7 @@ export default function CreateBatchScreen() {
               label="Free Chicks"
               value={value}
               onChangeText={onChange}
-              placeholder="0"
+              placeholder="Enter number of free chicks"
               keyboardType="numeric"
               suffix="birds"
               error={formErrors.freeChicks?.message}
@@ -494,7 +494,7 @@ export default function CreateBatchScreen() {
               label="Chargeable Chicks"
               value={value}
               onChangeText={onChange}
-              placeholder="10,000"
+              placeholder="Enter number of chargeable chicks"
               keyboardType="numeric"
               suffix="birds"
               error={formErrors.chargeableChicks?.message}
@@ -510,7 +510,7 @@ export default function CreateBatchScreen() {
               label="Placement Mortality"
               value={value}
               onChangeText={onChange}
-              placeholder="0"
+              placeholder="Enter placement mortality"
               keyboardType="numeric"
               suffix="birds"
               error={formErrors.placementMortality?.message}
@@ -528,7 +528,7 @@ export default function CreateBatchScreen() {
               label="Chick Cost Total"
               value={value}
               onChangeText={onChange}
-              placeholder="250000"
+              placeholder="Enter chick cost total"
               keyboardType="decimal-pad"
               suffix="₹"
               error={formErrors.chickCostTotal?.message}
@@ -544,7 +544,7 @@ export default function CreateBatchScreen() {
               label="Chick Rate Per Bird"
               value={value}
               onChangeText={onChange}
-              placeholder="25"
+              placeholder="Enter chick rate per bird"
               keyboardType="decimal-pad"
               suffix="₹"
               error={formErrors.chickRatePerBird?.message}
@@ -560,7 +560,7 @@ export default function CreateBatchScreen() {
               label="Chick Transport Charge"
               value={value}
               onChangeText={onChange}
-              placeholder="12000"
+              placeholder="Enter chick transport charge"
               keyboardType="decimal-pad"
               suffix="₹"
               error={formErrors.chickTransportCharge?.message}
@@ -576,7 +576,7 @@ export default function CreateBatchScreen() {
               label="Vendor Name"
               value={value}
               onChangeText={onChange}
-              placeholder="ABC Hatcheries"
+              placeholder="Enter vendor name"
             />
           )}
         />
@@ -603,7 +603,7 @@ export default function CreateBatchScreen() {
               label="Notes (Optional)"
               value={value}
               onChangeText={onChange}
-              placeholder="Summer batch"
+              placeholder="Enter notes or special instructions"
               multiline
             />
           )}
