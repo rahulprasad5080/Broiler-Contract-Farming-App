@@ -5,6 +5,7 @@ export default function SupervisorDailyEntryFormScreen() {
     <DailyEntryScreen
       title="Daily Entry"
       subtitle="Review and submit daily flock data for the selected active batch."
+      listPath="/(supervisor)/tasks/daily"
     />
   );
 }

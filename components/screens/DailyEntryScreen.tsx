@@ -94,6 +94,7 @@ const RESTORED_MESSAGE_TIMEOUT_MS = 4000;
 type DailyEntryScreenProps = {
   title?: string;
   subtitle?: string;
+  listPath?: string;
 };
 
 function toStringValue(value?: number | null) {
@@ -132,11 +133,19 @@ function buildDailyLogPayload(
 }
 
 function buildDailyLogUpdatePayload(payload: CreateDailyLogRequest): UpdateDailyLogRequest {
-  const { clientReferenceId: _clientReferenceId, ...updatePayload } = payload;
+  const {
+    clientReferenceId: _clientReferenceId,
+    logDate: _logDate,
+    ...updatePayload
+  } = payload;
   return updatePayload;
 }
 
-export function DailyEntryScreen({ title = "Daily Entry", subtitle }: DailyEntryScreenProps) {
+export function DailyEntryScreen({
+  title = "Daily Entry",
+  subtitle,
+  listPath = "/(owner)/manage/daily-entry",
+}: DailyEntryScreenProps) {
   const router = useRouter();
   const { batchId: routeBatchId, dailyLogId } = useLocalSearchParams<{
     batchId?: string;
@@ -299,6 +308,7 @@ export function DailyEntryScreen({ title = "Daily Entry", subtitle }: DailyEntry
         showSuccessToast("Saved offline. It will sync automatically.");
         setSavedMessage("Saved offline. It will sync when internet returns.");
         reset({ ...DAILY_ENTRY_DEFAULTS, batchId: data.batchId });
+        router.replace(listPath as never);
         return;
       }
 
@@ -307,13 +317,14 @@ export function DailyEntryScreen({ title = "Daily Entry", subtitle }: DailyEntry
         showSuccessToast("Daily log updated successfully.");
         setSavedMessage("Daily log updated successfully.");
         await clearPersistedData();
-        router.back();
+        router.replace(listPath as never);
       } else {
         await createDailyLog(accessToken, data.batchId, payload);
         showSuccessToast("Daily log saved successfully.");
         setSavedMessage("Daily log saved successfully.");
         await clearPersistedData();
         reset({ ...DAILY_ENTRY_DEFAULTS, batchId: data.batchId });
+        router.replace(listPath as never);
       }
     } catch (error) {
       showRequestErrorToast(error, { title: "Save failed" });
@@ -356,20 +367,21 @@ export function DailyEntryScreen({ title = "Daily Entry", subtitle }: DailyEntry
               style={styles.stateSpacing}
             />
           ) : null}
-          {/* Date */}
-          <Controller
-            control={control}
-            name="logDate"
-            render={({ field: { value, onChange } }) => (
-              <DatePickerField
-                label="Date"
-                value={value}
-                onChange={onChange}
-                error={errors.logDate?.message}
-                disableFuture
-              />
-            )}
-          />
+          {!isEditMode ? (
+            <Controller
+              control={control}
+              name="logDate"
+              render={({ field: { value, onChange } }) => (
+                <DatePickerField
+                  label="Date"
+                  value={value}
+                  onChange={onChange}
+                  error={errors.logDate?.message}
+                  disableFuture
+                />
+              )}
+            />
+          ) : null}
 
           {/* Batch */}
           <SearchableSelectField

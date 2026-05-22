@@ -538,7 +538,7 @@ export type CreateDailyLogRequest = {
 };
 
 export type UpdateDailyLogRequest = Partial<
-  Omit<CreateDailyLogRequest, "clientReferenceId">
+  Omit<CreateDailyLogRequest, "clientReferenceId" | "logDate">
 >;
 
 export type CreateSaleRequest = {

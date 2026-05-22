@@ -5,6 +5,7 @@ export default function OwnerDailyEntryFormScreen() {
     <DailyEntryScreen
       title="Daily Entry"
       subtitle="Record mortality, feed, water, and weight directly "
+      listPath="/(owner)/manage/daily-entry"
     />
   );
 }
