@@ -1,4 +1,4 @@
-import { Feather } from "@expo/vector-icons";
+import { Feather, Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { useFocusEffect } from "@react-navigation/native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
@@ -14,6 +14,7 @@ import {
 
 import { ScreenState } from "@/components/ui/ScreenState";
 import { TopAppBar } from "@/components/ui/TopAppBar";
+import { useAuth } from "@/context/AuthContext";
 import { showRequestErrorToast } from "@/services/apiFeedback";
 import {
   ApiBatch,
@@ -21,7 +22,6 @@ import {
   listAllBatches,
   listDailyLogs,
 } from "@/services/managementApi";
-import { useAuth } from "@/context/AuthContext";
 
 const THEME_GREEN = "#0B5C36";
 
@@ -53,17 +53,34 @@ function formatDate(value?: string | null) {
   });
 }
 
-function Metric({ label, value, tone }: { label: string; value: string; tone: string }) {
-  return (
-    <View style={styles.metricCard}>
-      <Text style={[styles.metricValue, { color: tone }]} numberOfLines={1}>
-        {value}
-      </Text>
-      <Text style={styles.metricLabel} numberOfLines={1}>
-        {label}
-      </Text>
-    </View>
-  );
+function getDateParts(value?: string | null) {
+  if (!value) return { day: "--", month: "---", year: "----", weekday: "---" };
+  const parts = value.slice(0, 10).split("-");
+  if (parts.length === 3) {
+    const y = parseInt(parts[0], 10);
+    const m = parseInt(parts[1], 10) - 1; // 0-indexed month
+    const d = parseInt(parts[2], 10);
+    const date = new Date(y, m, d);
+    if (!Number.isNaN(date.getTime())) {
+      const dayStr = d.toString().padStart(2, "0");
+      const monthNames = ["JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"];
+      const monthStr = monthNames[m] || "---";
+      const weekdayNames = ["SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"];
+      const weekdayStr = weekdayNames[date.getDay()] || "---";
+      return { day: dayStr, month: monthStr, year: y.toString(), weekday: weekdayStr };
+    }
+  }
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return { day: "??", month: "???", year: "????", weekday: "???" };
+  }
+  const day = date.getDate().toString().padStart(2, "0");
+  const monthNames = ["JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"];
+  const month = monthNames[date.getMonth()];
+  const year = date.getFullYear().toString();
+  const weekdayNames = ["SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"];
+  const weekday = weekdayNames[date.getDay()];
+  return { day, month, year, weekday };
 }
 
 export function DailyEntryListScreen({
@@ -219,65 +236,132 @@ export function DailyEntryListScreen({
               onAction={() => openForm(lockedBatchId ? { batchId: lockedBatchId } : undefined)}
             />
           }
-          renderItem={({ item }) => (
-            <View style={styles.card}>
-              <View style={styles.cardHeader}>
-                <View style={styles.cardTitleWrap}>
-                  <Text style={styles.logDate}>{formatDate(item.log.logDate)}</Text>
-                  <Text style={styles.batchText} numberOfLines={1}>
-                    {item.batch.code} {item.batch.farmName ? `| ${item.batch.farmName}` : ""}
-                  </Text>
+            renderItem={({ item }) => {
+              const { day, month, weekday } = getDateParts(item.log.logDate);
+              const hasMortality = (item.log.mortalityCount ?? 0) > 0;
+              const hasCull = (item.log.cullCount ?? 0) > 0;
+
+              return (
+                <View style={styles.card}>
+                {/* Left Column: Date Badge */}
+                <View style={styles.dateBadge}>
+                  <Text style={styles.dateBadgeMonth}>{month}</Text>
+                  <Text style={styles.dateBadgeDay}>{day}</Text>
+                  <Text style={styles.dateBadgeWeekday}>{weekday}</Text>
                 </View>
 
-                <TouchableOpacity
-                  style={styles.editButton}
-                  onPress={() =>
-                    openForm({ batchId: item.batch.id, dailyLogId: item.log.id })
-                  }
-                  activeOpacity={0.8}
-                  accessibilityRole="button"
-                  accessibilityLabel="Update daily entry"
-                >
-                  <Feather name="edit-2" size={16} color={THEME_GREEN} />
-                </TouchableOpacity>
-              </View>
+                {/* Right Column: Main Content */}
+                <View style={styles.cardContent}>
+                  {/* Header Row */}
+                  <View style={styles.cardHeader}>
+                    <View style={styles.headerTitleContainer}>
+                      <Text style={styles.batchCode}>{item.batch.code}</Text>
+                      {item.batch.farmName ? (
+                        <Text style={styles.farmName} numberOfLines={1}>
+                          • {item.batch.farmName}
+                        </Text>
+                      ) : null}
+                    </View>
 
-              <View style={styles.metricsGrid}>
-                <Metric
-                  label="Opening"
-                  value={formatNumber(item.log.openingBirdCount)}
-                  tone="#111827"
-                />
-                <Metric
-                  label="Mortality"
-                  value={formatNumber(item.log.mortalityCount)}
-                  tone="#DC2626"
-                />
-                <Metric label="Cull" value={formatNumber(item.log.cullCount)} tone="#F97316" />
-                <Metric
-                  label="Feed"
-                  value={formatNumber(item.log.feedConsumedKg, " kg")}
-                  tone="#2563EB"
-                />
-                <Metric
-                  label="Water"
-                  value={formatNumber(item.log.waterConsumedLtr, " L")}
-                  tone="#0891B2"
-                />
-                <Metric
-                  label="Weight"
-                  value={formatNumber(item.log.avgWeightGrams, " g")}
-                  tone="#059669"
-                />
-              </View>
+                    <TouchableOpacity
+                      style={styles.editButton}
+                      onPress={() =>
+                        openForm({ batchId: item.batch.id, dailyLogId: item.log.id })
+                      }
+                      activeOpacity={0.8}
+                      accessibilityRole="button"
+                      accessibilityLabel="Update daily entry"
+                    >
+                      <Ionicons name="create-outline" size={18} color={THEME_GREEN} />
+                    </TouchableOpacity>
+                  </View>
 
-              {item.log.notes ? (
-                <Text style={styles.notes} numberOfLines={2}>
-                  {item.log.notes}
-                </Text>
-              ) : null}
-            </View>
-          )}
+                  <View style={styles.divider} />
+
+                  {/* Metrics 3x2 Grid */}
+                  <View style={styles.metricsContainer}>
+                    {/* Row 1: Flock Status */}
+                    <View style={styles.metricsRow}>
+                      <View style={styles.metricItem}>
+                        <MaterialCommunityIcons name="bird" size={12} color="#0B5C36" style={styles.metricIcon} />
+                        <Text style={styles.metricText} numberOfLines={1}>
+                          <Text style={styles.metricLabelCompact}>Op: </Text>
+                          {formatNumber(item.log.openingBirdCount)}
+                        </Text>
+                      </View>
+
+                      <View style={styles.metricItem}>
+                        <MaterialCommunityIcons
+                          name="heart-broken"
+                          size={12}
+                          color={hasMortality ? "#D32F2F" : "#757575"}
+                          style={styles.metricIcon}
+                        />
+                        <Text style={styles.metricText} numberOfLines={1}>
+                          <Text style={styles.metricLabelCompact}>Mort: </Text>
+                          <Text style={hasMortality ? styles.warningTextRed : null}>
+                            {formatNumber(item.log.mortalityCount)}
+                          </Text>
+                        </Text>
+                      </View>
+
+                      <View style={styles.metricItem}>
+                        <MaterialCommunityIcons
+                          name="close-circle-outline"
+                          size={12}
+                          color={hasCull ? "#E65100" : "#757575"}
+                          style={styles.metricIcon}
+                        />
+                        <Text style={styles.metricText} numberOfLines={1}>
+                          <Text style={styles.metricLabelCompact}>Cull: </Text>
+                          <Text style={hasCull ? styles.warningTextOrange : null}>
+                            {formatNumber(item.log.cullCount)}
+                          </Text>
+                        </Text>
+                      </View>
+                    </View>
+
+                    {/* Row 2: Inputs */}
+                    <View style={styles.metricsRow}>
+                      <View style={styles.metricItem}>
+                        <MaterialCommunityIcons name="corn" size={12} color="#1A73E8" style={styles.metricIcon} />
+                        <Text style={styles.metricText} numberOfLines={1}>
+                          <Text style={styles.metricLabelCompact}>Feed: </Text>
+                          {formatNumber(item.log.feedConsumedKg, "kg")}
+                        </Text>
+                      </View>
+
+                      <View style={styles.metricItem}>
+                        <Ionicons name="water" size={12} color="#00796B" style={styles.metricIcon} />
+                        <Text style={styles.metricText} numberOfLines={1}>
+                          <Text style={styles.metricLabelCompact}>Water: </Text>
+                          {formatNumber(item.log.waterConsumedLtr, "L")}
+                        </Text>
+                      </View>
+
+                      <View style={styles.metricItem}>
+                        <MaterialCommunityIcons name="scale" size={12} color="#4A148C" style={styles.metricIcon} />
+                        <Text style={styles.metricText} numberOfLines={1}>
+                          <Text style={styles.metricLabelCompact}>Wt: </Text>
+                          {formatNumber(item.log.avgWeightGrams, "g")}
+                        </Text>
+                      </View>
+                    </View>
+                  </View>
+
+                  {/* Notes Container */}
+                  {item.log.notes ? (
+                    <View style={styles.notesContainer}>
+                      <Ionicons name="chatbubble-ellipses-outline" size={10} color="#64748B" />
+                      <Text style={styles.notesText} numberOfLines={1}>
+                        {item.log.notes}
+                      </Text>
+                    </View>
+                  ) : null}
+                </View>
+              </View>
+            );
+          }}
         />
       )}
     </View>
@@ -287,7 +371,7 @@ export function DailyEntryListScreen({
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: "#FFFFFF",
+    backgroundColor: "#F9FAF9",
   },
   headerAction: {
     width: 40,
@@ -309,83 +393,151 @@ const styles = StyleSheet.create({
     fontWeight: "700",
   },
   listContent: {
-    padding: 16,
+    padding: 12,
     paddingBottom: 36,
-    gap: 12,
+    gap: 10,
   },
   stateSpacing: {
     marginBottom: 12,
   },
   card: {
-    borderWidth: 1,
-    borderColor: "#E5E7EB",
-    borderRadius: 8,
     backgroundColor: "#FFFFFF",
-    padding: 14,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: "#E4ECE7",
+    padding: 10,
+    flexDirection: "row",
+    gap: 10,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.03,
+    shadowRadius: 6,
+    elevation: 2,
+  },
+  dateBadge: {
+    width: 46,
+    height: 56,
+    borderRadius: 8,
+    backgroundColor: "#E7F5ED",
+    borderWidth: 1,
+    borderColor: "#CBE6D5",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  dateBadgeMonth: {
+    fontSize: 9,
+    fontWeight: "900",
+    color: "#0B5C36",
+    lineHeight: 11,
+    letterSpacing: 0.5,
+  },
+  dateBadgeDay: {
+    fontSize: 16,
+    fontWeight: "900",
+    color: "#0B5C36",
+    lineHeight: 18,
+  },
+  dateBadgeWeekday: {
+    fontSize: 8,
+    fontWeight: "700",
+    color: "#64748B",
+    lineHeight: 10,
+  },
+  cardContent: {
+    flex: 1,
+    justifyContent: "center",
   },
   cardHeader: {
     flexDirection: "row",
-    alignItems: "center",
     justifyContent: "space-between",
-    gap: 12,
-    marginBottom: 12,
+    alignItems: "center",
   },
-  cardTitleWrap: {
+  headerTitleContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    flex: 1,
+    marginRight: 6,
+  },
+  batchCode: {
+    fontSize: 12,
+    fontWeight: "800",
+    color: "#1E293B",
+  },
+  farmName: {
+    fontSize: 10,
+    fontWeight: "600",
+    color: "#64748B",
+    marginLeft: 4,
+    flex: 1,
+  },
+  editButton: {
+    width: 35,
+    height: 35,
+    borderRadius: 16,
+    backgroundColor: "#F1F5F9",
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1,
+    borderColor: "#E2E8F0",
+  },
+  divider: {
+    height: 1,
+    backgroundColor: "#F1F5F9",
+    marginVertical: 5,
+  },
+  metricsContainer: {
+    gap: 4,
+  },
+  metricsRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    gap: 6,
+  },
+  metricItem: {
+    flexDirection: "row",
+    alignItems: "center",
     flex: 1,
     minWidth: 0,
   },
-  logDate: {
-    color: "#111827",
-    fontSize: 16,
-    fontWeight: "900",
+  metricIcon: {
+    marginRight: 3,
   },
-  batchText: {
-    marginTop: 3,
-    color: "#6B7280",
-    fontSize: 12,
+  metricText: {
+    fontSize: 11,
+    color: "#1E293B",
     fontWeight: "700",
+    flex: 1,
   },
-  editButton: {
-    width: 38,
-    height: 38,
-    borderRadius: 8,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: "#E8F5E9",
-    borderWidth: 1,
-    borderColor: "#CBE6D5",
-  },
-  metricsGrid: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 8,
-  },
-  metricCard: {
-    width: "31.6%",
-    minHeight: 58,
-    borderRadius: 8,
-    backgroundColor: "#F9FAFB",
-    borderWidth: 1,
-    borderColor: "#EEF2F7",
-    paddingHorizontal: 8,
-    paddingVertical: 8,
-    justifyContent: "center",
-  },
-  metricValue: {
-    fontSize: 13,
-    fontWeight: "900",
-  },
-  metricLabel: {
-    marginTop: 3,
-    color: "#6B7280",
+  metricLabelCompact: {
     fontSize: 10,
+    color: "#64748B",
+    fontWeight: "500",
+  },
+  warningTextRed: {
+    color: "#D32F2F",
     fontWeight: "800",
   },
-  notes: {
-    marginTop: 12,
-    color: "#374151",
-    fontSize: 12,
-    fontWeight: "600",
-    lineHeight: 17,
+  warningTextOrange: {
+    color: "#E65100",
+    fontWeight: "800",
+  },
+  notesContainer: {
+    flexDirection: "row",
+    backgroundColor: "#F8FAFC",
+    borderRadius: 6,
+    paddingHorizontal: 6,
+    paddingVertical: 3,
+    marginTop: 5,
+    gap: 4,
+    alignItems: "center",
+    borderWidth: 1,
+    borderColor: "#F1F5F9",
+  },
+  notesText: {
+    flex: 1,
+    color: "#475569",
+    fontSize: 10,
+    fontWeight: "500",
   },
 });

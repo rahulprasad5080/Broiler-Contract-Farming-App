@@ -1,14 +1,26 @@
+import { DatePickerField } from "@/components/ui/DatePickerField";
+import { ScreenState } from "@/components/ui/ScreenState";
+import { SearchableSelectField } from "@/components/ui/SearchableSelectField";
+import { TopAppBar } from "@/components/ui/TopAppBar";
 import { useAuth } from "@/context/AuthContext";
+import { useFormPersistence } from "@/hooks/useFormPersistence";
+import {
+  showRequestErrorToast,
+  showSuccessToast,
+} from "@/services/apiFeedback";
+import { getLocalDateValue } from "@/services/dateUtils";
 import {
   ApiBatch,
   ApiDailyLog,
   CreateDailyLogRequest,
+  UpdateDailyLogRequest,
   createDailyLog,
   listAllBatches,
   listDailyLogs,
-  UpdateDailyLogRequest,
   updateDailyLog,
 } from "@/services/managementApi";
+import { enqueueOfflineSubmission, isNetworkConnected } from "@/services/offlineSyncQueue";
+import { zodResolver } from "@hookform/resolvers/zod";
 import { useFocusEffect } from "@react-navigation/native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import React, {
@@ -17,6 +29,7 @@ import React, {
   useMemo,
   useState,
 } from "react";
+import { Controller, useForm } from "react-hook-form";
 import {
   ActivityIndicator,
   KeyboardAvoidingView,
@@ -28,19 +41,6 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import { DatePickerField } from "@/components/ui/DatePickerField";
-import { ScreenState } from "@/components/ui/ScreenState";
-import { SearchableSelectField } from "@/components/ui/SearchableSelectField";
-import { TopAppBar } from "@/components/ui/TopAppBar";
-import { useFormPersistence } from "@/hooks/useFormPersistence";
-import {
-  showRequestErrorToast,
-  showSuccessToast,
-} from "@/services/apiFeedback";
-import { getLocalDateValue } from "@/services/dateUtils";
-import { enqueueOfflineSubmission, isNetworkConnected } from "@/services/offlineSyncQueue";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { Controller, useForm } from "react-hook-form";
 import { z } from "zod";
 
 function todayValue() {
@@ -63,16 +63,24 @@ const requiredNumericField = (label: string) =>
       message: `${label} must be a number`,
     });
 
+const optionalNumericField = (label: string) =>
+  z
+    .string()
+    .trim()
+    .refine((value) => value === "" || !Number.isNaN(Number(value.replace(/,/g, ""))), {
+      message: `${label} must be a number`,
+    });
+
 const dailyEntrySchema = z.object({
   batchId: z.string().min(1, "Please select a batch"),
   logDate: z.string().min(1, "Date is required"),
   openingBirdCount: requiredNumericField("Opening bird count"),
-  mortalityCount: requiredNumericField("Mortality"),
-  cullCount: requiredNumericField("Cull"),
-  feedConsumedKg: requiredNumericField("Feed consumed"),
-  waterConsumedLtr: requiredNumericField("Water consumed"),
-  avgWeightGrams: requiredNumericField("Average weight"),
-  notes: z.string().trim().min(1, "Remarks are required"),
+  mortalityCount: optionalNumericField("Mortality"),
+  cullCount: optionalNumericField("Cull"),
+  feedConsumedKg: optionalNumericField("Feed consumed"),
+  waterConsumedLtr: optionalNumericField("Water consumed"),
+  avgWeightGrams: optionalNumericField("Average weight"),
+  notes: z.string().trim(),
 });
 
 type DailyEntryFormData = z.infer<typeof dailyEntrySchema>;
@@ -127,7 +135,7 @@ function buildDailyLogPayload(
     feedConsumedKg: toOptionalNumber(data.feedConsumedKg ?? ""),
     waterConsumedLtr: toOptionalNumber(data.waterConsumedLtr ?? ""),
     avgWeightGrams: toOptionalNumber(data.avgWeightGrams ?? ""),
-    notes: data.notes.trim(),
+    notes: data.notes.trim() || undefined,
     clientReferenceId,
   };
 }
@@ -417,7 +425,7 @@ export function DailyEntryScreen({
                   value={value}
                   onChangeText={onChange}
                   keyboardType="numeric"
-                  placeholder="2480"
+                  placeholder="Enter Bird Count"
                   placeholderTextColor="#9CA3AF"
                 />
               )}
@@ -439,7 +447,7 @@ export function DailyEntryScreen({
                   value={value}
                   onChangeText={onChange}
                   keyboardType="numeric"
-                  placeholder="32"
+                  placeholder="Enter Mortality"
                   placeholderTextColor="#9CA3AF"
                 />
               )}
@@ -461,7 +469,7 @@ export function DailyEntryScreen({
                   value={value}
                   onChangeText={onChange}
                   keyboardType="numeric"
-                  placeholder="3"
+                  placeholder="Enter Cull"
                   placeholderTextColor="#9CA3AF"
                 />
               )}
@@ -481,7 +489,7 @@ export function DailyEntryScreen({
                   value={value}
                   onChangeText={onChange}
                   keyboardType="numeric"
-                  placeholder="420"
+                  placeholder="Enter Feed Consumption"
                   placeholderTextColor="#9CA3AF"
                 />
               )}
@@ -503,7 +511,7 @@ export function DailyEntryScreen({
                   value={value}
                   onChangeText={onChange}
                   keyboardType="numeric"
-                  placeholder="1,250"
+                  placeholder="Enter Water Consumed"
                   placeholderTextColor="#9CA3AF"
                 />
               )}
@@ -525,7 +533,7 @@ export function DailyEntryScreen({
                   value={value}
                   onChangeText={onChange}
                   keyboardType="numeric"
-                  placeholder="2350"
+                  placeholder="Enter Average Weight"
                   placeholderTextColor="#9CA3AF"
                 />
               )}
