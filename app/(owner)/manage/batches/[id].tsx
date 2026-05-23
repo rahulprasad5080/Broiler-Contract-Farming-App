@@ -402,8 +402,18 @@ export default function BatchDetailsScreen() {
       <View style={styles.heroBox}>
         <View style={styles.heroTop}>
           <Text style={styles.heroTitle}>{batch?.code ?? 'Batch not loaded'}</Text>
-          <View style={[styles.statusBadge, batch?.status === 'CLOSED' && { backgroundColor: '#F3F4F6', borderColor: '#E5E7EB' }]}>
-            <Text style={[styles.statusText, batch?.status === 'CLOSED' && { color: '#6B7280' }]}>
+          <View style={[
+            styles.statusBadge,
+            batch?.status === 'CLOSED' && { backgroundColor: '#F3F4F6', borderColor: '#E5E7EB' },
+            batch?.status === 'SETTLEMENT_PENDING' && { backgroundColor: '#E3F2FD', borderColor: '#BBDEFB' },
+            batch?.status === 'SALES_RUNNING' && { backgroundColor: '#FFF3E0', borderColor: '#FFE0B2' },
+          ]}>
+            <Text style={[
+              styles.statusText,
+              batch?.status === 'CLOSED' && { color: '#6B7280' },
+              batch?.status === 'SETTLEMENT_PENDING' && { color: '#1565C0' },
+              batch?.status === 'SALES_RUNNING' && { color: '#E65100' },
+            ]}>
               {batch?.status ? labelize(batch.status) : 'Active'}
             </Text>
           </View>
@@ -699,6 +709,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingTop: 20,
     paddingBottom: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E5E7EB',
   },
   heroTop: {
     flexDirection: 'row',

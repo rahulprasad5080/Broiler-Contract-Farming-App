@@ -8,7 +8,7 @@ import {
   type ApiFinancialDashboard,
   type ApiFinancialDashboardTransaction,
 } from "@/services/dashboardApi";
-import { FontAwesome5, Ionicons } from "@expo/vector-icons";
+import { FontAwesome5, Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { useFocusEffect } from "@react-navigation/native";
 import { useRouter } from "expo-router";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -255,20 +255,62 @@ export default function FinancialDashboardScreen() {
         showsVerticalScrollIndicator={false}
         ListHeaderComponent={
           <View>
-            <View style={styles.heroCard}>
-              <View style={styles.heroCopy}>
-                <Text style={styles.heroLabel}>Net Profit / Loss</Text>
-                <MoneyAmount
-                  value={formatSignedAmount(netProfitOrLoss)}
-                  color="#D1FAE5"
-                  iconSize={22}
-                  textStyle={styles.heroValue}
-                  rowStyle={styles.heroMoneyRow}
-                />
+            <View
+              style={[
+                styles.heroCard,
+                netProfitOrLoss >= 0 ? styles.heroCardPos : styles.heroCardNeg
+              ]}
+            >
+              <View style={styles.heroHeaderRow}>
+                {/* Left Icon Badge */}
+                <View style={[styles.heroIconBg, netProfitOrLoss >= 0 ? styles.heroIconBgPos : styles.heroIconBgNeg]}>
+                  <MaterialCommunityIcons
+                    name={netProfitOrLoss >= 0 ? "cash-check" : "cash-remove"}
+                    size={24}
+                    color={netProfitOrLoss >= 0 ? "#1B5E20" : "#B71C1C"}
+                  />
+                </View>
 
+                {/* Middle Copy */}
+                <View style={styles.heroTitleContainer}>
+                  <Text style={styles.heroLabel}>Net Profit / Loss</Text>
+                  <MoneyAmount
+                    value={formatSignedAmount(netProfitOrLoss)}
+                    color={netProfitOrLoss >= 0 ? "#1B5E20" : "#B71C1C"}
+                    iconSize={22}
+                    textStyle={styles.heroValue}
+                    rowStyle={styles.heroMoneyRow}
+                  />
+                </View>
+
+                {/* Right Badge */}
+                <View style={[styles.trendBadge, { backgroundColor: netProfitOrLoss >= 0 ? "#D1FAE5" : "#FEE2E2" }]}>
+                  <Ionicons
+                    name={netProfitOrLoss >= 0 ? "trending-up" : "trending-down"}
+                    size={14}
+                    color={netProfitOrLoss >= 0 ? "#10B981" : "#EF4444"}
+                  />
+                  <Text style={[styles.trendBadgeText, { color: netProfitOrLoss >= 0 ? "#065F46" : "#991B1B" }]}>
+                    {netProfitOrLoss >= 0 ? "Profit" : "Loss"}
+                  </Text>
+                </View>
               </View>
-              <View style={styles.heroIcon}>
-                <Ionicons name="analytics-outline" size={28} color="#FFFFFF" />
+
+              {/* Horizontal Divider */}
+              <View style={styles.heroDivider} />
+
+              {/* Bottom Stats Breakdown */}
+              <View style={styles.heroBreakdown}>
+                <View style={styles.breakdownItem}>
+                  <Ionicons name="arrow-up-circle-outline" size={14} color="#059669" />
+                  <Text style={styles.breakdownLabel}>Revenue: </Text>
+                  <Text style={styles.breakdownValue}>₹{formatAmount(summary?.sales)}</Text>
+                </View>
+                <View style={styles.breakdownItem}>
+                  <Ionicons name="arrow-down-circle-outline" size={14} color="#EF4444" />
+                  <Text style={styles.breakdownLabel}>Expenses: </Text>
+                  <Text style={styles.breakdownValue}>₹{formatAmount(summary?.expenses)}</Text>
+                </View>
               </View>
             </View>
 
@@ -591,54 +633,97 @@ const styles = StyleSheet.create({
     minWidth: 0,
   },
   heroCard: {
-    minHeight: 130,
-    borderRadius: 8,
-    backgroundColor: "#104E34",
-    padding: 18,
-    marginBottom: 14,
+    borderWidth: 1,
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 16,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  heroCardPos: {
+    backgroundColor: "#F4FAF6",
+    borderColor: "#A7F3D0",
+  },
+  heroCardNeg: {
+    backgroundColor: "#FFF5F5",
+    borderColor: "#FCA5A5",
+  },
+  heroHeaderRow: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between",
+    gap: 12,
   },
-  heroCopy: {
-    flex: 1,
-    minWidth: 0,
-  },
-  heroLabel: {
-    color: "rgba(255,255,255,0.72)",
-    fontSize: 12,
-    fontWeight: "900",
-    textTransform: "uppercase",
-    letterSpacing: 0.6,
-  },
-  heroValue: {
-    fontSize: 30,
-    fontWeight: "900",
-    letterSpacing: 0,
-  },
-  heroMoneyRow: {
-    marginTop: 8,
-  },
-  positiveHeroText: {
-    color: "#D1FAE5",
-  },
-  negativeHeroText: {
-    color: "#FECACA",
-  },
-  heroMeta: {
-    marginTop: 6,
-    color: "rgba(255,255,255,0.72)",
-    fontSize: 12,
-    fontWeight: "700",
-  },
-  heroIcon: {
-    width: 56,
-    height: 56,
-    borderRadius: 8,
+  heroIconBg: {
+    width: 44,
+    height: 44,
+    borderRadius: 12,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "rgba(255,255,255,0.14)",
-    marginLeft: 14,
+  },
+  heroIconBgPos: {
+    backgroundColor: "#E8F5E9",
+  },
+  heroIconBgNeg: {
+    backgroundColor: "#FFEBEE",
+  },
+  heroTitleContainer: {
+    flex: 1,
+  },
+  heroLabel: {
+    fontSize: 11,
+    fontWeight: "800",
+    color: "#6B7280",
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
+  },
+  heroValue: {
+    fontSize: 24,
+    fontWeight: "900",
+  },
+  heroMoneyRow: {
+    marginTop: 2,
+  },
+  trendBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+    gap: 4,
+  },
+  trendBadgeText: {
+    fontSize: 10,
+    fontWeight: "800",
+  },
+  heroDivider: {
+    height: 1,
+    backgroundColor: "rgba(0, 0, 0, 0.05)",
+    marginVertical: 12,
+  },
+  heroBreakdown: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    gap: 12,
+  },
+  breakdownItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    flex: 1,
+  },
+  breakdownLabel: {
+    fontSize: 11,
+    fontWeight: "600",
+    color: "#4B5563",
+  },
+  breakdownValue: {
+    fontSize: 12,
+    fontWeight: "800",
+    color: "#1F2937",
   },
   summaryGrid: {
     flexDirection: "row",

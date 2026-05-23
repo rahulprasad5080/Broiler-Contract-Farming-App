@@ -96,7 +96,7 @@ export function getRequestErrorMessage(
 
 export function showRequestErrorToast(
   error: unknown,
-  { title = "Request failed", fallbackMessage = "Something went wrong.", position = "bottom" }: ErrorToastOptions = {},
+  { title = "Request failed", fallbackMessage = "Something went wrong.", position = "top" }: ErrorToastOptions = {},
 ) {
   const info = getRequestErrorInfo(error, fallbackMessage, title);
 
@@ -113,7 +113,7 @@ export function showRequestErrorToast(
 export function showSuccessToast(
   message: string,
   title = "Success",
-  position: ToastPosition = "bottom",
+  position: ToastPosition = "top",
 ) {
   Toast.show({
     type: "success",

@@ -508,19 +508,100 @@ export default function ReportsScreen() {
                       ) : null}
                     </View>
                   ) : null}
-                  {partnerLedgerRows.map((row, index) => (
-                    <View key={row.id ?? `${row.referenceType ?? "row"}-${index}`} style={styles.statementRow}>
-                      <View style={styles.statementRowMain}>
-                        <Text style={styles.statementRowTitle}>{row.description || row.referenceType || "Ledger row"}</Text>
-                        <Text style={styles.statementRowMeta}>{[formatLedgerDate(row), row.referenceId].filter(Boolean).join(" | ")}</Text>
+                  {partnerLedgerRows.map((row, index) => {
+                    const isVendor = partnerStatementKind === "vendor";
+                    const rowDebit = row.debit !== undefined && row.debit !== null
+                      ? row.debit
+                      : (isVendor ? (row.paymentAmount ?? 0) : (row.chargeAmount ?? 0));
+                    const rowCredit = row.credit !== undefined && row.credit !== null
+                      ? row.credit
+                      : (isVendor ? (row.chargeAmount ?? 0) : (row.paymentAmount ?? 0));
+                    const rowBalance = row.runningBalance ?? row.balance ?? row.balanceAfter ?? 0;
+
+                    const shortRefId = row.referenceId ? `#${row.referenceId.slice(0, 8)}` : "";
+                    const rowDate = formatLedgerDate(row);
+                    const purchaseTypeLabel = row.purchaseType || (row.entryKind === "PURCHASE" ? "PURCHASE" : "");
+                    const isPaid = row.paymentStatus === "PAID";
+                    const hasBatch = row.batchCode;
+
+                    return (
+                      <View
+                        key={row.id ?? `${row.referenceType ?? "row"}-${index}`}
+                        style={styles.ledgerCard}
+                      >
+                        {/* Top Line: Date, Reference, and Badges */}
+                        <View style={styles.ledgerHeader}>
+                          <Text style={styles.ledgerDate}>{rowDate}</Text>
+                          {shortRefId ? <Text style={styles.ledgerRef} numberOfLines={1}>{shortRefId}</Text> : null}
+                          
+                          {/* Badges Container */}
+                          <View style={styles.badgeRow}>
+                            {purchaseTypeLabel ? (
+                              <View style={styles.typeBadge}>
+                                <Text style={styles.typeBadgeText}>{purchaseTypeLabel}</Text>
+                              </View>
+                            ) : null}
+                            {row.paymentStatus ? (
+                              <View style={[styles.statusBadge, isPaid ? styles.statusPaidBg : styles.statusPendingBg]}>
+                                <Text style={[styles.statusBadgeText, isPaid ? styles.statusPaidText : styles.statusPendingText]}>
+                                  {row.paymentStatus}
+                                </Text>
+                              </View>
+                            ) : null}
+                          </View>
+                        </View>
+
+                        {/* Middle Line: Description & Batch */}
+                        <View style={styles.ledgerBody}>
+                          <View style={styles.ledgerDetails}>
+                            <Text style={styles.ledgerTitle}>{row.description || row.referenceType || "Ledger row"}</Text>
+                            
+                            {hasBatch ? (
+                              <View style={styles.batchTag}>
+                                <Ionicons name="home-outline" size={10} color="#0B5C36" />
+                                <Text style={styles.batchTagText}>
+                                  {row.batchCode}
+                                  {row.farmName ? ` | ${row.farmName}` : ""}
+                                </Text>
+                              </View>
+                            ) : null}
+                          </View>
+
+                          {/* Amounts Table */}
+                          <View style={styles.ledgerAmounts}>
+                            <View style={styles.amountRow}>
+                              <Text style={styles.amountLabel}>Dr:</Text>
+                              <Text style={[styles.amountValue, rowDebit > 0 ? styles.debitText : styles.mutedText]}>
+                                {formatINR(rowDebit)}
+                              </Text>
+                            </View>
+                            <View style={styles.amountRow}>
+                              <Text style={styles.amountLabel}>Cr:</Text>
+                              <Text style={[styles.amountValue, rowCredit > 0 ? styles.creditText : styles.mutedText]}>
+                                {formatINR(rowCredit)}
+                              </Text>
+                            </View>
+                            <View style={styles.amountRow}>
+                              <Text style={styles.amountLabelBold}>Bal:</Text>
+                              <Text style={styles.amountValueBold}>
+                                {formatINR(rowBalance)}
+                              </Text>
+                            </View>
+                          </View>
+                        </View>
+
+                        {/* Bottom Line: Notes/Remarks (if any) */}
+                        {row.notes || row.remarks ? (
+                          <View style={styles.ledgerNotes}>
+                            <Ionicons name="document-text-outline" size={12} color="#6B7280" />
+                            <Text style={styles.ledgerNotesText} numberOfLines={2}>
+                              {row.notes || row.remarks}
+                            </Text>
+                          </View>
+                        ) : null}
                       </View>
-                      <View style={styles.statementRowAmounts}>
-                        <Text style={styles.statementDebit}>Dr {formatINR(row.debit)}</Text>
-                        <Text style={styles.statementCredit}>Cr {formatINR(row.credit)}</Text>
-                        <Text style={styles.statementRunning}>Bal {formatINR(row.runningBalance ?? row.balance)}</Text>
-                      </View>
-                    </View>
-                  ))}
+                    );
+                  })}
                 </SurfaceCard>
               </View>
             )}
@@ -537,21 +618,50 @@ export default function ReportsScreen() {
                   ]}
                 >
                   <View style={styles.profitHeaderRow}>
-                    <View>
+                    {/* Left Icon Badge */}
+                    <View style={[styles.profitIconBg, reportStats.totalProfit >= 0 ? styles.profitIconBgPos : styles.profitIconBgNeg]}>
+                      <MaterialCommunityIcons
+                        name={reportStats.totalProfit >= 0 ? "cash-check" : "cash-remove"}
+                        size={24}
+                        color={reportStats.totalProfit >= 0 ? "#1B5E20" : "#B71C1C"}
+                      />
+                    </View>
+
+                    {/* Middle Copy */}
+                    <View style={styles.profitInfoContainer}>
                       <Text style={styles.profitLabel}>Net Operations P&L</Text>
-                      <Text style={[styles.profitVal, { color: reportStats.totalProfit >= 0 ? "#10B981" : "#EF4444" }]}>
+                      <Text style={[styles.profitVal, { color: reportStats.totalProfit >= 0 ? "#1B5E20" : "#B71C1C" }]}>
                         {formatINR(reportStats.totalProfit)}
                       </Text>
                     </View>
+
+                    {/* Right Badge */}
                     <View style={[styles.trendBadge, { backgroundColor: reportStats.totalProfit >= 0 ? "#D1FAE5" : "#FEE2E2" }]}>
                       <Ionicons
                         name={reportStats.totalProfit >= 0 ? "trending-up" : "trending-down"}
-                        size={16}
+                        size={14}
                         color={reportStats.totalProfit >= 0 ? "#10B981" : "#EF4444"}
                       />
                       <Text style={[styles.trendBadgeText, { color: reportStats.totalProfit >= 0 ? "#065F46" : "#991B1B" }]}>
                         {reportStats.totalProfit >= 0 ? "Profit" : "Loss"}
                       </Text>
+                    </View>
+                  </View>
+
+                  {/* Horizontal Divider */}
+                  <View style={styles.profitCardDivider} />
+
+                  {/* Bottom Stats Breakdown */}
+                  <View style={styles.profitBreakdown}>
+                    <View style={styles.breakdownItem}>
+                      <Ionicons name="arrow-up-circle-outline" size={14} color="#059669" />
+                      <Text style={styles.breakdownLabel}>Revenue: </Text>
+                      <Text style={styles.breakdownValue}>{formatINR(reportStats.sales)}</Text>
+                    </View>
+                    <View style={styles.breakdownItem}>
+                      <Ionicons name="arrow-down-circle-outline" size={14} color="#EF4444" />
+                      <Text style={styles.breakdownLabel}>Expenses: </Text>
+                      <Text style={styles.breakdownValue}>{formatINR(reportStats.totalExpenses)}</Text>
                     </View>
                   </View>
                 </SurfaceCard>
@@ -741,189 +851,197 @@ export default function ReportsScreen() {
           <Modal
             visible={fcrModalVisible}
             animationType="slide"
-            transparent={false}
+            transparent={true}
             onRequestClose={() => setFcrModalVisible(false)}
           >
-            <View style={{ flex: 1, backgroundColor: "#F9FAFB" }}>
-              <View style={styles.modalHeader}>
-                <View style={styles.modalHeaderLeft}>
-                  <View style={styles.modalIconBg}>
-                    <MaterialCommunityIcons name="calculator-variant" size={24} color="#FFF" />
+            <View style={styles.modalOverlay}>
+              <TouchableOpacity
+                style={styles.modalBackdrop}
+                activeOpacity={1}
+                onPress={() => setFcrModalVisible(false)}
+              />
+              <View style={styles.modalContent}>
+                <View style={styles.modalDragHandle} />
+                <View style={styles.modalHeader}>
+                  <View style={styles.modalHeaderLeft}>
+                    <View style={styles.modalIconBg}>
+                      <MaterialCommunityIcons name="calculator-variant" size={24} color="#FFF" />
+                    </View>
+                    <View>
+                      <Text style={styles.modalHeaderTitle}>🐔 FCR & Profit Estimator</Text>
+                      <Text style={styles.modalHeaderSub}>Standard Client-Side Analysis</Text>
+                    </View>
                   </View>
-                  <View>
-                    <Text style={styles.modalHeaderTitle}>🐔 FCR & Profit Estimator</Text>
-                    <Text style={styles.modalHeaderSub}>Standard Client-Side Analysis</Text>
-                  </View>
+                  <TouchableOpacity
+                    style={styles.modalCloseBtn}
+                    onPress={() => setFcrModalVisible(false)}
+                    activeOpacity={0.7}
+                  >
+                    <Ionicons name="close" size={24} color="#4B5563" />
+                  </TouchableOpacity>
                 </View>
-                <TouchableOpacity
-                  style={styles.modalCloseBtn}
-                  onPress={() => setFcrModalVisible(false)}
-                  activeOpacity={0.7}
-                >
-                  <Ionicons name="close" size={24} color="#4B5563" />
-                </TouchableOpacity>
-              </View>
 
-              <ScrollView contentContainerStyle={styles.modalScroll} keyboardShouldPersistTaps="handled">
-                {/* Display Real-time FCR and Rating */}
-                <SurfaceCard style={[styles.fcrResultCard, { borderColor: fcrCalculation.ratingColor }]}>
-                  <Text style={styles.calcResultLabel}>Calculated Feed Conversion Ratio (FCR)</Text>
-                  <Text style={[styles.calcResultVal, { color: fcrCalculation.ratingColor }]}>
-                    {fcrCalculation.fcrValue > 0 ? fcrCalculation.fcrValue.toFixed(3) : "0.000"}
-                  </Text>
-                  <View style={[styles.ratingBadge, { backgroundColor: fcrCalculation.ratingColor + "15" }]}>
-                    <Text style={[styles.ratingBadgeText, { color: fcrCalculation.ratingColor }]}>
-                      {fcrCalculation.rating}
+                <ScrollView contentContainerStyle={styles.modalScroll} keyboardShouldPersistTaps="handled">
+                  {/* Display Real-time FCR and Rating */}
+                  <SurfaceCard style={[styles.fcrResultCard, { borderColor: fcrCalculation.ratingColor }]}>
+                    <Text style={styles.calcResultLabel}>Calculated Feed Conversion Ratio (FCR)</Text>
+                    <Text style={[styles.calcResultVal, { color: fcrCalculation.ratingColor }]}>
+                      {fcrCalculation.fcrValue > 0 ? fcrCalculation.fcrValue.toFixed(3) : "0.000"}
                     </Text>
-                  </View>
-                  <Text style={[styles.hindiRatingText, { color: fcrCalculation.ratingColor }]}>
-                    {fcrCalculation.ratingHindi}
-                  </Text>
-                </SurfaceCard>
+                    <View style={[styles.ratingBadge, { backgroundColor: fcrCalculation.ratingColor + "15" }]}>
+                      <Text style={[styles.ratingBadgeText, { color: fcrCalculation.ratingColor }]}>
+                        {fcrCalculation.rating}
+                      </Text>
+                    </View>
+                    <Text style={[styles.hindiRatingText, { color: fcrCalculation.ratingColor }]}>
+                      {fcrCalculation.ratingHindi}
+                    </Text>
+                  </SurfaceCard>
 
-                {/* Inputs Group */}
-                <Text style={styles.modalSectionTitle}>Estimator Inputs</Text>
-                
-                {/* Feed Consumed */}
-                <View style={styles.inputCard}>
-                  <View style={styles.inputHeader}>
-                    <Text style={styles.inputLabel}>Total Feed Consumed</Text>
-                    <View style={styles.unitBtnRow}>
+                  {/* Inputs Group */}
+                  <Text style={styles.modalSectionTitle}>Estimator Inputs</Text>
+                  
+                  {/* Feed Consumed */}
+                  <View style={styles.inputCard}>
+                    <View style={styles.inputHeader}>
+                      <Text style={styles.inputLabel}>Total Feed Consumed</Text>
+                      <View style={styles.unitBtnRow}>
+                        <TouchableOpacity
+                          style={[styles.unitBtn, calcFeedUnit === "kg" && styles.activeUnitBtn]}
+                          onPress={() => setCalcFeedUnit("kg")}
+                        >
+                          <Text style={[styles.unitBtnText, calcFeedUnit === "kg" && styles.activeUnitText]}>KG</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                          style={[styles.unitBtn, calcFeedUnit === "bags" && styles.activeUnitBtn]}
+                          onPress={() => setCalcFeedUnit("bags")}
+                        >
+                          <Text style={[styles.unitBtnText, calcFeedUnit === "bags" && styles.activeUnitText]}>Bags</Text>
+                        </TouchableOpacity>
+                      </View>
+                    </View>
+                    <View style={styles.textInputRow}>
+                      <TextInput
+                        value={calcFeed}
+                        onChangeText={setCalcFeed}
+                        keyboardType="numeric"
+                        placeholder="e.g. 1500"
+                        style={styles.calcInput}
+                      />
+                      <Text style={styles.inputSuffix}>{calcFeedUnit === "bags" ? "Bags (50kg each)" : "KG"}</Text>
+                    </View>
+                  </View>
+
+                  {/* Total Birds */}
+                  <View style={styles.inputCard}>
+                    <Text style={styles.inputLabel}>Total Live Birds</Text>
+                    <View style={styles.textInputRow}>
                       <TouchableOpacity
-                        style={[styles.unitBtn, calcFeedUnit === "kg" && styles.activeUnitBtn]}
-                        onPress={() => setCalcFeedUnit("kg")}
+                        style={styles.stepBtn}
+                        onPress={() => setCalcBirds(prev => String(Math.max(1, (parseInt(prev) || 0) - 100)))}
                       >
-                        <Text style={[styles.unitBtnText, calcFeedUnit === "kg" && styles.activeUnitText]}>KG</Text>
+                        <Text style={styles.stepBtnText}>-100</Text>
                       </TouchableOpacity>
+                      <TextInput
+                        value={calcBirds}
+                        onChangeText={setCalcBirds}
+                        keyboardType="numeric"
+                        placeholder="e.g. 1000"
+                        style={[styles.calcInput, { textAlign: "center" }]}
+                      />
                       <TouchableOpacity
-                        style={[styles.unitBtn, calcFeedUnit === "bags" && styles.activeUnitBtn]}
-                        onPress={() => setCalcFeedUnit("bags")}
+                        style={styles.stepBtn}
+                        onPress={() => setCalcBirds(prev => String((parseInt(prev) || 0) + 100))}
                       >
-                        <Text style={[styles.unitBtnText, calcFeedUnit === "bags" && styles.activeUnitText]}>Bags</Text>
+                        <Text style={styles.stepBtnText}>+100</Text>
                       </TouchableOpacity>
                     </View>
                   </View>
-                  <View style={styles.textInputRow}>
-                    <TextInput
-                      value={calcFeed}
-                      onChangeText={setCalcFeed}
-                      keyboardType="numeric"
-                      placeholder="e.g. 1500"
-                      style={styles.calcInput}
-                    />
-                    <Text style={styles.inputSuffix}>{calcFeedUnit === "bags" ? "Bags (50kg each)" : "KG"}</Text>
-                  </View>
-                </View>
 
-                {/* Total Birds */}
-                <View style={styles.inputCard}>
-                  <Text style={styles.inputLabel}>Total Live Birds</Text>
-                  <View style={styles.textInputRow}>
-                    <TouchableOpacity
-                      style={styles.stepBtn}
-                      onPress={() => setCalcBirds(prev => String(Math.max(1, (parseInt(prev) || 0) - 100)))}
-                    >
-                      <Text style={styles.stepBtnText}>-100</Text>
-                    </TouchableOpacity>
-                    <TextInput
-                      value={calcBirds}
-                      onChangeText={setCalcBirds}
-                      keyboardType="numeric"
-                      placeholder="e.g. 1000"
-                      style={[styles.calcInput, { textAlign: "center" }]}
-                    />
-                    <TouchableOpacity
-                      style={styles.stepBtn}
-                      onPress={() => setCalcBirds(prev => String((parseInt(prev) || 0) + 100))}
-                    >
-                      <Text style={styles.stepBtnText}>+100</Text>
-                    </TouchableOpacity>
+                  {/* Average Bird Weight */}
+                  <View style={styles.inputCard}>
+                    <Text style={styles.inputLabel}>Average Bird Weight (Grams)</Text>
+                    <View style={styles.textInputRow}>
+                      <TouchableOpacity
+                        style={styles.stepBtn}
+                        onPress={() => setCalcAvgWeight(prev => String(Math.max(50, (parseInt(prev) || 0) - 50)))}
+                      >
+                        <Text style={styles.stepBtnText}>-50g</Text>
+                      </TouchableOpacity>
+                      <TextInput
+                        value={calcAvgWeight}
+                        onChangeText={setCalcAvgWeight}
+                        keyboardType="numeric"
+                        placeholder="e.g. 1500"
+                        style={[styles.calcInput, { textAlign: "center" }]}
+                      />
+                      <TouchableOpacity
+                        style={styles.stepBtn}
+                        onPress={() => setCalcAvgWeight(prev => String((parseInt(prev) || 0) + 50))}
+                      >
+                        <Text style={styles.stepBtnText}>+50g</Text>
+                      </TouchableOpacity>
+                    </View>
                   </View>
-                </View>
 
-                {/* Average Bird Weight */}
-                <View style={styles.inputCard}>
-                  <Text style={styles.inputLabel}>Average Bird Weight (Grams)</Text>
-                  <View style={styles.textInputRow}>
-                    <TouchableOpacity
-                      style={styles.stepBtn}
-                      onPress={() => setCalcAvgWeight(prev => String(Math.max(50, (parseInt(prev) || 0) - 50)))}
-                    >
-                      <Text style={styles.stepBtnText}>-50g</Text>
-                    </TouchableOpacity>
-                    <TextInput
-                      value={calcAvgWeight}
-                      onChangeText={setCalcAvgWeight}
-                      keyboardType="numeric"
-                      placeholder="e.g. 1500"
-                      style={[styles.calcInput, { textAlign: "center" }]}
-                    />
-                    <TouchableOpacity
-                      style={styles.stepBtn}
-                      onPress={() => setCalcAvgWeight(prev => String((parseInt(prev) || 0) + 50))}
-                    >
-                      <Text style={styles.stepBtnText}>+50g</Text>
-                    </TouchableOpacity>
-                  </View>
-                </View>
-
-                {/* Commercial Prices & Valuation */}
-                <Text style={styles.modalSectionTitle}>Flock Valuation Forecast</Text>
-                
-                <View style={styles.commercialGrid}>
-                  <View style={[styles.inputCard, { width: "48%" }]}>
-                    <Text style={styles.inputLabel}>Feed Price (₹/kg)</Text>
-                    <TextInput
-                      value={calcFeedPrice}
-                      onChangeText={setCalcFeedPrice}
-                      keyboardType="numeric"
-                      style={styles.calcInputCompact}
-                    />
-                  </View>
-                  <View style={[styles.inputCard, { width: "48%" }]}>
-                    <Text style={styles.inputLabel}>Bird Price (₹/kg)</Text>
-                    <TextInput
-                      value={calcBirdPrice}
-                      onChangeText={setCalcBirdPrice}
-                      keyboardType="numeric"
-                      style={styles.calcInputCompact}
-                    />
-                  </View>
-                </View>
-
-                {/* Valuation Results */}
-                <SurfaceCard style={styles.valuationCard}>
-                  <View style={styles.valuationRow}>
-                    <Text style={styles.valLabel}>Est. Total Live Weight:</Text>
-                    <Text style={styles.valText}>{fcrCalculation.totalWeightKg.toFixed(2)} kg</Text>
-                  </View>
+                  {/* Commercial Prices & Valuation */}
+                  <Text style={styles.modalSectionTitle}>Flock Valuation Forecast</Text>
                   
-                  <View style={styles.valuationRow}>
-                    <Text style={styles.valLabel}>Est. Flock Market Value:</Text>
-                    <Text style={[styles.valText, { color: THEME_GREEN }]}>
-                      {formatINR(fcrCalculation.estimatedRevenue)}
-                    </Text>
+                  <View style={styles.commercialGrid}>
+                    <View style={[styles.inputCard, { width: "48%" }]}>
+                      <Text style={styles.inputLabel}>Feed Price (₹/kg)</Text>
+                      <TextInput
+                        value={calcFeedPrice}
+                        onChangeText={setCalcFeedPrice}
+                        keyboardType="numeric"
+                        style={styles.calcInputCompact}
+                      />
+                    </View>
+                    <View style={[styles.inputCard, { width: "48%" }]}>
+                      <Text style={styles.inputLabel}>Bird Price (₹/kg)</Text>
+                      <TextInput
+                        value={calcBirdPrice}
+                        onChangeText={setCalcBirdPrice}
+                        keyboardType="numeric"
+                        style={styles.calcInputCompact}
+                      />
+                    </View>
                   </View>
 
-                  <View style={styles.valuationRow}>
-                    <Text style={styles.valLabel}>Est. Total Feed Cost:</Text>
-                    <Text style={[styles.valText, { color: "#EF4444" }]}>
-                      {formatINR(fcrCalculation.estimatedFeedCost)}
-                    </Text>
-                  </View>
-                  
-                  <View style={styles.valDivider} />
+                  {/* Valuation Results */}
+                  <SurfaceCard style={styles.valuationCard}>
+                    <View style={styles.valuationRow}>
+                      <Text style={styles.valLabel}>Est. Total Live Weight:</Text>
+                      <Text style={styles.valText}>{fcrCalculation.totalWeightKg.toFixed(2)} kg</Text>
+                    </View>
+                    
+                    <View style={styles.valuationRow}>
+                      <Text style={styles.valLabel}>Est. Flock Market Value:</Text>
+                      <Text style={[styles.valText, { color: THEME_GREEN }]}>
+                        {formatINR(fcrCalculation.estimatedRevenue)}
+                      </Text>
+                    </View>
 
-                  <View style={styles.valuationRow}>
-                    <Text style={[styles.valLabel, { fontWeight: "900", fontSize: 13 }]}>Est. Gross Profit Margin:</Text>
-                    <Text style={[styles.valText, { fontWeight: "900", fontSize: 15, color: fcrCalculation.grossMargin >= 0 ? THEME_GREEN : "#EF4444" }]}>
-                      {formatINR(fcrCalculation.grossMargin)}
-                    </Text>
-                  </View>
-                </SurfaceCard>
+                    <View style={styles.valuationRow}>
+                      <Text style={styles.valLabel}>Est. Total Feed Cost:</Text>
+                      <Text style={[styles.valText, { color: "#EF4444" }]}>
+                        {formatINR(fcrCalculation.estimatedFeedCost)}
+                      </Text>
+                    </View>
+                    
+                    <View style={styles.valDivider} />
 
-                <View style={{ height: 40 }} />
-              </ScrollView>
+                    <View style={styles.valuationRow}>
+                      <Text style={[styles.valLabel, { fontWeight: "900", fontSize: 13 }]}>Est. Gross Profit Margin:</Text>
+                      <Text style={[styles.valText, { fontWeight: "900", fontSize: 15, color: fcrCalculation.grossMargin >= 0 ? THEME_GREEN : "#EF4444" }]}>
+                        {formatINR(fcrCalculation.grossMargin)}
+                      </Text>
+                    </View>
+                  </SurfaceCard>
+
+                  <View style={{ height: 40 }} />
+                </ScrollView>
+              </View>
             </View>
           </Modal>
         </View>
@@ -1128,34 +1246,173 @@ const styles = StyleSheet.create({
     fontWeight: "800",
     color: THEME_GREEN,
   },
-  statementRow: {
-    flexDirection: "row",
-    gap: 10,
-    paddingVertical: 12,
-    borderTopWidth: 1,
-    borderTopColor: "#F3F4F6",
+  ledgerCard: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
+    padding: 12,
+    marginTop: 12,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.02,
+    shadowRadius: 3,
+    elevation: 1,
   },
-  statementRowMain: {
+  ledgerHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 8,
+    gap: 8,
+    flexWrap: "wrap",
+  },
+  ledgerDate: {
+    fontSize: 11,
+    fontWeight: "700",
+    color: "#4B5563",
+    backgroundColor: "#F3F4F6",
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+  },
+  ledgerRef: {
+    fontSize: 11,
+    fontWeight: "600",
+    color: "#9CA3AF",
+  },
+  badgeRow: {
+    flexDirection: "row",
+    gap: 4,
+    marginLeft: "auto",
+  },
+  typeBadge: {
+    backgroundColor: "#EFF6FF",
+    borderWidth: 0.5,
+    borderColor: "#BFDBFE",
+    borderRadius: 4,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+  },
+  typeBadgeText: {
+    fontSize: 9,
+    fontWeight: "800",
+    color: "#2563EB",
+  },
+  statusBadge: {
+    borderRadius: 4,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderWidth: 0.5,
+  },
+  statusBadgeText: {
+    fontSize: 9,
+    fontWeight: "800",
+  },
+  statusPaidBg: {
+    backgroundColor: "#ECFDF5",
+    borderColor: "#A7F3D0",
+  },
+  statusPaidText: {
+    color: "#059669",
+  },
+  statusPendingBg: {
+    backgroundColor: "#FFF7ED",
+    borderColor: "#FED7AA",
+  },
+  statusPendingText: {
+    color: "#D97706",
+  },
+  ledgerBody: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "flex-start",
+    gap: 12,
+  },
+  ledgerDetails: {
     flex: 1,
   },
-  statementRowTitle: {
-    fontSize: 13,
+  ledgerTitle: {
+    fontSize: 14,
     fontWeight: "800",
-    color: "#111827",
+    color: "#1F2937",
+    marginBottom: 6,
   },
-  statementRowMeta: {
-    marginTop: 3,
-    fontSize: 11,
+  batchTag: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    backgroundColor: "#E7F5ED",
+    paddingHorizontal: 6,
+    paddingVertical: 3,
+    borderRadius: 6,
+    alignSelf: "flex-start",
+  },
+  batchTagText: {
+    fontSize: 10,
+    fontWeight: "700",
+    color: "#0B5C36",
+  },
+  ledgerAmounts: {
+    minWidth: 100,
+    backgroundColor: "#F9FAFB",
+    paddingHorizontal: 8,
+    paddingVertical: 6,
+    borderRadius: 8,
+    borderWidth: 0.5,
+    borderColor: "#E5E7EB",
+    gap: 2,
+  },
+  amountRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    gap: 8,
+  },
+  amountLabel: {
+    fontSize: 10,
     fontWeight: "600",
     color: "#6B7280",
   },
-  statementRowAmounts: {
-    alignItems: "flex-end",
-    minWidth: 100,
+  amountValue: {
+    fontSize: 10,
+    fontWeight: "700",
   },
-  statementDebit: { fontSize: 11, fontWeight: "700", color: "#EF4444" },
-  statementCredit: { fontSize: 11, fontWeight: "700", color: "#059669" },
-  statementRunning: { fontSize: 11, fontWeight: "900", color: "#111827", marginTop: 2 },
+  amountLabelBold: {
+    fontSize: 10,
+    fontWeight: "800",
+    color: "#111827",
+  },
+  amountValueBold: {
+    fontSize: 10,
+    fontWeight: "900",
+    color: "#111827",
+  },
+  debitText: {
+    color: "#EF4444",
+  },
+  creditText: {
+    color: "#059669",
+  },
+  mutedText: {
+    color: "#9CA3AF",
+  },
+  ledgerNotes: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+    backgroundColor: "#F9FAFB",
+    paddingHorizontal: 8,
+    paddingVertical: 6,
+    borderRadius: 6,
+    marginTop: 8,
+    borderWidth: 0.5,
+    borderColor: "#F3F4F6",
+  },
+  ledgerNotesText: {
+    flex: 1,
+    fontSize: 10,
+    fontWeight: "600",
+    color: "#4B5563",
+  },
   widgetCard: {
     width: "48.5%",
     backgroundColor: "#FFF",
@@ -1177,14 +1434,57 @@ const styles = StyleSheet.create({
 
   // Profitability Styles
   profitCard: {
-    borderWidth: 1.5,
+    borderWidth: 1,
+    borderRadius: 16,
+    padding: 16,
     marginBottom: 16,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 8,
+    elevation: 2,
   },
-  profitCardPos: { backgroundColor: "#F0FDF4", borderColor: "#A7F3D0" },
-  profitCardNeg: { backgroundColor: "#FEF2F2", borderColor: "#FCA5A5" },
-  profitHeaderRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
-  profitLabel: { fontSize: 12, fontWeight: "800", color: "#4B5563" },
-  profitVal: { fontSize: 26, fontWeight: "900", marginTop: 4 },
+  profitCardPos: {
+    backgroundColor: "#F4FAF6",
+    borderColor: "#A7F3D0",
+  },
+  profitCardNeg: {
+    backgroundColor: "#FFF5F5",
+    borderColor: "#FCA5A5",
+  },
+  profitHeaderRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+  },
+  profitIconBg: {
+    width: 44,
+    height: 44,
+    borderRadius: 12,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  profitIconBgPos: {
+    backgroundColor: "#E8F5E9",
+  },
+  profitIconBgNeg: {
+    backgroundColor: "#FFEBEE",
+  },
+  profitInfoContainer: {
+    flex: 1,
+  },
+  profitLabel: {
+    fontSize: 11,
+    fontWeight: "800",
+    color: "#6B7280",
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
+  },
+  profitVal: {
+    fontSize: 24,
+    fontWeight: "900",
+    marginTop: 2,
+  },
   trendBadge: {
     flexDirection: "row",
     alignItems: "center",
@@ -1193,7 +1493,37 @@ const styles = StyleSheet.create({
     borderRadius: 6,
     gap: 4,
   },
-  trendBadgeText: { fontSize: 11, fontWeight: "800" },
+  trendBadgeText: {
+    fontSize: 10,
+    fontWeight: "800",
+  },
+  profitCardDivider: {
+    height: 1,
+    backgroundColor: "rgba(0, 0, 0, 0.05)",
+    marginVertical: 12,
+  },
+  profitBreakdown: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    gap: 12,
+  },
+  breakdownItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    flex: 1,
+  },
+  breakdownLabel: {
+    fontSize: 11,
+    fontWeight: "600",
+    color: "#4B5563",
+  },
+  breakdownValue: {
+    fontSize: 12,
+    fontWeight: "800",
+    color: "#1F2937",
+  },
 
   // Low/Safe Stock Banner
   lowStockBanner: {
@@ -1334,6 +1664,39 @@ const styles = StyleSheet.create({
   },
 
   // FCR Modal Styles
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0, 0, 0, 0.4)",
+    justifyContent: "flex-end",
+  },
+  modalBackdrop: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+  },
+  modalContent: {
+    height: "85%",
+    backgroundColor: "#F9FAFB",
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    overflow: "hidden",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: -4 },
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    elevation: 20,
+  },
+  modalDragHandle: {
+    width: 36,
+    height: 5,
+    borderRadius: 2.5,
+    backgroundColor: "#E5E7EB",
+    alignSelf: "center",
+    marginTop: 8,
+    marginBottom: 4,
+  },
   modalHeader: {
     height: 64,
     flexDirection: "row",

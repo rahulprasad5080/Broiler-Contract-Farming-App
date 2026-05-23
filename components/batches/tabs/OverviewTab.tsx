@@ -1,13 +1,18 @@
 import React from 'react';
 import { View, Text, TouchableOpacity } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { styles } from './styles';
 
-function GridCard({ value, label, valColor, bgHighlight }: any) {
+function GridCard({ icon, iconColor, bgColor, value, label, isWarning }: any) {
   return (
-    <View style={[styles.gridCard, bgHighlight && { backgroundColor: bgHighlight }]}>
-      <Text style={[styles.gridVal, { color: valColor }]}>{value}</Text>
-      <Text style={styles.gridLabel}>{label}</Text>
+    <View style={[styles.gridCard, isWarning && { borderColor: '#FECACA', backgroundColor: '#FFF5F5' }]}>
+      <View style={[styles.gridCardIconWrap, { backgroundColor: bgColor }]}>
+        <MaterialCommunityIcons name={icon} size={13} color={iconColor} />
+      </View>
+      <View style={styles.gridCardTextWrap}>
+        <Text style={styles.gridLabel} numberOfLines={1}>{label}</Text>
+        <Text style={styles.gridVal} numberOfLines={1}>{value}</Text>
+      </View>
     </View>
   );
 }
@@ -40,17 +45,72 @@ export function OverviewTab({
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Batch Overview</Text>
         <View style={styles.grid}>
-          <GridCard value={chicksPlaced} label="Chicks Placed" valColor="#3B82F6" />
-          <GridCard value={liveBirds} label="Live Birds" valColor="#10B981" />
-          <GridCard value={mortality} label="Mortality" valColor="#EF4444" bgHighlight="#FEF2F2" />
+          <GridCard
+            icon="bird"
+            iconColor="#0B5C36"
+            bgColor="#E7F5ED"
+            value={chicksPlaced}
+            label="Chicks Placed"
+          />
+          <GridCard
+            icon="checkbox-marked-circle-outline"
+            iconColor="#10B981"
+            bgColor="#EFFDF4"
+            value={liveBirds}
+            label="Live Birds"
+          />
+          <GridCard
+            icon="heart-broken"
+            iconColor="#EF4444"
+            bgColor="#FEF2F2"
+            value={mortality}
+            label="Mortality"
+            isWarning={parseFloat(mortality) > 0}
+          />
 
-          <GridCard value={fcr} label="FCR" valColor="#8B5CF6" />
-          <GridCard value={avgWeight} label="Avg. Weight" valColor="#F97316" />
-          <GridCard value={feedConsumed} label="Feed Consumed" valColor="#3B82F6" />
+          <GridCard
+            icon="calculator-variant"
+            iconColor="#8B5CF6"
+            bgColor="#F3E8FF"
+            value={fcr}
+            label="FCR"
+          />
+          <GridCard
+            icon="scale"
+            iconColor="#F97316"
+            bgColor="#FFF7ED"
+            value={avgWeight}
+            label="Avg. Weight"
+          />
+          <GridCard
+            icon="corn"
+            iconColor="#3B82F6"
+            bgColor="#EFF6FF"
+            value={feedConsumed}
+            label="Feed Consumed"
+          />
 
-          <GridCard value={ageDays.toString()} label="Age (Days)" valColor="#10B981" />
-          <GridCard value={expectedAge.toString()} label="Expected Sale Age" valColor="#111827" />
-          <GridCard value={`${toGo} Days`} label="To Go" valColor="#10B981" />
+          <GridCard
+            icon="calendar-clock"
+            iconColor="#1A73E8"
+            bgColor="#E8F0FE"
+            value={ageDays.toString()}
+            label="Age (Days)"
+          />
+          <GridCard
+            icon="calendar-check"
+            iconColor="#64748B"
+            bgColor="#F1F5F9"
+            value={expectedAge.toString()}
+            label="Expected Sale"
+          />
+          <GridCard
+            icon="run-fast"
+            iconColor="#0B5C36"
+            bgColor="#E7F5ED"
+            value={`${toGo} Days`}
+            label="To Go"
+          />
         </View>
       </View>
 

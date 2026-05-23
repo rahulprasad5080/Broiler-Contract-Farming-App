@@ -1,0 +1,799 @@
+Boiler Farm ManagementFrontend API Handoff
+Verified implementation handoff for frontend developmentAligned with current backend routes, partner ledgers, and dynamic type-master logic
+Item
+Value
+Verification date
+2026-05-22
+Primary source of truth
+src/generated/swagger.json + src/controllers + src/app.ts
+Versioned API count
+89 routes under /api/v1
+Support route count
+4 public support routes: /, /health, /openapi.json, /docs
+Audience
+Frontend mobile / web developers implementing current backend flow
+
+1. What Changed In This Verified Handoff
+The old fixed enums for CatalogItemType, PurchaseType, ExpenseCategoryCode, and TreatmentKind are now string-backed master data. Frontend must load dropdowns from /master-data/type-options or /master-data/type-options/dropdown instead of hardcoding those lists.
+Vendor and trader split is now enforced. Vendors feed purchases, vendor payments, inventory vendor views, and vendor ledgers. Traders feed sales, sale receipts, and trader ledgers.
+New partner ledger report APIs exist for vendor and trader statement views: /reports/vendors/{vendorId}/ledger and /reports/traders/{traderId}/ledger.
+Existing list APIs gained partner-aware filters: purchases can filter by vendorId, payments can filter by vendorId / traderId / referenceType, and inventory ledger can filter by vendorId.
+Authentication now includes PATCH /auth/fcm-token for mobile push registration. The previous handoff missed this route.
+Coverage in this handoff is verified against the current backend contract: 89 versioned OpenAPI routes plus 4 non-versioned support routes.
+2. Environment And Integration Conventions
+Topic
+Current rule
+Versioned API base
+http://localhost:4000/api/v1
+Swagger UI
+http://localhost:4000/docs
+OpenAPI JSON
+http://localhost:4000/openapi.json
+Auth header
+Authorization: Bearer <accessToken>
+Primary response format
+application/json except exports / docs routes
+Date handling
+Requests mostly use YYYY-MM-DD business dates; responses return ISO strings
+Pagination pattern
+page, limit, optional search -> data + meta(page, limit, total, totalPages)
+Current document coverage
+89 versioned routes + 4 support routes
+3. Role, Visibility, And Permission Rules
+Role
+Main frontend scope
+Visibility rule
+OWNER
+Full admin, finance, subscription, reports, exports, users, farms, batches, and master data.
+All organization data.
+ACCOUNTS
+Finance, payments, purchases, settlements, reports, exports, and batch financial review.
+All organization data; no subscription request/payment routes.
+SUPERVISOR
+Farm and batch operations, daily logs, treatments, sales entry, expenses, comments, reports, selected finance lists.
+Only farms they supervise or are explicitly assigned to. Batch list includes closed batches unless the client sends status filtering.
+FARMER
+Assigned batch operations, daily logs, treatments, farmer expense entry, comments, notifications, summaries, subscription status view.
+Only farms assigned to the farmer or marked as primary farmer.
+4. Dynamic Type Master Architecture
+The backend no longer treats CatalogItemType, PurchaseType, ExpenseCategoryCode, and TreatmentKind as fixed enums. Frontend must treat them as string values chosen from master-data routes.
+Category
+Used by
+Seeded system values
+CATALOG_ITEM_TYPE
+Catalog item master and catalog item create/update forms
+FEED, VACCINE, MEDICINE, EQUIPMENT, CHICKS, OTHER
+PURCHASE_TYPE
+Finance purchases and purchase edit flow
+FEED, MEDICINE, VACCINE, EQUIPMENT, CHICKS, OTHER
+EXPENSE_CATEGORY
+Batch expense create/update screens and expense reporting labels
+CHICKS, FEED, MEDICINE, VACCINE, TRANSPORT, OFFICE_EXPENSE, SUPERVISOR_EXPENSE, OTHER_COMPANY, ELECTRICITY, COCO_PITH, LABOUR, WATER, DIESEL, SHED_MAINTENANCE, REPAIRS, MISCELLANEOUS, OTHER_FARMER
+TREATMENT_KIND
+Batch treatment create screen
+VACCINATION, MEDICATION, OTHER
+Only CatalogItemType, PurchaseType, ExpenseCategoryCode, and TreatmentKind moved from fixed enums to dynamic string-backed masters. All other remaining enums in the backend stay fixed and are still available from /openapi.json for frontend code generation.
+5. Core Frontend Flows
+Session bootstrap and push registration
+Authenticate with POST /api/v1/auth/login or POST /api/v1/auth/login-pin.
+Immediately hydrate the signed-in user with GET /api/v1/auth/me and use the returned role plus permissions to gate screens and actions.
+After device token acquisition, register or clear push tokens through PATCH /api/v1/auth/fcm-token.
+Use POST /api/v1/auth/refresh for silent renewal. Logout uses POST /api/v1/auth/logout with the refresh token body.
+Admin setup order
+Owner creates the organization through POST /api/v1/auth/register-owner or signs in through the existing account flow.
+Load organization settings with GET /api/v1/settings/organization before building finance, approval, or payout setup screens.
+Create users, farms, vendors, traders, and catalog items in that order so downstream batch and finance screens have their lookup data available.
+Dynamic type masters and dropdown flow
+Use GET /api/v1/master-data/type-options/dropdown?category=...&search=... for searchable dropdowns.
+Use GET /api/v1/master-data/type-options for fuller admin listings with pagination and includeInactive support.
+Create org-specific custom values with POST /api/v1/master-data/type-options and update them with PUT /api/v1/master-data/type-options/{optionId}.
+Entries store plain strings, so renaming or deactivating a type option does not rewrite historical rows.
+Partner master and statement flow
+Use vendor master endpoints for purchases, payment made, inventory vendor filtering, and vendor ledgers.
+Use trader master endpoints for sales, payment received, and trader ledgers.
+Frontend should send vendorId or traderId whenever a flow supports it. The backend can normalize partyName from the chosen partner or reference row.
+Batch lifecycle and operations capture
+Create the batch first, then use daily logs, treatments, expenses, comments, and sales under that batch.
+Daily logs reject future dates and duplicate logDate entries for the same batch, so the client should pre-check before submit.
+Treatments and expenses now use dynamic string values backed by type masters instead of hardcoded enums.
+The /batches/{batchId}/costs routes remain a legacy alias of /expenses and should not be used for new frontend work.
+Purchase -> inventory -> payment made
+Create purchases with POST /api/v1/finance/purchases using vendorId and purchaseType from the new masters.
+Non-CHICKS purchases with catalogItemId and quantity create stock movement automatically. CHICKS purchases stay financial only.
+Use GET /api/v1/inventory/ledger and GET /api/v1/finance/purchases?vendorId=... for vendor-linked stock and procurement history views.
+Record payment made with POST /api/v1/finance/payments. Reference-linked purchase or expense payments must be OUTBOUND and vendor-aligned.
+Sale -> payment received
+Create sales from the batch screen with POST /api/v1/batches/{batchId}/sales and finalize with PATCH /api/v1/batches/{batchId}/sales/{saleId}/finalize when needed.
+Sales belong to traders only. Payment receipts must be INBOUND and trader-aligned.
+Use GET /api/v1/finance/payments?traderId=... or GET /api/v1/reports/traders/{traderId}/ledger for trader collection views.
+Settlement -> payout -> batch closure
+GET /api/v1/batches/{batchId}/settlement loads the current settlement state. POST /api/v1/batches/{batchId}/settlement is an upsert, not a create-only route.
+When settlement payment is recorded through POST /api/v1/finance/payments with referenceType=settlement, the backend recomputes payment status and may move the batch to CLOSED automatically once fully paid.
+Use GET /api/v1/reports/settlements for list views and the batch settlement route for detail / edit screens.
+Reports, ledgers, and exports
+Operational and finance summaries should use report endpoints directly; do not recompute P&L, settlement pending amounts, or ledger balances on the client.
+Vendor and trader ledgers support dateFrom and dateTo and return openingBalance plus running balance rows for statement-style screens.
+Excel and PDF export endpoints return binary files; frontend should call them as blob downloads and preserve the Content-Disposition filename.
+6. Frontend-Critical Backend Behaviors
+Behavior
+Why frontend must care
+Server-side visibility is the source of truth.
+FARMER and SUPERVISOR scoping is applied by the backend across farms, batches, notifications, dashboards, and most reports. Do not rely on client-side filtering alone.
+Closed supervisor batches are available by default.
+GET /api/v1/batches includes closed supervisor-visible batches unless the frontend passes a specific status query filter.
+Type masters are lookup-only.
+Catalog items, purchases, expenses, and treatments store raw strings. There is intentionally no relational foreign key to the type master rows.
+Historical rows are stable.
+Updating a custom type option changes future dropdown choices only. Existing rows keep the original stored string value.
+Partner direction rules are enforced.
+Purchase and expense payments must be OUTBOUND, sale receipts must be INBOUND, and reference-linked payments must match the partner on the referenced row.
+partyName is not the primary source of truth anymore.
+When vendorId, traderId, or a purchase / expense / sale reference is supplied, the backend resolves the final party name from the master or referenced record.
+Inventory behavior depends on purchase type.
+Purchase type CHICKS does not create stock movement. Feed, medicine, vaccine, equipment, and similar itemized purchases can create stock movement when catalogItemId and quantity are supplied.
+Settlement is computed server-side.
+Base quantity, growing charges, net payable, paidAmount, pendingAmount, and batch close behavior are backend-derived values.
+Vendor ledger includes batch-level chick supply charges.
+Vendor statement screens should expect rows coming from batch vendor charges in addition to purchases, expenses, and payments.
+Notification generation is mostly backend-driven.
+Frontend only lists and marks notifications. Low stock, payment due, approval, and settlement notifications are created by server workflows.
+7. Filter And Dropdown Quick Reference
+Endpoint
+Key query params
+Frontend note
+GET /api/v1/batches
+page, limit, search, farmId, status
+Leave status empty when the screen must include closed batches visible to the user.
+GET /api/v1/master-data/type-options
+page, limit, search, category, includeInactive
+Admin listing of system + org custom type options.
+GET /api/v1/master-data/type-options/dropdown
+category, search, limit, includeInactive
+Preferred searchable dropdown endpoint.
+GET /api/v1/finance/purchases
+page, limit, search, vendorId
+Use vendorId to build vendor purchase statements or vendor detail tabs.
+GET /api/v1/finance/payments
+page, limit, search, vendorId, traderId, referenceType
+Do not send vendorId and traderId together.
+GET /api/v1/inventory/ledger
+catalogItemId, batchId, vendorId
+vendorId filters purchase-backed stock rows.
+GET /api/v1/notifications
+unreadOnly
+Useful for unread badge counts and pull-to-refresh screens.
+GET /api/v1/reports/expenses
+dateFrom, dateTo, farmId, batchId, farmerId, supervisorId, ledger
+ledger is useful when a screen separates company vs farmer expense views.
+GET /api/v1/reports/profitability
+dateFrom, dateTo, farmId, batchId, farmerId, supervisorId
+Backend already computes companyProfitOrLoss and farmerNetEarnings.
+GET /api/v1/reports/settlements
+dateFrom, dateTo, farmId, batchId, farmerId, supervisorId
+Rows include paidAmount and pendingAmount.
+GET /api/v1/reports/vendors/{vendorId}/ledger
+dateFrom, dateTo
+Vendor statement with opening balance and running balance.
+GET /api/v1/reports/traders/{traderId}/ledger
+dateFrom, dateTo
+Trader statement with opening balance and running balance.
+
+8. Route Catalogue (Current API Surface)
+All rows below were generated from the current OpenAPI spec. Paths shown here already include the /api/v1 prefix. Use /openapi.json for exact schema contracts or client generation.
+8.1 Authentication
+Use these routes to bootstrap sessions, rotate credentials, register device push tokens, and manage PIN / biometric login state.
+Method
+Path
+Roles
+Request / filters
+Returns
+POST
+/api/v1/auth/register-owner
+Public
+Body: organizationName*, organizationPhone, organizationEmail, ownerName*, ownerEmail, ownerPhone*, password*
+AuthResponse
+POST
+/api/v1/auth/login
+Public
+Body: phone*, password*
+AuthResponse
+POST
+/api/v1/auth/login-pin
+Public
+Body: phone*, pin*
+AuthResponse
+POST
+/api/v1/auth/refresh
+Public
+Body: refreshToken*
+AuthResponse
+POST
+/api/v1/auth/logout
+Public
+Body: refreshToken*
+MessageResponse
+GET
+/api/v1/auth/me
+OWNER, ACCOUNTS, SUPERVISOR, FARMER
+No request body
+AuthUserResponse
+POST
+/api/v1/auth/change-password
+OWNER, ACCOUNTS, SUPERVISOR, FARMER
+Body: currentPassword*, newPassword*
+MessageResponse
+POST
+/api/v1/auth/set-pin
+OWNER, ACCOUNTS, SUPERVISOR, FARMER
+Body: currentPassword*, pin*
+MessageResponse
+POST
+/api/v1/auth/biometric
+OWNER, ACCOUNTS, SUPERVISOR, FARMER
+Body: enabled*
+AuthUserResponse
+PATCH
+/api/v1/auth/fcm-token
+OWNER, ACCOUNTS, SUPERVISOR, FARMER
+Body: fcmToken*
+MessageResponse
+
+8.2 Dashboard
+These routes drive the landing dashboard and finance summary widgets. The backend already applies role-based visibility and financial masking.
+Method
+Path
+Roles
+Request / filters
+Returns
+GET
+/api/v1/dashboard
+OWNER, ACCOUNTS, SUPERVISOR, FARMER
+No request body
+DashboardSummaryResponse
+GET
+/api/v1/dashboard/financial
+OWNER, ACCOUNTS
+No request body
+FinancialDashboardResponse
+
+8.3 Users
+Owner manages staff lifecycle here. Supervisor can read users but cannot create or update them.
+Method
+Path
+Roles
+Request / filters
+Returns
+GET
+/api/v1/users
+OWNER, SUPERVISOR
+Query: page, limit, search
+UserListResponse
+POST
+/api/v1/users
+OWNER
+Body: name*, email, phone*, password*, role*, assignedFarmIds, permissions, ...
+UserResponse
+GET
+/api/v1/users/{userId}
+OWNER, SUPERVISOR
+Path: userId
+UserResponse
+PUT
+/api/v1/users/{userId}
+OWNER
+Path: userId | Body: name, email, phone, password, role, assignedFarmIds, permissions, ...
+UserResponse
+PATCH
+/api/v1/users/{userId}/status
+OWNER
+Path: userId | Body: status*
+UserResponse
+POST
+/api/v1/users/{userId}/reset-password
+OWNER
+Path: userId | Body: newPassword*, mustChangePassword
+MessageResponse
+
+8.4 Farms
+Farm routes support the farm master and assigned visibility. Supervisors can create and edit farms.
+Method
+Path
+Roles
+Request / filters
+Returns
+GET
+/api/v1/farms
+OWNER, ACCOUNTS, SUPERVISOR, FARMER
+Query: page, limit, search
+FarmListResponse
+POST
+/api/v1/farms
+OWNER, SUPERVISOR
+Body: name*, code*, location, village, district, state, capacity, ...
+FarmResponse
+GET
+/api/v1/farms/{farmId}
+OWNER, ACCOUNTS, SUPERVISOR, FARMER
+Path: farmId
+FarmResponse
+PUT
+/api/v1/farms/{farmId}
+OWNER, SUPERVISOR
+Path: farmId | Body: name, code, location, village, district, state, capacity, ...
+FarmResponse
+
+8.5 Master Data
+Master data now covers partners, catalog items, and the new string-backed type masters used by catalog items, purchases, expenses, and treatments.
+Method
+Path
+Roles
+Request / filters
+Returns
+GET
+/api/v1/master-data/type-options
+OWNER, ACCOUNTS, SUPERVISOR, FARMER
+Query: page, limit, search, category, includeInactive
+MasterDataTypeOptionListResponse
+POST
+/api/v1/master-data/type-options
+OWNER, ACCOUNTS, SUPERVISOR
+Body: category*, value*, description, isActive
+MasterDataTypeOptionResponse
+GET
+/api/v1/master-data/type-options/dropdown
+OWNER, ACCOUNTS, SUPERVISOR, FARMER
+Query: category, search, limit, includeInactive
+MasterDataTypeOptionDropdownResponse
+PUT
+/api/v1/master-data/type-options/{optionId}
+OWNER, ACCOUNTS, SUPERVISOR
+Path: optionId | Body: value, description, isActive
+MasterDataTypeOptionResponse
+GET
+/api/v1/master-data/catalog-items
+OWNER, ACCOUNTS, SUPERVISOR, FARMER
+Query: page, limit, search, type
+CatalogItemListResponse
+POST
+/api/v1/master-data/catalog-items
+OWNER, ACCOUNTS, SUPERVISOR
+Body: type*, name*, sku, unit*, defaultRate, manufacturer, reorderLevel, ...
+CatalogItemResponse
+PUT
+/api/v1/master-data/catalog-items/{itemId}
+OWNER, ACCOUNTS, SUPERVISOR
+Path: itemId | Body: type, name, sku, unit, defaultRate, manufacturer, reorderLevel, ...
+CatalogItemResponse
+GET
+/api/v1/master-data/traders
+OWNER, ACCOUNTS, SUPERVISOR, FARMER
+Query: page, limit, search
+TraderListResponse
+POST
+/api/v1/master-data/traders
+OWNER, ACCOUNTS, SUPERVISOR
+Body: name*, phone, email, address, notes
+TraderResponse
+GET
+/api/v1/master-data/vendors
+OWNER, ACCOUNTS, SUPERVISOR, FARMER
+Query: page, limit, search
+VendorListResponse
+POST
+/api/v1/master-data/vendors
+OWNER, ACCOUNTS, SUPERVISOR
+Body: name*, phone, email, address, notes
+VendorResponse
+PUT
+/api/v1/master-data/vendors/{vendorId}
+OWNER, ACCOUNTS, SUPERVISOR
+Path: vendorId | Body: name, phone, email, address, notes
+VendorResponse
+PUT
+/api/v1/master-data/traders/{traderId}
+OWNER, ACCOUNTS, SUPERVISOR
+Path: traderId | Body: name, phone, email, address, notes
+TraderResponse
+
+8.6 Batches
+This is the operational core: batch creation, logs, treatments, expenses, sales, settlement, comments, and lifecycle status.
+Method
+Path
+Roles
+Request / filters
+Returns
+GET
+/api/v1/batches
+OWNER, ACCOUNTS, SUPERVISOR, FARMER
+Query: page, limit, search, farmId, status
+BatchListResponse
+POST
+/api/v1/batches
+OWNER, SUPERVISOR
+Body: farmId*, code*, placementDate*, placementCount*, totalChicksPurchased, freeChicks, chargeableChicks, ...
+BatchResponse
+GET
+/api/v1/batches/{batchId}
+OWNER, ACCOUNTS, SUPERVISOR, FARMER
+Path: batchId
+BatchResponse
+PUT
+/api/v1/batches/{batchId}
+OWNER, SUPERVISOR
+Path: batchId | Body: code, placementDate, placementCount, totalChicksPurchased, freeChicks, chargeableChicks, placementMortality, ...
+BatchResponse
+PATCH
+/api/v1/batches/{batchId}/status
+OWNER, ACCOUNTS, SUPERVISOR
+Path: batchId | Body: status*, actualCloseDate, lockedAt
+BatchStatusResponse
+GET
+/api/v1/batches/{batchId}/expenses
+OWNER, ACCOUNTS, SUPERVISOR, FARMER
+Path: batchId | Query: ledger
+BatchExpenseListResponse
+POST
+/api/v1/batches/{batchId}/expenses
+OWNER, ACCOUNTS, SUPERVISOR, FARMER
+Path: batchId | Body: ledger*, catalogItemId, vendorId, category*, expenseDate*, description*, quantity, ...
+BatchExpenseResponse
+PUT
+/api/v1/batches/{batchId}/expenses/{expenseId}
+OWNER, ACCOUNTS, SUPERVISOR, FARMER
+Path: batchId, expenseId | Body: vendorId, category, expenseDate, description, quantity, unit, rate, ...
+BatchExpenseResponse
+PATCH
+/api/v1/batches/{batchId}/expenses/{expenseId}/approval
+OWNER, ACCOUNTS, SUPERVISOR
+Path: batchId, expenseId | Body: approvalStatus*, rejectedReason
+BatchExpenseResponse
+GET
+/api/v1/batches/{batchId}/costs
+OWNER, ACCOUNTS, SUPERVISOR, FARMER
+Path: batchId
+BatchExpenseListResponse
+POST
+/api/v1/batches/{batchId}/costs
+OWNER, ACCOUNTS, SUPERVISOR, FARMER
+Path: batchId | Body: ledger*, catalogItemId, vendorId, category*, expenseDate*, description*, quantity, ...
+BatchExpenseResponse
+GET
+/api/v1/batches/{batchId}/daily-logs
+OWNER, ACCOUNTS, SUPERVISOR, FARMER
+Path: batchId
+DailyLogListResponse
+POST
+/api/v1/batches/{batchId}/daily-logs
+OWNER, SUPERVISOR, FARMER
+Path: batchId | Body: logDate*, openingBirdCount, mortalityCount, cullCount, feedConsumedKg, waterConsumedLtr, avgWeightGrams, ...
+DailyLogResponse
+PUT
+/api/v1/batches/{batchId}/daily-logs/{dailyLogId}
+OWNER, SUPERVISOR, FARMER
+Path: batchId, dailyLogId | Body: openingBirdCount, mortalityCount, cullCount, feedConsumedKg, waterConsumedLtr, avgWeightGrams, notes
+DailyLogResponse
+GET
+/api/v1/batches/{batchId}/treatments
+OWNER, ACCOUNTS, SUPERVISOR, FARMER
+Path: batchId
+TreatmentListResponse
+POST
+/api/v1/batches/{batchId}/treatments
+OWNER, SUPERVISOR, FARMER
+Path: batchId | Body: dailyLogId, treatmentDate*, kind*, catalogItemId, treatmentName*, dosage, birdCount, ...
+TreatmentResponse
+GET
+/api/v1/batches/{batchId}/sales
+OWNER, ACCOUNTS, SUPERVISOR, FARMER
+Path: batchId
+BatchSaleListResponse
+POST
+/api/v1/batches/{batchId}/sales
+OWNER, ACCOUNTS, SUPERVISOR, FARMER
+Path: batchId | Body: traderId*, saleDate*, vehicleNumber, birdCount*, totalWeightKg*, averageWeightKg, loadingMortalityCount, ...
+BatchSaleResponse
+PATCH
+/api/v1/batches/{batchId}/sales/{saleId}/finalize
+OWNER, ACCOUNTS
+Path: batchId, saleId | Body: ratePerKg*, grossAmount, transportCharge, commissionCharge, otherDeduction, netAmount, paymentReceivedAmount, ...
+BatchSaleResponse
+GET
+/api/v1/batches/{batchId}/settlement
+OWNER, ACCOUNTS, SUPERVISOR, FARMER
+Path: batchId
+BatchSettlementResponse
+POST
+/api/v1/batches/{batchId}/settlement
+OWNER, ACCOUNTS
+Path: batchId | Body: payoutRate*, payoutUnit, performanceBonus, incentiveAmount, otherDeductions, paymentStatus, remarks
+BatchSettlementResponse
+GET
+/api/v1/batches/{batchId}/pnl
+OWNER, ACCOUNTS, SUPERVISOR, FARMER
+Path: batchId
+BatchPnlResponse
+GET
+/api/v1/batches/{batchId}/comments
+OWNER, ACCOUNTS, SUPERVISOR, FARMER
+Path: batchId
+CommentListResponse
+POST
+/api/v1/batches/{batchId}/comments
+OWNER, ACCOUNTS, SUPERVISOR, FARMER
+Path: batchId | Body: targetType*, targetId*, comment*, correctionNote
+CommentResponse
+
+8.7 Inventory
+Inventory is driven by purchases and allocations. Ledger rows are read-only from the frontend perspective.
+Method
+Path
+Roles
+Request / filters
+Returns
+GET
+/api/v1/inventory/ledger
+OWNER, ACCOUNTS, SUPERVISOR, FARMER
+Query: catalogItemId, batchId, vendorId
+InventoryLedgerListResponse
+POST
+/api/v1/inventory/allocate
+OWNER, ACCOUNTS, SUPERVISOR
+Body: batchId*, catalogItemId*, quantity*, remarks
+InventoryLedgerResponse
+
+8.8 Finance
+Purchases, payments, and organization-level finance entries live here. Partner-aware filters are available for finance and ledger screens.
+Method
+Path
+Roles
+Request / filters
+Returns
+GET
+/api/v1/finance/purchases
+OWNER, ACCOUNTS, SUPERVISOR
+Query: page, limit, search, vendorId
+PurchaseListResponse
+POST
+/api/v1/finance/purchases
+OWNER, ACCOUNTS, SUPERVISOR
+Body: batchId, vendorId, purchaseType*, vendorName, catalogItemId, itemName*, quantity, ...
+PurchaseResponse
+PUT
+/api/v1/finance/purchases/{purchaseId}
+OWNER, ACCOUNTS
+Path: purchaseId | Body: vendorId, vendorName, purchaseType, quantity, unit, unitCost, totalAmount, ...
+PurchaseResponse
+GET
+/api/v1/finance/payments
+OWNER, ACCOUNTS, SUPERVISOR
+Query: page, limit, search, vendorId, traderId, referenceType
+PaymentEntryListResponse
+POST
+/api/v1/finance/payments
+OWNER, ACCOUNTS, SUPERVISOR
+Body: batchId, vendorId, traderId, partyName, paymentType*, direction*, amount*, ...
+PaymentEntryResponse
+GET
+/api/v1/finance/entries
+OWNER, ACCOUNTS
+Query: page, limit, search
+FinanceEntryListResponse
+POST
+/api/v1/finance/entries
+OWNER, ACCOUNTS
+Body: type*, amount*, paymentStatus, entryDate*, description*, notes
+FinanceEntryResponse
+
+8.9 Notifications
+Frontend consumes the list and mark-read routes. Test routes are diagnostic only and should stay behind developer / QA controls.
+Method
+Path
+Roles
+Request / filters
+Returns
+GET
+/api/v1/notifications
+OWNER, ACCOUNTS, SUPERVISOR, FARMER
+Query: unreadOnly
+NotificationListResponse
+PATCH
+/api/v1/notifications/{notificationId}/read
+OWNER, ACCOUNTS, SUPERVISOR, FARMER
+Path: notificationId
+NotificationResponse
+POST
+/api/v1/notifications/test/{userId}
+OWNER, ACCOUNTS, SUPERVISOR, FARMER
+Path: userId | Body: title, message, type, severity, persistNotification
+TestPushNotificationResponse
+POST
+/api/v1/notifications/test/public/{userId}
+Public
+Path: userId | Body: title, message, type, severity, persistNotification
+TestPushNotificationResponse
+
+8.10 Reports
+Reporting routes return already-calculated backend values. Vendor / trader ledger routes are also exposed here.
+Method
+Path
+Roles
+Request / filters
+Returns
+GET
+/api/v1/reports/batches/{batchId}/summary
+OWNER, ACCOUNTS, SUPERVISOR, FARMER
+Path: batchId
+BatchSummaryReport
+GET
+/api/v1/reports/farms/{farmId}/summary
+OWNER, ACCOUNTS, SUPERVISOR, FARMER
+Path: farmId
+FarmSummaryReport
+GET
+/api/v1/reports/overview
+OWNER, ACCOUNTS, SUPERVISOR
+No request body
+OrganizationOverviewReport
+GET
+/api/v1/reports/expenses
+OWNER, ACCOUNTS, SUPERVISOR, FARMER
+Query: dateFrom, dateTo, farmId, batchId, farmerId, supervisorId, ledger
+array<ExpenseReportRow>
+GET
+/api/v1/reports/inventory
+OWNER, ACCOUNTS, SUPERVISOR
+No request body
+array<InventoryReportRow>
+GET
+/api/v1/reports/settlements
+OWNER, ACCOUNTS, SUPERVISOR, FARMER
+Query: dateFrom, dateTo, farmId, batchId, farmerId, supervisorId
+array<SettlementReportRow>
+GET
+/api/v1/reports/profitability
+OWNER, ACCOUNTS, SUPERVISOR
+Query: dateFrom, dateTo, farmId, batchId, farmerId, supervisorId
+array<ProfitabilityReportRow>
+GET
+/api/v1/reports/vendors/{vendorId}/ledger
+OWNER, ACCOUNTS, SUPERVISOR
+Path: vendorId | Query: dateFrom, dateTo
+VendorLedgerReport
+GET
+/api/v1/reports/traders/{traderId}/ledger
+OWNER, ACCOUNTS, SUPERVISOR
+Path: traderId | Query: dateFrom, dateTo
+TraderLedgerReport
+GET
+/api/v1/reports/batches/{batchId}/export/excel
+OWNER, ACCOUNTS, SUPERVISOR
+Path: batchId
+See OpenAPI
+GET
+/api/v1/reports/batches/{batchId}/export/pdf
+OWNER, ACCOUNTS, SUPERVISOR
+Path: batchId
+See OpenAPI
+
+8.11 Settings
+Organization settings control approval rules, alert thresholds, and payout defaults. They do not replace the new type-master APIs.
+Method
+Path
+Roles
+Request / filters
+Returns
+GET
+/api/v1/settings/organization
+OWNER, ACCOUNTS
+No request body
+OrganizationSettingsResponse
+PUT
+/api/v1/settings/organization
+OWNER, ACCOUNTS
+Body: currency, mobileFirst, expenseCategories, payoutRules, alertThresholds, financialConfig
+OrganizationSettingsResponse
+
+8.12 Subscriptions
+These routes support plan selection and proof submission. There is no frontend approval route for back-office review in the current API set.
+Method
+Path
+Roles
+Request / filters
+Returns
+GET
+/api/v1/subscriptions/plans
+OWNER, SUPERVISOR, FARMER
+No request body
+array<SubscriptionPlanResponse>
+GET
+/api/v1/subscriptions/current
+OWNER, SUPERVISOR, FARMER
+No request body
+See OpenAPI
+POST
+/api/v1/subscriptions/requests
+OWNER
+Body: planCode*
+SubscriptionResponse
+POST
+/api/v1/subscriptions/payments
+OWNER
+Body: subscriptionId*, referenceNumber, payerName, payerPhone, proofUrl
+SubscriptionPaymentResponse
+
+
+9. Support Routes Outside /api/v1
+These routes live in src/app.ts rather than under the versioned API prefix. They are useful for diagnostics, OpenAPI access, or human browsing.
+Method
+Path
+Roles
+Request
+Purpose
+GET
+/
+Public
+Response: name, environment, apiPrefix, docs, health
+Basic API root metadata.
+GET
+/health
+Public
+Query: details, verbose
+Operational health route with database and diagnostics payloads.
+GET
+/openapi.json
+Public
+No request body
+Machine-readable OpenAPI spec for codegen or QA.
+GET
+/docs
+Public
+No request body
+Swagger UI HTML page. /docs/ is a duplicate alias.
+10. Verified API Gaps And No-Route Behaviors
+There are no delete endpoints for users, farms, batches, vendors, traders, catalog items, type options, purchases, payments, comments, treatments, sales, or settlements. Design edit / deactivate UX rather than delete-first UX.
+Type options do not have a delete route. Use PUT /api/v1/master-data/type-options/{optionId} with isActive=false to retire a custom option.
+There is no update or delete API for treatment rows. Treatments are create + list only in the current backend.
+Comments are create + list only. There is no edit or delete endpoint for comments in the current API set.
+Sales do not have a general update route after creation. The supported follow-up action is PATCH /batches/{batchId}/sales/{saleId}/finalize.
+There is no file-upload API in src/controllers. Frontend must upload externally and then send URLs such as attachmentUrl, billPhotoUrl, billPhotoUrl, proofUrl, or billPhotoUrl to backend payloads.
+Subscription approval / review APIs are not exposed in the current frontend-facing backend routes. The owner can request plans and submit payment proof, but approval is handled outside the current route set.
+Notification test routes are diagnostic utilities, not business-user flows. Keep them out of normal production navigation.
+11. Coverage Audit
+This handoff was verified against the entire current route surface in src/controllers and src/app.ts. No controller route was intentionally omitted from the document.
+Module / source
+Route count
+Authentication
+10
+Dashboard
+2
+Users
+6
+Farms
+4
+Master Data
+13
+Batches
+24
+Inventory
+2
+Finance
+7
+Notifications
+4
+Reports
+11
+Settings
+2
+Subscriptions
+4
+Support routes from src/app.ts
+4
+Total documented routes
+93
+Audit note: the previous handoff missed or under-documented newer routes such as PATCH /auth/fcm-token, vendor master routes, type master routes, vendor / trader ledgers, partner-aware finance filters, and several PATCH routes. Those are now included here.
+12. Frontend Implementation Checklist
+Load role / permission state from GET /api/v1/auth/me before deciding which tabs, buttons, or finance widgets to show.
+Use master-data dropdown APIs for dynamic types and vendor / trader list endpoints for partner lookups. Do not hardcode the retired type enums.
+Use vendorId or traderId whenever a route accepts them. Treat free-text partyName as a display field, not as the primary binding field.
+Respect server-derived values such as settlement totals, paymentStatus, pendingAmount, ledger balances, dashboard aggregates, and P&L fields.
+Call export endpoints as binary / blob downloads, and upload files externally before sending URL fields to the backend because no upload API exists in src/controllers.

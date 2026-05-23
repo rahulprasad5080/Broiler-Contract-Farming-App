@@ -138,6 +138,19 @@ export type ApiPartnerLedgerRow = {
   balance?: number | null;
   runningBalance?: number | null;
   remarks?: string | null;
+  // Backend additional fields
+  rowId?: string | null;
+  entryKind?: string | null;
+  batchId?: string | null;
+  batchCode?: string | null;
+  farmName?: string | null;
+  chargeAmount?: number | null;
+  paymentAmount?: number | null;
+  balanceAfter?: number | null;
+  paymentStatus?: string | null;
+  purchaseType?: string | null;
+  paymentType?: string | null;
+  notes?: string | null;
 };
 
 export type ApiPartnerLedgerReport = {
