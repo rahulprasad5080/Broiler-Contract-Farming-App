@@ -2,9 +2,11 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   Animated,
   Easing,
+  Keyboard,
   KeyboardAvoidingView,
   Modal,
   PanResponder,
+  Platform,
   Pressable,
   StyleProp,
   StyleSheet,
@@ -37,6 +39,16 @@ export function NativeBottomSheet({
   const { height } = useWindowDimensions();
   const hiddenOffset = Math.max(height, 1);
   const translateY = useRef(new Animated.Value(hiddenOffset)).current;
+
+  const resolvedMaxHeight = useMemo(() => {
+    if (!maxHeight) return height * 0.82;
+    if (typeof maxHeight === 'number') return maxHeight;
+    if (maxHeight.endsWith('%')) {
+      const pct = parseFloat(maxHeight) / 100;
+      return height * pct;
+    }
+    return height * 0.82;
+  }, [maxHeight, height]);
   const [mounted, setMounted] = useState(visible);
   const closingRef = useRef(false);
   const animationFrameRef = useRef<number | null>(null);
@@ -58,6 +70,7 @@ export function NativeBottomSheet({
   const close = useCallback(() => {
     if (closingRef.current) return;
 
+    Keyboard.dismiss();
     closingRef.current = true;
     animateTo(hiddenOffset, () => {
       closingRef.current = false;
@@ -95,6 +108,9 @@ export function NativeBottomSheet({
       onMoveShouldSetPanResponder: (_, gestureState) =>
         Math.abs(gestureState.dy) > Math.abs(gestureState.dx) && gestureState.dy > 6,
       onPanResponderMove: (_, gestureState) => {
+        if (gestureState.dy > 10) {
+          Keyboard.dismiss();
+        }
         translateY.setValue(Math.max(gestureState.dy, 0));
       },
       onPanResponderRelease: (_, gestureState) => {
@@ -127,7 +143,7 @@ export function NativeBottomSheet({
       statusBarTranslucent
     >
       <KeyboardAvoidingView
-        behavior={process.env.EXPO_OS === 'ios' ? 'padding' : undefined}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={styles.root}
       >
         <Animated.View style={[styles.backdrop, { opacity: backdropOpacity }]}>
@@ -138,7 +154,7 @@ export function NativeBottomSheet({
           style={[
             styles.sheet,
             {
-              maxHeight,
+              maxHeight: resolvedMaxHeight,
               paddingBottom: Math.max(insets.bottom, 12),
               transform: [{ translateY }],
             },
@@ -171,6 +187,7 @@ const styles = StyleSheet.create({
     borderTopRightRadius: 24,
     overflow: 'hidden',
     boxShadow: '0 -8px 30px rgba(15, 23, 42, 0.16)',
+    flexShrink: 1,
   },
   dragArea: {
     alignItems: 'center',
@@ -186,5 +203,6 @@ const styles = StyleSheet.create({
   },
   content: {
     paddingHorizontal: 18,
+    flexShrink: 1,
   },
 });
