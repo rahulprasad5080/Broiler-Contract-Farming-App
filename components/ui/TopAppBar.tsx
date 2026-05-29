@@ -95,8 +95,10 @@ export function TopAppBar({
 
   // ── Leading area ──────────────────────────────────────────────────────────
   let leadingContent: React.ReactNode;
-  if (leadingMode === 'menu' || leadingMode === 'back') {
+  if (leadingMode === 'menu') {
     leadingContent = menuButton;
+  } else if (leadingMode === 'back') {
+    leadingContent = backButton;
   } else {
     leadingContent = <View style={styles.iconBtnPlaceholder} />;
   }
@@ -154,7 +156,7 @@ export function TopAppBar({
       <View style={styles.copy}>
         {eyebrow ? <Text style={styles.eyebrow} numberOfLines={1}>{eyebrow}</Text> : null}
         <Text style={styles.title} numberOfLines={1}>
-          Poultry<Text style={styles.titleLight}>Flow</Text>
+          {title}
         </Text>
         {subtitle ? (
           <Text style={styles.subtitle} numberOfLines={1}>
