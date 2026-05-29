@@ -23,7 +23,7 @@ import {
 } from '@/services/paymentPartnerRules';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useFocusEffect } from '@react-navigation/native';
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useCallback, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
@@ -35,7 +35,9 @@ import {
   TextInput,
   TouchableOpacity,
   View,
+  RefreshControl,
 } from 'react-native';
+import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { Controller, useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { ScreenState } from '@/components/ui/ScreenState';
@@ -103,15 +105,50 @@ const DEFAULTS: PaymentFormData = {
   fromAccount: 'HDFC Bank - 1234',
 };
 
+function formatDate(value?: string | null) {
+  if (!value) return "";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  return date.toLocaleDateString("en-IN", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+  });
+}
+
+function labelize(value?: string | null) {
+  if (!value) return "Not set";
+  return value
+    .split("_")
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1).toLowerCase())
+    .join(" ");
+}
+
 export default function PaymentEntryScreen() {
   const { accessToken } = useAuth();
   const router = useRouter();
+  const params = useLocalSearchParams<{ status?: string }>();
+
+  const [activeTab, setActiveTab] = useState<'history' | 'record'>(
+    params.status ? 'history' : 'history'
+  );
+
   const [batches, setBatches] = useState<ApiBatch[]>([]);
   const [vendors, setVendors] = useState<ApiVendor[]>([]);
   const [traders, setTraders] = useState<ApiTrader[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [savedMessage, setSavedMessage] = useState<string | null>(null);
+
+  // History states
+  const [payments, setPayments] = useState<ApiFinancePayment[]>([]);
+  const [loadingHistory, setLoadingHistory] = useState(false);
+  const [refreshingHistory, setRefreshingHistory] = useState(false);
+  
+  // Filters
+  const [filterDirection, setFilterDirection] = useState<'ALL' | 'INBOUND' | 'OUTBOUND'>('ALL');
+  const [filterType, setFilterType] = useState<string>('ALL');
+  const [searchQuery, setSearchQuery] = useState('');
 
   const {
     control,
@@ -132,6 +169,7 @@ export default function PaymentEntryScreen() {
   const vendorId = watch('vendorId');
   const traderId = watch('traderId');
   const partnerKind = getPaymentPartnerKind(paymentType);
+
   const vendorOptions = useMemo(
     () => vendors.map((vendor) => ({
       label: vendor.name,
@@ -141,6 +179,7 @@ export default function PaymentEntryScreen() {
     })),
     [vendors],
   );
+
   const traderOptions = useMemo(
     () => traders.map((trader) => ({
       label: trader.name,
@@ -150,6 +189,7 @@ export default function PaymentEntryScreen() {
     })),
     [traders],
   );
+
   const paymentTypeOptions = useMemo(
     () =>
       PAYMENT_TYPES.map((type) => ({
@@ -158,6 +198,7 @@ export default function PaymentEntryScreen() {
       })),
     [],
   );
+
   const accountOptions = useMemo(
     () => ACCOUNT_OPTIONS.map((account) => ({ label: account, value: account })),
     [],
@@ -182,10 +223,29 @@ export default function PaymentEntryScreen() {
     }
   }, [accessToken]);
 
+  const loadPaymentsHistory = useCallback(async (refresh = false) => {
+    if (!accessToken) return;
+    if (refresh) {
+      setRefreshingHistory(true);
+    } else {
+      setLoadingHistory(true);
+    }
+    try {
+      const response = await listFinancePayments(accessToken, { limit: 100 });
+      setPayments(response.data);
+    } catch (err) {
+      showRequestErrorToast(err, { title: 'Unable to load payment history' });
+    } finally {
+      setLoadingHistory(false);
+      setRefreshingHistory(false);
+    }
+  }, [accessToken]);
+
   useFocusEffect(
     useCallback(() => {
       void loadData();
-    }, [loadData]),
+      void loadPaymentsHistory();
+    }, [loadData, loadPaymentsHistory]),
   );
 
   React.useEffect(() => {
@@ -232,6 +292,7 @@ export default function PaymentEntryScreen() {
       showSuccessToast('Payment saved successfully.');
       setSavedMessage('Payment saved successfully.');
       reset(DEFAULTS);
+      void loadPaymentsHistory();
     } catch (err) {
       showRequestErrorToast(err, { title: 'Payment save failed' });
     } finally {
@@ -239,220 +300,409 @@ export default function PaymentEntryScreen() {
     }
   };
 
+  const filteredPayments = useMemo(() => {
+    return payments.filter((item) => {
+      // 1. Direction filter
+      if (filterDirection !== 'ALL' && item.direction !== filterDirection) {
+        return false;
+      }
+      // 2. Type filter
+      if (filterType !== 'ALL' && item.paymentType !== filterType) {
+        return false;
+      }
+      // 3. Search query
+      if (searchQuery.trim()) {
+        const query = searchQuery.toLowerCase();
+        const party = (item.partyName || item.vendorName || item.traderName || '').toLowerCase();
+        const ref = (item.referenceId || '').toLowerCase();
+        const notes = (item.notes || '').toLowerCase();
+        if (!party.includes(query) && !ref.includes(query) && !notes.includes(query)) {
+          return false;
+        }
+      }
+      return true;
+    });
+  }, [payments, filterDirection, filterType, searchQuery]);
+
   return (
     <View style={styles.safeArea}>
-      <TopAppBar title="Payment Entry" subtitle="Record payment made or received" onBack={() => router.replace('/(owner)/dashboard')} />
+      <TopAppBar
+        title={activeTab === 'history' ? "Payment History" : "Payment Entry"}
+        subtitle={activeTab === 'history' ? "List of payments made and received" : "Record payment made or received"}
+        onBack={() => router.replace('/(owner)/dashboard')}
+      />
+
+      <View style={styles.tabBarWrapper}>
+        <View style={styles.tabBar}>
+          <TouchableOpacity
+            style={[styles.tab, activeTab === 'history' && styles.tabActive]}
+            onPress={() => {
+              setActiveTab('history');
+              void loadPaymentsHistory();
+            }}
+          >
+            <Text style={[styles.tabLabel, activeTab === 'history' && styles.tabLabelActive]}>Payment History</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.tab, activeTab === 'record' && styles.tabActive]}
+            onPress={() => setActiveTab('record')}
+          >
+            <Text style={[styles.tabLabel, activeTab === 'record' && styles.tabLabelActive]}>Record Payment</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+
       <KeyboardAvoidingView
         behavior={Platform.OS === "ios" ? "padding" : "height"}
         style={{ flex: 1 }}
       >
-
-      <ScrollView 
-        contentContainerStyle={styles.scrollContainer} 
-        showsVerticalScrollIndicator={false}
-        keyboardShouldPersistTaps="handled"
-      >
-        <View style={styles.form}>
-          {loading ? (
-            <ScreenState title="Loading batches" message="Fetching payment references." loading compact style={styles.stateSpacing} />
-          ) : null}
-          {savedMessage ? (
-            <ScreenState
-              title={savedMessage}
-              message="Form is ready for the next payment."
-              compact
-              style={styles.stateSpacing}
-            />
-          ) : null}
-
-          {/* Payment Type */}
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Payment Type</Text>
-            <View style={styles.toggleContainer}>
-              {DIRECTIONS.map((dir) => (
-                <TouchableOpacity 
-                  key={dir}
-                  style={[styles.toggleBtn, direction === dir && styles.toggleBtnActive]}
-                  onPress={() => setValue("direction", dir)}
-                >
-                  <Text style={[styles.toggleBtnText, direction === dir && styles.toggleBtnTextActive]}>
-                    {dir === 'OUTBOUND' ? 'Payment Made' : 'Payment Received'}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-          </View>
-
-          {/* Date */}
-          <Controller
-            control={control}
-            name="paymentDate"
-            render={({ field: { value, onChange } }) => (
-              <DatePickerField
-                label="Date"
-                value={value}
-                onChange={onChange}
-                error={errors.paymentDate?.message}
-                disableFuture
+        {activeTab === 'history' ? (
+          <ScrollView
+            contentContainerStyle={styles.scrollContainer}
+            showsVerticalScrollIndicator={false}
+            refreshControl={
+              <RefreshControl
+                refreshing={refreshingHistory}
+                onRefresh={() => void loadPaymentsHistory(true)}
+                colors={["#0B5C36"]}
               />
-            )}
-          />
-
-          {/* Against */}
-          <SearchableSelectField
-            label="Against"
-            value={paymentType}
-            options={paymentTypeOptions}
-            onSelect={(value) => setValue('paymentType', value as ApiPaymentEntryType, { shouldDirty: true, shouldValidate: true })}
-            placeholder="Select Reference"
-            searchPlaceholder="Search reference"
-            emptyMessage="No references found"
-            error={errors.paymentType?.message}
-          />
-
-          {partnerKind === 'vendor' ? (
-            <SearchableSelectField
-              label="Vendor"
-              value={vendorId}
-              options={vendorOptions}
-              onSelect={(value) => setValue('vendorId', value, { shouldDirty: true, shouldValidate: true })}
-              placeholder="Select Vendor"
-              searchPlaceholder="Search vendor"
-              emptyMessage="No vendors found"
-              error={errors.vendorId?.message}
-              required
-            />
-          ) : partnerKind === 'trader' ? (
-            <SearchableSelectField
-              label="Trader"
-              value={traderId}
-              options={traderOptions}
-              onSelect={(value) => setValue('traderId', value, { shouldDirty: true, shouldValidate: true })}
-              placeholder="Select Trader"
-              searchPlaceholder="Search trader"
-              emptyMessage="No traders found"
-              error={errors.traderId?.message}
-              required
-            />
-          ) : (
+            }
+          >
+            {/* Filter Direction */}
             <View style={styles.inputGroup}>
-              <Text style={styles.label}>{direction === 'OUTBOUND' ? 'Paid To' : 'Received From'}</Text>
+              <Text style={styles.label}>Direction</Text>
+              <View style={styles.toggleContainer}>
+                {(['ALL', 'OUTBOUND', 'INBOUND'] as const).map((dir) => (
+                  <TouchableOpacity
+                    key={dir}
+                    style={[styles.toggleBtn, filterDirection === dir && styles.toggleBtnActive]}
+                    onPress={() => setFilterDirection(dir)}
+                  >
+                    <Text style={[styles.toggleBtnText, filterDirection === dir && styles.toggleBtnTextActive]}>
+                      {dir === 'ALL' ? 'All' : dir === 'OUTBOUND' ? 'Outbound' : 'Inbound'}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </View>
+
+            {/* Filter Type */}
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Against Reference</Text>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.horizontalChips}>
+                <TouchableOpacity
+                  style={[styles.smallToggleBtn, filterType === 'ALL' && styles.toggleBtnActive]}
+                  onPress={() => setFilterType('ALL')}
+                >
+                  <Text style={[styles.smallToggleBtnText, filterType === 'ALL' && styles.toggleBtnTextActive]}>All</Text>
+                </TouchableOpacity>
+                {PAYMENT_TYPES.map((type) => (
+                  <TouchableOpacity
+                    key={type}
+                    style={[styles.smallToggleBtn, filterType === type && styles.toggleBtnActive]}
+                    onPress={() => setFilterType(type)}
+                  >
+                    <Text style={[styles.smallToggleBtnText, filterType === type && styles.toggleBtnTextActive]}>
+                      {type.replace(/_/g, ' ')}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+            </View>
+
+            {/* Search Box */}
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Search</Text>
+              <TextInput
+                style={styles.input}
+                value={searchQuery}
+                onChangeText={setSearchQuery}
+                placeholder="Search name, reference, remarks..."
+                placeholderTextColor="#9CA3AF"
+              />
+            </View>
+
+            {/* List */}
+            {loadingHistory ? (
+              <ScreenState title="Loading payments" message="Fetching payment history records." loading compact />
+            ) : filteredPayments.length === 0 ? (
+              <ScreenState
+                title="No payments found"
+                message="No payments match your current filter criteria."
+                icon="wallet-outline"
+                compact
+              />
+            ) : (
+              filteredPayments.map((item) => {
+                const isOutbound = item.direction === 'OUTBOUND';
+                const mainAmount = `₹${item.amount.toLocaleString('en-IN')}`;
+
+                return (
+                  <View key={item.id} style={styles.paymentCard}>
+                    <View
+                      style={[
+                        styles.avatarBox,
+                        { backgroundColor: isOutbound ? '#FEE2E2' : '#E8F5E9' },
+                      ]}
+                    >
+                      <Ionicons
+                        name={isOutbound ? 'arrow-up-circle-outline' : 'arrow-down-circle-outline'}
+                        size={20}
+                        color={isOutbound ? '#DC2626' : '#0B5C36'}
+                      />
+                    </View>
+                    <View style={styles.partnerMain}>
+                      <Text style={styles.partnerName} numberOfLines={1}>
+                        {item.partyName || item.vendorName || item.traderName || 'Unknown Party'}
+                      </Text>
+                      <Text style={styles.partnerMeta}>
+                        {[
+                          formatDate(item.paymentDate),
+                          labelize(item.paymentType),
+                        ]
+                          .filter(Boolean)
+                          .join(' | ')}
+                      </Text>
+                      {item.notes ? (
+                        <Text style={[styles.partnerMeta, { fontStyle: 'italic', marginTop: 2 }]} numberOfLines={2}>
+                          {item.notes}
+                        </Text>
+                      ) : null}
+                    </View>
+                    <View style={{ alignItems: 'flex-end', justifyContent: 'center' }}>
+                      <Text
+                        style={[
+                          styles.amountText,
+                          { color: isOutbound ? '#DC2626' : '#0B5C36', fontWeight: '900' },
+                        ]}
+                      >
+                        {isOutbound ? '-' : '+'}{mainAmount}
+                      </Text>
+                      <Text
+                        style={{
+                          fontSize: 10,
+                          fontWeight: '800',
+                          color: '#9CA3AF',
+                          marginTop: 2,
+                        }}
+                      >
+                        {isOutbound ? 'Outflow' : 'Inflow'}
+                      </Text>
+                    </View>
+                  </View>
+                );
+              })
+            )}
+            <View style={{ height: 40 }} />
+          </ScrollView>
+        ) : (
+          <ScrollView
+            contentContainerStyle={styles.scrollContainer}
+            showsVerticalScrollIndicator={false}
+            keyboardShouldPersistTaps="handled"
+          >
+            <View style={styles.form}>
+              {loading ? (
+                <ScreenState title="Loading batches" message="Fetching payment references." loading compact style={styles.stateSpacing} />
+              ) : null}
+              {savedMessage ? (
+                <ScreenState
+                  title={savedMessage}
+                  message="Form is ready for the next payment."
+                  compact
+                  style={styles.stateSpacing}
+                />
+              ) : null}
+
+              {/* Payment Type */}
+              <View style={styles.inputGroup}>
+                <Text style={styles.label}>Payment Type</Text>
+                <View style={styles.toggleContainer}>
+                  {DIRECTIONS.map((dir) => (
+                    <TouchableOpacity
+                      key={dir}
+                      style={[styles.toggleBtn, direction === dir && styles.toggleBtnActive]}
+                      onPress={() => setValue("direction", dir)}
+                    >
+                      <Text style={[styles.toggleBtnText, direction === dir && styles.toggleBtnTextActive]}>
+                        {dir === 'OUTBOUND' ? 'Payment Made' : 'Payment Received'}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </View>
+
+              {/* Date */}
               <Controller
                 control={control}
-                name="partyName"
+                name="paymentDate"
                 render={({ field: { value, onChange } }) => (
-                  <TextInput
-                    style={styles.input}
+                  <DatePickerField
+                    label="Date"
                     value={value}
-                    onChangeText={onChange}
-                    placeholder={direction === 'OUTBOUND' ? 'Enter payee' : 'Enter sender'}
-                    placeholderTextColor="#9CA3AF"
+                    onChange={onChange}
+                    error={errors.paymentDate?.message}
+                    disableFuture
                   />
                 )}
               />
-              {errors.partyName ? <Text style={styles.errorText}>{errors.partyName.message}</Text> : null}
+
+              {/* Against */}
+              <SearchableSelectField
+                label="Against"
+                value={paymentType}
+                options={paymentTypeOptions}
+                onSelect={(value) => setValue('paymentType', value as ApiPaymentEntryType, { shouldDirty: true, shouldValidate: true })}
+                placeholder="Select Reference"
+                searchPlaceholder="Search reference"
+                emptyMessage="No references found"
+                error={errors.paymentType?.message}
+              />
+
+              {partnerKind === 'vendor' ? (
+                <SearchableSelectField
+                  label="Vendor"
+                  value={vendorId}
+                  options={vendorOptions}
+                  onSelect={(value) => setValue('vendorId', value, { shouldDirty: true, shouldValidate: true })}
+                  placeholder="Select Vendor"
+                  searchPlaceholder="Search vendor"
+                  emptyMessage="No vendors found"
+                  error={errors.vendorId?.message}
+                  required
+                />
+              ) : partnerKind === 'trader' ? (
+                <SearchableSelectField
+                  label="Trader"
+                  value={traderId}
+                  options={traderOptions}
+                  onSelect={(value) => setValue('traderId', value, { shouldDirty: true, shouldValidate: true })}
+                  placeholder="Select Trader"
+                  searchPlaceholder="Search trader"
+                  emptyMessage="No traders found"
+                  error={errors.traderId?.message}
+                  required
+                />
+              ) : (
+                <View style={styles.inputGroup}>
+                  <Text style={styles.label}>{direction === 'OUTBOUND' ? 'Paid To' : 'Received From'}</Text>
+                  <Controller
+                    control={control}
+                    name="partyName"
+                    render={({ field: { value, onChange } }) => (
+                      <TextInput
+                        style={styles.input}
+                        value={value}
+                        onChangeText={onChange}
+                        placeholder={direction === 'OUTBOUND' ? 'Enter payee' : 'Enter sender'}
+                        placeholderTextColor="#9CA3AF"
+                      />
+                    )}
+                  />
+                  {errors.partyName ? <Text style={styles.errorText}>{errors.partyName.message}</Text> : null}
+                </View>
+              )}
+
+              {/* Amount */}
+              <View style={styles.inputGroup}>
+                <Text style={styles.label}>Amount (₹)</Text>
+                <Controller
+                  control={control}
+                  name="amount"
+                  render={({ field: { value, onChange } }) => (
+                    <TextInput
+                      style={styles.input}
+                      value={value}
+                      onChangeText={onChange}
+                      keyboardType="numeric"
+                      placeholder="2,25,000"
+                      placeholderTextColor="#9CA3AF"
+                    />
+                  )}
+                />
+                {errors.amount && <Text style={styles.errorText}>{errors.amount.message}</Text>}
+              </View>
+
+              {/* Payment Method */}
+              <View style={styles.inputGroup}>
+                <Text style={styles.label}>Payment Method</Text>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.horizontalChips}>
+                  {METHODS.map((method) => (
+                    <TouchableOpacity
+                      key={method}
+                      style={[styles.smallToggleBtn, paymentMethod === method && styles.toggleBtnActive]}
+                      onPress={() => setValue("paymentMethod", method)}
+                    >
+                      <Text style={[styles.smallToggleBtnText, paymentMethod === method && styles.toggleBtnTextActive]}>{method}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </ScrollView>
+              </View>
+
+              {/* Reference No. */}
+              <View style={styles.inputGroup}>
+                <Text style={styles.label}>Reference No. / Transaction ID</Text>
+                <Controller
+                  control={control}
+                  name="referenceId"
+                  render={({ field: { value, onChange } }) => (
+                    <TextInput
+                      style={styles.input}
+                      value={value}
+                      onChangeText={onChange}
+                      placeholder="UTR1234567890"
+                      placeholderTextColor="#9CA3AF"
+                      autoCapitalize="characters"
+                    />
+                  )}
+                />
+              </View>
+
+              {/* Payment From Account */}
+              <SearchableSelectField
+                label="Payment From Account"
+                value={fromAccount}
+                options={accountOptions}
+                onSelect={(value) => setValue('fromAccount', value, { shouldDirty: true, shouldValidate: true })}
+                placeholder="Select Account"
+                searchPlaceholder="Search account"
+                emptyMessage="No accounts found"
+              />
+
+              {/* Remarks */}
+              <View style={styles.inputGroup}>
+                <Text style={styles.label}>Remarks (Optional)</Text>
+                <Controller
+                  control={control}
+                  name="notes"
+                  render={({ field: { value, onChange } }) => (
+                    <TextInput
+                      style={[styles.input, styles.textArea]}
+                      value={value}
+                      onChangeText={onChange}
+                      placeholder="Payment for feed purchase"
+                      placeholderTextColor="#9CA3AF"
+                      multiline
+                    />
+                  )}
+                />
+              </View>
+
+              <TouchableOpacity
+                style={[styles.submitBtn, saving && styles.btnDisabled]}
+                onPress={handleSubmit(onSubmit)}
+                disabled={saving}
+              >
+                {saving ? (
+                  <ActivityIndicator color="#FFF" />
+                ) : (
+                  <Text style={styles.submitBtnText}>Save Payment</Text>
+                )}
+              </TouchableOpacity>
             </View>
-          )}
-
-          {/* Amount */}
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Amount (₹)</Text>
-            <Controller
-              control={control}
-              name="amount"
-              render={({ field: { value, onChange } }) => (
-                <TextInput
-                  style={styles.input}
-                  value={value}
-                  onChangeText={onChange}
-                  keyboardType="numeric"
-                  placeholder="2,25,000"
-                  placeholderTextColor="#9CA3AF"
-                />
-              )}
-            />
-            {errors.amount && <Text style={styles.errorText}>{errors.amount.message}</Text>}
-          </View>
-
-          {/* Payment Method */}
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Payment Method</Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.horizontalChips}>
-              {METHODS.map((method) => (
-                <TouchableOpacity 
-                  key={method}
-                  style={[styles.smallToggleBtn, paymentMethod === method && styles.toggleBtnActive]}
-                  onPress={() => setValue("paymentMethod", method)}
-                >
-                  <Text style={[styles.smallToggleBtnText, paymentMethod === method && styles.toggleBtnTextActive]}>{method}</Text>
-                </TouchableOpacity>
-              ))}
-            </ScrollView>
-          </View>
-
-          {/* Reference No. */}
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Reference No. / Transaction ID</Text>
-            <Controller
-              control={control}
-              name="referenceId"
-              render={({ field: { value, onChange } }) => (
-                <TextInput
-                  style={styles.input}
-                  value={value}
-                  onChangeText={onChange}
-                  placeholder="UTR1234567890"
-                  placeholderTextColor="#9CA3AF"
-                  autoCapitalize="characters"
-                />
-              )}
-            />
-          </View>
-
-          {/* Payment From Account */}
-          <SearchableSelectField
-            label="Payment From Account"
-            value={fromAccount}
-            options={accountOptions}
-            onSelect={(value) => setValue('fromAccount', value, { shouldDirty: true, shouldValidate: true })}
-            placeholder="Select Account"
-            searchPlaceholder="Search account"
-            emptyMessage="No accounts found"
-          />
-
-          {/* Remarks */}
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Remarks (Optional)</Text>
-            <Controller
-              control={control}
-              name="notes"
-              render={({ field: { value, onChange } }) => (
-                <TextInput
-                  style={[styles.input, styles.textArea]}
-                  value={value}
-                  onChangeText={onChange}
-                  placeholder="Payment for feed purchase"
-                  placeholderTextColor="#9CA3AF"
-                  multiline
-                />
-              )}
-            />
-          </View>
-
-          <TouchableOpacity 
-            style={[styles.submitBtn, saving && styles.btnDisabled]} 
-            onPress={handleSubmit(onSubmit)}
-            disabled={saving}
-          >
-            {saving ? (
-              <ActivityIndicator color="#FFF" />
-            ) : (
-              <Text style={styles.submitBtnText}>Save Payment</Text>
-            )}
-          </TouchableOpacity>
-        </View>
-        <View style={{ height: 40 }} />
-      </ScrollView>
+            <View style={{ height: 40 }} />
+          </ScrollView>
+        )}
       </KeyboardAvoidingView>
     </View>
   );
@@ -628,5 +878,75 @@ const styles = StyleSheet.create({
     fontSize: 12,
     marginTop: 4,
     marginLeft: 4,
+  },
+  tabBarWrapper: {
+    backgroundColor: "#0B5C36",
+    paddingHorizontal: 20,
+    paddingBottom: 12,
+  },
+  tabBar: {
+    flexDirection: "row",
+    backgroundColor: "rgba(255, 255, 255, 0.15)",
+    borderRadius: 12,
+    padding: 4,
+  },
+  tab: {
+    flex: 1,
+    height: 40,
+    borderRadius: 10,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  tabActive: {
+    backgroundColor: "#FFF",
+  },
+  tabLabel: {
+    fontSize: 13,
+    fontWeight: "700",
+    color: "rgba(255, 255, 255, 0.8)",
+  },
+  tabLabelActive: {
+    color: "#0B5C36",
+  },
+  paymentCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    backgroundColor: "#FFF",
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
+    padding: 15,
+    marginBottom: 12,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 6,
+    elevation: 2,
+  },
+  avatarBox: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  partnerMain: {
+    flex: 1,
+  },
+  partnerName: {
+    fontSize: 15,
+    fontWeight: '800',
+    color: "#111827",
+    marginBottom: 3,
+  },
+  partnerMeta: {
+    fontSize: 12,
+    color: "#6B7280",
+    lineHeight: 17,
+  },
+  amountText: {
+    fontSize: 15,
+    fontWeight: '900',
   },
 });

@@ -10,6 +10,7 @@ import {
   expenseSchema
 } from '@/components/inventory/inventoryTypes';
 import { LedgerTab } from '@/components/inventory/LedgerTab';
+import { PurchasesTab } from '@/components/inventory/PurchasesTab';
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useFocusEffect } from "@react-navigation/native";
@@ -42,16 +43,18 @@ import {
   listAllVendors,
   listInventoryLedger,
   updateCatalogItem,
+  listFinancePurchases,
   type ApiBatch,
   type ApiBatchExpense,
   type ApiCatalogItem,
   type ApiCatalogItemType,
   type ApiExpenseCategoryCode,
   type ApiInventoryLedgerEntry,
-  type ApiVendor
+  type ApiVendor,
+  type ApiFinancePurchase,
 } from "@/services/managementApi";
 
-type TabKey = "catalog" | "ledger" | "expenses";
+type TabKey = "catalog" | "ledger" | "expenses" | "purchases";
 
 
 function toOptionalNumber(value?: string) {
@@ -95,13 +98,17 @@ export default function InventoryScreen() {
   const [ledgerRows, setLedgerRows] = useState<ApiInventoryLedgerEntry[]>([]);
   const [vendors, setVendors] = useState<ApiVendor[]>([]);
   const [expenses, setExpenses] = useState<ApiBatchExpense[]>([]);
+  const [purchases, setPurchases] = useState<ApiFinancePurchase[]>([]);
   const [ledgerCatalogItemId, setLedgerCatalogItemId] = useState("");
   const [ledgerBatchId, setLedgerBatchId] = useState("");
   const [ledgerVendorId, setLedgerVendorId] = useState("");
+  const [filterBatchId, setFilterBatchId] = useState("");
+  const [filterVendorId, setFilterVendorId] = useState("");
   const [loadingCatalog, setLoadingCatalog] = useState(false);
   const [loadingBatches, setLoadingBatches] = useState(false);
   const [loadingLedger, setLoadingLedger] = useState(false);
   const [loadingExpenses, setLoadingExpenses] = useState(false);
+  const [loadingPurchases, setLoadingPurchases] = useState(false);
   const [savingCatalog, setSavingCatalog] = useState(false);
   const [savingExpense, setSavingExpense] = useState(false);
   const [catalogModalVisible, setCatalogModalVisible] = useState(false);
@@ -255,6 +262,41 @@ export default function InventoryScreen() {
       setLoadingLedger(false);
     }
   }, [accessToken, ledgerBatchId, ledgerCatalogItemId, ledgerVendorId]);
+
+  const loadPurchases = useCallback(async () => {
+    if (!accessToken) {
+      setError("Missing access token. Please sign in again.");
+      return;
+    }
+
+    setLoadingPurchases(true);
+    setError(null);
+
+    try {
+      const response = await listFinancePurchases(accessToken, {
+        vendorId: filterVendorId.trim() || undefined,
+      });
+      setPurchases(response.data);
+    } catch (err) {
+      setError(
+        showRequestErrorToast(err, {
+          title: "Unable to load purchases",
+          fallbackMessage: "Failed to load stock purchases.",
+        }),
+      );
+    } finally {
+      setLoadingPurchases(false);
+    }
+  }, [accessToken, filterVendorId]);
+
+  const filteredPurchases = useMemo(() => {
+    return purchases.filter((item) => {
+      if (filterBatchId.trim() && item.batchId !== filterBatchId.trim()) {
+        return false;
+      }
+      return true;
+    });
+  }, [purchases, filterBatchId]);
 
   const loadExpenses = useCallback(async () => {
     if (!accessToken) {
@@ -532,6 +574,7 @@ export default function InventoryScreen() {
           {([
             { key: "catalog", label: "Catalog" },
             { key: "ledger", label: "Ledger" },
+            { key: "purchases", label: "Purchases" },
             { key: "expenses", label: "Expenses" },
           ] as { key: TabKey; label: string }[]).map((tab) => (
             <TouchableOpacity
@@ -540,6 +583,7 @@ export default function InventoryScreen() {
               onPress={() => {
                 setActiveTab(tab.key);
                 if (tab.key === "ledger") void loadLedger();
+                if (tab.key === "purchases") void loadPurchases();
               }}
             >
               <Text
@@ -621,6 +665,25 @@ export default function InventoryScreen() {
             loadingExpenseCategories={loadingExpenseCategories}
             expenseCategoryError={expenseCategoryError}
             vendorOptions={vendorOptions}
+          />
+        )}
+
+        {activeTab === "purchases" && (
+          <PurchasesTab
+            purchases={filteredPurchases}
+            batches={batches}
+            vendors={vendors}
+            filterBatchId={filterBatchId}
+            setFilterBatchId={setFilterBatchId}
+            filterVendorId={filterVendorId}
+            setFilterVendorId={setFilterVendorId}
+            vendorOptions={vendorOptions}
+            loadPurchases={loadPurchases}
+            loadingPurchases={loadingPurchases}
+            loadingBatches={loadingBatches}
+            labelize={labelize}
+            formatQuantity={formatQuantity}
+            formatINR={formatINR}
           />
         )}
 <View style={{ height: 24 }} />
