@@ -1284,7 +1284,7 @@ const styles = StyleSheet.create({
 
   // Category Layout
   categoryTitle: { fontSize: 14, fontWeight: "800", color: "#111827", marginBottom: 12, marginTop: 4 },
-  grid: { flexDirection: "row", flexWrap: "wrap", justifyContent: "space-between", gap: 10 },
+  grid: { flexDirection: "row", flexWrap: "wrap", justifyContent: "space-between" },
   statementCard: {
     marginTop: 16,
     marginBottom: 8,
@@ -1529,11 +1529,11 @@ const styles = StyleSheet.create({
     color: "#4B5563",
   },
   widgetCard: {
-    width: "48.5%",
+    width: "48%",
     backgroundColor: "#FFF",
     borderColor: "#E5E7EB",
     borderWidth: 1,
-    marginBottom: 4,
+    marginBottom: 10,
   },
   iconBox: {
     width: 44,

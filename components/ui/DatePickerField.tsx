@@ -134,7 +134,12 @@ export function DatePickerField({
         onPress={openPicker}
         activeOpacity={0.78}
       >
-        <Text style={[styles.dateValue, !value && styles.datePlaceholder]}>
+        <Text
+          style={[styles.dateValue, !value && styles.datePlaceholder]}
+          numberOfLines={1}
+          adjustsFontSizeToFit
+          minimumFontScale={0.7}
+        >
           {value ? formatReadableDate(value) : placeholder}
         </Text>
         <Ionicons name="calendar-outline" size={18} color={Colors.textSecondary} />
