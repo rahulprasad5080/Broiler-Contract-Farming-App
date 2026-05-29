@@ -1,5 +1,6 @@
 import NetInfo from "@react-native-community/netinfo";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { create } from "zustand";
 
 import { ApiError } from "./api";
 import {
@@ -16,6 +17,24 @@ import {
 } from "./managementApi";
 
 const OFFLINE_QUEUE_KEY = "offline_submission_queue_v1";
+
+export interface SyncState {
+  isSyncing: boolean;
+  queueCount: number;
+  syncProgress: string;
+  setSyncing: (isSyncing: boolean) => void;
+  setQueueCount: (count: number) => void;
+  setSyncProgress: (progress: string) => void;
+}
+
+export const useSyncStore = create<SyncState>((set) => ({
+  isSyncing: false,
+  queueCount: 0,
+  syncProgress: "",
+  setSyncing: (isSyncing) => set({ isSyncing }),
+  setQueueCount: (queueCount) => set({ queueCount }),
+  setSyncProgress: (syncProgress) => set({ syncProgress }),
+}));
 
 export type OfflineSubmission =
   | {
@@ -87,6 +106,7 @@ function isRetryableSyncError(error: unknown) {
 
 async function saveQueue(queue: OfflineSubmission[]) {
   await AsyncStorage.setItem(OFFLINE_QUEUE_KEY, JSON.stringify(queue));
+  useSyncStore.getState().setQueueCount(queue.length);
 }
 
 export async function getOfflineQueue() {
@@ -164,6 +184,7 @@ export async function processOfflineQueue(token: string): Promise<SyncResult> {
   }
 
   syncInFlight = true;
+  useSyncStore.getState().setSyncing(true);
 
   try {
     const queue = await getOfflineQueue();
@@ -171,8 +192,11 @@ export async function processOfflineQueue(token: string): Promise<SyncResult> {
     let synced = 0;
     let failed = 0;
 
+    useSyncStore.getState().setSyncProgress(`Starting sync of ${queue.length} items...`);
+
     for (const item of queue) {
       try {
+        useSyncStore.getState().setSyncProgress(`Syncing ${item.type} (${synced + failed + 1}/${queue.length})...`);
         await syncItem(token, item);
         synced += 1;
       } catch (error) {
@@ -192,8 +216,21 @@ export async function processOfflineQueue(token: string): Promise<SyncResult> {
     }
 
     await saveQueue(remainingQueue);
+
+    if (failed > 0) {
+      useSyncStore.getState().setSyncProgress(`Sync completed: ${synced} synced, ${failed} failed.`);
+    } else {
+      useSyncStore.getState().setSyncProgress(`All ${synced} items synced successfully.`);
+    }
+
     return { synced, failed, remaining: remainingQueue.length };
   } finally {
     syncInFlight = false;
+    useSyncStore.getState().setSyncing(false);
   }
 }
+
+// Initialize queue count on load
+getOfflineQueueCount().then((count) => {
+  useSyncStore.getState().setQueueCount(count);
+}).catch(() => {});
