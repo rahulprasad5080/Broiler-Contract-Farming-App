@@ -35,6 +35,7 @@ type DailyEntryListScreenProps = {
   title?: string;
   subtitle?: string;
   formPath: string;
+  onBack?: () => void;
 };
 
 function formatNumber(value?: number | null, suffix = "") {
@@ -87,6 +88,7 @@ export function DailyEntryListScreen({
   title = "Daily Entries",
   subtitle = "Daily flock history",
   formPath,
+  onBack,
 }: DailyEntryListScreenProps) {
   const router = useRouter();
   const { accessToken } = useAuth();
@@ -183,6 +185,7 @@ export function DailyEntryListScreen({
       <TopAppBar
         title={title}
         subtitle={subtitle}
+        onBack={onBack}
         right={
           <TouchableOpacity
             style={styles.headerAction}
