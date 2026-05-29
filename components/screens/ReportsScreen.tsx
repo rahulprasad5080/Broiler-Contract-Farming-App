@@ -1,6 +1,6 @@
 import { MaterialCommunityIcons, Ionicons, FontAwesome5 } from "@expo/vector-icons";
 import { useFocusEffect } from "@react-navigation/native";
-import React, { useCallback, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   KeyboardAvoidingView,
@@ -13,6 +13,7 @@ import {
   View,
   Modal,
   TextInput,
+  Share,
 } from "react-native";
 
 import { useAuth } from "@/context/AuthContext";
@@ -91,6 +92,7 @@ export default function ReportsScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [exporting, setExporting] = useState<"pdf" | "excel" | null>(null);
+  const [selectedBatchId, setSelectedBatchId] = useState("");
 
   // FCR Calculator state variables
   const [fcrModalVisible, setFcrModalVisible] = useState(false);
@@ -170,6 +172,70 @@ export default function ReportsScreen() {
     [partnerLedger],
   );
 
+  const batchOptions = useMemo(() => {
+    const map = new Map<string, string>();
+    profitability.forEach((row) => {
+      if (row.batchId) {
+        map.set(row.batchId, row.batchCode || `Batch ${row.batchId.slice(0, 8)}`);
+      }
+    });
+    settlements.forEach((row) => {
+      if (row.batchId) {
+        map.set(row.batchId, row.batchCode || `Batch ${row.batchId.slice(0, 8)}`);
+      }
+    });
+    expenses.forEach((row) => {
+      if (row.batchId) {
+        map.set(row.batchId, row.batchCode || `Batch ${row.batchId.slice(0, 8)}`);
+      }
+    });
+    return Array.from(map.entries()).map(([id, code]) => ({
+      label: code,
+      value: id,
+    }));
+  }, [profitability, settlements, expenses]);
+
+  const sharePartnerStatementText = useCallback(async () => {
+    if (!partnerLedger) return;
+
+    const partnerName = partnerLedger.partnerName || partnerLedger.vendorName || partnerLedger.traderName || "Partner";
+    const dateRange = partnerLedger.dateFrom && partnerLedger.dateTo 
+      ? `(${partnerLedger.dateFrom} to ${partnerLedger.dateTo})` 
+      : "";
+    const isVendor = partnerStatementKind === "vendor";
+
+    let text = `📄 *${isVendor ? "VENDOR" : "TRADER"} STATEMENT*\n`;
+    text += `*Partner Name*: ${partnerName}\n`;
+    if (dateRange) text += `*Period*: ${dateRange}\n`;
+    text += `*Opening Balance*: ${formatINR(partnerLedger.openingBalance)}\n`;
+    if (partnerLedger.closingBalance !== undefined) {
+      text += `*Closing Balance*: ${formatINR(partnerLedger.closingBalance)}\n`;
+    }
+    text += `\n*Transactions*:\n`;
+
+    partnerLedgerRows.forEach((row) => {
+      const rowDebit = row.debit !== undefined && row.debit !== null
+        ? row.debit
+        : (isVendor ? (row.paymentAmount ?? 0) : (row.chargeAmount ?? 0));
+      const rowCredit = row.credit !== undefined && row.credit !== null
+        ? row.credit
+        : (isVendor ? (row.chargeAmount ?? 0) : (row.paymentAmount ?? 0));
+      const rowBalance = row.runningBalance ?? row.balance ?? row.balanceAfter ?? 0;
+      const rowDate = formatLedgerDate(row);
+      const desc = row.description || row.referenceType || "Entry";
+
+      text += `• *${rowDate}*: ${desc} | Dr: ${formatINR(rowDebit)} | Cr: ${formatINR(rowCredit)} | Bal: ${formatINR(rowBalance)}\n`;
+    });
+
+    try {
+      await Share.share({
+        message: text,
+      });
+    } catch (err) {
+      showRequestErrorToast(err, { title: "Sharing failed" });
+    }
+  }, [partnerLedger, partnerLedgerRows, partnerStatementKind]);
+
   const loadReports = useCallback(async (isRefresh = false) => {
     if (!accessToken) return;
 
@@ -201,16 +267,18 @@ export default function ReportsScreen() {
       setTraders(traderRes.data);
 
       const firstFarmId = expenseRes[0]?.farmId;
-      const firstBatchId =
-        profitabilityRes[0]?.batchId ?? settlementRes[0]?.batchId ?? expenseRes[0]?.batchId;
       
-      const [farmSummaryRes, batchSummaryRes] = await Promise.all([
+      const [farmSummaryRes] = await Promise.all([
         firstFarmId ? fetchFarmSummary(accessToken, firstFarmId) : Promise.resolve(null),
-        firstBatchId ? fetchBatchSummary(accessToken, firstBatchId) : Promise.resolve(null),
       ]);
 
       setFarmSummary(farmSummaryRes);
-      setBatchSummary(batchSummaryRes);
+
+      const firstBatchId =
+        profitabilityRes[0]?.batchId ?? settlementRes[0]?.batchId ?? expenseRes[0]?.batchId;
+      if (firstBatchId) {
+        setSelectedBatchId(firstBatchId);
+      }
     } catch (err) {
       setError(getRequestErrorMessage(err, "Unable to load reports."));
     } finally {
@@ -218,6 +286,28 @@ export default function ReportsScreen() {
       setRefreshing(false);
     }
   }, [accessToken]);
+
+  // Fetch batch summary dynamically when selectedBatchId changes
+  useEffect(() => {
+    if (!accessToken || !selectedBatchId) return;
+
+    let cancelled = false;
+    const loadSelectedBatchSummary = async () => {
+      try {
+        const summary = await fetchBatchSummary(accessToken, selectedBatchId);
+        if (!cancelled) {
+          setBatchSummary(summary);
+        }
+      } catch (err) {
+        console.warn("Failed to load batch summary:", err);
+      }
+    };
+
+    void loadSelectedBatchSummary();
+    return () => {
+      cancelled = true;
+    };
+  }, [accessToken, selectedBatchId]);
 
   const loadPartnerLedger = useCallback(async () => {
     if (!accessToken || !selectedPartnerId || loadingPartnerLedger) {
@@ -502,10 +592,19 @@ export default function ReportsScreen() {
                   </TouchableOpacity>
                   {partnerLedger ? (
                     <View style={styles.statementSummary}>
-                      <Text style={styles.statementBalance}>Opening {formatINR(partnerLedger.openingBalance)}</Text>
-                      {partnerLedger.closingBalance !== undefined ? (
-                        <Text style={styles.statementBalance}>Closing {formatINR(partnerLedger.closingBalance)}</Text>
-                      ) : null}
+                      <View style={{ flex: 1 }}>
+                        <Text style={styles.statementBalance}>Opening {formatINR(partnerLedger.openingBalance)}</Text>
+                        {partnerLedger.closingBalance !== undefined ? (
+                          <Text style={styles.statementBalance}>Closing {formatINR(partnerLedger.closingBalance)}</Text>
+                        ) : null}
+                      </View>
+                      <TouchableOpacity 
+                        style={styles.shareTextBtn} 
+                        onPress={() => void sharePartnerStatementText()}
+                      >
+                        <Ionicons name="logo-whatsapp" size={18} color="#FFF" />
+                        <Text style={styles.shareTextBtnText}>Share Statement</Text>
+                      </TouchableOpacity>
                     </View>
                   ) : null}
                   {partnerLedgerRows.map((row, index) => {
@@ -741,6 +840,22 @@ export default function ReportsScreen() {
                   <Text style={styles.docDesc}>
                     Download professional, audit-ready batch records directly in PDF or spreadsheet format.
                   </Text>
+
+                  {batchOptions.length > 0 ? (
+                    <View style={{ marginTop: 12 }}>
+                      <SearchableSelectField
+                        label="Select Batch to Share"
+                        value={selectedBatchId}
+                        options={batchOptions}
+                        onSelect={(value) => {
+                          setSelectedBatchId(value);
+                        }}
+                        placeholder="Select a batch"
+                        searchPlaceholder="Search batch code..."
+                        emptyMessage="No batches found"
+                      />
+                    </View>
+                  ) : null}
 
                   {batchSummary ? (
                     <View style={styles.selectedBatchBox}>
@@ -1908,5 +2023,20 @@ const styles = StyleSheet.create({
     height: 1,
     backgroundColor: "#E5E7EB",
     marginVertical: 8,
+  },
+  shareTextBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#25D366",
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 8,
+    gap: 6,
+    alignSelf: "center",
+  },
+  shareTextBtnText: {
+    color: "#FFF",
+    fontSize: 12,
+    fontWeight: "800",
   },
 });
