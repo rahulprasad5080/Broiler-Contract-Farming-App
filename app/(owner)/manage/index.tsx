@@ -98,7 +98,12 @@ export default function EntriesScreen() {
 
   return (
     <View style={styles.safeArea}>
-      <TopAppBar title="Entries" subtitle="Create operational and financial records" leadingMode="back" />
+      <TopAppBar
+        title="Entries"
+        subtitle="Create operational and financial records"
+        leadingMode="back"
+        onBack={() => router.replace('/(owner)/dashboard')}
+      />
 
       <ScrollView contentContainerStyle={styles.scrollContainer} showsVerticalScrollIndicator={false}>
         {visibleItems.length === 0 ? (

@@ -1,5 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect } from "@react-navigation/native";
+import { useRouter } from "expo-router";
 import React, { useCallback, useState } from "react";
 import {
   ActivityIndicator,
@@ -71,6 +72,7 @@ function toForm(settings: ApiOrganizationSettings): SettingsForm {
 
 export default function OrganizationSettingsScreen() {
   const { accessToken } = useAuth();
+  const router = useRouter();
   const [form, setForm] = useState<SettingsForm | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -142,6 +144,7 @@ export default function OrganizationSettingsScreen() {
       <TopAppBar
         title="Organization Settings"
         subtitle="Payout, alert, and finance controls"
+        onBack={() => router.replace('/(owner)/dashboard')}
         right={
           <TouchableOpacity onPress={() => void loadSettings()} style={styles.headerBtn}>
             <Ionicons name="refresh-outline" size={22} color="#FFF" />

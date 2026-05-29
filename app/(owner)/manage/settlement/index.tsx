@@ -2,6 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useFocusEffect } from '@react-navigation/native';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { useRouter } from 'expo-router';
 import { Controller, useForm } from 'react-hook-form';
 import {
   ActivityIndicator,
@@ -72,6 +73,7 @@ function labelizeStatus(value?: string | null) {
 
 export default function SettlementScreen() {
   const { accessToken } = useAuth();
+  const router = useRouter();
   const [batches, setBatches] = useState<ApiBatch[]>([]);
   const [selectedBatchId, setSelectedBatchId] = useState('');
   const [settlement, setSettlement] = useState<ApiBatchSettlement | null>(null);
@@ -191,7 +193,7 @@ export default function SettlementScreen() {
       <TopAppBar
         title="Farmer Settlement"
         subtitle="Review farmer payable and settlement status"
-
+        onBack={() => router.replace('/(owner)/dashboard')}
       />
 
       <ScrollView 

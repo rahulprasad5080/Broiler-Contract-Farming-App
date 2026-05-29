@@ -19,6 +19,7 @@ import { DatePickerField } from "@/components/ui/DatePickerField";
 import { ScreenState } from "@/components/ui/ScreenState";
 import { SearchableSelectField } from "@/components/ui/SearchableSelectField";
 import { TopAppBar } from "@/components/ui/TopAppBar";
+import { useRouter } from "expo-router";
 
 import { useAuth } from "@/context/AuthContext";
 import {
@@ -67,6 +68,7 @@ const STOCK_OPTIONS = ["Main Store", "Warehouse A", "Godown 1"];
 
 export default function AllocateStockScreen() {
   const { accessToken } = useAuth();
+  const router = useRouter();
   const [farms, setFarms] = useState<ApiFarm[]>([]);
   const [batches, setBatches] = useState<ApiBatch[]>([]);
   const [catalogItems, setCatalogItems] = useState<ApiCatalogItem[]>([]);
@@ -181,7 +183,7 @@ export default function AllocateStockScreen() {
 
   return (
     <View style={styles.safeArea}>
-      <TopAppBar title="Inventory Allocation" subtitle="Assign stock to farms and batches" />
+      <TopAppBar title="Inventory Allocation" subtitle="Assign stock to farms and batches" onBack={() => router.replace('/(owner)/dashboard')} />
       <KeyboardAvoidingView
         behavior={Platform.OS === "ios" ? "padding" : "height"}
         style={{ flex: 1 }}

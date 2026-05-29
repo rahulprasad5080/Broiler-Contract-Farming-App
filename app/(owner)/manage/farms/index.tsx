@@ -485,6 +485,7 @@ export default function FarmListScreen() {
       <TopAppBar
         title="Farm Management"
         subtitle="Operational status and assignments"
+        onBack={() => router.replace('/(owner)/dashboard')}
         right={
           canManageFarms ? (
             <TouchableOpacity

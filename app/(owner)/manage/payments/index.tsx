@@ -23,6 +23,7 @@ import {
 } from '@/services/paymentPartnerRules';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useFocusEffect } from '@react-navigation/native';
+import { useRouter } from 'expo-router';
 import React, { useCallback, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
@@ -104,6 +105,7 @@ const DEFAULTS: PaymentFormData = {
 
 export default function PaymentEntryScreen() {
   const { accessToken } = useAuth();
+  const router = useRouter();
   const [batches, setBatches] = useState<ApiBatch[]>([]);
   const [vendors, setVendors] = useState<ApiVendor[]>([]);
   const [traders, setTraders] = useState<ApiTrader[]>([]);
@@ -239,7 +241,7 @@ export default function PaymentEntryScreen() {
 
   return (
     <View style={styles.safeArea}>
-      <TopAppBar title="Payment Entry" subtitle="Record payment made or received" />
+      <TopAppBar title="Payment Entry" subtitle="Record payment made or received" onBack={() => router.replace('/(owner)/dashboard')} />
       <KeyboardAvoidingView
         behavior={Platform.OS === "ios" ? "padding" : "height"}
         style={{ flex: 1 }}

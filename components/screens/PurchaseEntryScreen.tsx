@@ -80,7 +80,11 @@ const PURCHASE_ENTRY_DEFAULTS: PurchaseEntryFormData = {
 
 const STORE_OPTIONS = ["Main Store", "Warehouse A", "Secondary Godown"];
 
-export function PurchaseEntryScreen() {
+type PurchaseEntryScreenProps = {
+  onBack?: () => void;
+};
+
+export function PurchaseEntryScreen({ onBack }: PurchaseEntryScreenProps = {}) {
   const { accessToken } = useAuth();
   const [vendors, setVendors] = useState<ApiVendor[]>([]);
   const [catalogItems, setCatalogItems] = useState<ApiCatalogItem[]>([]);
@@ -223,6 +227,7 @@ export function PurchaseEntryScreen() {
       <TopAppBar
         title="Purchase Entry"
         subtitle="Record inventory and supplier purchases"
+        onBack={onBack}
       />
       <KeyboardAvoidingView
         behavior={Platform.OS === "ios" ? "padding" : "height"}

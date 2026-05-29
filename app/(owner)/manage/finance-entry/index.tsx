@@ -29,6 +29,7 @@ import {
 } from "@/services/managementApi";
 import { ScreenState } from "@/components/ui/ScreenState";
 import { TopAppBar } from "@/components/ui/TopAppBar";
+import { useRouter } from "expo-router";
 
 const ENTRY_TYPES: { key: ApiFinanceEntryType; label: string; icon: React.ComponentProps<typeof MaterialCommunityIcons>["name"] }[] = [
   { key: "INVESTMENT", label: "Investment", icon: "briefcase-outline" },
@@ -60,6 +61,7 @@ function labelize(value?: string | null) {
 
 export default function FinanceEntryScreen() {
   const { accessToken } = useAuth();
+  const router = useRouter();
 
   const [entries, setEntries] = useState<ApiFinanceEntry[]>([]);
   const [entryType, setEntryType] = useState<ApiFinanceEntryType>("INVESTMENT");
@@ -176,6 +178,7 @@ export default function FinanceEntryScreen() {
       <TopAppBar
         title="Finance Entry"
         subtitle="Record investment, income, and expense entries"
+        onBack={() => router.replace('/(owner)/dashboard')}
         right={
           <TouchableOpacity onPress={() => void loadEntries()} style={styles.headerBtn}>
             <Ionicons name="refresh-outline" size={22} color="#FFF" />

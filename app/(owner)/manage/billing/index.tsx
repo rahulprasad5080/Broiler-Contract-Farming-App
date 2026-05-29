@@ -181,7 +181,7 @@ export default function BillingScreen() {
   if (loading) {
     return (
       <View style={styles.safeArea}>
-        <TopAppBar title="Billing & Subscriptions" subtitle="Manage PoultryFlow business plans" />
+        <TopAppBar title="Billing & Subscriptions" subtitle="Manage PoultryFlow business plans" onBack={() => router.replace('/(owner)/dashboard')} />
         <View style={styles.centerBox}>
           <ScreenState title="Loading Plans" message="Fetching latest subscription plans and status..." loading />
         </View>
@@ -194,6 +194,7 @@ export default function BillingScreen() {
       <TopAppBar
         title="Billing & Subscription"
         subtitle="UPI Quick Pay & Plan Management"
+        onBack={() => router.replace('/(owner)/dashboard')}
         right={
           <TouchableOpacity onPress={() => void loadBillingData()} style={styles.headerBtn}>
             <Ionicons name="refresh-outline" size={22} color="#FFF" />

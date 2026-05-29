@@ -129,6 +129,7 @@ export default function BatchManagementScreen() {
       <TopAppBar
         title="Batches"
         subtitle="Track active, sales-ready, and closed batches"
+        onBack={() => router.replace('/(owner)/dashboard')}
         right={
           <TouchableOpacity
             style={styles.iconBtn}

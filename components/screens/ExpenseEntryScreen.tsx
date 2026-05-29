@@ -66,9 +66,10 @@ type ExpenseFormData = z.infer<typeof expenseSchema>;
 type ExpenseEntryScreenProps = {
   title?: string;
   subtitle?: string;
+  onBack?: () => void;
 };
 
-export function ExpenseEntryScreen({ title = "Expense Entry", subtitle }: ExpenseEntryScreenProps) {
+export function ExpenseEntryScreen({ title = "Expense Entry", subtitle, onBack }: ExpenseEntryScreenProps) {
   const { accessToken, hasPermission } = useAuth();
   const [batches, setBatches] = useState<ApiBatch[]>([]);
   const [vendors, setVendors] = useState<ApiVendor[]>([]);
@@ -211,7 +212,7 @@ export function ExpenseEntryScreen({ title = "Expense Entry", subtitle }: Expens
 
   return (
     <View style={styles.safeArea}>
-      <TopAppBar title={title} subtitle={subtitle} />
+      <TopAppBar title={title} subtitle={subtitle} onBack={onBack} />
       <KeyboardAvoidingView
         behavior={Platform.OS === "ios" ? "padding" : "height"}
         style={{ flex: 1 }}

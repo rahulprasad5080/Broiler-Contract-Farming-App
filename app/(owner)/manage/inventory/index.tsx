@@ -476,6 +476,7 @@ export default function InventoryScreen() {
         title="Stock, Purchases, Expenses"
         eyebrow="Inventory operations"
         subtitle="Catalog, ledger, and expense tracking"
+        onBack={() => router.replace('/(owner)/dashboard')}
       />
       <KeyboardAvoidingView
         behavior={Platform.OS === "ios" ? "padding" : "height"}

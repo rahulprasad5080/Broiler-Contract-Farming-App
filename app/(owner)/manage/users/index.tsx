@@ -322,6 +322,7 @@ export default function UserManagementScreen() {
         <TopAppBar
           title="User Management"
           subtitle="Roles, farms, status, and access"
+          onBack={() => router.replace('/(owner)/dashboard')}
           right={
             isOwner ? (
               <TouchableOpacity onPress={() => router.navigate('/(owner)/manage/users/create')}>

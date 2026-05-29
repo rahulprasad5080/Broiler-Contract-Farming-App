@@ -87,9 +87,10 @@ const STATUS_MESSAGE_TIMEOUT_MS = 4000;
 interface SalesEntryScreenProps {
   title?: string;
   subtitle?: string;
+  onBack?: () => void;
 }
 
-export function SalesEntryScreen({ title = "Sales Entry", subtitle }: SalesEntryScreenProps) {
+export function SalesEntryScreen({ title = "Sales Entry", subtitle, onBack }: SalesEntryScreenProps) {
   const { accessToken, user } = useAuth();
   const [batches, setBatches] = useState<ApiBatch[]>([]);
   const [traders, setTraders] = useState<ApiTrader[]>([]);
@@ -285,7 +286,7 @@ export function SalesEntryScreen({ title = "Sales Entry", subtitle }: SalesEntry
 
   return (
     <View style={styles.safeArea}>
-      <TopAppBar title={title} subtitle={subtitle} />
+      <TopAppBar title={title} subtitle={subtitle} onBack={onBack} />
       <KeyboardAvoidingView
         behavior={Platform.OS === "ios" ? "padding" : "height"}
         style={{ flex: 1 }}
