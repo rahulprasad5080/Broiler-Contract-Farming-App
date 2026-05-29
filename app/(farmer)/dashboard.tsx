@@ -340,13 +340,28 @@ export default function FarmerDashboard() {
             <View style={styles.forecastRow}>
               {weather.forecast.map((day) => (
                 <View key={day.date} style={styles.forecastItem}>
-                  <Text style={styles.forecastDay}>
+                  <Text
+                    style={styles.forecastDay}
+                    numberOfLines={1}
+                    adjustsFontSizeToFit
+                    minimumFontScale={0.8}
+                  >
                     {new Date(day.date).toLocaleDateString('en-IN', { weekday: 'short' })}
                   </Text>
-                  <Text style={styles.forecastTemp}>
+                  <Text
+                    style={styles.forecastTemp}
+                    numberOfLines={1}
+                    adjustsFontSizeToFit
+                    minimumFontScale={0.8}
+                  >
                     {day.max === null ? '--' : `${day.max.toFixed(0)}°`} / {day.min === null ? '--' : `${day.min.toFixed(0)}°`}
                   </Text>
-                  <Text style={styles.forecastRain}>
+                  <Text
+                    style={styles.forecastRain}
+                    numberOfLines={1}
+                    adjustsFontSizeToFit
+                    minimumFontScale={0.8}
+                  >
                     Rain {day.rainChance === null ? '--' : `${day.rainChance}%`}
                   </Text>
                 </View>
