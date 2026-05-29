@@ -27,13 +27,7 @@ import {
   updateOrganizationSettings,
   type ApiOrganizationSettings,
 } from "@/services/settingsApi";
-import {
-  createMasterDataTypeOption,
-  listMasterDataTypeOptions,
-  updateMasterDataTypeOption,
-  type ApiMasterDataTypeOption,
-  type MasterDataTypeCategory,
-} from "@/services/managementApi";
+// Removed master data imports
 
 type SettingsForm = {
   currency: string;
@@ -52,12 +46,7 @@ const PAYOUT_UNITS: SettingsForm["defaultPayoutUnit"][] = [
   "PER_BIRD_SOLD",
   "PER_KG_SOLD",
 ];
-const TYPE_OPTION_CATEGORIES: MasterDataTypeCategory[] = [
-  "CATALOG_ITEM_TYPE",
-  "PURCHASE_TYPE",
-  "EXPENSE_CATEGORY",
-  "TREATMENT_KIND",
-];
+
 
 function labelize(value: string) {
   return value
@@ -83,13 +72,6 @@ function toForm(settings: ApiOrganizationSettings): SettingsForm {
 export default function OrganizationSettingsScreen() {
   const { accessToken } = useAuth();
   const [form, setForm] = useState<SettingsForm | null>(null);
-  const [activeTypeCategory, setActiveTypeCategory] =
-    useState<MasterDataTypeCategory>("CATALOG_ITEM_TYPE");
-  const [typeOptions, setTypeOptions] = useState<ApiMasterDataTypeOption[]>([]);
-  const [loadingTypeOptions, setLoadingTypeOptions] = useState(false);
-  const [savingTypeOption, setSavingTypeOption] = useState(false);
-  const [newTypeValue, setNewTypeValue] = useState("");
-  const [newTypeDescription, setNewTypeDescription] = useState("");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
@@ -109,36 +91,11 @@ export default function OrganizationSettingsScreen() {
     }
   }, [accessToken]);
 
-  const loadTypeOptions = useCallback(async () => {
-    if (!accessToken) return;
-    setLoadingTypeOptions(true);
-    try {
-      const response = await listMasterDataTypeOptions(accessToken, {
-        category: activeTypeCategory,
-        includeInactive: true,
-        limit: 100,
-      });
-      setTypeOptions(response.data);
-    } catch (error) {
-      showRequestErrorToast(error, {
-        title: "Unable to load type options",
-        fallbackMessage: "Failed to load dynamic dropdown values.",
-      });
-    } finally {
-      setLoadingTypeOptions(false);
-    }
-  }, [accessToken, activeTypeCategory]);
-
   useFocusEffect(
     useCallback(() => {
       void loadSettings();
-      void loadTypeOptions();
-    }, [loadSettings, loadTypeOptions]),
+    }, [loadSettings]),
   );
-
-  React.useEffect(() => {
-    void loadTypeOptions();
-  }, [loadTypeOptions]);
 
   const setField = <Key extends keyof SettingsForm>(key: Key, value: SettingsForm[Key]) => {
     setForm((current) => current ? { ...current, [key]: value } : current);
@@ -178,46 +135,7 @@ export default function OrganizationSettingsScreen() {
     }
   };
 
-  const addTypeOption = async () => {
-    if (!accessToken || !newTypeValue.trim() || savingTypeOption) return;
 
-    setSavingTypeOption(true);
-    try {
-      const created = await createMasterDataTypeOption(accessToken, {
-        category: activeTypeCategory,
-        value: newTypeValue.trim().toUpperCase().replace(/\s+/g, "_"),
-        description: newTypeDescription.trim() || undefined,
-        isActive: true,
-      });
-      setTypeOptions((current) => [created, ...current]);
-      setNewTypeValue("");
-      setNewTypeDescription("");
-      showSuccessToast("Type option added.", "Saved");
-    } catch (error) {
-      showRequestErrorToast(error, { title: "Type option save failed" });
-    } finally {
-      setSavingTypeOption(false);
-    }
-  };
-
-  const toggleTypeOption = async (option: ApiMasterDataTypeOption) => {
-    if (!accessToken || savingTypeOption) return;
-
-    setSavingTypeOption(true);
-    try {
-      const updated = await updateMasterDataTypeOption(accessToken, option.id, {
-        isActive: option.isActive === false,
-      });
-      setTypeOptions((current) =>
-        current.map((item) => (item.id === updated.id ? updated : item)),
-      );
-      showSuccessToast("Type option updated.", "Saved");
-    } catch (error) {
-      showRequestErrorToast(error, { title: "Type option update failed" });
-    } finally {
-      setSavingTypeOption(false);
-    }
-  };
 
   return (
     <View style={styles.safeArea}>
@@ -304,83 +222,7 @@ export default function OrganizationSettingsScreen() {
             />
           </View>
 
-          <View style={styles.card}>
-            <View style={styles.typeHeader}>
-              <Text style={styles.sectionTitle}>Dynamic Dropdowns</Text>
-              {loadingTypeOptions ? <ActivityIndicator color={Colors.primary} /> : null}
-            </View>
-            <View style={styles.chipRow}>
-              {TYPE_OPTION_CATEGORIES.map((category) => {
-                const active = activeTypeCategory === category;
-                return (
-                  <TouchableOpacity
-                    key={category}
-                    style={[styles.chip, active && styles.chipActive]}
-                    onPress={() => setActiveTypeCategory(category)}
-                  >
-                    <Text style={[styles.chipText, active && styles.chipTextActive]}>
-                      {labelize(category)}
-                    </Text>
-                  </TouchableOpacity>
-                );
-              })}
-            </View>
 
-            <Field
-              label="New Value"
-              value={newTypeValue}
-              onChangeText={setNewTypeValue}
-            />
-            <Field
-              label="Description"
-              value={newTypeDescription}
-              onChangeText={setNewTypeDescription}
-            />
-            <TouchableOpacity
-              style={[styles.typeAddBtn, savingTypeOption && styles.saveBtnDisabled]}
-              onPress={addTypeOption}
-              disabled={savingTypeOption || !newTypeValue.trim()}
-            >
-              {savingTypeOption ? (
-                <ActivityIndicator color="#FFF" />
-              ) : (
-                <Text style={styles.typeAddText}>Add Option</Text>
-              )}
-            </TouchableOpacity>
-
-            <View style={styles.typeList}>
-              {typeOptions.map((option) => (
-                <View key={option.id} style={styles.typeRow}>
-                  <View style={styles.typeTextBlock}>
-                    <Text style={styles.typeValue}>{option.value}</Text>
-                    {option.description ? (
-                      <Text style={styles.typeDescription}>{option.description}</Text>
-                    ) : null}
-                  </View>
-                  <TouchableOpacity
-                    style={[
-                      styles.typeStatusBtn,
-                      option.isActive === false && styles.typeStatusBtnInactive,
-                    ]}
-                    onPress={() => void toggleTypeOption(option)}
-                    disabled={savingTypeOption}
-                  >
-                    <Text
-                      style={[
-                        styles.typeStatusText,
-                        option.isActive === false && styles.typeStatusTextInactive,
-                      ]}
-                    >
-                      {option.isActive === false ? "Inactive" : "Active"}
-                    </Text>
-                  </TouchableOpacity>
-                </View>
-              ))}
-              {!loadingTypeOptions && typeOptions.length === 0 ? (
-                <Text style={styles.emptyTypeText}>No options found.</Text>
-              ) : null}
-            </View>
-          </View>
 
           <TouchableOpacity style={[styles.saveBtn, saving && styles.saveBtnDisabled]} onPress={saveSettings} disabled={saving}>
             {saving ? <ActivityIndicator color="#FFF" /> : <Text style={styles.saveBtnText}>Save Settings</Text>}

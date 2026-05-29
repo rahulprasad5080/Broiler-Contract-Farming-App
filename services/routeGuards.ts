@@ -39,6 +39,7 @@ const OWNER_MANAGE_ROUTE_PERMISSIONS: Record<string, AppPermission> = {
   settlement: "manage:settlements",
   settings: "manage:users",
   users: "manage:users",
+  dropdowns: "manage:users",
   api: "manage:users",
 };
 

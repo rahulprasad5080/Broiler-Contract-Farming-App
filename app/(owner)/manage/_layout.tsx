@@ -1,3 +1,4 @@
+import React from 'react';
 import { Stack } from 'expo-router';
 
 export default function ManageLayout() {
@@ -16,6 +17,7 @@ export default function ManageLayout() {
       <Stack.Screen name="sales" />
       <Stack.Screen name="settlement" />
       <Stack.Screen name="settings" />
+      <Stack.Screen name="dropdowns" />
       <Stack.Screen name="api" />
     </Stack>
   );

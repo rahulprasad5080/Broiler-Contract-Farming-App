@@ -139,6 +139,14 @@ const ownerRoutes: DashboardSidebarRoute[] = [
     requiredPermission: "manage:users",
   },
   {
+    title: "Dropdown Master",
+    subtitle: "Custom dropdown options",
+    icon: "list-outline",
+    route: "/(owner)/manage/dropdowns" as Href,
+    section: "Management",
+    requiredPermission: "manage:users",
+  },
+  {
     title: "Inventory",
     icon: "cube-outline",
     route: "/(owner)/manage/inventory",
