@@ -264,6 +264,7 @@ export default function DropdownsListScreen() {
           title="Dropdown Master"
           subtitle="Configure dynamic dropdown values"
           leadingMode="back"
+          onBack={() => router.replace('/(owner)/dashboard')}
           right={
             <TouchableOpacity
               onPress={() => router.navigate("/(owner)/manage/dropdowns/create")}
