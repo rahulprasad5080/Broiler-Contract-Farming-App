@@ -1,6 +1,3 @@
-import {
-  type DashboardSidebarAction,
-} from "@/components/navigation/DashboardSidebar";
 import { TopAppBar } from "@/components/ui/TopAppBar";
 import { useExtraSidebarItems } from "@/hooks/useExtraSidebarItems";
 import {
@@ -241,19 +238,8 @@ export default function OwnerDashboard() {
       .includes(query);
   });
 
-  const sidebarExtraItems: DashboardSidebarAction[] = [
-    {
-      title: "User Settings",
-      subtitle: "Activate or disable users",
-      icon: "settings-outline",
-      requiredPermission: "manage:users",
-      section: "More",
-      onPress: () => setShowSettingsPanel(true),
-    },
-  ];
-
-  // Register extra sidebar items for this screen
-  useExtraSidebarItems(sidebarExtraItems);
+  // Register extra sidebar items for this screen (none registered)
+  useExtraSidebarItems([]);
 
   const firstFarmName =
     dashboard?.activeBatches.find((batch) => batch.farmName)?.farmName ??
