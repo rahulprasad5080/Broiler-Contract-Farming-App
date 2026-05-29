@@ -1,3 +1,4 @@
+import { Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useState } from "react";
 import {
@@ -11,11 +12,10 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import { Ionicons } from "@expo/vector-icons";
 
+import { TopAppBar } from "@/components/ui/TopAppBar";
 import { Colors } from "@/constants/Colors";
 import { useAuth } from "@/context/AuthContext";
-import { TopAppBar } from "@/components/ui/TopAppBar";
 import {
   showRequestErrorToast,
   showSuccessToast,
@@ -137,16 +137,12 @@ export default function DropdownCreateScreen() {
               </View>
 
               <Text style={styles.label}>Option Value</Text>
-              <Text style={styles.helpText}>
-                Will automatically convert to UPPERCASE and replace spaces with underscores (e.g.
-                "VACCINE_SHED" or "BROILER_FEED").
-              </Text>
               <View style={[styles.inputBox, valueFocused && styles.inputBoxActive]}>
                 <TextInput
                   style={styles.input}
                   value={value}
                   onChangeText={setValue}
-                  placeholder="e.g. MEDICINE_PLUS"
+                  placeholder="Enter value..."
                   placeholderTextColor={Colors.textSecondary}
                   autoCapitalize="characters"
                   autoCorrect={false}
@@ -240,12 +236,6 @@ const styles = StyleSheet.create({
     color: Colors.text,
     marginBottom: 8,
     marginTop: 14,
-  },
-  helpText: {
-    fontSize: 11,
-    color: Colors.textSecondary,
-    marginBottom: 6,
-    lineHeight: 15,
   },
   inputBox: {
     borderWidth: 1,
