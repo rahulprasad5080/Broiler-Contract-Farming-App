@@ -11,6 +11,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
 
 import { Colors } from "@/constants/Colors";
 import { useAuth } from "@/context/AuthContext";
@@ -24,11 +25,11 @@ import {
   type MasterDataTypeCategory,
 } from "@/services/managementApi";
 
-const CATEGORIES: { value: MasterDataTypeCategory; label: string }[] = [
-  { value: "CATALOG_ITEM_TYPE", label: "Catalog Item" },
-  { value: "PURCHASE_TYPE", label: "Purchase" },
-  { value: "EXPENSE_CATEGORY", label: "Expense" },
-  { value: "TREATMENT_KIND", label: "Treatment" },
+const CATEGORIES: { value: MasterDataTypeCategory; label: string; icon: string; activeColor: string }[] = [
+  { value: "CATALOG_ITEM_TYPE", label: "Catalog Item", icon: "cube-outline", activeColor: "#00875A" }, // Emerald Green
+  { value: "PURCHASE_TYPE", label: "Purchase", icon: "cart-outline", activeColor: "#0F766E" }, // Teal
+  { value: "EXPENSE_CATEGORY", label: "Expense", icon: "wallet-outline", activeColor: "#B45309" }, // Amber
+  { value: "TREATMENT_KIND", label: "Treatment", icon: "heart-outline", activeColor: "#BE123C" }, // Rose
 ];
 
 export default function DropdownCreateScreen() {
@@ -46,6 +47,8 @@ export default function DropdownCreateScreen() {
   const [value, setValue] = useState("");
   const [description, setDescription] = useState("");
   const [saving, setSaving] = useState(false);
+  const [valueFocused, setValueFocused] = useState(false);
+  const [descFocused, setDescFocused] = useState(false);
 
   const handleSubmit = async () => {
     if (!accessToken || !value.trim() || saving) return;
@@ -96,6 +99,13 @@ export default function DropdownCreateScreen() {
             showsVerticalScrollIndicator={false}
           >
             <View style={styles.card}>
+              <View style={styles.infoBanner}>
+                <Ionicons name="sparkles" size={16} color={Colors.primary} />
+                <Text style={styles.infoBannerText}>
+                  Add custom option values to structure dropdown choices across the app.
+                </Text>
+              </View>
+
               <Text style={styles.label}>Dropdown Category</Text>
               <View style={styles.chipRow}>
                 {CATEGORIES.map((cat) => {
@@ -103,9 +113,21 @@ export default function DropdownCreateScreen() {
                   return (
                     <TouchableOpacity
                       key={cat.value}
-                      style={[styles.chip, active && styles.chipActive]}
+                      style={[
+                        styles.chip,
+                        active && {
+                          backgroundColor: cat.activeColor,
+                          borderColor: cat.activeColor,
+                        },
+                      ]}
                       onPress={() => setCategory(cat.value)}
                     >
+                      <Ionicons
+                        name={cat.icon as any}
+                        size={16}
+                        color={active ? "#FFF" : Colors.textSecondary}
+                        style={{ marginRight: 6 }}
+                      />
                       <Text style={[styles.chipText, active && styles.chipTextActive]}>
                         {cat.label}
                       </Text>
@@ -119,7 +141,7 @@ export default function DropdownCreateScreen() {
                 Will automatically convert to UPPERCASE and replace spaces with underscores (e.g.
                 "VACCINE_SHED" or "BROILER_FEED").
               </Text>
-              <View style={styles.inputBox}>
+              <View style={[styles.inputBox, valueFocused && styles.inputBoxActive]}>
                 <TextInput
                   style={styles.input}
                   value={value}
@@ -128,11 +150,13 @@ export default function DropdownCreateScreen() {
                   placeholderTextColor={Colors.textSecondary}
                   autoCapitalize="characters"
                   autoCorrect={false}
+                  onFocus={() => setValueFocused(true)}
+                  onBlur={() => setValueFocused(false)}
                 />
               </View>
 
               <Text style={styles.label}>Description (Optional)</Text>
-              <View style={[styles.inputBox, styles.textAreaBox]}>
+              <View style={[styles.inputBox, styles.textAreaBox, descFocused && styles.inputBoxActive]}>
                 <TextInput
                   style={[styles.input, styles.textArea]}
                   value={description}
@@ -141,29 +165,33 @@ export default function DropdownCreateScreen() {
                   placeholderTextColor={Colors.textSecondary}
                   multiline
                   numberOfLines={3}
+                  onFocus={() => setDescFocused(true)}
+                  onBlur={() => setDescFocused(false)}
                 />
               </View>
             </View>
 
-            <TouchableOpacity
-              style={[styles.saveBtn, (!value.trim() || saving) && styles.saveBtnDisabled]}
-              onPress={() => void handleSubmit()}
-              disabled={!value.trim() || saving}
-            >
-              {saving ? (
-                <ActivityIndicator color="#FFF" />
-              ) : (
-                <Text style={styles.saveBtnText}>Add Option</Text>
-              )}
-            </TouchableOpacity>
+            <View style={styles.buttonRow}>
+              <TouchableOpacity
+                style={styles.cancelBtn}
+                onPress={() => router.back()}
+                disabled={saving}
+              >
+                <Text style={styles.cancelBtnText}>Cancel</Text>
+              </TouchableOpacity>
 
-            <TouchableOpacity
-              style={styles.cancelBtn}
-              onPress={() => router.back()}
-              disabled={saving}
-            >
-              <Text style={styles.cancelBtnText}>Cancel</Text>
-            </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.saveBtn, (!value.trim() || saving) && styles.saveBtnDisabled]}
+                onPress={() => void handleSubmit()}
+                disabled={!value.trim() || saving}
+              >
+                {saving ? (
+                  <ActivityIndicator color="#FFF" />
+                ) : (
+                  <Text style={styles.saveBtnText}>Add Option</Text>
+                )}
+              </TouchableOpacity>
+            </View>
           </ScrollView>
         </KeyboardAvoidingView>
       </View>
@@ -179,7 +207,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#FFF",
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: "#F3F4F6",
+    borderColor: "#E5E7EB",
     padding: 16,
     marginBottom: 20,
     shadowColor: "#000",
@@ -187,6 +215,24 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.05,
     shadowRadius: 3,
     elevation: 1,
+  },
+  infoBanner: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#F0FDF4",
+    borderWidth: 1,
+    borderColor: "#DCFCE7",
+    padding: 12,
+    borderRadius: 10,
+    gap: 8,
+    marginBottom: 8,
+  },
+  infoBannerText: {
+    flex: 1,
+    fontSize: 11,
+    color: Colors.textSecondary,
+    fontWeight: "500",
+    lineHeight: 15,
   },
   label: {
     fontSize: 13,
@@ -202,43 +248,52 @@ const styles = StyleSheet.create({
     lineHeight: 15,
   },
   inputBox: {
-    minHeight: 48,
     borderWidth: 1,
     borderColor: Colors.border,
     borderRadius: 10,
-    paddingHorizontal: 12,
-    justifyContent: "center",
     backgroundColor: "#F9FAFB",
+    overflow: "hidden",
   },
-  textAreaBox: {
-    paddingVertical: 8,
+  inputBoxActive: {
+    borderColor: Colors.primary,
+    backgroundColor: "#FFF",
+    shadowColor: Colors.primary,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 3,
+    elevation: 2,
   },
+  textAreaBox: {},
   input: {
+    minHeight: 48,
     fontSize: 14,
     color: Colors.text,
-    padding: 0,
+    paddingHorizontal: 12,
+    width: "100%",
   },
   textArea: {
-    height: 60,
+    minHeight: 80,
     textAlignVertical: "top",
+    paddingTop: 12,
+    paddingBottom: 12,
   },
   chipRow: {
     flexDirection: "row",
     flexWrap: "wrap",
-    gap: 8,
+    justifyContent: "space-between",
+    rowGap: 10,
     marginBottom: 8,
   },
   chip: {
+    width: "48.5%",
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
     borderWidth: 1,
     borderColor: Colors.border,
-    borderRadius: 999,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
+    borderRadius: 20,
+    paddingVertical: 10,
     backgroundColor: "#F9FAFB",
-  },
-  chipActive: {
-    backgroundColor: Colors.primary,
-    borderColor: Colors.primary,
   },
   chipText: {
     fontSize: 12,
@@ -248,13 +303,17 @@ const styles = StyleSheet.create({
   chipTextActive: {
     color: "#FFF",
   },
+  buttonRow: {
+    flexDirection: "row",
+    gap: 12,
+  },
   saveBtn: {
+    flex: 1,
     height: 52,
     borderRadius: 12,
     backgroundColor: Colors.primary,
     alignItems: "center",
     justifyContent: "center",
-    marginBottom: 12,
   },
   saveBtnDisabled: {
     opacity: 0.6,
@@ -265,6 +324,7 @@ const styles = StyleSheet.create({
     fontWeight: "800",
   },
   cancelBtn: {
+    flex: 1,
     height: 52,
     borderRadius: 12,
     borderWidth: 1,
