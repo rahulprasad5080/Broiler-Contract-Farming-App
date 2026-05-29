@@ -119,6 +119,7 @@ apiClient.interceptors.response.use(
       debugLogger.log({
         url: response.config.url ?? "",
         method: response.config.method?.toUpperCase() ?? "GET",
+        queryParams: response.config.params ?? null,
         requestPayload: response.config.data ? (typeof response.config.data === 'string' ? JSON.parse(response.config.data) : response.config.data) : null,
         responsePayload: response.data,
         status: response.status,
@@ -133,6 +134,7 @@ apiClient.interceptors.response.use(
         debugLogger.log({
           url: error.config?.url ?? "",
           method: error.config?.method?.toUpperCase() ?? "UNKNOWN",
+          queryParams: error.config?.params ?? null,
           requestPayload: error.config?.data ? (typeof error.config.data === 'string' ? JSON.parse(error.config.data) : error.config.data) : null,
           responsePayload: error.response?.data ?? error.message,
           status: error.response?.status ?? 0,

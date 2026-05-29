@@ -89,6 +89,10 @@ export function normalizeTypeOptionDropdown(
             : labelizeTypeOption(value),
         description:
           typeof record.description === "string" ? record.description : null,
+        source:
+          record.source === "SYSTEM" || record.source === "CUSTOM"
+            ? (record.source as "SYSTEM" | "CUSTOM")
+            : null,
         isSystem:
           typeof record.isSystem === "boolean" ? record.isSystem : null,
         isActive:

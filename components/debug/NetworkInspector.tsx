@@ -24,7 +24,7 @@ export function NetworkInspector() {
     });
   }, []);
 
-  const selectedLog = logs.find(l => l.id === selectedLogId);
+  const selectedLog = logs.find((l) => l.id === selectedLogId);
 
   const handleClearLogs = () => {
     debugLogger.clear();
@@ -32,7 +32,9 @@ export function NetworkInspector() {
   };
 
   const renderJson = (data: any) => {
-    if (!data) return <Text style={styles.jsonText}>null</Text>;
+    if (data === null || data === undefined) {
+      return <Text style={styles.jsonNull}>null</Text>;
+    }
     return (
       <Text style={styles.jsonText}>
         {JSON.stringify(data, null, 2)}
@@ -40,8 +42,18 @@ export function NetworkInspector() {
     );
   };
 
+  const getMethodColor = (method: string) => {
+    switch (method) {
+      case 'GET': return '#3B82F6';
+      case 'POST': return '#10B981';
+      case 'PUT': return '#F59E0B';
+      case 'DELETE': return '#EF4444';
+      default: return '#6B7280';
+    }
+  };
+
   const renderLogItem = ({ item }: { item: any }) => (
-    <TouchableOpacity 
+    <TouchableOpacity
       style={[styles.logItem, selectedLogId === item.id && styles.logItemActive]}
       onPress={() => setSelectedLogId(item.id)}
     >
@@ -55,18 +67,16 @@ export function NetworkInspector() {
         <Text style={styles.timeText}>{item.timestamp}</Text>
       </View>
       <Text style={styles.urlText} numberOfLines={1}>{item.url}</Text>
+      {item.queryParams && Object.keys(item.queryParams).length > 0 && (
+        <Text style={styles.queryParamsPreview} numberOfLines={1}>
+          ?{Object.entries(item.queryParams)
+            .filter(([, v]) => v !== undefined && v !== null)
+            .map(([k, v]) => `${k}=${v}`)
+            .join('&')}
+        </Text>
+      )}
     </TouchableOpacity>
   );
-
-  const getMethodColor = (method: string) => {
-    switch (method) {
-      case 'GET': return '#3B82F6';
-      case 'POST': return '#10B981';
-      case 'PUT': return '#F59E0B';
-      case 'DELETE': return '#EF4444';
-      default: return '#6B7280';
-    }
-  };
 
   return (
     <>
@@ -86,10 +96,14 @@ export function NetworkInspector() {
       <Modal visible={visible} animationType="slide" transparent statusBarTranslucent>
         <View style={styles.modalOverlay}>
           <View style={[styles.modalContainer, { paddingBottom: insets.bottom }]}>
+            {/* Header */}
             <View style={styles.header}>
               <View style={styles.headerLeft}>
                 {selectedLogId && (
-                  <TouchableOpacity onPress={() => setSelectedLogId(null)} style={styles.backButton}>
+                  <TouchableOpacity
+                    onPress={() => setSelectedLogId(null)}
+                    style={styles.backButton}
+                  >
                     <Ionicons name="arrow-back" size={22} color="#1F2937" />
                   </TouchableOpacity>
                 )}
@@ -109,7 +123,10 @@ export function NetworkInspector() {
                   </TouchableOpacity>
                 )}
                 <TouchableOpacity
-                  onPress={() => setVisible(false)}
+                  onPress={() => {
+                    setVisible(false);
+                    setSelectedLogId(null);
+                  }}
                   style={styles.headerActionButton}
                   accessibilityRole="button"
                   accessibilityLabel="Close API history"
@@ -119,12 +136,14 @@ export function NetworkInspector() {
               </View>
             </View>
 
+            {/* Content */}
             {selectedLogId && selectedLog ? (
-              <ScrollView style={styles.content}>
+              <ScrollView style={styles.content} contentContainerStyle={{ paddingBottom: 32 }}>
+                {/* Meta info card */}
                 <View style={styles.detailCard}>
                   <View style={styles.infoRow}>
                     <Text style={styles.label}>URL:</Text>
-                    <Text style={styles.value}>{selectedLog.url}</Text>
+                    <Text style={styles.value} selectable>{selectedLog.url}</Text>
                   </View>
                   <View style={styles.infoRow}>
                     <Text style={styles.label}>Method:</Text>
@@ -138,24 +157,44 @@ export function NetworkInspector() {
                       {selectedLog.status}
                     </Text>
                   </View>
+                  <View style={styles.infoRow}>
+                    <Text style={styles.label}>Time:</Text>
+                    <Text style={styles.value}>{selectedLog.timestamp}</Text>
+                  </View>
                 </View>
 
-                <Text style={styles.sectionTitle}>Request Body</Text>
+                {/* Query Params — shown for GET requests */}
+                <Text style={styles.sectionTitle}>
+                  <Ionicons name="link-outline" size={14} color="#6B7280" /> Query Params
+                </Text>
+                <View style={styles.jsonContainer}>
+                  {selectedLog.queryParams && Object.keys(selectedLog.queryParams).length > 0
+                    ? renderJson(selectedLog.queryParams)
+                    : <Text style={styles.jsonNull}>none</Text>
+                  }
+                </View>
+
+                {/* Request Body — relevant for POST/PUT */}
+                <Text style={styles.sectionTitle}>
+                  <Ionicons name="cube-outline" size={14} color="#6B7280" /> Request Body
+                </Text>
                 <View style={styles.jsonContainer}>
                   {renderJson(selectedLog.requestPayload)}
                 </View>
 
-                <Text style={styles.sectionTitle}>Response Data</Text>
+                {/* Response */}
+                <Text style={styles.sectionTitle}>
+                  <Ionicons name="server-outline" size={14} color="#6B7280" /> Response Data
+                </Text>
                 <View style={styles.jsonContainer}>
                   {renderJson(selectedLog.responsePayload)}
                 </View>
-                <View style={{ height: 24 }} />
               </ScrollView>
             ) : (
               <FlatList
                 data={logs}
                 renderItem={renderLogItem}
-                keyExtractor={item => item.id}
+                keyExtractor={(item) => item.id}
                 ListEmptyComponent={
                   <Text style={styles.emptyText}>No API calls captured yet.</Text>
                 }
@@ -176,7 +215,6 @@ const styles = StyleSheet.create({
     right: 20,
     width: 50,
     height: 50,
-    marginTop: 50,
     borderRadius: 25,
     backgroundColor: '#EF4444',
     alignItems: 'center',
@@ -206,6 +244,11 @@ const styles = StyleSheet.create({
     fontSize: 10,
     fontWeight: 'bold',
   },
+  modalOverlay: {
+    flex: 1,
+    justifyContent: 'flex-end',
+    backgroundColor: 'rgba(0,0,0,0.2)',
+  },
   modalContainer: {
     height: '90%',
     backgroundColor: '#F9FAFB',
@@ -213,17 +256,12 @@ const styles = StyleSheet.create({
     borderTopRightRadius: 18,
     overflow: 'hidden',
   },
-  modalOverlay: {
-    flex: 1,
-    justifyContent: 'flex-end',
-    backgroundColor: 'rgba(0,0,0,0.2)',
-  },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 14,
-    paddingVertical: 9,
+    paddingVertical: 10,
     backgroundColor: '#FFF',
     borderBottomWidth: 1,
     borderBottomColor: '#E5E7EB',
@@ -231,7 +269,7 @@ const styles = StyleSheet.create({
   headerLeft: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
+    gap: 10,
   },
   backButton: {
     padding: 2,
@@ -267,7 +305,7 @@ const styles = StyleSheet.create({
   logItemHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 6,
+    marginBottom: 4,
     gap: 8,
   },
   methodBadge: {
@@ -288,9 +326,15 @@ const styles = StyleSheet.create({
     marginLeft: 'auto',
   },
   urlText: {
-    fontSize: 13,
+    fontSize: 12,
     color: '#4B5563',
     fontFamily: 'monospace',
+  },
+  queryParamsPreview: {
+    fontSize: 11,
+    color: '#9CA3AF',
+    fontFamily: 'monospace',
+    marginTop: 2,
   },
   content: {
     flex: 1,
@@ -302,30 +346,33 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     borderWidth: 1,
     borderColor: '#E5E7EB',
-    marginBottom: 12,
+    marginBottom: 14,
   },
   infoRow: {
     flexDirection: 'row',
-    marginBottom: 8,
+    marginBottom: 6,
+    alignItems: 'flex-start',
   },
   label: {
-    width: 70,
-    fontSize: 14,
+    width: 65,
+    fontSize: 13,
     fontWeight: '600',
     color: '#6B7280',
   },
   value: {
     flex: 1,
-    fontSize: 14,
+    fontSize: 13,
     color: '#111827',
   },
   sectionTitle: {
-    fontSize: 15,
+    fontSize: 13,
     fontWeight: '700',
-    color: '#374151',
-    marginTop: 12,
+    color: '#6B7280',
+    marginTop: 14,
     marginBottom: 6,
-    marginLeft: 4,
+    marginLeft: 2,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
   },
   jsonContainer: {
     backgroundColor: '#1F2937',
@@ -337,10 +384,16 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#10B981',
   },
+  jsonNull: {
+    fontFamily: 'monospace',
+    fontSize: 12,
+    color: '#6B7280',
+    fontStyle: 'italic',
+  },
   emptyText: {
     textAlign: 'center',
     marginTop: 40,
     color: '#9CA3AF',
-    fontSize: 16,
+    fontSize: 15,
   },
 });

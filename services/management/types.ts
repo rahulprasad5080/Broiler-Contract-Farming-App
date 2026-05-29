@@ -95,6 +95,9 @@ export type ApiMasterDataTypeOption = {
   value: string;
   label?: string | null;
   description?: string | null;
+  /** "SYSTEM" for built-in options, "CUSTOM" for user-created ones */
+  source?: "SYSTEM" | "CUSTOM" | null;
+  /** @deprecated Use `source === "SYSTEM"` instead */
   isSystem?: boolean | null;
   isActive?: boolean | null;
   createdAt?: string | null;

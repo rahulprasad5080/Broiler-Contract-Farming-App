@@ -2,6 +2,7 @@ type NetworkLog = {
   id: string;
   url: string;
   method: string;
+  queryParams?: Record<string, any> | null;
   requestPayload: any;
   responsePayload: any;
   status: number;
