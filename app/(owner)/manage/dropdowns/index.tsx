@@ -187,8 +187,7 @@ export default function DropdownsListScreen() {
 
     return (
       <View style={[styles.optionCard, isInactive && styles.optionCardInactive]}>
-        {/* Left accent bar */}
-        <View style={[styles.cardAccent, isSystem ? styles.cardAccentSystem : styles.cardAccentCustom]} />
+
 
         <View style={styles.optionInfo}>
           <View style={styles.optionHeaderRow}>
@@ -239,19 +238,21 @@ export default function DropdownsListScreen() {
           </View>
         </View>
 
-        <View style={styles.switchWrapper}>
-          {isToggling ? (
-            <ActivityIndicator size="small" color={Colors.primary} />
-          ) : (
-            <Switch
-              value={item.isActive !== false}
-              onValueChange={() => void handleToggle(item)}
-              trackColor={{ false: "#E5E7EB", true: "#B7E0C2" }}
-              thumbColor={item.isActive !== false ? Colors.primary : "#9CA3AF"}
-              disabled={togglingId !== null || isSystem}
-            />
-          )}
-        </View>
+        {!isSystem && (
+          <View style={styles.switchWrapper}>
+            {isToggling ? (
+              <ActivityIndicator size="small" color={Colors.primary} />
+            ) : (
+              <Switch
+                value={item.isActive !== false}
+                onValueChange={() => void handleToggle(item)}
+                trackColor={{ false: "#E5E7EB", true: "#B7E0C2" }}
+                thumbColor={item.isActive !== false ? Colors.primary : "#9CA3AF"}
+                disabled={togglingId !== null}
+              />
+            )}
+          </View>
+        )}
       </View>
     );
   };
@@ -519,16 +520,7 @@ const styles = StyleSheet.create({
     borderColor: "#E5E7EB",
     opacity: 0.75,
   },
-  cardAccent: {
-    width: 4,
-    alignSelf: "stretch",
-  },
-  cardAccentSystem: {
-    backgroundColor: "#9CA3AF",
-  },
-  cardAccentCustom: {
-    backgroundColor: Colors.primary,
-  },
+
   optionInfo: {
     flex: 1,
     paddingVertical: 13,
