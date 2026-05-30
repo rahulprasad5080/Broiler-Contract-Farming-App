@@ -45,8 +45,10 @@ import {
   type ApiSettlementReportRow,
 } from "@/services/reportApi";
 import {
+  listAllFarms,
   listAllTraders,
   listAllVendors,
+  type ApiFarm,
   type ApiTrader,
   type ApiVendor,
 } from "@/services/managementApi";
@@ -78,6 +80,8 @@ export default function ReportsScreen() {
   const [inventory, setInventory] = useState<ApiInventoryReportRow[]>([]);
   const [profitability, setProfitability] = useState<ApiProfitabilityReportRow[]>([]);
   const [settlements, setSettlements] = useState<ApiSettlementReportRow[]>([]);
+  const [farms, setFarms] = useState<ApiFarm[]>([]);
+  const [selectedFarmId, setSelectedFarmId] = useState("");
   const [vendors, setVendors] = useState<ApiVendor[]>([]);
   const [traders, setTraders] = useState<ApiTrader[]>([]);
   const [partnerStatementKind, setPartnerStatementKind] = useState<"vendor" | "trader">("vendor");
@@ -195,6 +199,17 @@ export default function ReportsScreen() {
     }));
   }, [profitability, settlements, expenses]);
 
+  const farmOptions = useMemo(
+    () =>
+      farms.map((farm) => ({
+        label: farm.name,
+        value: farm.id,
+        description: farm.code ?? undefined,
+        keywords: farm.code ?? "",
+      })),
+    [farms],
+  );
+
   const sharePartnerStatementText = useCallback(async () => {
     if (!partnerLedger) return;
 
@@ -263,16 +278,18 @@ export default function ReportsScreen() {
       setInventory(inventoryRes);
       setProfitability(profitabilityRes);
       setSettlements(settlementRes);
+      const farmsRes = await listAllFarms(accessToken);
+      setFarms(farmsRes.data);
+
       setVendors(vendorRes.data);
       setTraders(traderRes.data);
 
-      const firstFarmId = expenseRes[0]?.farmId;
-      
-      const [farmSummaryRes] = await Promise.all([
-        firstFarmId ? fetchFarmSummary(accessToken, firstFarmId) : Promise.resolve(null),
-      ]);
-
-      setFarmSummary(farmSummaryRes);
+      const firstFarmId = farmsRes.data[0]?.id ?? expenseRes[0]?.farmId;
+      if (firstFarmId) {
+        setSelectedFarmId(firstFarmId);
+        const farmSummaryRes = await fetchFarmSummary(accessToken, firstFarmId);
+        setFarmSummary(farmSummaryRes);
+      }
 
       const firstBatchId =
         profitabilityRes[0]?.batchId ?? settlementRes[0]?.batchId ?? expenseRes[0]?.batchId;
@@ -290,24 +307,34 @@ export default function ReportsScreen() {
   // Fetch batch summary dynamically when selectedBatchId changes
   useEffect(() => {
     if (!accessToken || !selectedBatchId) return;
-
     let cancelled = false;
     const loadSelectedBatchSummary = async () => {
       try {
         const summary = await fetchBatchSummary(accessToken, selectedBatchId);
-        if (!cancelled) {
-          setBatchSummary(summary);
-        }
+        if (!cancelled) setBatchSummary(summary);
       } catch (err) {
         console.warn("Failed to load batch summary:", err);
       }
     };
-
     void loadSelectedBatchSummary();
-    return () => {
-      cancelled = true;
-    };
+    return () => { cancelled = true; };
   }, [accessToken, selectedBatchId]);
+
+  // Fetch farm summary dynamically when selectedFarmId changes
+  useEffect(() => {
+    if (!accessToken || !selectedFarmId) return;
+    let cancelled = false;
+    const loadSelectedFarmSummary = async () => {
+      try {
+        const summary = await fetchFarmSummary(accessToken, selectedFarmId);
+        if (!cancelled) setFarmSummary(summary);
+      } catch (err) {
+        console.warn("Failed to load farm summary:", err);
+      }
+    };
+    void loadSelectedFarmSummary();
+    return () => { cancelled = true; };
+  }, [accessToken, selectedFarmId]);
 
   const loadPartnerLedger = useCallback(async () => {
     if (!accessToken || !selectedPartnerId || loadingPartnerLedger) {
@@ -491,12 +518,17 @@ export default function ReportsScreen() {
                 <SurfaceCard style={styles.dashboardStatusCard}>
                   <View style={styles.statusRow}>
                     <View style={styles.metricItem}>
-                      <Text style={styles.metricVal}>{reportStats.activeBatches}</Text>
+                      <Text style={[styles.metricVal, { color: "#2563EB" }]}>{(overview?.liveBirds ?? 0).toLocaleString()}</Text>
+                      <Text style={styles.metricSub}>Live Birds</Text>
+                    </View>
+                    <View style={styles.dividerCol} />
+                    <View style={styles.metricItem}>
+                      <Text style={[styles.metricVal, { color: THEME_GREEN }]}>{overview?.activeBatches ?? 0}</Text>
                       <Text style={styles.metricSub}>Active Batches</Text>
                     </View>
                     <View style={styles.dividerCol} />
                     <View style={styles.metricItem}>
-                      <Text style={[styles.metricVal, { color: "#EF4444" }]}>{reportStats.mortalityToday}</Text>
+                      <Text style={[styles.metricVal, { color: "#EF4444" }]}>{overview?.mortalityToday ?? 0}</Text>
                       <Text style={styles.metricSub}>Mortality Today</Text>
                     </View>
                   </View>
@@ -504,47 +536,97 @@ export default function ReportsScreen() {
                   <View style={styles.statusTip}>
                     <Ionicons name="information-circle" size={16} color={THEME_GREEN} />
                     <Text style={styles.tipText}>
-                      Avg mortality threshold is set at 5%. Keep daily entries updated.
+                      Real-time aggregate totals for active flocks under your management.
                     </Text>
                   </View>
                 </SurfaceCard>
 
-                {/* Operations Grid */}
-                <Text style={styles.categoryTitle}>Daily Snapshots</Text>
-                <View style={styles.grid}>
-                  <ReportWidget
-                    title="Batch Status"
-                    metric={`${reportStats.activeBatches} Active`}
-                    desc="Batches currently running"
-                    icon="chart-bar"
-                    iconColor="#10B981"
-                    bgColor="#ECFDF5"
-                  />
-                  <ReportWidget
-                    title="Total Revenue"
-                    metric={formatINR(reportStats.sales)}
-                    desc="Cumulative sales volume"
-                    icon="currency-usd"
-                    iconColor="#2563EB"
-                    bgColor="#EFF6FF"
-                  />
-                  <ReportWidget
-                    title="Today's Mortality"
-                    metric={`${reportStats.mortalityToday} Birds`}
-                    desc="Recorded death rate today"
-                    icon="alert-decagram"
-                    iconColor="#78350F"
-                    bgColor="#FEF3C7"
-                  />
-                  <ReportWidget
-                    title="Outstanding Bills"
-                    metric={formatINR(reportStats.pendingPayments)}
-                    desc="Vendor payments pending"
-                    icon="cash-multiple"
-                    iconColor="#D97706"
-                    bgColor="#FFF7ED"
-                  />
-                </View>
+                {/* Operations Card */}
+                <Text style={styles.categoryTitle}>🏡 Farm & Batch Operations</Text>
+                <SurfaceCard style={styles.detailsCard}>
+                  <View style={styles.metricsGrid}>
+                    <View style={styles.metricItemItem}>
+                      <Text style={styles.metricItemLabel}>Total Farms</Text>
+                      <Text style={styles.metricItemValue}>{overview?.totalFarms ?? 0}</Text>
+                    </View>
+                    <View style={styles.metricItemItem}>
+                      <Text style={styles.metricItemLabel}>Total Batches</Text>
+                      <Text style={styles.metricItemValue}>{overview?.totalBatches ?? 0}</Text>
+                    </View>
+                    <View style={styles.metricItemItem}>
+                      <Text style={styles.metricItemLabel}>Closed Batches</Text>
+                      <Text style={styles.metricItemValue}>{overview?.closedBatches ?? 0}</Text>
+                    </View>
+                    <View style={styles.metricItemItem}>
+                      <Text style={styles.metricItemLabel}>Active Batches</Text>
+                      <Text style={[styles.metricItemValue, { color: THEME_GREEN }]}>{overview?.activeBatches ?? 0}</Text>
+                    </View>
+                    <View style={styles.metricItemItem}>
+                      <Text style={styles.metricItemLabel}>Total Staff/Users</Text>
+                      <Text style={styles.metricItemValue}>{overview?.totalUsers ?? 0}</Text>
+                    </View>
+                    <View style={styles.metricItemItem}>
+                      <Text style={styles.metricItemLabel}>Pending Entries</Text>
+                      <Text style={[styles.metricItemValue, (overview?.pendingEntries ?? 0) > 0 ? { color: "#EF4444", fontWeight: "900" } : null]}>
+                        {overview?.pendingEntries ?? 0}
+                      </Text>
+                    </View>
+                    <View style={[styles.metricItemItem, { width: "100%" }]}>
+                      <Text style={styles.metricItemLabel}>Unread Alerts</Text>
+                      <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+                        <Ionicons 
+                          name={(overview?.unreadNotifications ?? 0) > 0 ? "notifications" : "notifications-outline"} 
+                          size={16} 
+                          color={(overview?.unreadNotifications ?? 0) > 0 ? "#F59E0B" : "#9CA3AF"} 
+                        />
+                        <Text style={[styles.metricItemValue, (overview?.unreadNotifications ?? 0) > 0 ? { color: "#F59E0B", fontWeight: "900" } : null]}>
+                          {overview?.unreadNotifications ?? 0} Alerts Pending
+                        </Text>
+                      </View>
+                    </View>
+                  </View>
+                </SurfaceCard>
+
+                {/* Financial Performance Card */}
+                <Text style={[styles.categoryTitle, { marginTop: 16 }]}>💼 Financial Performance Overview</Text>
+                <SurfaceCard style={styles.detailsCard}>
+                  <View style={styles.metricsGrid}>
+                    <View style={styles.metricItemItem}>
+                      <Text style={styles.metricItemLabel}>Total Revenue/Sales</Text>
+                      <Text style={[styles.metricItemValue, { color: "#059669" }]}>{formatINR(overview?.totalSales ?? 0)}</Text>
+                    </View>
+                    <View style={styles.metricItemItem}>
+                      <Text style={styles.metricItemLabel}>Company Expenses</Text>
+                      <Text style={[styles.metricItemValue, { color: "#DC2626" }]}>{formatINR(overview?.totalCompanyExpenses ?? 0)}</Text>
+                    </View>
+                    <View style={styles.metricItemItem}>
+                      <Text style={styles.metricItemLabel}>Farmer Expenses</Text>
+                      <Text style={[styles.metricItemValue, { color: "#DC2626" }]}>{formatINR(overview?.totalFarmerExpenses ?? 0)}</Text>
+                    </View>
+                    <View style={styles.metricItemItem}>
+                      <Text style={styles.metricItemLabel}>Company P&L</Text>
+                      <Text style={[
+                        styles.metricItemValue, 
+                        { color: (overview?.companyProfitOrLoss ?? 0) >= 0 ? "#059669" : "#DC2626", fontWeight: "900" }
+                      ]}>
+                        {formatINR(overview?.companyProfitOrLoss ?? 0)}
+                      </Text>
+                    </View>
+                    <View style={styles.metricItemItem}>
+                      <Text style={styles.metricItemLabel}>Farmer Net Earnings</Text>
+                      <Text style={[styles.metricItemValue, { color: "#2563EB", fontWeight: "900" }]}>{formatINR(overview?.farmerNetEarnings ?? 0)}</Text>
+                    </View>
+                    <View style={styles.metricItemItem}>
+                      <Text style={styles.metricItemLabel}>Pending Payments</Text>
+                      <Text style={[styles.metricItemValue, { color: "#D97706" }]}>{formatINR(overview?.pendingPayments ?? 0)}</Text>
+                    </View>
+                    <View style={[styles.metricItemItem, { width: "100%" }]}>
+                      <Text style={styles.metricItemLabel}>Total Business Investment</Text>
+                      <Text style={[styles.metricItemValue, { color: "#7C3AED", fontWeight: "900" }]}>{formatINR(overview?.investmentTotal ?? 0)}</Text>
+                    </View>
+                  </View>
+                </SurfaceCard>
+
 
                 <SurfaceCard style={styles.statementCard}>
                   <View style={styles.statementHeader}>
@@ -1078,17 +1160,111 @@ export default function ReportsScreen() {
                 {/* Sub data snapshots */}
                 <Text style={styles.categoryTitle}>Inventory & Farm Records</Text>
                 
-                <DataSummaryRow
-                  title="Farm Summary"
-                  subtitle={
-                    farmSummary
-                      ? `${farmSummary.farmName || "Farm Detail"} | ${farmSummary.totalBatches} total batches | Avg FCR: ${Number(farmSummary.averageFcr || 0).toFixed(2)}`
-                      : "Pending farm data allocation"
-                  }
-                  icon="warehouse"
-                  iconColor="#3B82F6"
-                  bgColor="#EBF8FF"
-                />
+                {farmSummary || farmOptions.length > 0 ? (
+                  <View style={styles.summaryDetailsContainer}>
+                    <Text style={styles.categoryTitle}>🏡 Farm Summary</Text>
+
+                    {farmOptions.length > 0 ? (
+                      <View style={{ marginBottom: 12 }}>
+                        <SearchableSelectField
+                          label="Select Farm"
+                          value={selectedFarmId}
+                          options={farmOptions}
+                          onSelect={(value) => setSelectedFarmId(value)}
+                          placeholder="Select a farm"
+                          searchPlaceholder="Search farm name..."
+                          emptyMessage="No farms found"
+                        />
+                      </View>
+                    ) : null}
+
+                    {farmSummary ? (
+                      <SurfaceCard style={styles.detailsCard}>
+                      <View style={styles.cardHeaderRow}>
+                        <MaterialCommunityIcons name="warehouse" size={20} color="#3B82F6" />
+                        <View style={{ flex: 1 }}>
+                          <Text style={styles.cardHeaderTitle}>
+                            {farmSummary.farmName ?? 'Farm Details'}
+                          </Text>
+                        </View>
+                      </View>
+
+                      {/* Batch Counts Row */}
+                      <View style={styles.farmBatchRow}>
+                        <View style={styles.farmBatchPill}>
+                          <Text style={styles.farmBatchPillVal}>{farmSummary.totalBatches ?? 0}</Text>
+                          <Text style={styles.farmBatchPillLabel}>Total Batches</Text>
+                        </View>
+                        <View style={[styles.farmBatchPill, { backgroundColor: '#ECFDF5', borderColor: '#A7F3D0' }]}>
+                          <Text style={[styles.farmBatchPillVal, { color: '#059669' }]}>{farmSummary.activeBatches ?? 0}</Text>
+                          <Text style={styles.farmBatchPillLabel}>Active</Text>
+                        </View>
+                        <View style={[styles.farmBatchPill, { backgroundColor: '#F3F4F6', borderColor: '#D1D5DB' }]}>
+                          <Text style={[styles.farmBatchPillVal, { color: '#6B7280' }]}>{farmSummary.closedBatches ?? 0}</Text>
+                          <Text style={styles.farmBatchPillLabel}>Closed</Text>
+                        </View>
+                      </View>
+
+                      {/* Metrics Grid */}
+                      <View style={styles.metricsGrid}>
+                        <View style={styles.metricItemItem}>
+                          <Text style={styles.metricItemLabel}>Total Placement</Text>
+                          <Text style={styles.metricItemValue}>
+                            {(farmSummary.totalPlacementCount ?? 0).toLocaleString()}
+                          </Text>
+                        </View>
+                        <View style={styles.metricItemItem}>
+                          <Text style={styles.metricItemLabel}>Average FCR</Text>
+                          <Text style={[styles.metricItemValue, { color: THEME_GREEN, fontWeight: '900' }]}>
+                            {Number(farmSummary.averageFcr ?? 0).toFixed(2)}
+                          </Text>
+                        </View>
+                        <View style={styles.metricItemItem}>
+                          <Text style={styles.metricItemLabel}>Total Sales</Text>
+                          <Text style={[styles.metricItemValue, { color: '#059669' }]}>
+                            ₹{(farmSummary.totalSales ?? 0).toLocaleString()}
+                          </Text>
+                        </View>
+                        <View style={styles.metricItemItem}>
+                          <Text style={styles.metricItemLabel}>Company Expenses</Text>
+                          <Text style={[styles.metricItemValue, { color: '#DC2626' }]}>
+                            ₹{(farmSummary.totalCompanyExpenses ?? 0).toLocaleString()}
+                          </Text>
+                        </View>
+                        <View style={styles.metricItemItem}>
+                          <Text style={styles.metricItemLabel}>Farmer Expenses</Text>
+                          <Text style={[styles.metricItemValue, { color: '#DC2626' }]}>
+                            ₹{(farmSummary.totalFarmerExpenses ?? 0).toLocaleString()}
+                          </Text>
+                        </View>
+                        <View style={styles.metricItemItem}>
+                          <Text style={styles.metricItemLabel}>Company P&L</Text>
+                          <Text style={[
+                            styles.metricItemValue,
+                            { color: (farmSummary.companyProfitOrLoss ?? 0) >= 0 ? '#059669' : '#DC2626', fontWeight: '900' }
+                          ]}>
+                            ₹{(farmSummary.companyProfitOrLoss ?? 0).toLocaleString()}
+                          </Text>
+                        </View>
+                        <View style={styles.metricItemItem}>
+                          <Text style={styles.metricItemLabel}>Farmer Net Earnings</Text>
+                          <Text style={[styles.metricItemValue, { color: '#2563EB', fontWeight: '900' }]}>
+                            ₹{(farmSummary.farmerNetEarnings ?? 0).toLocaleString()}
+                          </Text>
+                        </View>
+                      </View>
+                    </SurfaceCard>
+                    ) : null}
+                  </View>
+                ) : (
+                  <DataSummaryRow
+                    title="Farm Summary"
+                    subtitle="Pending farm data allocation"
+                    icon="warehouse"
+                    iconColor="#3B82F6"
+                    bgColor="#EBF8FF"
+                  />
+                )}
 
                 <DataSummaryRow
                   title="Settlement Logs"
@@ -1467,6 +1643,32 @@ const styles = StyleSheet.create({
   },
   statusDraft: {
     backgroundColor: "#F59E0B",
+  },
+  farmBatchRow: {
+    flexDirection: "row",
+    gap: 8,
+    marginBottom: 14,
+  },
+  farmBatchPill: {
+    flex: 1,
+    alignItems: "center",
+    paddingVertical: 10,
+    borderRadius: 8,
+    backgroundColor: "#EFF6FF",
+    borderWidth: 1,
+    borderColor: "#BFDBFE",
+  },
+  farmBatchPillVal: {
+    fontSize: 20,
+    fontWeight: "900",
+    color: "#2563EB",
+    marginBottom: 2,
+  },
+  farmBatchPillLabel: {
+    fontSize: 10,
+    fontWeight: "700",
+    color: "#6B7280",
+    textTransform: "uppercase",
   },
   errorMargin: { marginBottom: 14 },
   tabContent: { flex: 1 },
