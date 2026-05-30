@@ -72,16 +72,12 @@ export function BottomTabs({ state, descriptors, navigation, hiddenTabs = [] }: 
           });
 
           if (!event.defaultPrevented) {
-            if (isFocused) {
-              navigation.dispatch(
-                CommonActions.navigate({
-                  name: route.name,
-                  params: { screen: 'index' },
-                })
-              );
-            } else {
-              navigation.navigate(route.name);
-            }
+            navigation.dispatch(
+              CommonActions.navigate({
+                name: route.name,
+                params: { screen: 'index' },
+              })
+            );
           }
         };
 
