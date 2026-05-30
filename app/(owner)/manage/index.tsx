@@ -136,22 +136,24 @@ export default function EntriesScreen() {
 
 const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: "#0B5C36" },
-  scrollContainer: { flexGrow: 1, backgroundColor: "#F9FAFB", paddingTop: 20 },
+  scrollContainer: { flexGrow: 1, backgroundColor: "#F9FAFB", paddingTop: 16 },
   emptyWrap: { paddingHorizontal: 16 },
   grid: {
     flexDirection: "row", flexWrap: "wrap", paddingHorizontal: 16, justifyContent: "space-between",
   },
   card: {
-    width: CARD_WIDTH, backgroundColor: "#FFF", borderRadius: 8, padding: 20, marginBottom: 16,
+    width: CARD_WIDTH, backgroundColor: "#FFF", borderRadius: 12, padding: 14, marginBottom: 16,
     alignItems: "center", justifyContent: "center",
+    borderWidth: 1,
+    borderColor: "#EAEAEA",
     // Shadow for iOS
     shadowColor: "#000", shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 8,
     // Elevation for Android
     elevation: 2,
   },
   iconContainer: {
-    width: 60, height: 60, borderRadius: 8, alignItems: "center", justifyContent: "center", marginBottom: 16,
+    width: 48, height: 48, borderRadius: 10, alignItems: "center", justifyContent: "center", marginBottom: 12,
   },
-  cardTitle: { fontSize: 15, fontWeight: "700", color: "#111827", textAlign: "center", marginBottom: 6 },
-  cardDesc: { fontSize: 12, color: "#6B7280", textAlign: "center", lineHeight: 18 },
+  cardTitle: { fontSize: 13, fontWeight: "700", color: "#111827", textAlign: "center", marginBottom: 4 },
+  cardDesc: { fontSize: 11, color: "#6B7280", textAlign: "center", lineHeight: 15 },
 });

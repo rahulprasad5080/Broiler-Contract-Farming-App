@@ -411,7 +411,12 @@ export default function ReportsScreen() {
       <View style={styles.safeArea}>
         <TopAppBar title="Poultry Reports" subtitle="Loading metrics..." />
         <View style={styles.centerBox}>
-          <ScreenState title="Analyzing Business Metrics" message="Loading profitability, inventory, and analytics..." loading />
+          <ScreenState
+            title="Analyzing Business Metrics"
+            message="Loading profitability, inventory, and analytics..."
+            loading
+            style={{ width: "90%", maxWidth: 400 }}
+          />
         </View>
       </View>
     );
@@ -1237,24 +1242,24 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: "#E5E7EB",
     paddingHorizontal: 16,
-    paddingVertical: 10,
-    gap: 8,
+    paddingVertical: 8,
+    gap: 6,
   },
   tabBtn: {
     flex: 1,
     flexDirection: "row",
-    height: 42,
+    height: 38,
     borderRadius: 8,
     backgroundColor: "#F3F4F6",
     alignItems: "center",
     justifyContent: "center",
-    gap: 6,
+    gap: 4,
   },
   activeTabBtn: {
     backgroundColor: THEME_GREEN,
   },
   tabBtnText: {
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: "700",
     color: "#4B5563",
   },
@@ -1275,15 +1280,15 @@ const styles = StyleSheet.create({
   },
   statusRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", paddingVertical: 8 },
   metricItem: { flex: 1, alignItems: "center" },
-  metricVal: { fontSize: 24, fontWeight: "900", color: "#111827" },
-  metricSub: { fontSize: 11, fontWeight: "700", color: "#6B7280", marginTop: 4 },
+  metricVal: { fontSize: 20, fontWeight: "900", color: "#111827" },
+  metricSub: { fontSize: 10, fontWeight: "700", color: "#6B7280", marginTop: 4 },
   dividerCol: { width: 1, height: 40, backgroundColor: "#E5E7EB" },
   detailsDivider: { height: 1, backgroundColor: "#E5E7EB", marginVertical: 12 },
   statusTip: { flexDirection: "row", alignItems: "center", gap: 8, backgroundColor: "#F0FDF4", padding: 10, borderRadius: 8 },
-  tipText: { flex: 1, fontSize: 11, fontWeight: "600", color: THEME_GREEN },
+  tipText: { flex: 1, fontSize: 10, fontWeight: "600", color: THEME_GREEN },
 
   // Category Layout
-  categoryTitle: { fontSize: 14, fontWeight: "800", color: "#111827", marginBottom: 12, marginTop: 4 },
+  categoryTitle: { fontSize: 13, fontWeight: "800", color: "#111827", marginBottom: 8, marginTop: 4 },
   grid: { flexDirection: "row", flexWrap: "wrap", justifyContent: "space-between" },
   statementCard: {
     marginTop: 16,
@@ -1299,12 +1304,12 @@ const styles = StyleSheet.create({
   },
   statementToggle: {
     flexDirection: "row",
-    gap: 8,
-    marginBottom: 12,
+    gap: 6,
+    marginBottom: 8,
   },
   statementToggleBtn: {
     flex: 1,
-    minHeight: 42,
+    minHeight: 36,
     borderRadius: 8,
     borderWidth: 1,
     borderColor: "#E5E7EB",
@@ -1317,7 +1322,7 @@ const styles = StyleSheet.create({
     borderColor: THEME_GREEN,
   },
   statementToggleText: {
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: "800",
     color: "#4B5563",
   },
@@ -1332,7 +1337,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   statementLoadBtn: {
-    minHeight: 48,
+    minHeight: 40,
     borderRadius: 10,
     alignItems: "center",
     justifyContent: "center",
@@ -1344,7 +1349,7 @@ const styles = StyleSheet.create({
   },
   statementLoadText: {
     color: "#FFF",
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: "800",
   },
   statementSummary: {
@@ -1357,7 +1362,7 @@ const styles = StyleSheet.create({
     borderTopColor: "#E5E7EB",
   },
   statementBalance: {
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: "800",
     color: THEME_GREEN,
   },
@@ -1366,7 +1371,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     borderWidth: 1,
     borderColor: "#E5E7EB",
-    padding: 12,
+    padding: 10,
     marginTop: 12,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 1 },
@@ -1377,12 +1382,12 @@ const styles = StyleSheet.create({
   ledgerHeader: {
     flexDirection: "row",
     alignItems: "center",
-    marginBottom: 8,
-    gap: 8,
+    marginBottom: 6,
+    gap: 6,
     flexWrap: "wrap",
   },
   ledgerDate: {
-    fontSize: 11,
+    fontSize: 10,
     fontWeight: "700",
     color: "#4B5563",
     backgroundColor: "#F3F4F6",
@@ -1391,7 +1396,7 @@ const styles = StyleSheet.create({
     borderRadius: 4,
   },
   ledgerRef: {
-    fontSize: 11,
+    fontSize: 10,
     fontWeight: "600",
     color: "#9CA3AF",
   },
@@ -1409,7 +1414,7 @@ const styles = StyleSheet.create({
     paddingVertical: 2,
   },
   typeBadgeText: {
-    fontSize: 9,
+    fontSize: 8,
     fontWeight: "800",
     color: "#2563EB",
   },
@@ -1420,7 +1425,7 @@ const styles = StyleSheet.create({
     borderWidth: 0.5,
   },
   statusBadgeText: {
-    fontSize: 9,
+    fontSize: 8,
     fontWeight: "800",
   },
   statusPaidBg: {
@@ -1447,7 +1452,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   ledgerTitle: {
-    fontSize: 14,
+    fontSize: 12,
     fontWeight: "800",
     color: "#1F2937",
     marginBottom: 6,
@@ -1463,7 +1468,7 @@ const styles = StyleSheet.create({
     alignSelf: "flex-start",
   },
   batchTagText: {
-    fontSize: 10,
+    fontSize: 9,
     fontWeight: "700",
     color: "#0B5C36",
   },
@@ -1518,13 +1523,13 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     paddingVertical: 6,
     borderRadius: 6,
-    marginTop: 8,
+    marginTop: 6,
     borderWidth: 0.5,
     borderColor: "#F3F4F6",
   },
   ledgerNotesText: {
     flex: 1,
-    fontSize: 10,
+    fontSize: 9,
     fontWeight: "600",
     color: "#4B5563",
   },
@@ -1534,24 +1539,25 @@ const styles = StyleSheet.create({
     borderColor: "#E5E7EB",
     borderWidth: 1,
     marginBottom: 10,
+    padding: 10,
   },
   iconBox: {
-    width: 44,
-    height: 44,
+    width: 36,
+    height: 36,
     borderRadius: 10,
     alignItems: "center",
     justifyContent: "center",
-    marginBottom: 12,
+    marginBottom: 8,
   },
-  widgetTitle: { fontSize: 13, fontWeight: "700", color: "#6B7280" },
-  widgetMetric: { fontSize: 16, fontWeight: "900", marginTop: 4 },
-  widgetDesc: { fontSize: 10, color: "#9CA3AF", fontWeight: "600", marginTop: 4 },
+  widgetTitle: { fontSize: 11, fontWeight: "700", color: "#6B7280" },
+  widgetMetric: { fontSize: 14, fontWeight: "900", marginTop: 2 },
+  widgetDesc: { fontSize: 9, color: "#9CA3AF", fontWeight: "600", marginTop: 4 },
 
   // Profitability Styles
   profitCard: {
     borderWidth: 1,
     borderRadius: 16,
-    padding: 16,
+    padding: 12,
     marginBottom: 16,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
@@ -1573,9 +1579,9 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   profitIconBg: {
-    width: 44,
-    height: 44,
-    borderRadius: 12,
+    width: 36,
+    height: 36,
+    borderRadius: 8,
     alignItems: "center",
     justifyContent: "center",
   },
@@ -1589,14 +1595,14 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   profitLabel: {
-    fontSize: 11,
+    fontSize: 10,
     fontWeight: "800",
     color: "#6B7280",
     textTransform: "uppercase",
     letterSpacing: 0.5,
   },
   profitVal: {
-    fontSize: 24,
+    fontSize: 20,
     fontWeight: "900",
     marginTop: 2,
   },
@@ -1630,12 +1636,12 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   breakdownLabel: {
-    fontSize: 11,
+    fontSize: 10,
     fontWeight: "600",
     color: "#4B5563",
   },
   breakdownValue: {
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: "800",
     color: "#1F2937",
   },
@@ -1654,8 +1660,8 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   bannerHeader: { flexDirection: "row", alignItems: "center", gap: 8 },
-  bannerTitle: { fontSize: 14, fontWeight: "800", color: "#C2410C" },
-  bannerDesc: { fontSize: 12, fontWeight: "600", color: "#4B5563", marginTop: 8, lineHeight: 18 },
+  bannerTitle: { fontSize: 13, fontWeight: "800", color: "#C2410C" },
+  bannerDesc: { fontSize: 11, fontWeight: "600", color: "#4B5563", marginTop: 6, lineHeight: 15 },
 
   // Document center
   documentCenterCard: {
@@ -1665,8 +1671,8 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   docHeader: { flexDirection: "row", alignItems: "center", gap: 8 },
-  docTitle: { fontSize: 15, fontWeight: "800", color: "#111827" },
-  docDesc: { fontSize: 12, fontWeight: "600", color: "#6B7280", marginTop: 8, lineHeight: 16 },
+  docTitle: { fontSize: 13, fontWeight: "800", color: "#111827" },
+  docDesc: { fontSize: 11, fontWeight: "600", color: "#6B7280", marginTop: 6, lineHeight: 14 },
   selectedBatchBox: {
     backgroundColor: "#F9FAFB",
     borderRadius: 8,
@@ -1684,9 +1690,9 @@ const styles = StyleSheet.create({
     marginTop: 12,
     alignItems: "center",
   },
-  emptyBatchText: { fontSize: 12, fontWeight: "600", color: "#9CA3AF" },
+  emptyBatchText: { fontSize: 11, fontWeight: "600", color: "#9CA3AF" },
   selectedBatchLabel: { fontSize: 10, fontWeight: "800", color: "#9CA3AF" },
-  selectedBatchCode: { fontSize: 13, fontWeight: "800", color: "#374151", marginTop: 4 },
+  selectedBatchCode: { fontSize: 12, fontWeight: "800", color: "#374151", marginTop: 4 },
   metaBadgeRow: { flexDirection: "row", gap: 6, marginTop: 8 },
   metaBadge: { backgroundColor: "#E5E7EB", borderRadius: 4, paddingHorizontal: 6, paddingVertical: 2 },
   metaBadgeText: { fontSize: 10, fontWeight: "700", color: "#4B5563" },
@@ -1703,7 +1709,7 @@ const styles = StyleSheet.create({
   pdfBtn: { backgroundColor: "#EF4444" },
   excelBtn: { backgroundColor: "#10B981" },
   docBtnDisabled: { opacity: 0.5 },
-  docBtnText: { color: "#FFF", fontSize: 12, fontWeight: "800" },
+  docBtnText: { color: "#FFF", fontSize: 11, fontWeight: "800" },
 
   // Summary Row Components
   dataRow: {
@@ -1715,16 +1721,16 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   dataIconCircle: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     alignItems: "center",
     justifyContent: "center",
-    marginRight: 14,
+    marginRight: 10,
   },
   dataTextContent: { flex: 1 },
-  dataRowTitle: { fontSize: 14, fontWeight: "800", color: "#111827" },
-  dataRowSub: { fontSize: 11, fontWeight: "600", color: "#6B7280", marginTop: 2, lineHeight: 15 },
+  dataRowTitle: { fontSize: 13, fontWeight: "800", color: "#111827" },
+  dataRowSub: { fontSize: 10, fontWeight: "600", color: "#6B7280", marginTop: 2, lineHeight: 13 },
 
   // FCR Estimator Tool Styles
   fcrEstimatorCard: {
@@ -1732,7 +1738,7 @@ const styles = StyleSheet.create({
     borderColor: "#E5E7EB",
     borderWidth: 1,
     marginBottom: 16,
-    padding: 16,
+    padding: 12,
   },
   fcrEstimatorHeader: {
     flexDirection: "row",
@@ -1752,19 +1758,19 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   fcrTitle: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: "800",
     color: "#111827",
   },
   fcrSubtitle: {
-    fontSize: 11,
+    fontSize: 10,
     color: "#6B7280",
     fontWeight: "600",
     marginTop: 2,
-    lineHeight: 16,
+    lineHeight: 14,
   },
   fcrOpenBtn: {
-    height: 44,
+    height: 38,
     borderRadius: 8,
     backgroundColor: THEME_GREEN,
     flexDirection: "row",
@@ -1774,7 +1780,7 @@ const styles = StyleSheet.create({
   },
   fcrOpenBtnText: {
     color: "#FFF",
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: "800",
   },
 
@@ -1836,7 +1842,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   modalHeaderTitle: {
-    fontSize: 15,
+    fontSize: 13,
     fontWeight: "800",
     color: "#111827",
   },
@@ -1860,19 +1866,19 @@ const styles = StyleSheet.create({
     backgroundColor: "#FFFFFF",
     borderWidth: 2,
     alignItems: "center",
-    paddingVertical: 20,
+    paddingVertical: 12,
     paddingHorizontal: 16,
-    marginBottom: 20,
+    marginBottom: 12,
   },
   calcResultLabel: {
-    fontSize: 11,
+    fontSize: 10,
     fontWeight: "800",
     color: "#6B7280",
     textTransform: "uppercase",
     textAlign: "center",
   },
   calcResultVal: {
-    fontSize: 48,
+    fontSize: 36,
     fontWeight: "900",
     marginVertical: 10,
     letterSpacing: -1,
@@ -1881,21 +1887,21 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 5,
     borderRadius: 6,
-    marginBottom: 10,
+    marginBottom: 6,
   },
   ratingBadgeText: {
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: "800",
     textTransform: "uppercase",
   },
   hindiRatingText: {
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: "700",
     textAlign: "center",
     lineHeight: 18,
   },
   modalSectionTitle: {
-    fontSize: 13,
+    fontSize: 11,
     fontWeight: "800",
     color: "#4B5563",
     textTransform: "uppercase",
@@ -1908,17 +1914,17 @@ const styles = StyleSheet.create({
     borderColor: "#E5E7EB",
     borderWidth: 1,
     borderRadius: 8,
-    padding: 12,
-    marginBottom: 12,
+    padding: 10,
+    marginBottom: 8,
   },
   inputHeader: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    marginBottom: 8,
+    marginBottom: 4,
   },
   inputLabel: {
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: "700",
     color: "#4B5563",
   },
@@ -1951,12 +1957,12 @@ const styles = StyleSheet.create({
   },
   calcInput: {
     flex: 1,
-    height: 42,
+    height: 36,
     borderColor: "#E5E7EB",
     borderWidth: 1,
     borderRadius: 6,
     paddingHorizontal: 10,
-    fontSize: 15,
+    fontSize: 13,
     fontWeight: "700",
     color: "#111827",
     backgroundColor: "#FAFBFC",
@@ -1985,23 +1991,23 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   calcInputCompact: {
-    height: 38,
+    height: 32,
     borderColor: "#E5E7EB",
     borderWidth: 1,
     borderRadius: 6,
     paddingHorizontal: 10,
-    fontSize: 14,
+    fontSize: 12,
     fontWeight: "700",
     color: "#111827",
     backgroundColor: "#FAFBFC",
-    marginTop: 8,
+    marginTop: 4,
   },
   valuationCard: {
     backgroundColor: "#FFFFFF",
     borderColor: "#E5E7EB",
     borderWidth: 1,
-    padding: 14,
-    marginBottom: 20,
+    padding: 10,
+    marginBottom: 12,
   },
   valuationRow: {
     flexDirection: "row",
@@ -2010,12 +2016,12 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
   },
   valLabel: {
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: "700",
     color: "#6B7280",
   },
   valText: {
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: "800",
     color: "#111827",
   },
