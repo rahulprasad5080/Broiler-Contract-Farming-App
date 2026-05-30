@@ -1272,6 +1272,65 @@ export default function ReportsScreen() {
                   </SurfaceCard>
                 )}
 
+                {/* Central Inventory Stock Status */}
+                <SurfaceCard style={[styles.statementCard, { marginTop: 0, marginBottom: 16 }]}>
+                  <View style={[styles.statementHeader, { marginBottom: 10 }]}>
+                    <Text style={styles.categoryTitle}>📦 Central Inventory Stock Status</Text>
+                  </View>
+                  <Text style={{ fontSize: 11, color: "#6B7280", marginBottom: 12 }}>
+                    Real-time stock levels of all catalog items in the warehouse.
+                  </Text>
+
+                  {inventory.length > 0 ? (
+                    inventory.map((item) => {
+                      const isLow = item.lowStock;
+                      return (
+                        <View key={item.itemId} style={[styles.ledgerCard, isLow ? { borderColor: "#FCA5A5", backgroundColor: "#FFF8F8", marginTop: 8 } : { marginTop: 8 }]}>
+                          <View style={styles.ledgerHeader}>
+                            <Text style={styles.ledgerDate}>{item.itemType || "ITEM"}</Text>
+                            <View style={styles.badgeRow}>
+                              <View
+                                style={[
+                                  styles.statusBadge,
+                                  isLow
+                                    ? { backgroundColor: "#FEE2E2", borderColor: "#FCA5A5" }
+                                    : { backgroundColor: "#ECFDF5", borderColor: "#A7F3D0" }
+                                ]}
+                              >
+                                <Text style={[styles.statusBadgeText, { color: isLow ? "#EF4444" : "#059669" }]}>
+                                  {isLow ? "Low Stock" : "In Stock"}
+                                </Text>
+                              </View>
+                            </View>
+                          </View>
+
+                          <View style={styles.ledgerBody}>
+                            <View style={styles.ledgerDetails}>
+                              <Text style={styles.ledgerTitle}>{item.itemName}</Text>
+                              {item.reorderLevel !== undefined && item.reorderLevel !== null ? (
+                                <Text style={{ fontSize: 10, color: "#6B7280" }}>
+                                  Reorder Level: {item.reorderLevel}
+                                </Text>
+                              ) : null}
+                            </View>
+
+                            <View style={[styles.ledgerAmounts, { minWidth: 90, alignItems: "flex-end" }]}>
+                              <Text style={[styles.amountLabel, { marginBottom: 2 }]}>Current Stock</Text>
+                              <Text style={[styles.amountValueBold, { fontSize: 13, color: isLow ? "#EF4444" : "#0B5C36" }]}>
+                                {item.currentStock !== undefined && item.currentStock !== null ? item.currentStock.toLocaleString() : "0"}
+                              </Text>
+                            </View>
+                          </View>
+                        </View>
+                      );
+                    })
+                  ) : (
+                    <View style={styles.selectedBatchBoxEmpty}>
+                      <Text style={styles.emptyBatchText}>No inventory items found.</Text>
+                    </View>
+                  )}
+                </SurfaceCard>
+
                 {/* Interactive Document Center */}
                 <SurfaceCard style={styles.documentCenterCard}>
                   <View style={styles.docHeader}>
