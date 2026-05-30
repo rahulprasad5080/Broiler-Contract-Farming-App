@@ -164,17 +164,33 @@ export type ApiFarm = {
 };
 
 export type ApiBatchSummary = {
+  batchId: string;
+  batchCode?: string | null;
+  farmId: string;
+  farmName?: string | null;
+  status?: string | null;
+  placementCount?: number | null;
   currentAgeDays?: number | null;
   liveBirds?: number | null;
   todayMortality?: number | null;
   mortalityCount?: number | null;
   cullCount?: number | null;
-  mortalityPercent?: number | null;
+  loadingMortalityCount?: number | null;
   soldBirds?: number | null;
+  soldBirdCount?: number | null;
+  mortalityPercent?: number | null;
+  mortalityRate?: number | null;
   totalFeedConsumedKg?: number | null;
   totalWeightSoldKg?: number | null;
   averageWeightGrams?: number | null;
   fcr?: number | null;
+  totalCompanyExpenses?: number | null;
+  totalFarmerExpenses?: number | null;
+  totalSales?: number | null;
+  companyProfitOrLoss?: number | null;
+  farmerGrowingIncome?: number | null;
+  farmerNetEarnings?: number | null;
+  settlementStatus?: string | null;
 };
 
 export type ApiBatch = {

@@ -15,10 +15,13 @@ export type ApiBatchSummary = {
   placementCount?: number | null;
   currentAgeDays?: number | null;
   liveBirds?: number | null;
+  todayMortality?: number | null;
   mortalityCount?: number | null;
   cullCount?: number | null;
   loadingMortalityCount?: number | null;
+  soldBirds?: number | null;
   soldBirdCount?: number | null;
+  mortalityPercent?: number | null;
   mortalityRate?: number | null;
   totalFeedConsumedKg?: number | null;
   totalWeightSoldKg?: number | null;

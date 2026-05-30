@@ -916,6 +916,142 @@ export default function ReportsScreen() {
                   </View>
                 </SurfaceCard>
 
+                {batchSummary ? (
+                  <View style={styles.summaryDetailsContainer}>
+                    <Text style={styles.categoryTitle}>📊 Batch Performance & Financials</Text>
+
+                    {/* Operational Summary Card */}
+                    <SurfaceCard style={styles.detailsCard}>
+                      <View style={styles.cardHeaderRow}>
+                        <Ionicons name="stats-chart" size={20} color={THEME_GREEN} />
+                        <Text style={styles.cardHeaderTitle}>Production & Growth (Operational)</Text>
+                      </View>
+
+                      <View style={styles.metricsGrid}>
+                        <View style={styles.metricItemItem}>
+                          <Text style={styles.metricItemLabel}>Placement Count</Text>
+                          <Text style={styles.metricItemValue}>{batchSummary.placementCount ?? 0}</Text>
+                        </View>
+                        <View style={styles.metricItemItem}>
+                          <Text style={styles.metricItemLabel}>Current Age</Text>
+                          <Text style={styles.metricItemValue}>{batchSummary.currentAgeDays ?? 0} Days</Text>
+                        </View>
+                        <View style={styles.metricItemItem}>
+                          <Text style={styles.metricItemLabel}>Live Birds</Text>
+                          <Text style={styles.metricItemValue}>{batchSummary.liveBirds ?? 0}</Text>
+                        </View>
+                        <View style={styles.metricItemItem}>
+                          <Text style={styles.metricItemLabel}>Mortality</Text>
+                          <Text style={styles.metricItemValue}>
+                            {batchSummary.mortalityCount ?? 0} ({Number(batchSummary.mortalityRate || 0).toFixed(2)}%)
+                          </Text>
+                        </View>
+                        <View style={styles.metricItemItem}>
+                          <Text style={styles.metricItemLabel}>Cull Count</Text>
+                          <Text style={styles.metricItemValue}>{batchSummary.cullCount ?? 0}</Text>
+                        </View>
+                        <View style={styles.metricItemItem}>
+                          <Text style={styles.metricItemLabel}>Loading Mortality</Text>
+                          <Text style={styles.metricItemValue}>{batchSummary.loadingMortalityCount ?? 0}</Text>
+                        </View>
+                        <View style={styles.metricItemItem}>
+                          <Text style={styles.metricItemLabel}>Sold Birds</Text>
+                          <Text style={styles.metricItemValue}>{batchSummary.soldBirdCount ?? 0}</Text>
+                        </View>
+                        <View style={styles.metricItemItem}>
+                          <Text style={styles.metricItemLabel}>Feed Consumed</Text>
+                          <Text style={styles.metricItemValue}>
+                            {batchSummary.totalFeedConsumedKg ? `${batchSummary.totalFeedConsumedKg.toLocaleString()} kg` : '0 kg'}
+                          </Text>
+                        </View>
+                        <View style={styles.metricItemItem}>
+                          <Text style={styles.metricItemLabel}>Weight Sold</Text>
+                          <Text style={styles.metricItemValue}>
+                            {batchSummary.totalWeightSoldKg ? `${batchSummary.totalWeightSoldKg.toLocaleString()} kg` : '0 kg'}
+                          </Text>
+                        </View>
+                        <View style={styles.metricItemItem}>
+                          <Text style={styles.metricItemLabel}>Avg Weight</Text>
+                          <Text style={styles.metricItemValue}>
+                            {batchSummary.averageWeightGrams ? `${batchSummary.averageWeightGrams.toFixed(0)} g` : '0 g'}
+                          </Text>
+                        </View>
+                        <View style={styles.metricItemItem}>
+                          <Text style={styles.metricItemLabel}>FCR</Text>
+                          <Text style={[styles.metricItemValue, { color: THEME_GREEN, fontWeight: '900' }]}>
+                            {batchSummary.fcr ? Number(batchSummary.fcr).toFixed(2) : '0.00'}
+                          </Text>
+                        </View>
+                        <View style={styles.metricItemItem}>
+                          <Text style={styles.metricItemLabel}>Batch Status</Text>
+                          <View style={[styles.summaryStatusBadge, batchSummary.status === 'ACTIVE' ? styles.statusActive : styles.statusClosed]}>
+                            <Text style={styles.summaryStatusBadgeText}>{batchSummary.status ?? 'N/A'}</Text>
+                          </View>
+                        </View>
+                      </View>
+                    </SurfaceCard>
+
+                    {/* Financial Summary Card */}
+                    <SurfaceCard style={[styles.detailsCard, { marginTop: 16 }]}>
+                      <View style={styles.cardHeaderRow}>
+                        <FontAwesome5 name="hand-holding-usd" size={18} color="#D97706" />
+                        <Text style={styles.cardHeaderTitle}>Profitability & Settlement (Financials)</Text>
+                      </View>
+
+                      <View style={styles.metricsGrid}>
+                        <View style={styles.metricItemItem}>
+                          <Text style={styles.metricItemLabel}>Total Sales</Text>
+                          <Text style={[styles.metricItemValue, { color: '#059669' }]}>
+                            ₹{(batchSummary.totalSales ?? 0).toLocaleString()}
+                          </Text>
+                        </View>
+                        <View style={styles.metricItemItem}>
+                          <Text style={styles.metricItemLabel}>Company Expenses</Text>
+                          <Text style={[styles.metricItemValue, { color: '#DC2626' }]}>
+                            ₹{(batchSummary.totalCompanyExpenses ?? 0).toLocaleString()}
+                          </Text>
+                        </View>
+                        <View style={styles.metricItemItem}>
+                          <Text style={styles.metricItemLabel}>Farmer Expenses</Text>
+                          <Text style={[styles.metricItemValue, { color: '#DC2626' }]}>
+                            ₹{(batchSummary.totalFarmerExpenses ?? 0).toLocaleString()}
+                          </Text>
+                        </View>
+                        <View style={styles.metricItemItem}>
+                          <Text style={styles.metricItemLabel}>Company P&L</Text>
+                          <Text style={[
+                            styles.metricItemValue,
+                            { color: (batchSummary.companyProfitOrLoss ?? 0) >= 0 ? '#059669' : '#DC2626', fontWeight: '900' }
+                          ]}>
+                            ₹{(batchSummary.companyProfitOrLoss ?? 0).toLocaleString()}
+                          </Text>
+                        </View>
+                        <View style={styles.metricItemItem}>
+                          <Text style={styles.metricItemLabel}>Farmer Growing Income</Text>
+                          <Text style={[styles.metricItemValue, { color: '#2563EB' }]}>
+                            ₹{(batchSummary.farmerGrowingIncome ?? 0).toLocaleString()}
+                          </Text>
+                        </View>
+                        <View style={styles.metricItemItem}>
+                          <Text style={styles.metricItemLabel}>Farmer Net Earnings</Text>
+                          <Text style={[styles.metricItemValue, { color: '#2563EB', fontWeight: '900' }]}>
+                            ₹{(batchSummary.farmerNetEarnings ?? 0).toLocaleString()}
+                          </Text>
+                        </View>
+                        <View style={styles.metricItemItem}>
+                          <Text style={styles.metricItemLabel}>Settlement Status</Text>
+                          <View style={[
+                            styles.summaryStatusBadge,
+                            batchSummary.settlementStatus === 'FINALIZED' ? styles.statusActive : styles.statusDraft
+                          ]}>
+                            <Text style={styles.summaryStatusBadgeText}>{batchSummary.settlementStatus ?? 'N/A'}</Text>
+                          </View>
+                        </View>
+                      </View>
+                    </SurfaceCard>
+                  </View>
+                ) : null}
+
                 {/* Dynamic FCR Estimator Tool Card */}
                 <SurfaceCard style={styles.fcrEstimatorCard}>
                   <View style={styles.fcrEstimatorHeader}>
@@ -1268,6 +1404,70 @@ const styles = StyleSheet.create({
   },
 
   scrollContainer: { flexGrow: 1, paddingHorizontal: 16, paddingTop: 16 },
+  summaryDetailsContainer: {
+    marginTop: 16,
+    width: "100%",
+  },
+  detailsCard: {
+    padding: 16,
+  },
+  cardHeaderRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    marginBottom: 14,
+  },
+  cardHeaderTitle: {
+    fontSize: 15,
+    fontWeight: "800",
+    color: "#111827",
+  },
+  metricsGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    justifyContent: "space-between",
+    rowGap: 12,
+  },
+  metricItemItem: {
+    width: "48%",
+    backgroundColor: "#F9FAFB",
+    borderRadius: 8,
+    padding: 10,
+    borderWidth: 1,
+    borderColor: "#F3F4F6",
+  },
+  metricItemLabel: {
+    fontSize: 10,
+    fontWeight: "700",
+    color: "#6B7280",
+    marginBottom: 4,
+    textTransform: "uppercase",
+  },
+  metricItemValue: {
+    fontSize: 14,
+    fontWeight: "800",
+    color: "#111827",
+  },
+  summaryStatusBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+    alignSelf: "flex-start",
+  },
+  summaryStatusBadgeText: {
+    fontSize: 10,
+    fontWeight: "900",
+    color: "#FFF",
+  },
+  statusActive: {
+    backgroundColor: "#10B981",
+  },
+  statusClosed: {
+    backgroundColor: "#6B7280",
+  },
+  statusDraft: {
+    backgroundColor: "#F59E0B",
+  },
   errorMargin: { marginBottom: 14 },
   tabContent: { flex: 1 },
 
