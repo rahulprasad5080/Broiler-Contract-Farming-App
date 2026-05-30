@@ -31,7 +31,6 @@ import {
   listAllTraders,
   listAllVendors,
 } from '@/services/managementApi';
-import TraderModal, { TraderFormData } from './components/TraderModal';
 
 type PartnerTab = 'vendors' | 'traders';
 type PartnerRecord = ApiVendor | ApiTrader;
@@ -43,10 +42,7 @@ export default function PartnerManagementScreen() {
   const [vendors, setVendors] = useState<ApiVendor[]>([]);
   const [activeTab, setActiveTab] = useState<PartnerTab>('vendors');
   const [search, setSearch] = useState('');
-  const [showAddModal, setShowAddModal] = useState(false);
-  const [editingPartner, setEditingPartner] = useState<PartnerRecord | null>(null);
   const [loading, setLoading] = useState(false);
-  const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const canManagePartners = hasPermission('manage:partners');
 
@@ -94,73 +90,20 @@ export default function PartnerManagementScreen() {
   }, [currentPartners, search]);
 
   const handleOpenAdd = () => {
-    setEditingPartner(null);
-    setShowAddModal(true);
+    router.push({
+      pathname: '/(owner)/manage/partners/createupdate',
+      params: { partnerKind: activeTab === 'vendors' ? 'vendor' : 'trader' },
+    });
   };
 
   const handleOpenEdit = (partner: PartnerRecord) => {
-    setEditingPartner(partner);
-    setShowAddModal(true);
-  };
-
-  const handleSavePartner = async (data: TraderFormData) => {
-    if (!accessToken) {
-      setMessage('Missing access token. Please sign in again.');
-      return;
-    }
-
-    setSaving(true);
-    setMessage(null);
-    try {
-      const payload = {
-        name: data.name.trim(),
-        phone: data.phone?.trim() || undefined,
-        email: data.email?.trim() || undefined,
-        address: data.address?.trim() || undefined,
-        notes: data.notes?.trim() || undefined,
-      };
-
-      if (activeTab === 'vendors') {
-        if (editingPartner) {
-          const updated = await updateVendor(accessToken, editingPartner.id, payload);
-          setVendors((current) => current.map((vendor) => (vendor.id === updated.id ? updated : vendor)));
-          showSuccessToast('Vendor updated successfully.', 'Updated');
-        } else {
-          const created = await createVendor(accessToken, payload);
-          setVendors((current) => [created, ...current]);
-          showSuccessToast('Vendor saved successfully.', 'Saved');
-        }
-      } else if (editingPartner) {
-        const updated = await updateTrader(accessToken, editingPartner.id, {
-          name: data.name.trim(),
-          phone: data.phone?.trim() || undefined,
-          email: data.email?.trim() || undefined,
-          address: data.address?.trim() || undefined,
-          notes: data.notes?.trim() || undefined,
-        });
-
-        setTraders((current) =>
-          current.map((t) => (t.id === updated.id ? updated : t))
-        );
-        showSuccessToast('Trader updated successfully.', 'Updated');
-      } else {
-        const created = await createTrader(accessToken, payload);
-
-        setTraders((current) => [created, ...current]);
-        showSuccessToast('Trader saved successfully.', 'Saved');
-      }
-      setShowAddModal(false);
-      setEditingPartner(null);
-    } catch (error) {
-      setMessage(
-        showRequestErrorToast(error, {
-          title: `${activeTab === 'vendors' ? 'Vendor' : 'Trader'} save failed`,
-          fallbackMessage: `Failed to save ${activeTab === 'vendors' ? 'vendor' : 'trader'}.`,
-        }),
-      );
-    } finally {
-      setSaving(false);
-    }
+    router.push({
+      pathname: '/(owner)/manage/partners/createupdate',
+      params: {
+        partnerKind: activeTab === 'vendors' ? 'vendor' : 'trader',
+        id: partner.id,
+      },
+    });
   };
 
   if (!canManagePartners) {
@@ -217,7 +160,6 @@ export default function PartnerManagementScreen() {
                   onPress={() => {
                     setActiveTab(tab);
                     setSearch('');
-                    setEditingPartner(null);
                   }}
                 >
                   <Text style={[styles.tabBtnText, activeTab === tab && styles.tabBtnTextActive]}>
@@ -281,15 +223,6 @@ export default function PartnerManagementScreen() {
             />
           )
         }
-      />
-
-      <TraderModal
-        visible={showAddModal}
-        onClose={() => setShowAddModal(false)}
-        editingTrader={editingPartner}
-        onSave={handleSavePartner}
-        saving={saving}
-        partnerKind={activeTab === 'vendors' ? 'vendor' : 'trader'}
       />
     </View>
   );
