@@ -48,9 +48,11 @@ import {
   listAllFarms,
   listAllTraders,
   listAllVendors,
+  listAllUsers,
   type ApiFarm,
   type ApiTrader,
   type ApiVendor,
+  type ApiUser,
 } from "@/services/managementApi";
 import { getRequestErrorMessage, showRequestErrorToast, showSuccessToast } from "@/services/apiFeedback";
 import { saveAndShareReport } from "@/services/reportExport";
@@ -97,6 +99,19 @@ export default function ReportsScreen() {
   const [error, setError] = useState<string | null>(null);
   const [exporting, setExporting] = useState<"pdf" | "excel" | null>(null);
   const [selectedBatchId, setSelectedBatchId] = useState("");
+
+  // Expense Register search/filter states
+  const [expenseLedgerFilter, setExpenseLedgerFilter] = useState<"ALL" | "COMPANY" | "FARMER">("ALL");
+  const [expenseSearchQuery, setExpenseSearchQuery] = useState("");
+  const [showExpenseFilters, setShowExpenseFilters] = useState(false);
+  const [expenseFarmId, setExpenseFarmId] = useState("");
+  const [expenseBatchId, setExpenseBatchId] = useState("");
+  const [expenseFarmerId, setExpenseFarmerId] = useState("");
+  const [expenseSupervisorId, setExpenseSupervisorId] = useState("");
+  const [expenseDateFrom, setExpenseDateFrom] = useState("");
+  const [expenseDateTo, setExpenseDateTo] = useState("");
+  const [loadingExpenses, setLoadingExpenses] = useState(false);
+  const [users, setUsers] = useState<ApiUser[]>([]);
 
   // FCR Calculator state variables
   const [fcrModalVisible, setFcrModalVisible] = useState(false);
@@ -263,7 +278,7 @@ export default function ReportsScreen() {
     setError(null);
 
     try {
-      const [overviewRes, expenseRes, inventoryRes, profitabilityRes, settlementRes, vendorRes, traderRes] = await Promise.all([
+      const [overviewRes, expenseRes, inventoryRes, profitabilityRes, settlementRes, vendorRes, traderRes, usersRes] = await Promise.all([
         fetchOverviewReport(accessToken),
         fetchExpenseReport(accessToken),
         fetchInventoryReport(accessToken),
@@ -271,6 +286,7 @@ export default function ReportsScreen() {
         fetchSettlementReport(accessToken),
         listAllVendors(accessToken),
         listAllTraders(accessToken),
+        listAllUsers(accessToken),
       ]);
 
       setOverview(overviewRes);
@@ -283,6 +299,7 @@ export default function ReportsScreen() {
 
       setVendors(vendorRes.data);
       setTraders(traderRes.data);
+      setUsers(usersRes.data);
 
       const firstFarmId = farmsRes.data[0]?.id ?? expenseRes[0]?.farmId;
       if (firstFarmId) {
@@ -366,11 +383,72 @@ export default function ReportsScreen() {
     selectedPartnerId,
   ]);
 
+  const loadFilteredExpenses = useCallback(async () => {
+    if (!accessToken) return;
+    setLoadingExpenses(true);
+    try {
+      const params: any = {};
+      if (expenseDateFrom) params.dateFrom = expenseDateFrom;
+      if (expenseDateTo) params.dateTo = expenseDateTo;
+      if (expenseFarmId) params.farmId = expenseFarmId;
+      if (expenseBatchId) params.batchId = expenseBatchId;
+      if (expenseFarmerId) params.farmerId = expenseFarmerId;
+      if (expenseSupervisorId) params.supervisorId = expenseSupervisorId;
+      if (expenseLedgerFilter !== "ALL") params.ledger = expenseLedgerFilter;
+
+      const expenseRes = await fetchExpenseReport(accessToken, params);
+      setExpenses(expenseRes);
+    } catch (err) {
+      showRequestErrorToast(err, { title: "Failed to load expenses" });
+    } finally {
+      setLoadingExpenses(false);
+    }
+  }, [
+    accessToken,
+    expenseDateFrom,
+    expenseDateTo,
+    expenseFarmId,
+    expenseBatchId,
+    expenseFarmerId,
+    expenseSupervisorId,
+    expenseLedgerFilter,
+  ]);
+
+  const farmerOptions = useMemo(
+    () =>
+      users
+        .filter((u) => u.role === "FARMER")
+        .map((u) => ({
+          label: u.name,
+          value: u.id,
+          description: u.phone ?? undefined,
+          keywords: u.name,
+        })),
+    [users],
+  );
+
+  const supervisorOptions = useMemo(
+    () =>
+      users
+        .filter((u) => u.role === "SUPERVISOR")
+        .map((u) => ({
+          label: u.name,
+          value: u.id,
+          description: u.phone ?? undefined,
+          keywords: u.name,
+        })),
+    [users],
+  );
+
   useFocusEffect(
     useCallback(() => {
       void loadReports();
     }, [loadReports]),
   );
+
+  useEffect(() => {
+    void loadFilteredExpenses();
+  }, [expenseLedgerFilter]);
 
   const reportStats = useMemo(() => {
     const totalExpenses = expenses.reduce((sum, row) => sum + Number(row.totalAmount ?? 0), 0);
@@ -398,6 +476,30 @@ export default function ReportsScreen() {
       pendingPayments: overview?.pendingPayments ?? 0,
     };
   }, [expenses, inventory, overview, profitability, settlements]);
+
+  const filteredExpenses = useMemo(() => {
+    return expenses.filter((row) => {
+      if (expenseLedgerFilter !== "ALL" && row.ledger !== expenseLedgerFilter) {
+        return false;
+      }
+      if (expenseSearchQuery) {
+        const query = expenseSearchQuery.toLowerCase();
+        const desc = (row.description || "").toLowerCase();
+        const cat = (row.category || "").toLowerCase();
+        const batch = (row.batchCode || "").toLowerCase();
+        const farm = (row.farmName || "").toLowerCase();
+        if (
+          !desc.includes(query) &&
+          !cat.includes(query) &&
+          !batch.includes(query) &&
+          !farm.includes(query)
+        ) {
+          return false;
+        }
+      }
+      return true;
+    });
+  }, [expenses, expenseLedgerFilter, expenseSearchQuery]);
 
   const exportBatchReport = useCallback(
     async (format: "pdf" | "excel") => {
@@ -888,6 +990,258 @@ export default function ReportsScreen() {
                     bgColor="#F0FDFA"
                   />
                 </View>
+
+                {/* Expense Register Section */}
+                <SurfaceCard style={styles.statementCard}>
+                  <View style={[styles.statementHeader, { marginBottom: 10 }]}>
+                    <Text style={styles.categoryTitle}>Expense Ledger & Vouchers</Text>
+                    <TouchableOpacity
+                      style={{
+                        flexDirection: "row",
+                        alignItems: "center",
+                        gap: 4,
+                        paddingHorizontal: 8,
+                        paddingVertical: 5,
+                        backgroundColor: showExpenseFilters ? "#EFF6FF" : "#F3F4F6",
+                        borderRadius: 6,
+                        borderWidth: 1,
+                        borderColor: showExpenseFilters ? "#BFDBFE" : "#E5E7EB",
+                      }}
+                      onPress={() => setShowExpenseFilters(!showExpenseFilters)}
+                      activeOpacity={0.8}
+                    >
+                      <Ionicons name="funnel-outline" size={13} color={showExpenseFilters ? "#2563EB" : "#4B5563"} />
+                      <Text style={{ fontSize: 10, fontWeight: "800", color: showExpenseFilters ? "#2563EB" : "#4B5563" }}>
+                        {showExpenseFilters ? "Hide Filters" : "Filters"}
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
+
+                  {/* Advanced Filters Drawer Panel */}
+                  {showExpenseFilters && (
+                    <View style={{ backgroundColor: "#F9FAFB", padding: 12, borderRadius: 8, borderWidth: 1, borderColor: "#E5E7EB", marginBottom: 12 }}>
+                      <Text style={{ fontSize: 11, fontWeight: "900", color: "#374151", marginBottom: 8, textTransform: "uppercase" }}>
+                        Advanced Filter Options
+                      </Text>
+
+                      {/* Date Range Row */}
+                      <View style={{ flexDirection: "row", gap: 10, marginBottom: 10 }}>
+                        <View style={{ flex: 1 }}>
+                          <DatePickerField label="From Date" value={expenseDateFrom} onChange={setExpenseDateFrom} />
+                        </View>
+                        <View style={{ flex: 1 }}>
+                          <DatePickerField label="To Date" value={expenseDateTo} onChange={setExpenseDateTo} />
+                        </View>
+                      </View>
+
+                      {/* Farm Selector */}
+                      <View style={{ marginBottom: 10 }}>
+                        <SearchableSelectField
+                          label="Filter by Farm"
+                          value={expenseFarmId}
+                          options={farmOptions}
+                          onSelect={setExpenseFarmId}
+                          placeholder="All Farms"
+                          searchPlaceholder="Search farm..."
+                          emptyMessage="No farms"
+                        />
+                      </View>
+
+                      {/* Batch Selector */}
+                      <View style={{ marginBottom: 10 }}>
+                        <SearchableSelectField
+                          label="Filter by Batch"
+                          value={expenseBatchId}
+                          options={batchOptions}
+                          onSelect={setExpenseBatchId}
+                          placeholder="All Batches"
+                          searchPlaceholder="Search batch..."
+                          emptyMessage="No batches"
+                        />
+                      </View>
+
+                      {/* Farmer Selector */}
+                      <View style={{ marginBottom: 10 }}>
+                        <SearchableSelectField
+                          label="Filter by Farmer"
+                          value={expenseFarmerId}
+                          options={farmerOptions}
+                          onSelect={setExpenseFarmerId}
+                          placeholder="All Farmers"
+                          searchPlaceholder="Search farmer..."
+                          emptyMessage="No farmers"
+                        />
+                      </View>
+
+                      {/* Supervisor Selector */}
+                      <View style={{ marginBottom: 12 }}>
+                        <SearchableSelectField
+                          label="Filter by Supervisor"
+                          value={expenseSupervisorId}
+                          options={supervisorOptions}
+                          onSelect={setExpenseSupervisorId}
+                          placeholder="All Supervisors"
+                          searchPlaceholder="Search supervisor..."
+                          emptyMessage="No supervisors"
+                        />
+                      </View>
+
+                      {/* Filter Actions Button Row */}
+                      <View style={{ flexDirection: "row", gap: 10 }}>
+                        <TouchableOpacity
+                          style={{
+                            flex: 1,
+                            height: 38,
+                            borderRadius: 6,
+                            backgroundColor: "#E5E7EB",
+                            alignItems: "center",
+                            justifyContent: "center",
+                          }}
+                          onPress={() => {
+                            setExpenseFarmId("");
+                            setExpenseBatchId("");
+                            setExpenseFarmerId("");
+                            setExpenseSupervisorId("");
+                            setExpenseDateFrom("");
+                            setExpenseDateTo("");
+                          }}
+                          activeOpacity={0.8}
+                        >
+                          <Text style={{ color: "#374151", fontSize: 12, fontWeight: "800" }}>Reset</Text>
+                        </TouchableOpacity>
+
+                        <TouchableOpacity
+                          style={{
+                            flex: 2,
+                            height: 38,
+                            borderRadius: 6,
+                            backgroundColor: THEME_GREEN,
+                            alignItems: "center",
+                            justifyContent: "center",
+                            flexDirection: "row",
+                            gap: 6,
+                          }}
+                          onPress={() => void loadFilteredExpenses()}
+                          disabled={loadingExpenses}
+                          activeOpacity={0.85}
+                        >
+                          {loadingExpenses ? (
+                            <ActivityIndicator size="small" color="#FFF" />
+                          ) : (
+                            <>
+                              <Ionicons name="checkmark-circle-outline" size={16} color="#FFF" />
+                              <Text style={{ color: "#FFF", fontSize: 12, fontWeight: "800" }}>Apply Filters</Text>
+                            </>
+                          )}
+                        </TouchableOpacity>
+                      </View>
+                    </View>
+                  )}
+
+                  {/* Filter Toggles */}
+                  <View style={styles.statementToggle}>
+                    {(["ALL", "COMPANY", "FARMER"] as const).map((kind) => (
+                      <TouchableOpacity
+                        key={kind}
+                        style={[
+                          styles.statementToggleBtn,
+                          expenseLedgerFilter === kind && styles.statementToggleBtnActive,
+                        ]}
+                        onPress={() => setExpenseLedgerFilter(kind)}
+                      >
+                        <Text
+                          style={[
+                            styles.statementToggleText,
+                            expenseLedgerFilter === kind && styles.statementToggleTextActive,
+                          ]}
+                        >
+                          {kind === "ALL" ? "All" : kind === "COMPANY" ? "Company" : "Farmer"}
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+
+                  {/* Search Box */}
+                  <TextInput
+                    value={expenseSearchQuery}
+                    onChangeText={setExpenseSearchQuery}
+                    placeholder="Search by description, category, batch..."
+                    placeholderTextColor="#9CA3AF"
+                    style={[styles.calcInput, { marginBottom: 12, height: 38 }]}
+                  />
+
+                  {/* Expense Items List */}
+                  {filteredExpenses.length > 0 ? (
+                    filteredExpenses.map((row) => {
+                      const expDate = row.expenseDate
+                        ? new Date(row.expenseDate).toLocaleDateString("en-IN", {
+                            day: "2-digit",
+                            month: "short",
+                            year: "numeric",
+                          })
+                        : "";
+                      const isCompany = row.ledger === "COMPANY";
+
+                      return (
+                        <View key={row.expenseId} style={styles.ledgerCard}>
+                          <View style={styles.ledgerHeader}>
+                            <Text style={styles.ledgerDate}>{expDate}</Text>
+                            <View style={styles.badgeRow}>
+                              <View
+                                style={[
+                                  styles.statusBadge,
+                                  isCompany ? styles.statusActive : styles.statusDraft,
+                                  {
+                                    backgroundColor: isCompany ? "#ECFDF5" : "#FFF7ED",
+                                    borderColor: isCompany ? "#A7F3D0" : "#FED7AA",
+                                  },
+                                ]}
+                              >
+                                <Text style={[styles.statusBadgeText, { color: isCompany ? "#059669" : "#D97706" }]}>
+                                  {row.ledger}
+                                </Text>
+                              </View>
+                            </View>
+                          </View>
+
+                          <View style={styles.ledgerBody}>
+                            <View style={styles.ledgerDetails}>
+                              <Text style={styles.ledgerTitle}>{row.description || "Unspecified Expense"}</Text>
+
+                              <View style={{ flexDirection: "row", gap: 6, flexWrap: "wrap" }}>
+                                <View style={[styles.batchTag, { backgroundColor: "#F3F4F6" }]}>
+                                  <Text style={[styles.batchTagText, { color: "#4B5563" }]}>
+                                    Category: {row.category}
+                                  </Text>
+                                </View>
+                                {row.batchCode ? (
+                                  <View style={styles.batchTag}>
+                                    <Ionicons name="home-outline" size={10} color="#0B5C36" />
+                                    <Text style={styles.batchTagText}>
+                                      {row.batchCode}
+                                      {row.farmName ? ` | ${row.farmName}` : ""}
+                                    </Text>
+                                  </View>
+                                ) : null}
+                              </View>
+                            </View>
+
+                            <View style={[styles.ledgerAmounts, { minWidth: 90, alignItems: "flex-end" }]}>
+                              <Text style={[styles.amountLabel, { marginBottom: 2 }]}>Amount</Text>
+                              <Text style={[styles.amountValueBold, { fontSize: 13, color: "#DC2626" }]}>
+                                {formatINR(row.totalAmount)}
+                              </Text>
+                            </View>
+                          </View>
+                        </View>
+                      );
+                    })
+                  ) : (
+                    <View style={styles.selectedBatchBoxEmpty}>
+                      <Text style={styles.emptyBatchText}>No matching expenses found.</Text>
+                    </View>
+                  )}
+                </SurfaceCard>
               </View>
             )}
 
