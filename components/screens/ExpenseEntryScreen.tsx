@@ -15,11 +15,13 @@ import {
 } from "react-native";
 import { z } from "zod";
 
+import { useRouter } from "expo-router";
 import { DatePickerField } from "@/components/ui/DatePickerField";
 import { ScreenState } from "@/components/ui/ScreenState";
 import { SearchableSelectField } from "@/components/ui/SearchableSelectField";
 import { TopAppBar } from "@/components/ui/TopAppBar";
 import { useAuth } from "@/context/AuthContext";
+import { getDashboardRoute } from "@/services/routeGuards";
 import { useFormPersistence } from "@/hooks/useFormPersistence";
 import { useMasterDataTypeOptions } from "@/hooks/useMasterDataTypeOptions";
 import {
@@ -70,7 +72,8 @@ type ExpenseEntryScreenProps = {
 };
 
 export function ExpenseEntryScreen({ title = "Expense Entry", subtitle, onBack }: ExpenseEntryScreenProps) {
-  const { accessToken, hasPermission } = useAuth();
+  const router = useRouter();
+  const { accessToken, hasPermission, user } = useAuth();
   const [batches, setBatches] = useState<ApiBatch[]>([]);
   const [vendors, setVendors] = useState<ApiVendor[]>([]);
   const [submitting, setSubmitting] = useState(false);
@@ -195,6 +198,7 @@ export function ExpenseEntryScreen({ title = "Expense Entry", subtitle, onBack }
         showSuccessToast("Saved offline. It will sync automatically.");
         setSavedMessage("Saved offline. It will sync when internet returns.");
         reset({ ...data, totalAmount: "", notes: "" });
+        router.replace(getDashboardRoute(user?.role ?? "FARMER"));
         return;
       }
 
@@ -203,6 +207,7 @@ export function ExpenseEntryScreen({ title = "Expense Entry", subtitle, onBack }
       setSavedMessage("Expense saved successfully.");
       await clearPersistedData();
       reset({ ...data, totalAmount: "", notes: "" });
+      router.replace(getDashboardRoute(user?.role ?? "FARMER"));
     } catch (error) {
       showRequestErrorToast(error, { title: "Save failed" });
     } finally {
