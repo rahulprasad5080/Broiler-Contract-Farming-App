@@ -57,6 +57,7 @@ import {
 import { getRequestErrorMessage, showRequestErrorToast, showSuccessToast } from "@/services/apiFeedback";
 import { saveAndShareReport } from "@/services/reportExport";
 import SettlementsTab from "@/components/reportComponets/SettlementsTab";
+import ProfitabilityTab from "@/components/reportComponets/ProfitabilityTab";
 
 const THEME_GREEN = "#0B5C36";
 
@@ -76,7 +77,7 @@ export default function ReportsScreen() {
   const { accessToken } = useAuth();
   
   // Tab controller state
-  const [activeTab, setActiveTab] = useState<"overview" | "financials" | "stock" | "settlements">("overview");
+  const [activeTab, setActiveTab] = useState<"overview" | "financials" | "stock" | "settlements" | "profitability">("overview");
 
   const [overview, setOverview] = useState<ApiOverviewReport | null>(null);
   const [expenses, setExpenses] = useState<ApiExpenseReportRow[]>([]);
@@ -568,7 +569,12 @@ export default function ReportsScreen() {
         <View style={styles.mainContainer}>
           
           {/* Navigation Category Tabs */}
-          <View style={styles.tabsContainer}>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            style={styles.tabsScrollView}
+            contentContainerStyle={styles.tabsScrollContent}
+          >
             <TouchableOpacity
               style={[styles.tabBtn, activeTab === "overview" && styles.activeTabBtn]}
               onPress={() => setActiveTab("overview")}
@@ -600,7 +606,15 @@ export default function ReportsScreen() {
               <Ionicons name="document-text-outline" size={14} color={activeTab === "settlements" ? "#FFF" : "#4B5563"} />
               <Text style={[styles.tabBtnText, activeTab === "settlements" && styles.activeTabBtnText]}>Settlements</Text>
             </TouchableOpacity>
-          </View>
+
+            <TouchableOpacity
+              style={[styles.tabBtn, activeTab === "profitability" && styles.activeTabBtn]}
+              onPress={() => setActiveTab("profitability")}
+            >
+              <Ionicons name="trending-up" size={14} color={activeTab === "profitability" ? "#FFF" : "#4B5563"} />
+              <Text style={[styles.tabBtnText, activeTab === "profitability" && styles.activeTabBtnText]}>Profitability</Text>
+            </TouchableOpacity>
+          </ScrollView>
 
           <ScrollView
             contentContainerStyle={styles.scrollContainer}
@@ -1713,6 +1727,21 @@ export default function ReportsScreen() {
               />
             )}
 
+            {/* TAB 5: PROFITABILITY */}
+            {activeTab === "profitability" && (
+              <ProfitabilityTab
+                accessToken={accessToken}
+                profitability={profitability}
+                onProfitabilityLoaded={setProfitability}
+                farmOptions={farmOptions}
+                batchOptions={batchOptions}
+                farmerOptions={farmerOptions}
+                supervisorOptions={supervisorOptions}
+                formatINR={formatINR}
+                THEME_GREEN={THEME_GREEN}
+              />
+            )}
+
             <View style={{ height: 40 }} />
           </ScrollView>
 
@@ -1985,17 +2014,19 @@ const styles = StyleSheet.create({
   mainContainer: { flex: 1, backgroundColor: "#F9FAFB" },
   
   // Navigation Tabs Bar
-  tabsContainer: {
-    flexDirection: "row",
+  tabsScrollView: {
     backgroundColor: "#FFF",
     borderBottomWidth: 1,
     borderBottomColor: "#E5E7EB",
+    maxHeight: 54,
+  },
+  tabsScrollContent: {
     paddingHorizontal: 16,
     paddingVertical: 8,
-    gap: 6,
+    gap: 8,
+    alignItems: "center",
   },
   tabBtn: {
-    flex: 1,
     flexDirection: "row",
     height: 38,
     borderRadius: 8,
