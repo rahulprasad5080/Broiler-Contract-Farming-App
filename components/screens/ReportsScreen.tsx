@@ -32,10 +32,6 @@ import {
   fetchOverviewReport,
   fetchProfitabilityReport,
   fetchSettlementReport,
-  fetchVendorLedgerReport,
-  fetchTraderLedgerReport,
-  type ApiPartnerLedgerReport,
-  type ApiPartnerLedgerRow,
   type ApiBatchSummary,
   type ApiExpenseReportRow,
   type ApiFarmSummary,
@@ -58,6 +54,7 @@ import { getRequestErrorMessage, showRequestErrorToast, showSuccessToast } from 
 import { saveAndShareReport } from "@/services/reportExport";
 import SettlementsTab from "@/components/reportComponets/SettlementsTab";
 import ProfitabilityTab from "@/components/reportComponets/ProfitabilityTab";
+import PartnerStatementsTab from "@/components/reportComponets/PartnerStatementsTab";
 
 const THEME_GREEN = "#0B5C36";
 
@@ -65,19 +62,11 @@ function formatINR(value?: number | null) {
   return `₹${Number(value ?? 0).toLocaleString("en-IN")}`;
 }
 
-function formatLedgerDate(row: ApiPartnerLedgerRow) {
-  const value = row.date ?? row.entryDate ?? row.transactionDate;
-  if (!value) return "";
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return value;
-  return date.toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" });
-}
-
 export default function ReportsScreen() {
   const { accessToken } = useAuth();
   
   // Tab controller state
-  const [activeTab, setActiveTab] = useState<"overview" | "financials" | "stock" | "settlements" | "profitability">("overview");
+  const [activeTab, setActiveTab] = useState<"overview" | "financials" | "stock" | "settlements" | "profitability" | "statements">("overview");
 
   const [overview, setOverview] = useState<ApiOverviewReport | null>(null);
   const [expenses, setExpenses] = useState<ApiExpenseReportRow[]>([]);
@@ -88,12 +77,6 @@ export default function ReportsScreen() {
   const [selectedFarmId, setSelectedFarmId] = useState("");
   const [vendors, setVendors] = useState<ApiVendor[]>([]);
   const [traders, setTraders] = useState<ApiTrader[]>([]);
-  const [partnerStatementKind, setPartnerStatementKind] = useState<"vendor" | "trader">("vendor");
-  const [selectedPartnerId, setSelectedPartnerId] = useState("");
-  const [partnerDateFrom, setPartnerDateFrom] = useState("");
-  const [partnerDateTo, setPartnerDateTo] = useState("");
-  const [partnerLedger, setPartnerLedger] = useState<ApiPartnerLedgerReport | null>(null);
-  const [loadingPartnerLedger, setLoadingPartnerLedger] = useState(false);
   const [farmSummary, setFarmSummary] = useState<ApiFarmSummary | null>(null);
   const [batchSummary, setBatchSummary] = useState<ApiBatchSummary | null>(null);
   const [loading, setLoading] = useState(true);
@@ -177,22 +160,6 @@ export default function ReportsScreen() {
     };
   }, [calcFeed, calcFeedUnit, calcBirds, calcAvgWeight, calcFeedPrice, calcBirdPrice]);
 
-  const partnerOptions = useMemo(
-    () =>
-      (partnerStatementKind === "vendor" ? vendors : traders).map((partner) => ({
-        label: partner.name,
-        value: partner.id,
-        description: partner.phone ?? undefined,
-        keywords: [partner.phone, partner.email, partner.address].filter(Boolean).join(" "),
-      })),
-    [partnerStatementKind, traders, vendors],
-  );
-
-  const partnerLedgerRows = useMemo(
-    () => partnerLedger?.rows ?? partnerLedger?.entries ?? partnerLedger?.data ?? [],
-    [partnerLedger],
-  );
-
   const batchOptions = useMemo(() => {
     const map = new Map<string, string>();
     profitability.forEach((row) => {
@@ -226,47 +193,6 @@ export default function ReportsScreen() {
       })),
     [farms],
   );
-
-  const sharePartnerStatementText = useCallback(async () => {
-    if (!partnerLedger) return;
-
-    const partnerName = partnerLedger.partnerName || partnerLedger.vendorName || partnerLedger.traderName || "Partner";
-    const dateRange = partnerLedger.dateFrom && partnerLedger.dateTo 
-      ? `(${partnerLedger.dateFrom} to ${partnerLedger.dateTo})` 
-      : "";
-    const isVendor = partnerStatementKind === "vendor";
-
-    let text = `📄 *${isVendor ? "VENDOR" : "TRADER"} STATEMENT*\n`;
-    text += `*Partner Name*: ${partnerName}\n`;
-    if (dateRange) text += `*Period*: ${dateRange}\n`;
-    text += `*Opening Balance*: ${formatINR(partnerLedger.openingBalance)}\n`;
-    if (partnerLedger.closingBalance !== undefined) {
-      text += `*Closing Balance*: ${formatINR(partnerLedger.closingBalance)}\n`;
-    }
-    text += `\n*Transactions*:\n`;
-
-    partnerLedgerRows.forEach((row) => {
-      const rowDebit = row.debit !== undefined && row.debit !== null
-        ? row.debit
-        : (isVendor ? (row.paymentAmount ?? 0) : (row.chargeAmount ?? 0));
-      const rowCredit = row.credit !== undefined && row.credit !== null
-        ? row.credit
-        : (isVendor ? (row.chargeAmount ?? 0) : (row.paymentAmount ?? 0));
-      const rowBalance = row.runningBalance ?? row.balance ?? row.balanceAfter ?? 0;
-      const rowDate = formatLedgerDate(row);
-      const desc = row.description || row.referenceType || "Entry";
-
-      text += `• *${rowDate}*: ${desc} | Dr: ${formatINR(rowDebit)} | Cr: ${formatINR(rowCredit)} | Bal: ${formatINR(rowBalance)}\n`;
-    });
-
-    try {
-      await Share.share({
-        message: text,
-      });
-    } catch (err) {
-      showRequestErrorToast(err, { title: "Sharing failed" });
-    }
-  }, [partnerLedger, partnerLedgerRows, partnerStatementKind]);
 
   const loadReports = useCallback(async (isRefresh = false) => {
     if (!accessToken) return;
@@ -355,35 +281,7 @@ export default function ReportsScreen() {
     return () => { cancelled = true; };
   }, [accessToken, selectedFarmId]);
 
-  const loadPartnerLedger = useCallback(async () => {
-    if (!accessToken || !selectedPartnerId || loadingPartnerLedger) {
-      return;
-    }
 
-    setLoadingPartnerLedger(true);
-    try {
-      const params = {
-        dateFrom: partnerDateFrom || undefined,
-        dateTo: partnerDateTo || undefined,
-      };
-      const response =
-        partnerStatementKind === "vendor"
-          ? await fetchVendorLedgerReport(accessToken, selectedPartnerId, params)
-          : await fetchTraderLedgerReport(accessToken, selectedPartnerId, params);
-      setPartnerLedger(response);
-    } catch (err) {
-      showRequestErrorToast(err, { title: "Partner ledger failed" });
-    } finally {
-      setLoadingPartnerLedger(false);
-    }
-  }, [
-    accessToken,
-    loadingPartnerLedger,
-    partnerDateFrom,
-    partnerDateTo,
-    partnerStatementKind,
-    selectedPartnerId,
-  ]);
 
   const loadFilteredExpenses = useCallback(async () => {
     if (!accessToken) return;
@@ -752,167 +650,28 @@ export default function ReportsScreen() {
                   </View>
                 </SurfaceCard>
 
-
-                <SurfaceCard style={styles.statementCard}>
-                  <View style={styles.statementHeader}>
-                    <Text style={styles.categoryTitle}>Partner Statements</Text>
-                    {loadingPartnerLedger ? <ActivityIndicator color={THEME_GREEN} /> : null}
+                <SurfaceCard style={styles.dataRow}>
+                  <View style={[styles.dataIconCircle, { backgroundColor: "#EFF6FF" }]}>
+                    <FontAwesome5 name="file-invoice-dollar" size={18} color="#2563EB" />
                   </View>
-                  <View style={styles.statementToggle}>
-                    {(["vendor", "trader"] as const).map((kind) => (
-                      <TouchableOpacity
-                        key={kind}
-                        style={[styles.statementToggleBtn, partnerStatementKind === kind && styles.statementToggleBtnActive]}
-                        onPress={() => {
-                          setPartnerStatementKind(kind);
-                          setSelectedPartnerId("");
-                          setPartnerLedger(null);
-                        }}
-                      >
-                        <Text style={[styles.statementToggleText, partnerStatementKind === kind && styles.statementToggleTextActive]}>
-                          {kind === "vendor" ? "Vendor" : "Trader"}
-                        </Text>
-                      </TouchableOpacity>
-                    ))}
-                  </View>
-                  <SearchableSelectField
-                    label={partnerStatementKind === "vendor" ? "Vendor" : "Trader"}
-                    value={selectedPartnerId}
-                    options={partnerOptions}
-                    onSelect={(value) => {
-                      setSelectedPartnerId(value);
-                      setPartnerLedger(null);
-                    }}
-                    placeholder={`Select ${partnerStatementKind}`}
-                    searchPlaceholder={`Search ${partnerStatementKind}`}
-                    emptyMessage={`No ${partnerStatementKind}s found`}
-                  />
-                  <View style={styles.statementDateRow}>
-                    <View style={styles.statementDateCell}>
-                      <DatePickerField label="From" value={partnerDateFrom} onChange={setPartnerDateFrom} />
-                    </View>
-                    <View style={styles.statementDateCell}>
-                      <DatePickerField label="To" value={partnerDateTo} onChange={setPartnerDateTo} />
-                    </View>
+                  <View style={styles.dataTextContent}>
+                    <Text style={styles.dataRowTitle}>Partner Statements</Text>
+                    <Text style={styles.dataRowSub} numberOfLines={2}>
+                      View ledger and transactional history for vendors and traders.
+                    </Text>
                   </View>
                   <TouchableOpacity
-                    style={[styles.statementLoadBtn, (!selectedPartnerId || loadingPartnerLedger) && styles.statementLoadBtnDisabled]}
-                    onPress={() => void loadPartnerLedger()}
-                    disabled={!selectedPartnerId || loadingPartnerLedger}
+                    style={{
+                      backgroundColor: THEME_GREEN,
+                      paddingHorizontal: 12,
+                      paddingVertical: 6,
+                      borderRadius: 6,
+                      marginRight: 6,
+                    }}
+                    onPress={() => setActiveTab("statements")}
                   >
-                    <Text style={styles.statementLoadText}>Load Statement</Text>
+                    <Text style={{ color: "#FFF", fontSize: 10, fontWeight: "800" }}>Open Tab</Text>
                   </TouchableOpacity>
-                  {partnerLedger ? (
-                    <View style={styles.statementSummary}>
-                      <View style={{ flex: 1 }}>
-                        <Text style={styles.statementBalance}>Opening {formatINR(partnerLedger.openingBalance)}</Text>
-                        {partnerLedger.closingBalance !== undefined ? (
-                          <Text style={styles.statementBalance}>Closing {formatINR(partnerLedger.closingBalance)}</Text>
-                        ) : null}
-                      </View>
-                      <TouchableOpacity 
-                        style={styles.shareTextBtn} 
-                        onPress={() => void sharePartnerStatementText()}
-                      >
-                        <Ionicons name="logo-whatsapp" size={18} color="#FFF" />
-                        <Text style={styles.shareTextBtnText}>Share Statement</Text>
-                      </TouchableOpacity>
-                    </View>
-                  ) : null}
-                  {partnerLedgerRows.map((row, index) => {
-                    const isVendor = partnerStatementKind === "vendor";
-                    const rowDebit = row.debit !== undefined && row.debit !== null
-                      ? row.debit
-                      : (isVendor ? (row.paymentAmount ?? 0) : (row.chargeAmount ?? 0));
-                    const rowCredit = row.credit !== undefined && row.credit !== null
-                      ? row.credit
-                      : (isVendor ? (row.chargeAmount ?? 0) : (row.paymentAmount ?? 0));
-                    const rowBalance = row.runningBalance ?? row.balance ?? row.balanceAfter ?? 0;
-
-                    const shortRefId = row.referenceId ? `#${row.referenceId.slice(0, 8)}` : "";
-                    const rowDate = formatLedgerDate(row);
-                    const purchaseTypeLabel = row.purchaseType || (row.entryKind === "PURCHASE" ? "PURCHASE" : "");
-                    const isPaid = row.paymentStatus === "PAID";
-                    const hasBatch = row.batchCode;
-
-                    return (
-                      <View
-                        key={row.id ?? `${row.referenceType ?? "row"}-${index}`}
-                        style={styles.ledgerCard}
-                      >
-                        {/* Top Line: Date, Reference, and Badges */}
-                        <View style={styles.ledgerHeader}>
-                          <Text style={styles.ledgerDate}>{rowDate}</Text>
-                          {shortRefId ? <Text style={styles.ledgerRef} numberOfLines={1}>{shortRefId}</Text> : null}
-                          
-                          {/* Badges Container */}
-                          <View style={styles.badgeRow}>
-                            {purchaseTypeLabel ? (
-                              <View style={styles.typeBadge}>
-                                <Text style={styles.typeBadgeText}>{purchaseTypeLabel}</Text>
-                              </View>
-                            ) : null}
-                            {row.paymentStatus ? (
-                              <View style={[styles.statusBadge, isPaid ? styles.statusPaidBg : styles.statusPendingBg]}>
-                                <Text style={[styles.statusBadgeText, isPaid ? styles.statusPaidText : styles.statusPendingText]}>
-                                  {row.paymentStatus}
-                                </Text>
-                              </View>
-                            ) : null}
-                          </View>
-                        </View>
-
-                        {/* Middle Line: Description & Batch */}
-                        <View style={styles.ledgerBody}>
-                          <View style={styles.ledgerDetails}>
-                            <Text style={styles.ledgerTitle}>{row.description || row.referenceType || "Ledger row"}</Text>
-                            
-                            {hasBatch ? (
-                              <View style={styles.batchTag}>
-                                <Ionicons name="home-outline" size={10} color="#0B5C36" />
-                                <Text style={styles.batchTagText}>
-                                  {row.batchCode}
-                                  {row.farmName ? ` | ${row.farmName}` : ""}
-                                </Text>
-                              </View>
-                            ) : null}
-                          </View>
-
-                          {/* Amounts Table */}
-                          <View style={styles.ledgerAmounts}>
-                            <View style={styles.amountRow}>
-                              <Text style={styles.amountLabel}>Dr:</Text>
-                              <Text style={[styles.amountValue, rowDebit > 0 ? styles.debitText : styles.mutedText]}>
-                                {formatINR(rowDebit)}
-                              </Text>
-                            </View>
-                            <View style={styles.amountRow}>
-                              <Text style={styles.amountLabel}>Cr:</Text>
-                              <Text style={[styles.amountValue, rowCredit > 0 ? styles.creditText : styles.mutedText]}>
-                                {formatINR(rowCredit)}
-                              </Text>
-                            </View>
-                            <View style={styles.amountRow}>
-                              <Text style={styles.amountLabelBold}>Bal:</Text>
-                              <Text style={styles.amountValueBold}>
-                                {formatINR(rowBalance)}
-                              </Text>
-                            </View>
-                          </View>
-                        </View>
-
-                        {/* Bottom Line: Notes/Remarks (if any) */}
-                        {row.notes || row.remarks ? (
-                          <View style={styles.ledgerNotes}>
-                            <Ionicons name="document-text-outline" size={12} color="#6B7280" />
-                            <Text style={styles.ledgerNotesText} numberOfLines={2}>
-                              {row.notes || row.remarks}
-                            </Text>
-                          </View>
-                        ) : null}
-                      </View>
-                    );
-                  })}
                 </SurfaceCard>
               </View>
             )}
@@ -1739,6 +1498,17 @@ export default function ReportsScreen() {
                 supervisorOptions={supervisorOptions}
                 formatINR={formatINR}
                 THEME_GREEN={THEME_GREEN}
+              />
+            )}
+
+            {/* TAB 6: STATEMENTS */}
+            {activeTab === "statements" && (
+              <PartnerStatementsTab
+                accessToken={accessToken}
+                vendors={vendors}
+                traders={traders}
+                THEME_GREEN={THEME_GREEN}
+                formatINR={formatINR}
               />
             )}
 
