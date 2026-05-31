@@ -117,10 +117,10 @@ export default function PartnerStatementsTab({
     partnerLedgerRows.forEach((row) => {
       const rowDebit = row.debit !== undefined && row.debit !== null
         ? row.debit
-        : (isVendor ? (row.paymentAmount ?? 0) : (row.chargeAmount ?? 0));
+        : (isVendor ? (row.paymentAmount ?? 0) : (row.saleAmount ?? row.chargeAmount ?? 0));
       const rowCredit = row.credit !== undefined && row.credit !== null
         ? row.credit
-        : (isVendor ? (row.chargeAmount ?? 0) : (row.paymentAmount ?? 0));
+        : (isVendor ? (row.chargeAmount ?? 0) : (row.receivedAmount ?? row.paymentAmount ?? 0));
       const rowBalance = row.runningBalance ?? row.balance ?? row.balanceAfter ?? 0;
       const rowDate = formatLedgerDate(row);
       const desc = row.description || row.referenceType || "Entry";
@@ -194,20 +194,56 @@ export default function PartnerStatementsTab({
         </TouchableOpacity>
 
         {partnerLedger ? (
-          <View style={styles.statementSummary}>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.statementBalance}>Opening {formatINR(partnerLedger.openingBalance)}</Text>
-              {partnerLedger.closingBalance !== undefined ? (
-                <Text style={styles.statementBalance}>Closing {formatINR(partnerLedger.closingBalance)}</Text>
-              ) : null}
-            </View>
-            <TouchableOpacity 
-              style={styles.shareTextBtn} 
-              onPress={() => void sharePartnerStatementText()}
-            >
-              <Ionicons name="logo-whatsapp" size={18} color="#FFF" />
-              <Text style={styles.shareTextBtnText}>Share Statement</Text>
-            </TouchableOpacity>
+          <View style={{ marginTop: 12 }}>
+            <SurfaceCard style={{ padding: 12, backgroundColor: "#F9FAFB", borderWidth: 1, borderColor: "#E5E7EB", borderRadius: 8 }}>
+              <View style={{ flexDirection: "row", justifyContent: "space-between", marginBottom: 6 }}>
+                <Text style={{ fontSize: 10, fontWeight: "600", color: "#6B7280", textTransform: "uppercase" }}>Opening Balance:</Text>
+                <Text style={{ fontSize: 11, fontWeight: "800", color: "#1F2937" }}>{formatINR(partnerLedger.openingBalance)}</Text>
+              </View>
+
+              {partnerStatementKind === "vendor" ? (
+                <>
+                  <View style={{ flexDirection: "row", justifyContent: "space-between", marginBottom: 6 }}>
+                    <Text style={{ fontSize: 10, fontWeight: "600", color: "#6B7280", textTransform: "uppercase" }}>Total Charges:</Text>
+                    <Text style={{ fontSize: 11, fontWeight: "800", color: "#DC2626" }}>{formatINR(partnerLedger.totalCharges)}</Text>
+                  </View>
+                  <View style={{ flexDirection: "row", justifyContent: "space-between", marginBottom: 6 }}>
+                    <Text style={{ fontSize: 10, fontWeight: "600", color: "#6B7280", textTransform: "uppercase" }}>Total Payments:</Text>
+                    <Text style={{ fontSize: 11, fontWeight: "800", color: "#059669" }}>{formatINR(partnerLedger.totalPayments)}</Text>
+                  </View>
+                </>
+              ) : (
+                <>
+                  <View style={{ flexDirection: "row", justifyContent: "space-between", marginBottom: 6 }}>
+                    <Text style={{ fontSize: 10, fontWeight: "600", color: "#6B7280", textTransform: "uppercase" }}>Total Sales:</Text>
+                    <Text style={{ fontSize: 11, fontWeight: "800", color: "#2563EB" }}>{formatINR(partnerLedger.totalSales)}</Text>
+                  </View>
+                  <View style={{ flexDirection: "row", justifyContent: "space-between", marginBottom: 6 }}>
+                    <Text style={{ fontSize: 10, fontWeight: "600", color: "#6B7280", textTransform: "uppercase" }}>Total Receipts:</Text>
+                    <Text style={{ fontSize: 11, fontWeight: "800", color: "#059669" }}>{formatINR(partnerLedger.totalReceipts)}</Text>
+                  </View>
+                </>
+              )}
+
+              <View style={{ height: 1, backgroundColor: "#E5E7EB", marginVertical: 8 }} />
+
+              <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
+                <View>
+                  <Text style={{ fontSize: 10, fontWeight: "800", color: "#1F2937", textTransform: "uppercase" }}>Outstanding Balance:</Text>
+                  <Text style={{ fontSize: 14, fontWeight: "900", color: THEME_GREEN, marginTop: 2 }}>
+                    {formatINR(partnerLedger.outstandingBalance ?? partnerLedger.closingBalance)}
+                  </Text>
+                </View>
+                <TouchableOpacity 
+                  style={styles.shareTextBtn} 
+                  onPress={() => void sharePartnerStatementText()}
+                  activeOpacity={0.85}
+                >
+                  <Ionicons name="logo-whatsapp" size={16} color="#FFF" />
+                  <Text style={styles.shareTextBtnText}>Share</Text>
+                </TouchableOpacity>
+              </View>
+            </SurfaceCard>
           </View>
         ) : null}
 
@@ -215,10 +251,10 @@ export default function PartnerStatementsTab({
           const isVendor = partnerStatementKind === "vendor";
           const rowDebit = row.debit !== undefined && row.debit !== null
             ? row.debit
-            : (isVendor ? (row.paymentAmount ?? 0) : (row.chargeAmount ?? 0));
+            : (isVendor ? (row.paymentAmount ?? 0) : (row.saleAmount ?? row.chargeAmount ?? 0));
           const rowCredit = row.credit !== undefined && row.credit !== null
             ? row.credit
-            : (isVendor ? (row.chargeAmount ?? 0) : (row.paymentAmount ?? 0));
+            : (isVendor ? (row.chargeAmount ?? 0) : (row.receivedAmount ?? row.paymentAmount ?? 0));
           const rowBalance = row.runningBalance ?? row.balance ?? row.balanceAfter ?? 0;
 
           const shortRefId = row.referenceId ? `#${row.referenceId.slice(0, 8)}` : "";

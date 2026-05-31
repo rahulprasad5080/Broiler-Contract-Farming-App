@@ -149,8 +149,11 @@ export type ApiPartnerLedgerRow = {
   farmName?: string | null;
   chargeAmount?: number | null;
   paymentAmount?: number | null;
+  saleAmount?: number | null;
+  receivedAmount?: number | null;
   balanceAfter?: number | null;
   paymentStatus?: string | null;
+  saleStatus?: string | null;
   purchaseType?: string | null;
   paymentType?: string | null;
   notes?: string | null;
@@ -167,6 +170,11 @@ export type ApiPartnerLedgerReport = {
   dateTo?: string | null;
   openingBalance?: number | null;
   closingBalance?: number | null;
+  totalCharges?: number | null;
+  totalPayments?: number | null;
+  totalSales?: number | null;
+  totalReceipts?: number | null;
+  outstandingBalance?: number | null;
   rows?: ApiPartnerLedgerRow[];
   entries?: ApiPartnerLedgerRow[];
   data?: ApiPartnerLedgerRow[];
