@@ -657,30 +657,6 @@ export default function ReportsScreen() {
                     </View>
                   </View>
                 </SurfaceCard>
-
-                <SurfaceCard style={styles.dataRow}>
-                  <View style={[styles.dataIconCircle, { backgroundColor: "#EFF6FF" }]}>
-                    <FontAwesome5 name="file-invoice-dollar" size={18} color="#2563EB" />
-                  </View>
-                  <View style={styles.dataTextContent}>
-                    <Text style={styles.dataRowTitle}>Partner Statements</Text>
-                    <Text style={styles.dataRowSub} numberOfLines={2}>
-                      View ledger and transactional history for vendors and traders.
-                    </Text>
-                  </View>
-                  <TouchableOpacity
-                    style={{
-                      backgroundColor: THEME_GREEN,
-                      paddingHorizontal: 12,
-                      paddingVertical: 6,
-                      borderRadius: 6,
-                      marginRight: 6,
-                    }}
-                    onPress={() => setActiveTab("statements")}
-                  >
-                    <Text style={{ color: "#FFF", fontSize: 10, fontWeight: "800" }}>Open Tab</Text>
-                  </TouchableOpacity>
-                </SurfaceCard>
               </View>
             )}
 
