@@ -22,6 +22,7 @@ import {
 } from "@/services/apiFeedback";
 import {
   createMasterDataTypeOption,
+  updateMasterDataTypeOption,
   type MasterDataTypeCategory,
 } from "@/services/managementApi";
 
@@ -35,7 +36,15 @@ const CATEGORIES: { value: MasterDataTypeCategory; label: string; icon: string; 
 export default function DropdownCreateScreen() {
   const { accessToken } = useAuth();
   const router = useRouter();
-  const params = useLocalSearchParams<{ category?: MasterDataTypeCategory }>();
+  const params = useLocalSearchParams<{
+    category?: MasterDataTypeCategory;
+    optionId?: string;
+    value?: string;
+    description?: string;
+    isActive?: string;
+  }>();
+  const optionId = typeof params.optionId === "string" ? params.optionId : "";
+  const isEditMode = Boolean(optionId);
 
   // Use passed category from list page or default to CATALOG_ITEM_TYPE
   const defaultCategory =
@@ -44,9 +53,11 @@ export default function DropdownCreateScreen() {
       : "CATALOG_ITEM_TYPE";
 
   const [category, setCategory] = useState<MasterDataTypeCategory>(defaultCategory);
-  const [value, setValue] = useState("");
-  const [description, setDescription] = useState("");
-  const [isActive, setIsActive] = useState(true);
+  const [value, setValue] = useState(typeof params.value === "string" ? params.value : "");
+  const [description, setDescription] = useState(
+    typeof params.description === "string" ? params.description : "",
+  );
+  const [isActive, setIsActive] = useState(params.isActive === "false" ? false : true);
   const [saving, setSaving] = useState(false);
   const [valueFocused, setValueFocused] = useState(false);
   const [descFocused, setDescFocused] = useState(false);
@@ -59,22 +70,34 @@ export default function DropdownCreateScreen() {
     const formattedValue = value.trim().toUpperCase().replace(/\s+/g, "_");
 
     try {
-      await createMasterDataTypeOption(accessToken, {
-        category,
-        value: formattedValue,
-        description: description.trim() || undefined,
-        isActive,
-      });
+      if (isEditMode) {
+        await updateMasterDataTypeOption(accessToken, optionId, {
+          value: formattedValue,
+          description: description.trim() || undefined,
+          isActive,
+        });
+      } else {
+        await createMasterDataTypeOption(accessToken, {
+          category,
+          value: formattedValue,
+          description: description.trim() || undefined,
+          isActive,
+        });
+      }
 
       showSuccessToast(
-        `Successfully added '${formattedValue}' to dropdown list.`,
-        "Created"
+        isEditMode
+          ? `Successfully updated '${formattedValue}'.`
+          : `Successfully added '${formattedValue}' to dropdown list.`,
+        isEditMode ? "Updated" : "Created"
       );
       router.back();
     } catch (error) {
       showRequestErrorToast(error, {
-        title: "Failed to create option",
-        fallbackMessage: "Could not add new dropdown option.",
+        title: isEditMode ? "Failed to update option" : "Failed to create option",
+        fallbackMessage: isEditMode
+          ? "Could not update dropdown option."
+          : "Could not add new dropdown option.",
       });
     } finally {
       setSaving(false);
@@ -85,8 +108,8 @@ export default function DropdownCreateScreen() {
     <View style={styles.safeArea}>
       <View style={styles.pageContent}>
         <TopAppBar
-          title="Add Option"
-          subtitle="Create new custom dropdown entry"
+          title={isEditMode ? "Edit Option" : "Add Option"}
+          subtitle={isEditMode ? "Update custom dropdown entry" : "Create new custom dropdown entry"}
           leadingMode="back"
         />
 
@@ -103,7 +126,9 @@ export default function DropdownCreateScreen() {
               <View style={styles.infoBanner}>
                 <Ionicons name="sparkles" size={16} color={Colors.primary} />
                 <Text style={styles.infoBannerText}>
-                  Add custom option values to structure dropdown choices across the app.
+                  {isEditMode
+                    ? "Update this custom option value and status across dropdown choices."
+                    : "Add custom option values to structure dropdown choices across the app."}
                 </Text>
               </View>
 
@@ -121,7 +146,12 @@ export default function DropdownCreateScreen() {
                           borderColor: cat.activeColor,
                         },
                       ]}
-                      onPress={() => setCategory(cat.value)}
+                      onPress={() => {
+                        if (!isEditMode) {
+                          setCategory(cat.value);
+                        }
+                      }}
+                      disabled={isEditMode}
                     >
                       <Ionicons
                         name={cat.icon as any}
@@ -206,7 +236,9 @@ export default function DropdownCreateScreen() {
                 {saving ? (
                   <ActivityIndicator color="#FFF" />
                 ) : (
-                  <Text style={styles.saveBtnText}>Add Option</Text>
+                  <Text style={styles.saveBtnText}>
+                    {isEditMode ? "Update Option" : "Add Option"}
+                  </Text>
                 )}
               </TouchableOpacity>
             </View>

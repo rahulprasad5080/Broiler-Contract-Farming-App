@@ -181,6 +181,19 @@ export default function DropdownsListScreen() {
     }
   };
 
+  const openEditOption = (item: ApiMasterDataTypeOption) => {
+    router.navigate({
+      pathname: "/(owner)/manage/dropdowns/create",
+      params: {
+        optionId: item.id,
+        category: item.category,
+        value: item.value,
+        description: item.description ?? "",
+        isActive: item.isActive === false ? "false" : "true",
+      },
+    });
+  };
+
   const formatDate = (value?: string | null) => {
     if (!value) return "-";
     const date = new Date(value);
@@ -258,7 +271,16 @@ export default function DropdownsListScreen() {
         </View>
 
         {!isSystem && (
-          <View style={styles.switchWrapper}>
+          <View style={styles.cardActions}>
+            <TouchableOpacity
+              style={styles.editButton}
+              onPress={() => openEditOption(item)}
+              accessibilityRole="button"
+              accessibilityLabel={`Edit ${item.value}`}
+              disabled={togglingId !== null}
+            >
+              <Ionicons name="create-outline" size={18} color={Colors.primary} />
+            </TouchableOpacity>
             {isToggling ? (
               <ActivityIndicator size="small" color={Colors.primary} />
             ) : (
@@ -688,11 +710,22 @@ const styles = StyleSheet.create({
   },
 
   // ── Switch ────────────────────────────────────────────────────────────────
-  switchWrapper: {
+  cardActions: {
     paddingHorizontal: 12,
     paddingVertical: 13,
     justifyContent: "center",
     alignItems: "center",
+    gap: 8,
+  },
+  editButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#E7F5ED",
+    borderWidth: 1,
+    borderColor: "#B7E0C2",
   },
 
   // ── Footer ────────────────────────────────────────────────────────────────
