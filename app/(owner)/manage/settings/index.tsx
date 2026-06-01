@@ -32,6 +32,9 @@ import {
 
 type SettingsForm = {
   currency: string;
+  mobileFirst: boolean;
+  farmerExpenseCategories: string;
+  companyExpenseCategories: string;
   defaultPayoutRate: string;
   defaultPayoutUnit: ApiOrganizationSettings["payoutRules"]["defaultPayoutUnit"];
   pendingEntryDays: string;
@@ -59,6 +62,9 @@ function labelize(value: string) {
 function toForm(settings: ApiOrganizationSettings): SettingsForm {
   return {
     currency: settings.currency || "INR",
+    mobileFirst: Boolean(settings.mobileFirst),
+    farmerExpenseCategories: (settings.expenseCategories?.farmer ?? []).join(", "),
+    companyExpenseCategories: (settings.expenseCategories?.company ?? []).join(", "),
     defaultPayoutRate: String(settings.payoutRules?.defaultPayoutRate ?? ""),
     defaultPayoutUnit: settings.payoutRules?.defaultPayoutUnit ?? "PER_KG_SOLD",
     pendingEntryDays: String(settings.alertThresholds?.pendingEntryDays ?? ""),
@@ -103,6 +109,29 @@ export default function OrganizationSettingsScreen() {
     setForm((current) => current ? { ...current, [key]: value } : current);
   };
 
+  const getCategoryList = (key: "farmerExpenseCategories" | "companyExpenseCategories") =>
+    (form?.[key] ?? "")
+      .split(",")
+      .map((item) => item.trim())
+      .filter(Boolean);
+
+  const setCategoryList = (
+    key: "farmerExpenseCategories" | "companyExpenseCategories",
+    values: string[],
+  ) => {
+    setField(key, values.join(", "));
+  };
+
+  const removeCategory = (
+    key: "farmerExpenseCategories" | "companyExpenseCategories",
+    value: string,
+  ) => {
+    setCategoryList(
+      key,
+      getCategoryList(key).filter((item) => item !== value),
+    );
+  };
+
   const saveSettings = async () => {
     if (!accessToken || !form || saving) return;
 
@@ -110,6 +139,17 @@ export default function OrganizationSettingsScreen() {
     try {
       const updated = await updateOrganizationSettings(accessToken, {
         currency: form.currency.trim() || "INR",
+        mobileFirst: form.mobileFirst,
+        expenseCategories: {
+          farmer: form.farmerExpenseCategories
+            .split(",")
+            .map((item) => item.trim())
+            .filter(Boolean),
+          company: form.companyExpenseCategories
+            .split(",")
+            .map((item) => item.trim())
+            .filter(Boolean),
+        },
         payoutRules: {
           defaultPayoutRate: Number(form.defaultPayoutRate || 0),
           defaultPayoutUnit: form.defaultPayoutUnit,
@@ -163,8 +203,35 @@ export default function OrganizationSettingsScreen() {
       ) : (
         <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
           <View style={styles.card}>
-            <Text style={styles.sectionTitle}>Currency & Payout</Text>
+            <Text style={styles.sectionTitle}>General</Text>
             <Field label="Currency" value={form.currency} onChangeText={(value) => setField("currency", value)} />
+            <ToggleRow
+              label="Mobile First"
+              value={form.mobileFirst}
+              onValueChange={(value) => setField("mobileFirst", value)}
+              isLast
+            />
+          </View>
+
+          <View style={styles.card}>
+            <Text style={styles.sectionTitle}>Expense Categories</Text>
+            <Text style={styles.sectionHint}>Add categories as chips for cleaner expense entry options.</Text>
+            <CategoryEditor
+              title="Farmer Categories"
+              icon="leaf-outline"
+              values={getCategoryList("farmerExpenseCategories")}
+              onRemove={(value) => removeCategory("farmerExpenseCategories", value)}
+            />
+            <CategoryEditor
+              title="Company Categories"
+              icon="business-outline"
+              values={getCategoryList("companyExpenseCategories")}
+              onRemove={(value) => removeCategory("companyExpenseCategories", value)}
+            />
+          </View>
+
+          <View style={styles.card}>
+            <Text style={styles.sectionTitle}>Payout Rules</Text>
             <Field
               label="Default Payout Rate"
               value={form.defaultPayoutRate}
@@ -243,25 +310,74 @@ function Field({
   value,
   onChangeText,
   keyboardType = "default",
+  multiline = false,
 }: {
   label: string;
   value: string;
   onChangeText: (value: string) => void;
   keyboardType?: "default" | "decimal-pad" | "numeric";
+  multiline?: boolean;
 }) {
   return (
     <>
       <Text style={styles.fieldLabel}>{label}</Text>
-      <View style={styles.inputBox}>
+      <View style={[styles.inputBox, multiline && styles.inputBoxMultiline]}>
         <TextInput
-          style={styles.input}
+          style={[styles.input, multiline && styles.inputMultiline]}
           value={value}
           onChangeText={onChangeText}
           keyboardType={keyboardType}
+          multiline={multiline}
+          textAlignVertical={multiline ? "top" : "center"}
           placeholderTextColor={Colors.textSecondary}
         />
       </View>
     </>
+  );
+}
+
+function CategoryEditor({
+  title,
+  icon,
+  values,
+  onRemove,
+}: {
+  title: string;
+  icon: keyof typeof Ionicons.glyphMap;
+  values: string[];
+  onRemove: (value: string) => void;
+}) {
+  return (
+    <View style={styles.categoryPanel}>
+      <View style={styles.categoryHeader}>
+        <View style={styles.categoryIcon}>
+          <Ionicons name={icon} size={18} color={Colors.primary} />
+        </View>
+        <View style={styles.categoryTitleBlock}>
+          <Text style={styles.categoryTitle}>{title}</Text>
+          <Text style={styles.categoryMeta}>{values.length} item{values.length === 1 ? "" : "s"}</Text>
+        </View>
+      </View>
+
+      {values.length ? (
+        <View style={styles.categoryChipWrap}>
+          {values.map((value) => (
+            <View key={value} style={styles.categoryChip}>
+              <Text style={styles.categoryChipText}>{value}</Text>
+              <TouchableOpacity
+                style={styles.categoryChipRemove}
+                onPress={() => onRemove(value)}
+                activeOpacity={0.75}
+              >
+                <Ionicons name="close" size={14} color={Colors.textSecondary} />
+              </TouchableOpacity>
+            </View>
+          ))}
+        </View>
+      ) : (
+        <Text style={styles.categoryEmptyText}>No categories added yet.</Text>
+      )}
+    </View>
   );
 }
 
@@ -303,6 +419,13 @@ const styles = StyleSheet.create({
     marginBottom: 14,
   },
   sectionTitle: { fontSize: 16, fontWeight: "800", color: Colors.text, marginBottom: 8 },
+  sectionHint: {
+    fontSize: 12,
+    lineHeight: 16,
+    color: Colors.textSecondary,
+    fontWeight: "600",
+    marginBottom: 2,
+  },
   fieldLabel: { fontSize: 12, fontWeight: "800", color: Colors.text, marginBottom: 7, marginTop: 12 },
   inputBox: {
     minHeight: 48,
@@ -313,7 +436,92 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     backgroundColor: "#F9FAFB",
   },
+  inputBoxMultiline: {
+    minHeight: 84,
+    paddingVertical: 10,
+    alignItems: "stretch",
+  },
   input: { fontSize: 14, color: Colors.text, padding: 0 },
+  inputMultiline: {
+    minHeight: 60,
+    lineHeight: 20,
+  },
+  categoryPanel: {
+    marginTop: 12,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    borderRadius: 10,
+    backgroundColor: "#F9FAFB",
+    padding: 12,
+  },
+  categoryHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    marginBottom: 10,
+  },
+  categoryIcon: {
+    width: 34,
+    height: 34,
+    borderRadius: 9,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#EEF8F0",
+  },
+  categoryTitleBlock: {
+    flex: 1,
+    minWidth: 0,
+  },
+  categoryTitle: {
+    color: Colors.text,
+    fontSize: 14,
+    fontWeight: "900",
+  },
+  categoryMeta: {
+    marginTop: 2,
+    color: Colors.textSecondary,
+    fontSize: 11,
+    fontWeight: "700",
+  },
+  categoryChipWrap: {
+    marginTop: 4,
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+  },
+  categoryChip: {
+    minHeight: 34,
+    maxWidth: "100%",
+    borderRadius: 17,
+    borderWidth: 1,
+    borderColor: "#B7E2BD",
+    backgroundColor: "#EEF8F0",
+    paddingLeft: 12,
+    paddingRight: 6,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+  },
+  categoryChipText: {
+    flexShrink: 1,
+    color: Colors.primary,
+    fontSize: 12,
+    fontWeight: "800",
+  },
+  categoryChipRemove: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#FFF",
+  },
+  categoryEmptyText: {
+    marginTop: 10,
+    color: Colors.textSecondary,
+    fontSize: 12,
+    fontWeight: "700",
+  },
   chipRow: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
   chip: {
     borderWidth: 1,
