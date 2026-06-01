@@ -477,7 +477,7 @@ export default function ReportsScreen() {
               style={[styles.tabBtn, activeTab === "overview" && styles.activeTabBtn]}
               onPress={() => setActiveTab("overview")}
             >
-              <Ionicons name="pie-chart-outline" size={16} color={activeTab === "overview" ? "#FFF" : "#4B5563"} />
+              <Ionicons name="pie-chart-outline" size={16} color={activeTab === "overview" ? "#FFF" : "#64748B"} />
               <Text style={[styles.tabBtnText, activeTab === "overview" && styles.activeTabBtnText]}>Overview</Text>
             </TouchableOpacity>
 
@@ -485,7 +485,7 @@ export default function ReportsScreen() {
               style={[styles.tabBtn, activeTab === "financials" && styles.activeTabBtn]}
               onPress={() => setActiveTab("financials")}
             >
-              <FontAwesome5 name="hand-holding-usd" size={14} color={activeTab === "financials" ? "#FFF" : "#4B5563"} />
+              <FontAwesome5 name="hand-holding-usd" size={14} color={activeTab === "financials" ? "#FFF" : "#64748B"} />
               <Text style={[styles.tabBtnText, activeTab === "financials" && styles.activeTabBtnText]}>Financials</Text>
             </TouchableOpacity>
 
@@ -493,7 +493,7 @@ export default function ReportsScreen() {
               style={[styles.tabBtn, activeTab === "stock" && styles.activeTabBtn]}
               onPress={() => setActiveTab("stock")}
             >
-              <Ionicons name="cube-outline" size={14} color={activeTab === "stock" ? "#FFF" : "#4B5563"} />
+              <Ionicons name="cube-outline" size={16} color={activeTab === "stock" ? "#FFF" : "#64748B"} />
               <Text style={[styles.tabBtnText, activeTab === "stock" && styles.activeTabBtnText]}>Stock & PDF</Text>
             </TouchableOpacity>
 
@@ -501,7 +501,7 @@ export default function ReportsScreen() {
               style={[styles.tabBtn, activeTab === "settlements" && styles.activeTabBtn]}
               onPress={() => setActiveTab("settlements")}
             >
-              <Ionicons name="document-text-outline" size={14} color={activeTab === "settlements" ? "#FFF" : "#4B5563"} />
+              <Ionicons name="document-text-outline" size={16} color={activeTab === "settlements" ? "#FFF" : "#64748B"} />
               <Text style={[styles.tabBtnText, activeTab === "settlements" && styles.activeTabBtnText]}>Settlements</Text>
             </TouchableOpacity>
 
@@ -509,8 +509,16 @@ export default function ReportsScreen() {
               style={[styles.tabBtn, activeTab === "profitability" && styles.activeTabBtn]}
               onPress={() => setActiveTab("profitability")}
             >
-              <Ionicons name="trending-up" size={14} color={activeTab === "profitability" ? "#FFF" : "#4B5563"} />
+              <Ionicons name="trending-up" size={16} color={activeTab === "profitability" ? "#FFF" : "#64748B"} />
               <Text style={[styles.tabBtnText, activeTab === "profitability" && styles.activeTabBtnText]}>Profitability</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[styles.tabBtn, activeTab === "statements" && styles.activeTabBtn]}
+              onPress={() => setActiveTab("statements")}
+            >
+              <FontAwesome5 name="file-invoice-dollar" size={14} color={activeTab === "statements" ? "#FFF" : "#64748B"} />
+              <Text style={[styles.tabBtnText, activeTab === "statements" && styles.activeTabBtnText]}>Statements</Text>
             </TouchableOpacity>
           </ScrollView>
 
@@ -1785,36 +1793,46 @@ const styles = StyleSheet.create({
   
   // Navigation Tabs Bar
   tabsScrollView: {
-    backgroundColor: "#FFF",
+    backgroundColor: "#FFFFFF",
     borderBottomWidth: 1,
-    borderBottomColor: "#E5E7EB",
-    maxHeight: 54,
+    borderBottomColor: "#E2E8F0",
+    maxHeight: 60,
   },
   tabsScrollContent: {
     paddingHorizontal: 16,
-    paddingVertical: 8,
+    paddingVertical: 10,
     gap: 8,
     alignItems: "center",
   },
   tabBtn: {
     flexDirection: "row",
-    height: 38,
-    borderRadius: 8,
-    backgroundColor: "#F3F4F6",
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: "#F1F5F9",
+    paddingHorizontal: 16,
     alignItems: "center",
     justifyContent: "center",
-    gap: 4,
+    gap: 6,
+    borderWidth: 1,
+    borderColor: "#E2E8F0",
   },
   activeTabBtn: {
     backgroundColor: THEME_GREEN,
+    borderColor: THEME_GREEN,
+    shadowColor: THEME_GREEN,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    elevation: 5,
   },
   tabBtnText: {
-    fontSize: 9.5,
-    fontWeight: "700",
-    color: "#4B5563",
+    fontSize: 12,
+    fontWeight: "600",
+    color: "#64748B",
   },
   activeTabBtnText: {
-    color: "#FFF",
+    color: "#FFFFFF",
+    fontWeight: "700",
   },
 
   scrollContainer: { flexGrow: 1, paddingHorizontal: 16, paddingTop: 16 },
@@ -1944,30 +1962,36 @@ const styles = StyleSheet.create({
   },
   statementToggle: {
     flexDirection: "row",
-    gap: 6,
-    marginBottom: 8,
+    gap: 8,
+    marginBottom: 12,
   },
   statementToggleBtn: {
     flex: 1,
-    minHeight: 36,
-    borderRadius: 8,
+    height: 40,
+    borderRadius: 20,
     borderWidth: 1,
-    borderColor: "#E5E7EB",
+    borderColor: "#E2E8F0",
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "#F9FAFB",
+    backgroundColor: "#F1F5F9",
   },
   statementToggleBtnActive: {
     backgroundColor: THEME_GREEN,
     borderColor: THEME_GREEN,
+    shadowColor: THEME_GREEN,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    elevation: 5,
   },
   statementToggleText: {
     fontSize: 12,
-    fontWeight: "800",
-    color: "#4B5563",
+    fontWeight: "600",
+    color: "#64748B",
   },
   statementToggleTextActive: {
-    color: "#FFF",
+    color: "#FFFFFF",
+    fontWeight: "700",
   },
   statementDateRow: {
     flexDirection: "row",

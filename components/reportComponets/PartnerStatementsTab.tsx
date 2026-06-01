@@ -149,7 +149,18 @@ export default function PartnerStatementsTab({
           {(["vendor", "trader"] as const).map((kind) => (
             <TouchableOpacity
               key={kind}
-              style={[styles.statementToggleBtn, partnerStatementKind === kind && styles.statementToggleBtnActive]}
+              style={[
+                styles.statementToggleBtn,
+                partnerStatementKind === kind && {
+                  backgroundColor: THEME_GREEN,
+                  borderColor: THEME_GREEN,
+                  shadowColor: THEME_GREEN,
+                  shadowOffset: { width: 0, height: 2 },
+                  shadowOpacity: 0.25,
+                  shadowRadius: 3.84,
+                  elevation: 5,
+                }
+              ]}
               onPress={() => {
                 setPartnerStatementKind(kind);
                 setSelectedPartnerId("");
@@ -364,18 +375,18 @@ const styles = StyleSheet.create({
   categoryTitle: { fontSize: 13, fontWeight: "800", color: "#111827", marginBottom: 8, marginTop: 4 },
   statementToggle: {
     flexDirection: "row",
-    gap: 6,
-    marginBottom: 8,
+    gap: 8,
+    marginBottom: 12,
   },
   statementToggleBtn: {
     flex: 1,
-    minHeight: 36,
-    borderRadius: 8,
+    height: 40,
+    borderRadius: 20,
     borderWidth: 1,
-    borderColor: "#E5E7EB",
+    borderColor: "#E2E8F0",
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "#F9FAFB",
+    backgroundColor: "#F1F5F9",
   },
   statementToggleBtnActive: {
     backgroundColor: "#0B5C36",
@@ -383,11 +394,12 @@ const styles = StyleSheet.create({
   },
   statementToggleText: {
     fontSize: 12,
-    fontWeight: "800",
-    color: "#4B5563",
+    fontWeight: "600",
+    color: "#64748B",
   },
   statementToggleTextActive: {
-    color: "#FFF",
+    color: "#FFFFFF",
+    fontWeight: "700",
   },
   statementDateRow: {
     flexDirection: "row",
