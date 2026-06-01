@@ -43,7 +43,9 @@ export function NotificationsScreen() {
     setLoading(true);
     setError(null);
     try {
-      const response = await listNotifications(accessToken);
+      const response = await listNotifications(accessToken, {
+        unreadOnly: selectedFilter === "Unread" ? true : undefined,
+      });
       setNotifications(response.data);
     } catch (err) {
       setError(getRequestErrorMessage(err, "Unable to load notifications."));
@@ -51,7 +53,7 @@ export function NotificationsScreen() {
     } finally {
       setLoading(false);
     }
-  }, [accessToken]);
+  }, [accessToken, selectedFilter]);
 
   useFocusEffect(
     React.useCallback(() => {
@@ -192,6 +194,16 @@ export function NotificationsScreen() {
     return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   };
 
+  const getNotificationMeta = (item: ApiNotification) =>
+    [
+      item.type,
+      item.severity,
+      item.targetType && item.targetId ? `${item.targetType}: ${item.targetId}` : null,
+      item.farmId ? `Farm: ${item.farmId}` : null,
+      item.batchId ? `Batch: ${item.batchId}` : null,
+      item.isRead ? "Read" : "Unread",
+    ].filter(Boolean) as string[];
+
   return (
     <View style={styles.safeArea}>
       <TopAppBar
@@ -293,6 +305,19 @@ export function NotificationsScreen() {
                       <Text style={styles.notifTime}>{formatTime(item.createdAt)}</Text>
                     </View>
                     <Text style={styles.notifMessage} numberOfLines={2}>{item.message}</Text>
+                    <View style={styles.metaWrap}>
+                      {getNotificationMeta(item).map((metaItem) => (
+                        <View key={metaItem} style={styles.metaPill}>
+                          <Text style={styles.metaPillText} numberOfLines={1}>{metaItem}</Text>
+                        </View>
+                      ))}
+                    </View>
+                    {(item.readAt || item.readById) ? (
+                      <Text style={styles.readMeta} numberOfLines={1}>
+                        {item.readAt ? `Read at ${formatTime(item.readAt)}` : "Read"}
+                        {item.readById ? ` by ${item.readById}` : ""}
+                      </Text>
+                    ) : null}
                   </View>
                   {!item.isRead ? (
                     <View style={styles.unreadDot} />
@@ -373,6 +398,30 @@ const styles = StyleSheet.create({
   },
   notifTime: { fontSize: 11, color: "#9CA3AF" },
   notifMessage: { fontSize: 13, color: "#6B7280", lineHeight: 18 },
+  metaWrap: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 6,
+    marginTop: 8,
+  },
+  metaPill: {
+    maxWidth: "100%",
+    borderRadius: 999,
+    backgroundColor: "#F3F4F6",
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+  },
+  metaPillText: {
+    color: "#6B7280",
+    fontSize: 10,
+    fontWeight: "800",
+  },
+  readMeta: {
+    marginTop: 6,
+    color: "#9CA3AF",
+    fontSize: 10,
+    fontWeight: "700",
+  },
   unreadDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: "#EF4444", marginLeft: 12 },
   markAllBtn: {
     width: 40,
