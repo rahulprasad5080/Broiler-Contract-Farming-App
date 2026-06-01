@@ -1,10 +1,10 @@
-import {
-  getRequestErrorMessage,
-  showRequestErrorToast,
-  showSuccessToast,
-} from '@/services/apiFeedback';
+import { ScreenState } from '@/components/ui/ScreenState';
+import { TopAppBar } from '@/components/ui/TopAppBar';
 import { Colors } from '@/constants/Colors';
 import { useAuth } from '@/context/AuthContext';
+import {
+  getRequestErrorMessage
+} from '@/services/apiFeedback';
 import {
   listAllFarms,
   listUsers,
@@ -15,22 +15,18 @@ import {
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import { useRouter } from 'expo-router';
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   FlatList,
   KeyboardAvoidingView,
   Platform,
-  ScrollView,
   StyleSheet,
-  Switch,
   Text,
   TextInput,
   TouchableOpacity,
-  View,
+  View
 } from 'react-native';
-import { ScreenState } from '@/components/ui/ScreenState';
-import { TopAppBar } from '@/components/ui/TopAppBar';
 
 type Role = ApiRole;
 type Status = 'Active' | 'Invited' | 'Inactive';
@@ -49,7 +45,9 @@ interface UserCard {
   role: Role;
   farm: string;
   email?: string;
+  phone?: string;
   status: Status;
+  lastLoginAt?: string | null;
   hasAvatar: boolean;
 }
 
@@ -85,9 +83,26 @@ function toUserCard(user: ApiUser, farms: ApiFarm[]): UserCard {
     role: user.role,
     farm: getAssignedFarm(user, farms),
     email: user.email ?? undefined,
+    phone: user.phone ?? undefined,
     status: toStatus(user.status),
-    hasAvatar: Boolean(user.email),
+    lastLoginAt: user.lastLoginAt ?? null,
+    hasAvatar: Boolean(user.email || user.phone),
   };
+}
+
+function formatLastLogin(value?: string | null) {
+  if (!value) return 'Never logged in';
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+
+  return date.toLocaleString(undefined, {
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
 }
 
 export default function UserManagementScreen() {
@@ -104,6 +119,7 @@ export default function UserManagementScreen() {
   const [userSearch, setUserSearch] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
+  const [totalUsers, setTotalUsers] = useState(0);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const farmsRef = useRef<ApiFarm[]>([]);
@@ -167,6 +183,7 @@ export default function UserManagementScreen() {
       });
       setCurrentPage(usersResponse.meta.page || pageToLoad);
       setTotalPages(Math.max(1, usersResponse.meta.totalPages || 1));
+      setTotalUsers(usersResponse.meta.total || usersResponse.data.length);
     } catch (err) {
       if (requestId === usersRequestIdRef.current) {
         setError(getRequestErrorMessage(err, 'Failed to load users.'));
@@ -232,6 +249,7 @@ export default function UserManagementScreen() {
     const isInvited = user.status === 'Invited';
     const roleDisplay = user.role === 'OWNER' ? 'Admin' : ROLE_LABELS[user.role];
     const emailDisplay = user.email || 'No email provided';
+    const phoneDisplay = user.phone || 'No phone provided';
     
     // Status badge colors
     const statusColor = isInactive ? '#EF4444' : isInvited ? '#F59E0B' : '#10B981';
@@ -276,9 +294,22 @@ export default function UserManagementScreen() {
         </View>
 
         <View style={styles.cardFooter}>
-          <View style={styles.infoRow}>
-            <MaterialCommunityIcons name="email-outline" size={14} color="#9CA3AF" />
-            <Text style={styles.userEmail} numberOfLines={1}>{emailDisplay}</Text>
+          <View style={styles.cardDetails}>
+            <View style={styles.infoRow}>
+              <MaterialCommunityIcons name="email-outline" size={14} color="#9CA3AF" />
+              <Text style={styles.userEmail} numberOfLines={1}>{emailDisplay}</Text>
+            </View>
+            <View style={styles.infoRow}>
+              <MaterialCommunityIcons name="phone-outline" size={14} color="#9CA3AF" />
+              <Text style={styles.userEmail} numberOfLines={1}>{phoneDisplay}</Text>
+            </View>
+            <View style={styles.infoRow}>
+              <MaterialCommunityIcons name="clock-outline" size={14} color="#9CA3AF" />
+              <Text style={styles.userEmail} numberOfLines={1}>
+                Last login: {formatLastLogin(user.lastLoginAt)}
+              </Text>
+            </View>
+
           </View>
           
           <View style={styles.footerRight}>
@@ -366,7 +397,15 @@ export default function UserManagementScreen() {
                 </TouchableOpacity>
               </View>
 
-              {error ? <Text style={styles.errorText}>{error}</Text> : null}
+            {error ? <Text style={styles.errorText}>{error}</Text> : null}
+
+            {!isLoading ? (
+              <View style={styles.paginationSummary}>
+                <Text style={styles.paginationSummaryText}>
+                  Showing {users.length} of {totalUsers} user{totalUsers === 1 ? '' : 's'}
+                </Text>
+              </View>
+            ) : null}
             </>
           )}
           ListEmptyComponent={(
@@ -383,7 +422,11 @@ export default function UserManagementScreen() {
                 <Text style={styles.loadingText}>Loading more users...</Text>
               </View>
             ) : (
-              <View style={{ height: 40 }} />
+              <View style={styles.listEndSpacer}>
+                {users.length > 0 && currentPage >= totalPages ? (
+                  <Text style={styles.listEndText}>All users loaded</Text>
+                ) : null}
+              </View>
             )
           )}
         />
@@ -475,11 +518,16 @@ const styles = StyleSheet.create({
   },
   cardFooter: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     justifyContent: 'space-between',
     paddingTop: 12,
     borderTopWidth: 1,
     borderTopColor: '#F9FAFB',
+    gap: 12,
+  },
+  cardDetails: {
+    flex: 1,
+    gap: 6,
   },
   footerRight: {
     flexDirection: 'row',
@@ -576,6 +624,27 @@ const styles = StyleSheet.create({
   userName: { fontSize: 15, fontWeight: '700', color: '#111827', marginBottom: 2 },
   userRole: { fontSize: 12, color: '#6B7280', marginBottom: 2 },
   userEmail: { fontSize: 11, color: '#9CA3AF' },
+  paginationSummary: {
+    marginBottom: 12,
+    paddingHorizontal: 2,
+  },
+  paginationSummaryText: {
+    fontSize: 12,
+    color: Colors.textSecondary,
+    fontWeight: '600',
+  },
+  listEndSpacer: {
+    minHeight: 72,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingTop: 14,
+    paddingBottom: 24,
+  },
+  listEndText: {
+    color: Colors.textSecondary,
+    fontSize: 13,
+    fontWeight: '700',
+  },
   textFaded: { color: '#9CA3AF' },
   statusAndAction: {
     flexDirection: 'row',

@@ -39,6 +39,47 @@ const PERMISSION_LABELS: { key: PermissionKey; label: string }[] = [
   { key: 'financialDashboard', label: 'Financial Dashboard' },
 ];
 
+const PERMISSION_DETAILS: Record<PermissionKey, string> = {
+  dailyEntry: 'Daily farm performance entries',
+  salesEntry: 'Sales and collection records',
+  expenseEntry: 'Batch and farm expenses',
+  inventoryView: 'Inventory stock and ledger access',
+  costVisibility: 'Rates, costs, and margins',
+  reportAccess: 'Operational and financial reports',
+  companyExpenseEntry: 'Company expense ledger',
+  farmerExpenseApproval: 'Farmer expense approvals',
+  purchaseEntry: 'Purchase entries and vendor costs',
+  settlementEntry: 'Settlement and payout access',
+  financialDashboard: 'Financial dashboard visibility',
+};
+
+const PERMISSION_GROUPS: {
+  title: string;
+  icon: keyof typeof Ionicons.glyphMap;
+  keys: PermissionKey[];
+}[] = [
+  {
+    title: 'Operations',
+    icon: 'clipboard-outline',
+    keys: ['dailyEntry', 'salesEntry', 'expenseEntry', 'reportAccess'],
+  },
+  {
+    title: 'Inventory & Costs',
+    icon: 'cube-outline',
+    keys: ['inventoryView', 'purchaseEntry', 'costVisibility'],
+  },
+  {
+    title: 'Finance',
+    icon: 'wallet-outline',
+    keys: [
+      'companyExpenseEntry',
+      'farmerExpenseApproval',
+      'settlementEntry',
+      'financialDashboard',
+    ],
+  },
+];
+
 const ROLE_LABELS: Record<ApiRole, string> = {
   OWNER: 'Admin',
   SUPERVISOR: 'Supervisor',
@@ -153,6 +194,12 @@ export default function UserDetailsScreen() {
           minute: '2-digit',
         }
       );
+  };
+
+  const formatBoolean = (value: boolean | null | undefined) => {
+    if (value === true) return 'Yes';
+    if (value === false) return 'No';
+    return 'No';
   };
 
   return (
@@ -314,9 +361,57 @@ export default function UserDetailsScreen() {
             </View>
           </View>
 
+          {/* Full API Details Card */}
+          <View style={styles.detailsCard}>
+            <Text style={styles.sectionHeader}>API Details</Text>
+
+            
+
+            <View style={styles.divider} />
+
+           
+
+            <View style={styles.divider} />
+
+            <View style={styles.infoRow}>
+              <View style={styles.iconCircle}>
+                <Ionicons name="scan-outline" size={20} color={Colors.primary} />
+              </View>
+              <View style={styles.infoTextContainer}>
+                <Text style={styles.infoLabel}>Biometric Enabled</Text>
+                <Text style={styles.infoValue}>{formatBoolean(user.biometricEnabled)}</Text>
+              </View>
+            </View>
+
+            <View style={styles.divider} />
+
+            <View style={styles.infoRow}>
+              <View style={styles.iconCircle}>
+                <Ionicons name="calendar-outline" size={20} color={Colors.primary} />
+              </View>
+              <View style={styles.infoTextContainer}>
+                <Text style={styles.infoLabel}>Created At</Text>
+                <Text style={styles.infoValue}>{formattedDate(user.createdAt)}</Text>
+              </View>
+            </View>
+
+            <View style={styles.divider} />
+
+            <View style={styles.infoRow}>
+              <View style={styles.iconCircle}>
+                <Ionicons name="refresh-outline" size={20} color={Colors.primary} />
+              </View>
+              <View style={styles.infoTextContainer}>
+                <Text style={styles.infoLabel}>Updated At</Text>
+                <Text style={styles.infoValue}>{formattedDate(user.updatedAt)}</Text>
+              </View>
+            </View>
+          </View>
+
           {/* Assigned Farms section */}
           <View style={styles.detailsCard}>
             <Text style={styles.sectionHeader}>Assigned Farms</Text>
+          
             {assignedFarms.length === 0 ? (
               <View style={styles.emptyFarmsBox}>
                 <MaterialCommunityIcons name="home-off-outline" size={36} color="#9CA3AF" />
@@ -344,35 +439,65 @@ export default function UserDetailsScreen() {
 
           {/* Permissions Matrix section */}
           <View style={styles.detailsCard}>
-            <Text style={styles.sectionHeader}>Permissions Matrix</Text>
-            <View style={styles.permissionsGrid}>
-              {PERMISSION_LABELS.map((permission) => {
-                const isEnabled = user.permissions?.[permission.key] ?? false;
+            <View style={styles.permissionHeaderRow}>
+              <View>
+                <Text style={[styles.sectionHeader, { marginBottom: 2 }]}>Permissions Matrix</Text>
+                <Text style={styles.permissionHeaderSubtitle}>
+                  {PERMISSION_LABELS.filter((permission) => user.permissions?.[permission.key]).length}
+                  /{PERMISSION_LABELS.length} enabled
+                </Text>
+              </View>
+              <View style={styles.permissionHeaderIcon}>
+                <Ionicons name="shield-checkmark-outline" size={20} color={Colors.primary} />
+              </View>
+            </View>
 
+            <View style={styles.permissionsGrid}>
+              {PERMISSION_GROUPS.map((group) => {
                 return (
-                  <View
-                    key={permission.key}
-                    style={[
-                      styles.permissionChip,
-                      {
-                        backgroundColor: isEnabled ? '#EEF8F0' : '#F3F4F6',
-                        borderColor: isEnabled ? '#B7E2BD' : '#E5E7EB',
-                      },
-                    ]}
-                  >
-                    <Ionicons
-                      name={isEnabled ? 'checkmark-circle' : 'close-circle'}
-                      size={18}
-                      color={isEnabled ? '#10B981' : '#9CA3AF'}
-                    />
-                    <Text
-                      style={[
-                        styles.permissionLabelText,
-                        { color: isEnabled ? '#0F766E' : '#6B7280' },
-                      ]}
-                    >
-                      {permission.label}
-                    </Text>
+                  <View key={group.title} style={styles.permissionGroup}>
+                    <View style={styles.permissionGroupHeader}>
+                      <View style={styles.permissionGroupIcon}>
+                        <Ionicons name={group.icon} size={18} color={Colors.primary} />
+                      </View>
+                      <Text style={styles.permissionGroupTitle}>{group.title}</Text>
+                    </View>
+
+                    {group.keys.map((permissionKey) => {
+                      const permission = PERMISSION_LABELS.find((item) => item.key === permissionKey);
+                      const isEnabled = user.permissions?.[permissionKey] ?? false;
+
+                      if (!permission) return null;
+
+                      return (
+                        <View
+                          key={permission.key}
+                          style={[styles.permissionRow, isEnabled && styles.permissionRowActive]}
+                        >
+                          <View style={styles.permissionTextBlock}>
+                            <Text style={styles.permissionName}>{permission.label}</Text>
+                            <Text style={styles.permissionDescription}>
+                              {PERMISSION_DETAILS[permission.key]}
+                            </Text>
+                          </View>
+                          <View style={[styles.permissionStatusPill, isEnabled && styles.permissionStatusPillActive]}>
+                            <Ionicons
+                              name={isEnabled ? 'checkmark-circle' : 'close-circle-outline'}
+                              size={15}
+                              color={isEnabled ? Colors.primary : Colors.textSecondary}
+                            />
+                            <Text
+                              style={[
+                                styles.permissionStatusText,
+                                isEnabled && styles.permissionStatusTextActive,
+                              ]}
+                            >
+                              {isEnabled ? 'On' : 'Off'}
+                            </Text>
+                          </View>
+                        </View>
+                      );
+                    })}
                   </View>
                 );
               })}
@@ -506,6 +631,7 @@ const styles = StyleSheet.create({
   },
   infoTextContainer: {
     flex: 1,
+    minWidth: 0,
   },
   infoLabel: {
     fontSize: 11,
@@ -536,6 +662,28 @@ const styles = StyleSheet.create({
     color: Colors.textSecondary,
     fontWeight: '600',
     textAlign: 'center',
+  },
+  assignedIdsBox: {
+    marginBottom: 14,
+    padding: 12,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    backgroundColor: '#F9FAFB',
+  },
+  assignedIdsLabel: {
+    color: Colors.textSecondary,
+    fontSize: 11,
+    fontWeight: '800',
+    textTransform: 'uppercase',
+    letterSpacing: 0.4,
+  },
+  assignedIdsValue: {
+    marginTop: 5,
+    color: Colors.text,
+    fontSize: 12,
+    lineHeight: 17,
+    fontWeight: '700',
   },
   farmsList: {
     gap: 12,
@@ -574,21 +722,112 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   permissionsGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 10,
+    gap: 12,
   },
-  permissionChip: {
+  permissionHeaderRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 8,
-    borderWidth: 1,
-    gap: 6,
+    justifyContent: 'space-between',
+    marginBottom: 14,
+    gap: 12,
   },
-  permissionLabelText: {
+  permissionHeaderSubtitle: {
+    color: Colors.textSecondary,
     fontSize: 12,
     fontWeight: '700',
+  },
+  permissionHeaderIcon: {
+    width: 38,
+    height: 38,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#EEF8F0',
+  },
+  permissionGroup: {
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    borderRadius: 8,
+    overflow: 'hidden',
+    backgroundColor: '#FFF',
+  },
+  permissionGroupHeader: {
+    minHeight: 48,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    paddingHorizontal: 12,
+    backgroundColor: '#F8FAF9',
+    borderBottomWidth: 1,
+    borderBottomColor: '#EEF2F0',
+  },
+  permissionGroupIcon: {
+    width: 30,
+    height: 30,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#EEF8F0',
+  },
+  permissionGroupTitle: {
+    color: Colors.text,
+    fontSize: 14,
+    fontWeight: '900',
+  },
+  permissionRow: {
+    minHeight: 62,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F3F4F6',
+    backgroundColor: '#FFF',
+  },
+  permissionRowActive: {
+    backgroundColor: '#F7FEF9',
+  },
+  permissionTextBlock: {
+    flex: 1,
+    minWidth: 0,
+  },
+  permissionName: {
+    color: Colors.text,
+    fontSize: 13,
+    fontWeight: '900',
+  },
+  permissionDescription: {
+    marginTop: 3,
+    color: Colors.textSecondary,
+    fontSize: 11,
+    lineHeight: 15,
+    fontWeight: '600',
+  },
+  permissionStatusPill: {
+    minWidth: 56,
+    minHeight: 28,
+    paddingHorizontal: 8,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    backgroundColor: '#F3F4F6',
+    gap: 6,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexShrink: 0,
+  },
+  permissionStatusPillActive: {
+    borderColor: '#B7E2BD',
+    backgroundColor: '#EEF8F0',
+  },
+  permissionStatusText: {
+    color: Colors.textSecondary,
+    fontSize: 11,
+    fontWeight: '900',
+  },
+  permissionStatusTextActive: {
+    color: Colors.primary,
   },
 });

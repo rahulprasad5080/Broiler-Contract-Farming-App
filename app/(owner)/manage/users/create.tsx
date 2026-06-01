@@ -36,10 +36,10 @@ import {
   Platform,
   ScrollView,
   StyleSheet,
-  Switch,
   Text,
   TextInput,
   TouchableOpacity,
+  useWindowDimensions,
   View,
 } from 'react-native';
 import Toast from 'react-native-toast-message';
@@ -73,6 +73,51 @@ const PERMISSION_LABELS: { key: PermissionKey; label: string }[] = [
   { key: 'financialDashboard', label: 'Financial Dashboard' },
 ];
 
+const PERMISSION_DETAILS: Record<PermissionKey, string> = {
+  dailyEntry: 'Mortality, feed, water and weight entries',
+  salesEntry: 'Bird sales and collection records',
+  expenseEntry: 'Batch and farm expense entries',
+  inventoryView: 'Inventory stock, ledger and allocation access',
+  costVisibility: 'Rates, costs and profitability visibility',
+  reportAccess: 'Operational and financial reports',
+  companyExpenseEntry: 'Company ledger expenses',
+  farmerExpenseApproval: 'Review and approve farmer expenses',
+  purchaseEntry: 'Purchase and vendor payment entries',
+  settlementEntry: 'Batch settlement and payout entries',
+  financialDashboard: 'Owner-level financial dashboard',
+};
+
+const PERMISSION_GROUPS: {
+  title: string;
+  subtitle: string;
+  icon: keyof typeof Ionicons.glyphMap;
+  keys: PermissionKey[];
+}[] = [
+  {
+    title: 'Operations',
+    subtitle: 'Daily work handled by farm staff',
+    icon: 'clipboard-outline',
+    keys: ['dailyEntry', 'salesEntry', 'expenseEntry', 'reportAccess'],
+  },
+  {
+    title: 'Inventory & Costs',
+    subtitle: 'Stock movement, purchases and cost visibility',
+    icon: 'cube-outline',
+    keys: ['inventoryView', 'purchaseEntry', 'costVisibility'],
+  },
+  {
+    title: 'Finance',
+    subtitle: 'Company accounts, settlements and dashboards',
+    icon: 'wallet-outline',
+    keys: [
+      'companyExpenseEntry',
+      'farmerExpenseApproval',
+      'settlementEntry',
+      'financialDashboard',
+    ],
+  },
+];
+
 const permissionSchema = z.object({
   dailyEntry: z.boolean(),
   salesEntry: z.boolean(),
@@ -96,6 +141,7 @@ const userSchema = z.object({
   status: z.enum(STATUS_OPTIONS),
   assignedFarmIds: z.array(z.string()),
   permissions: permissionSchema,
+  biometricEnabled: z.boolean(),
   mustChangePassword: z.boolean(),
 });
 
@@ -166,6 +212,7 @@ const USER_FORM_DEFAULTS: UserFormData = {
   status: 'Active',
   assignedFarmIds: [],
   permissions: getDefaultPermissionMatrix('FARMER'),
+  biometricEnabled: false,
   mustChangePassword: true,
 };
 
@@ -202,6 +249,7 @@ function selectedFarmLabel(farms: ApiFarm[], selectedIds: string[]) {
 
 export default function CreateUserScreen() {
   const router = useRouter();
+  const { width } = useWindowDimensions();
   const params = useLocalSearchParams<{ userId?: string }>();
   const { accessToken, user } = useAuth();
   const isOwner = user?.role === 'OWNER';
@@ -245,7 +293,9 @@ export default function CreateUserScreen() {
   const selectedStatus = watch('status');
   const selectedFarmIds = watch('assignedFarmIds');
   const permissions = watch('permissions');
+  const biometricEnabled = watch('biometricEnabled');
   const mustChangePassword = watch('mustChangePassword');
+  const isCompactPermissionLayout = width < 380;
 
   const activePermissionCount = useMemo(
     () => PERMISSION_LABELS.filter((permission) => permissions[permission.key]).length,
@@ -312,6 +362,7 @@ export default function CreateUserScreen() {
         status: toStatus(user.status),
         assignedFarmIds: user.assignedFarmIds ?? [],
         permissions: mergePermissions(user.role, user.permissions),
+        biometricEnabled: user.biometricEnabled ?? false,
         mustChangePassword: user.mustChangePassword ?? false,
       });
       setPasswordError(null);
@@ -349,6 +400,18 @@ export default function CreateUserScreen() {
       !permissions[permission],
       { shouldDirty: true, shouldValidate: true },
     );
+  };
+
+  const setAllPermissions = (enabled: boolean) => {
+    const nextPermissions = PERMISSION_LABELS.reduce((acc, permission) => {
+      acc[permission.key] = enabled;
+      return acc;
+    }, {} as ApiPermissionMatrix);
+
+    setValue('permissions', nextPermissions, {
+      shouldDirty: true,
+      shouldValidate: true,
+    });
   };
 
   const handleResetPasswordAction = async () => {
@@ -430,7 +493,7 @@ export default function CreateUserScreen() {
     }
 
     const trimmedPassword = data.password.trim();
-    const passwordValidationError = !isEditMode
+    const passwordValidationError = !isEditMode || trimmedPassword
       ? getPasswordValidationError(trimmedPassword)
       : null;
 
@@ -445,15 +508,19 @@ export default function CreateUserScreen() {
 
     try {
       if (isEditMode && userId) {
-        const updated = await updateUser(accessToken, userId, {
+        const updatePayload = {
           name: data.name.trim(),
           email: data.email.trim(),
           phone: data.phone.trim(),
           role: data.role,
           assignedFarmIds: data.assignedFarmIds,
           permissions: data.permissions,
+          biometricEnabled: data.biometricEnabled,
           mustChangePassword: data.mustChangePassword,
-        });
+          ...(trimmedPassword ? { password: trimmedPassword } : {}),
+        };
+
+        const updated = await updateUser(accessToken, userId, updatePayload);
 
         const desiredStatus = toApiStatus(data.status);
         if (updated.status !== desiredStatus) {
@@ -594,42 +661,48 @@ export default function CreateUserScreen() {
               )}
             />
 
-            {!isEditMode ? (
-              <Controller
-                control={control}
-                name="password"
-                render={({ field: { onChange, value } }) => (
-                  <View style={styles.inputGroup}>
-                    <Text style={styles.label}>Temporary Password</Text>
-                    <View style={[styles.inputBox, styles.passwordRow, passwordError && styles.inputError]}>
-                      <TextInput
-                        style={[styles.textInput, { flex: 1 }]}
-                        placeholder="Enter password"
-                        placeholderTextColor={Colors.textSecondary}
-                        value={value}
-                        onChangeText={(nextValue) => {
-                          setPasswordError(null);
-                          onChange(nextValue);
-                        }}
-                        secureTextEntry={!showPassword}
+            <Controller
+              control={control}
+              name="password"
+              render={({ field: { onChange, value } }) => (
+                <View style={styles.inputGroup}>
+                  <Text style={styles.label}>
+                    {isEditMode ? 'New Password (optional)' : 'Temporary Password'}
+                  </Text>
+                  <View style={[styles.inputBox, styles.passwordRow, passwordError && styles.inputError]}>
+                    <TextInput
+                      style={[styles.textInput, { flex: 1 }]}
+                      placeholder={isEditMode ? 'Leave blank to keep current password' : 'Enter password'}
+                      placeholderTextColor={Colors.textSecondary}
+                      value={value}
+                      onChangeText={(nextValue) => {
+                        setPasswordError(null);
+                        onChange(nextValue);
+                      }}
+                      secureTextEntry={!showPassword}
+                      autoCapitalize="none"
+                      autoCorrect={false}
+                    />
+                    <TouchableOpacity onPress={() => setShowPassword((prev) => !prev)} style={styles.iconButton}>
+                      <Ionicons
+                        name={showPassword ? 'eye-off-outline' : 'eye-outline'}
+                        size={20}
+                        color={Colors.textSecondary}
                       />
-                      <TouchableOpacity onPress={() => setShowPassword((prev) => !prev)} style={styles.iconButton}>
-                        <Ionicons
-                          name={showPassword ? 'eye-off-outline' : 'eye-outline'}
-                          size={20}
-                          color={Colors.textSecondary}
-                        />
-                      </TouchableOpacity>
-                    </View>
-                    {passwordError ? (
-                      <Text style={styles.fieldErrorText}>{passwordError}</Text>
-                    ) : (
-                      <Text style={styles.helperText}>{PASSWORD_REQUIREMENT_TEXT}</Text>
-                    )}
+                    </TouchableOpacity>
                   </View>
-                )}
-              />
-            ) : null}
+                  {passwordError ? (
+                    <Text style={styles.fieldErrorText}>{passwordError}</Text>
+                  ) : (
+                    <Text style={styles.helperText}>
+                      {isEditMode
+                        ? `Only filled passwords are sent in PUT. ${PASSWORD_REQUIREMENT_TEXT}`
+                        : PASSWORD_REQUIREMENT_TEXT}
+                    </Text>
+                  )}
+                </View>
+              )}
+            />
           </View>
 
           <View style={styles.section}>
@@ -814,47 +887,203 @@ export default function CreateUserScreen() {
 
           <View style={styles.section}>
             <View style={styles.sectionHeaderRow}>
-              <Text style={styles.sectionTitle}>Permissions</Text>
-              <Text style={styles.permissionCount}>{activePermissionCount}/{PERMISSION_LABELS.length}</Text>
+              <View style={styles.sectionTitleBlock}>
+                <Text style={[styles.sectionTitle, { marginBottom: 2 }]}>Permissions</Text>
+                <Text style={styles.sectionHint}>Choose exactly what this user can access.</Text>
+              </View>
+              <View style={styles.permissionSummaryPill}>
+                <Text style={styles.permissionCount}>{activePermissionCount}/{PERMISSION_LABELS.length}</Text>
+              </View>
+            </View>
+
+            <View style={styles.permissionControlBar}>
+              <Text style={styles.permissionControlLabel}>Quick select</Text>
+              <View style={styles.permissionToolbar}>
+              <TouchableOpacity
+                style={styles.permissionActionButton}
+                onPress={() => setAllPermissions(true)}
+                activeOpacity={0.85}
+              >
+                <Ionicons name="checkmark-done-outline" size={16} color={Colors.primary} />
+                <Text style={styles.permissionActionText}>All</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.permissionActionButton}
+                onPress={() => setAllPermissions(false)}
+                activeOpacity={0.85}
+              >
+                <Ionicons name="close-outline" size={17} color={Colors.textSecondary} />
+                <Text style={[styles.permissionActionText, { color: Colors.textSecondary }]}>Clear</Text>
+              </TouchableOpacity>
+              </View>
             </View>
 
             <View style={styles.permissionsGrid}>
-              {PERMISSION_LABELS.map((permission) => {
-                const isEnabled = permissions[permission.key];
-
+              {PERMISSION_GROUPS.map((group) => {
                 return (
-                  <TouchableOpacity
-                    key={permission.key}
-                    style={[styles.permissionItem, isEnabled && styles.permissionItemActive]}
-                    onPress={() => togglePermission(permission.key)}
-                    activeOpacity={0.85}
-                  >
-                    <Ionicons
-                      name={isEnabled ? 'checkbox' : 'square-outline'}
-                      size={20}
-                      color={isEnabled ? Colors.primary : Colors.textSecondary}
-                    />
-                    <Text style={styles.permissionLabel}>{permission.label}</Text>
-                  </TouchableOpacity>
+                  <View key={group.title} style={styles.permissionGroup}>
+                    <View style={styles.permissionGroupHeader}>
+                      <View style={styles.permissionGroupIcon}>
+                        <Ionicons name={group.icon} size={18} color={Colors.primary} />
+                      </View>
+                      <View style={styles.permissionGroupText}>
+                        <Text style={styles.permissionGroupTitle}>{group.title}</Text>
+                        <Text style={styles.permissionGroupSubtitle}>{group.subtitle}</Text>
+                      </View>
+                    </View>
+
+                    <View style={styles.permissionItems}>
+                      {group.keys.map((permissionKey) => {
+                        const permission = PERMISSION_LABELS.find((item) => item.key === permissionKey);
+                        const isEnabled = permissions[permissionKey];
+
+                        if (!permission) return null;
+
+                        return (
+                          <TouchableOpacity
+                            key={permission.key}
+                            style={[
+                              styles.permissionItem,
+                              isCompactPermissionLayout && styles.permissionItemCompact,
+                              isEnabled && styles.permissionItemActive,
+                            ]}
+                            onPress={() => togglePermission(permission.key)}
+                            activeOpacity={0.85}
+                          >
+                            <View
+                              style={[
+                                styles.permissionTextBlock,
+                                isCompactPermissionLayout && styles.permissionTextBlockCompact,
+                              ]}
+                            >
+                              <Text style={styles.permissionLabel}>{permission.label}</Text>
+                              <Text style={styles.permissionDescription}>
+                                {PERMISSION_DETAILS[permission.key]}
+                              </Text>
+                            </View>
+                            <View
+                              style={[
+                                styles.permissionToggle,
+                                isCompactPermissionLayout && styles.permissionToggleCompact,
+                                isEnabled && styles.permissionToggleActive,
+                              ]}
+                            >
+                              <View style={[styles.permissionToggleKnob, isEnabled && styles.permissionToggleKnobActive]} />
+                            </View>
+                          </TouchableOpacity>
+                        );
+                      })}
+                    </View>
+                  </View>
                 );
               })}
             </View>
           </View>
 
           <View style={styles.section}>
-            <View style={styles.switchRow}>
-              <View style={styles.switchTextBlock}>
-                <Text style={styles.switchTitle}>Must change password</Text>
-                <Text style={styles.switchSubtitle}>User will be asked to change password on first login.</Text>
+            <View style={styles.passwordPolicyCard}>
+              <View style={styles.passwordPolicyIcon}>
+                <Ionicons name="shield-checkmark-outline" size={20} color={Colors.primary} />
               </View>
-              <Switch
-                value={mustChangePassword}
-                onValueChange={(val) => setValue('mustChangePassword', val, { shouldDirty: true })}
-                trackColor={{ false: '#D1D5DB', true: '#A7F3D0' }}
-                thumbColor={mustChangePassword ? '#10B981' : '#F3F4F6'}
-                ios_backgroundColor="#D1D5DB"
-              />
+              <View style={styles.passwordPolicyContent}>
+                <View style={styles.passwordPolicyHeader}>
+                  <View style={styles.passwordPolicyTextBlock}>
+                    <Text style={styles.passwordPolicyTitle}>Must change password</Text>
+                    <Text style={styles.passwordPolicySubtitle}>
+                      Require this user to set a new password on next login.
+                    </Text>
+                  </View>
+                  <TouchableOpacity
+                    style={[
+                      styles.permissionToggle,
+                      styles.passwordPolicyToggle,
+                      mustChangePassword && styles.permissionToggleActive,
+                    ]}
+                    onPress={() =>
+                      setValue('mustChangePassword', !mustChangePassword, { shouldDirty: true })
+                    }
+                    activeOpacity={0.85}
+                    accessibilityRole="switch"
+                    accessibilityState={{ checked: mustChangePassword }}
+                  >
+                    <View
+                      style={[
+                        styles.permissionToggleKnob,
+                        mustChangePassword && styles.permissionToggleKnobActive,
+                      ]}
+                    />
+                  </TouchableOpacity>
+                </View>
+                <View style={[styles.passwordPolicyStatus, mustChangePassword && styles.passwordPolicyStatusActive]}>
+                  <Ionicons
+                    name={mustChangePassword ? 'lock-closed-outline' : 'lock-open-outline'}
+                    size={14}
+                    color={mustChangePassword ? Colors.primary : Colors.textSecondary}
+                  />
+                  <Text
+                    style={[
+                      styles.passwordPolicyStatusText,
+                      mustChangePassword && styles.passwordPolicyStatusTextActive,
+                    ]}
+                  >
+                    {mustChangePassword ? 'Enabled for next login' : 'User can keep current password'}
+                  </Text>
+                </View>
+              </View>
             </View>
+
+            {isEditMode ? (
+              <View style={[styles.passwordPolicyCard, { marginTop: 12 }]}>
+                <View style={styles.passwordPolicyIcon}>
+                  <Ionicons name="finger-print-outline" size={20} color={Colors.primary} />
+                </View>
+                <View style={styles.passwordPolicyContent}>
+                  <View style={styles.passwordPolicyHeader}>
+                    <View style={styles.passwordPolicyTextBlock}>
+                      <Text style={styles.passwordPolicyTitle}>Biometric enabled</Text>
+                      <Text style={styles.passwordPolicySubtitle}>
+                        Allow quick unlock using device fingerprint or face unlock.
+                      </Text>
+                    </View>
+                    <TouchableOpacity
+                      style={[
+                        styles.permissionToggle,
+                        styles.passwordPolicyToggle,
+                        biometricEnabled && styles.permissionToggleActive,
+                      ]}
+                      onPress={() =>
+                        setValue('biometricEnabled', !biometricEnabled, { shouldDirty: true })
+                      }
+                      activeOpacity={0.85}
+                      accessibilityRole="switch"
+                      accessibilityState={{ checked: biometricEnabled }}
+                    >
+                      <View
+                        style={[
+                          styles.permissionToggleKnob,
+                          biometricEnabled && styles.permissionToggleKnobActive,
+                        ]}
+                      />
+                    </TouchableOpacity>
+                  </View>
+                  <View style={[styles.passwordPolicyStatus, biometricEnabled && styles.passwordPolicyStatusActive]}>
+                    <Ionicons
+                      name={biometricEnabled ? 'finger-print-outline' : 'remove-circle-outline'}
+                      size={14}
+                      color={biometricEnabled ? Colors.primary : Colors.textSecondary}
+                    />
+                    <Text
+                      style={[
+                        styles.passwordPolicyStatusText,
+                        biometricEnabled && styles.passwordPolicyStatusTextActive,
+                      ]}
+                    >
+                      {biometricEnabled ? 'Included in PUT payload' : 'Disabled in PUT payload'}
+                    </Text>
+                  </View>
+                </View>
+              </View>
+            ) : null}
           </View>
 
 
@@ -1010,9 +1239,14 @@ const styles = StyleSheet.create({
   },
   sectionHeaderRow: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     justifyContent: 'space-between',
     marginBottom: 12,
+    gap: 12,
+  },
+  sectionTitleBlock: {
+    flex: 1,
+    minWidth: 0,
   },
   sectionTitle: {
     fontSize: 16,
@@ -1020,10 +1254,67 @@ const styles = StyleSheet.create({
     color: Colors.text,
     marginBottom: 12,
   },
+  sectionHint: {
+    color: Colors.textSecondary,
+    fontSize: 12,
+    lineHeight: 16,
+  },
+  permissionSummaryPill: {
+    minWidth: 54,
+    minHeight: 30,
+    flexShrink: 0,
+    borderRadius: 15,
+    backgroundColor: '#EEF8F0',
+    borderWidth: 1,
+    borderColor: '#B7E2BD',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 10,
+  },
   permissionCount: {
     fontSize: 12,
-    fontWeight: '700',
+    fontWeight: '900',
     color: Colors.primary,
+  },
+  permissionControlBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 12,
+    marginBottom: 12,
+    padding: 8,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    backgroundColor: '#F8FAF9',
+  },
+  permissionControlLabel: {
+    flex: 1,
+    minWidth: 0,
+    color: Colors.textSecondary,
+    fontSize: 12,
+    fontWeight: '800',
+  },
+  permissionToolbar: {
+    flexDirection: 'row',
+    flexShrink: 0,
+    gap: 6,
+  },
+  permissionActionButton: {
+    minHeight: 34,
+    paddingHorizontal: 10,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#DDEFE3',
+    backgroundColor: '#FFF',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  permissionActionText: {
+    color: Colors.primary,
+    fontSize: 12,
+    fontWeight: '900',
   },
   inputGroup: {
     marginBottom: 14,
@@ -1181,49 +1472,182 @@ const styles = StyleSheet.create({
     fontWeight: '800',
   },
   permissionsGrid: {
-    gap: 10,
+    gap: 12,
   },
-  permissionItem: {
-    minHeight: 46,
-    borderRadius: 8,
+  permissionGroup: {
     borderWidth: 1,
-    borderColor: Colors.border,
-    backgroundColor: '#F9FAFB',
-    paddingHorizontal: 12,
+    borderColor: '#E5E7EB',
+    borderRadius: 8,
+    backgroundColor: '#FBFCFB',
+    overflow: 'hidden',
+  },
+  permissionGroupHeader: {
+    minHeight: 58,
     flexDirection: 'row',
     alignItems: 'center',
+    gap: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: '#EEF2F0',
+    backgroundColor: '#F8FAF9',
+  },
+  permissionGroupIcon: {
+    width: 34,
+    height: 34,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#EEF8F0',
+  },
+  permissionGroupText: {
+    flex: 1,
+    minWidth: 0,
+  },
+  permissionGroupTitle: {
+    color: Colors.text,
+    fontSize: 14,
+    fontWeight: '900',
+  },
+  permissionGroupSubtitle: {
+    marginTop: 2,
+    color: Colors.textSecondary,
+    fontSize: 11,
+    lineHeight: 15,
+    fontWeight: '600',
+  },
+  permissionItems: {
+    backgroundColor: '#FFF',
+  },
+  permissionItem: {
+    minHeight: 64,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F3F4F6',
+  },
+  permissionItemCompact: {
+    alignItems: 'stretch',
+    flexDirection: 'column',
     gap: 10,
   },
   permissionItemActive: {
     backgroundColor: '#EEF8F0',
-    borderColor: '#B7E2BD',
+  },
+  permissionTextBlock: {
+    flex: 1,
+    minWidth: 0,
+  },
+  permissionTextBlockCompact: {
+    flex: 0,
   },
   permissionLabel: {
-    flex: 1,
     fontSize: 14,
-    fontWeight: '600',
+    fontWeight: '800',
     color: Colors.text,
   },
-  switchRow: {
-    minHeight: 56,
+  permissionDescription: {
+    marginTop: 3,
+    fontSize: 11,
+    lineHeight: 15,
+    color: Colors.textSecondary,
+  },
+  permissionToggle: {
+    width: 42,
+    height: 24,
+    flexShrink: 0,
+    borderRadius: 12,
+    padding: 3,
+    backgroundColor: '#D1D5DB',
+    justifyContent: 'center',
+  },
+  permissionToggleActive: {
+    backgroundColor: '#10B981',
+  },
+  permissionToggleCompact: {
+    alignSelf: 'flex-end',
+  },
+  permissionToggleKnob: {
+    width: 18,
+    height: 18,
+    borderRadius: 9,
+    backgroundColor: '#FFF',
+  },
+  permissionToggleKnobActive: {
+    alignSelf: 'flex-end',
+  },
+  passwordPolicyCard: {
+    minHeight: 76,
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 12,
+    borderWidth: 1,
+    borderColor: '#DDEFE3',
+    backgroundColor: '#F8FAF9',
+    borderRadius: 8,
+    padding: 12,
+  },
+  passwordPolicyIcon: {
+    width: 38,
+    height: 38,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#EEF8F0',
+    flexShrink: 0,
+  },
+  passwordPolicyContent: {
+    flex: 1,
+    minWidth: 0,
+  },
+  passwordPolicyHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     gap: 12,
   },
-  switchTextBlock: {
-    flex: 1,
+  passwordPolicyToggle: {
+    alignSelf: 'center',
   },
-  switchTitle: {
+  passwordPolicyTextBlock: {
+    flex: 1,
+    minWidth: 0,
+  },
+  passwordPolicyTitle: {
     fontSize: 14,
-    fontWeight: '800',
+    fontWeight: '900',
     color: Colors.text,
   },
-  switchSubtitle: {
+  passwordPolicySubtitle: {
     marginTop: 4,
     fontSize: 12,
     color: Colors.textSecondary,
     lineHeight: 16,
+  },
+  passwordPolicyStatus: {
+    alignSelf: 'flex-start',
+    minHeight: 28,
+    marginTop: 10,
+    paddingHorizontal: 10,
+    borderRadius: 14,
+    backgroundColor: '#F3F4F6',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  passwordPolicyStatusActive: {
+    backgroundColor: '#EEF8F0',
+  },
+  passwordPolicyStatusText: {
+    color: Colors.textSecondary,
+    fontSize: 11,
+    fontWeight: '800',
+  },
+  passwordPolicyStatusTextActive: {
+    color: Colors.primary,
   },
   submitButton: {
     minHeight: 50,
