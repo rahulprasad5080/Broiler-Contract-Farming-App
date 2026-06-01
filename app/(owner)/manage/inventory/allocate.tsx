@@ -1,7 +1,11 @@
-import { Ionicons } from "@expo/vector-icons";
+import { ScreenState } from "@/components/ui/ScreenState";
+import { SearchableSelectField } from "@/components/ui/SearchableSelectField";
+import { TopAppBar } from "@/components/ui/TopAppBar";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useFocusEffect } from "@react-navigation/native";
-import React, { useCallback, useMemo, useState } from "react";
+import { useRouter } from "expo-router";
+import { useCallback, useMemo, useState } from "react";
+import { Controller, useForm } from "react-hook-form";
 import {
   ActivityIndicator,
   KeyboardAvoidingView,
@@ -13,63 +17,43 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import { Controller, useForm } from "react-hook-form";
 import { z } from "zod";
-import { DatePickerField } from "@/components/ui/DatePickerField";
-import { ScreenState } from "@/components/ui/ScreenState";
-import { SearchableSelectField } from "@/components/ui/SearchableSelectField";
-import { TopAppBar } from "@/components/ui/TopAppBar";
-import { useRouter } from "expo-router";
 
 import { useAuth } from "@/context/AuthContext";
 import {
   showRequestErrorToast,
   showSuccessToast,
 } from "@/services/apiFeedback";
-import { getLocalDateValue } from "@/services/dateUtils";
 import {
   allocateInventory,
   listAllBatches,
   listCatalogItems,
-  listAllFarms,
   type ApiBatch,
   type ApiCatalogItem,
-  type ApiFarm,
 } from "@/services/managementApi";
 
 const allocationSchema = z.object({
-  date: z.string().min(1, "Date is required"),
-  farmId: z.string().min(1, "Farm is required"),
   batchId: z.string().min(1, "Batch is required"),
-  itemType: z.enum(["Feed", "Medicine", "Vaccine", "Other"]),
   catalogItemId: z.string().min(1, "Item is required"),
   quantity: z.string().min(1, "Quantity is required").refine(
     (val) => !Number.isNaN(Number(val)) && Number(val) > 0,
     "Enter a valid quantity"
   ),
-  fromStock: z.string().min(1, "Stock source is required"),
   remarks: z.string().optional(),
 });
 
 type AllocationFormData = z.infer<typeof allocationSchema>;
 
 const DEFAULTS: AllocationFormData = {
-  date: getLocalDateValue(),
-  farmId: "",
   batchId: "",
-  itemType: "Feed",
   catalogItemId: "",
   quantity: "",
-  fromStock: "Main Store",
   remarks: "",
 };
-
-const STOCK_OPTIONS = ["Main Store", "Warehouse A", "Godown 1"];
 
 export default function AllocateStockScreen() {
   const { accessToken } = useAuth();
   const router = useRouter();
-  const [farms, setFarms] = useState<ApiFarm[]>([]);
   const [batches, setBatches] = useState<ApiBatch[]>([]);
   const [catalogItems, setCatalogItems] = useState<ApiCatalogItem[]>([]);
   const [loading, setLoading] = useState(false);
@@ -88,63 +72,41 @@ export default function AllocateStockScreen() {
     defaultValues: DEFAULTS,
   });
 
-  const itemType = watch("itemType");
-  const farmId = watch("farmId");
   const batchId = watch("batchId");
   const catalogItemId = watch("catalogItemId");
-  const fromStock = watch("fromStock");
 
-  const selectedFarm = farms.find(f => f.id === farmId);
-  const selectedBatch = batches.find(b => b.id === batchId);
   const selectedItem = catalogItems.find(i => i.id === catalogItemId);
-  const farmOptions = useMemo(
-    () =>
-      farms.map((farm) => ({
-        label: farm.name,
-        value: farm.id,
-        description: farm.code,
-      })),
-    [farms],
-  );
   const batchOptions = useMemo(
     () =>
       batches
-        .filter((batch) => batch.farmId === farmId)
         .map((batch) => ({
           label: batch.code,
           value: batch.id,
           description: batch.farmName ?? undefined,
           keywords: batch.status,
         })),
-    [batches, farmId],
+    [batches],
   );
   const catalogOptions = useMemo(
     () =>
       catalogItems
-        .filter((item) => item.type.toLowerCase().includes(itemType.toLowerCase()))
         .map((item) => ({
           label: item.name,
           value: item.id,
           description: `${item.type} - ${item.unit}`,
           keywords: `${item.type} ${item.unit}`,
         })),
-    [catalogItems, itemType],
-  );
-  const stockOptions = useMemo(
-    () => STOCK_OPTIONS.map((stock) => ({ label: stock, value: stock })),
-    [],
+    [catalogItems],
   );
 
   const loadData = useCallback(async () => {
     if (!accessToken) return;
     setLoading(true);
     try {
-      const [farmRes, batchRes, catalogRes] = await Promise.all([
-        listAllFarms(accessToken),
+      const [batchRes, catalogRes] = await Promise.all([
         listAllBatches(accessToken),
         listCatalogItems(accessToken, { limit: 100 }),
       ]);
-      setFarms(farmRes.data);
       setBatches(batchRes.data);
       setCatalogItems(catalogRes.data);
     } catch (err) {
@@ -196,7 +158,7 @@ export default function AllocateStockScreen() {
       >
         <View style={styles.form}>
           {loading ? (
-            <ScreenState title="Loading inventory data" message="Fetching farms, batches, and catalog items." loading compact style={styles.stateSpacing} />
+            <ScreenState title="Loading inventory data" message="Fetching batches and catalog items." loading compact style={styles.stateSpacing} />
           ) : null}
           {savedMessage ? (
             <ScreenState
@@ -207,37 +169,6 @@ export default function AllocateStockScreen() {
             />
           ) : null}
 
-          {/* Date */}
-          <Controller
-            control={control}
-            name="date"
-            render={({ field: { value, onChange } }) => (
-              <DatePickerField
-                label="Date"
-                value={value}
-                onChange={onChange}
-                error={errors.date?.message}
-                disableFuture
-              />
-            )}
-          />
-
-          {/* Farm */}
-          <SearchableSelectField
-            label="Farm"
-            value={farmId}
-            options={farmOptions}
-            onSelect={(value) => {
-              setValue("farmId", value, { shouldDirty: true, shouldValidate: true });
-              setValue("batchId", "", { shouldDirty: true, shouldValidate: true });
-            }}
-            placeholder="Select Farm"
-            searchPlaceholder="Search farm"
-            emptyMessage="No farms found"
-            error={errors.farmId?.message}
-          />
-
-          {/* Batch */}
           <SearchableSelectField
             label="Batch"
             value={batchId}
@@ -245,39 +176,21 @@ export default function AllocateStockScreen() {
             onSelect={(value) => setValue("batchId", value, { shouldDirty: true, shouldValidate: true })}
             placeholder="Select Batch"
             searchPlaceholder="Search batch"
-            emptyMessage={farmId ? "No batches found for this farm" : "Select a farm first"}
+            emptyMessage="No batches found"
             error={errors.batchId?.message}
           />
 
-          {/* Item Type */}
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Item Type</Text>
-            <View style={styles.chipRow}>
-              {["Feed", "Medicine", "Vaccine", "Other"].map((type) => (
-                <TouchableOpacity 
-                  key={type}
-                  style={[styles.smallToggleBtn, itemType === type && styles.toggleBtnActive]}
-                  onPress={() => setValue("itemType", type as any)}
-                >
-                  <Text style={[styles.smallToggleBtnText, itemType === type && styles.toggleBtnTextActive]}>{type}</Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-          </View>
-
-          {/* Item */}
           <SearchableSelectField
-            label="Item"
+            label="Catalog Item"
             value={catalogItemId}
             options={catalogOptions}
             onSelect={(value) => setValue("catalogItemId", value, { shouldDirty: true, shouldValidate: true })}
-            placeholder="Select Item"
+            placeholder="Select Catalog Item"
             searchPlaceholder="Search catalog item"
-            emptyMessage="No matching catalog items found"
+            emptyMessage="No catalog items found"
             error={errors.catalogItemId?.message}
           />
 
-          {/* Quantity */}
           <View style={styles.inputGroup}>
             <Text style={styles.label}>Quantity</Text>
             <Controller
@@ -299,19 +212,6 @@ export default function AllocateStockScreen() {
             />
           </View>
 
-          {/* From Stock */}
-          <SearchableSelectField
-            label="From Stock"
-            value={fromStock}
-            options={stockOptions}
-            onSelect={(value) => setValue("fromStock", value, { shouldDirty: true, shouldValidate: true })}
-            placeholder="Select Stock"
-            searchPlaceholder="Search stock"
-            emptyMessage="No stock sources found"
-            error={errors.fromStock?.message}
-          />
-
-          {/* Remarks */}
           <View style={styles.inputGroup}>
             <Text style={styles.label}>Remarks (Optional)</Text>
             <Controller
@@ -402,75 +302,10 @@ const styles = StyleSheet.create({
     color: "#111827",
     marginLeft: 8,
   },
-  inputMock: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    backgroundColor: "#FFF",
-    borderWidth: 1,
-    borderColor: "#E5E7EB",
-    borderRadius: 12,
-    paddingHorizontal: 16,
-    height: 52,
-  },
-  inputValue: {
-    fontSize: 15,
-    color: "#374151",
-  },
   textArea: {
     height: 100,
     paddingTop: 16,
     textAlignVertical: "top",
-  },
-  chipRow: {
-    flexDirection: "row",
-    gap: 8,
-  },
-  smallToggleBtn: {
-    flex: 1,
-    height: 44,
-    borderRadius: 12,
-    backgroundColor: "#F3F4F6",
-    alignItems: "center",
-    justifyContent: "center",
-    borderWidth: 1,
-    borderColor: "#E5E7EB",
-  },
-  toggleBtnActive: {
-    backgroundColor: "#0B5C36",
-    borderColor: "#0B5C36",
-  },
-  smallToggleBtnText: {
-    fontSize: 12,
-    fontWeight: "600",
-    color: "#6B7280",
-  },
-  toggleBtnTextActive: {
-    color: "#FFF",
-  },
-  dropdownList: {
-    marginTop: 4,
-    backgroundColor: "#FFF",
-    borderWidth: 1,
-    borderColor: "#E5E7EB",
-    borderRadius: 12,
-    overflow: "hidden",
-    elevation: 4,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    zIndex: 10,
-  },
-  dropdownItem: {
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: "#F3F4F6",
-  },
-  dropdownItemText: {
-    fontSize: 14,
-    color: "#374151",
   },
   submitBtn: {
     backgroundColor: "#0B5C36",

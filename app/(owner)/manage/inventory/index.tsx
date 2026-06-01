@@ -5,7 +5,6 @@ import {
   ExpenseFormData,
   expenseSchema
 } from '@/components/inventory/inventoryTypes';
-import { LedgerTab } from '@/components/inventory/LedgerTab';
 import { PurchasesTab } from '@/components/inventory/PurchasesTab';
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -23,7 +22,6 @@ import {
 } from "react-native";
 
 import { TopAppBar } from "@/components/ui/TopAppBar";
-import { Colors } from "@/constants/Colors";
 import { useAuth } from "@/context/AuthContext";
 import { useMasterDataTypeOptions } from "@/hooks/useMasterDataTypeOptions";
 import {
@@ -36,19 +34,17 @@ import {
   listBatchExpenses,
   listCatalogItems,
   listAllVendors,
-  listInventoryLedger,
   listFinancePurchases,
   type ApiBatch,
   type ApiBatchExpense,
   type ApiCatalogItem,
   type ApiCatalogItemType,
   type ApiExpenseCategoryCode,
-  type ApiInventoryLedgerEntry,
   type ApiVendor,
   type ApiFinancePurchase,
 } from "@/services/managementApi";
 
-type TabKey = "ledger" | "expenses" | "purchases";
+type TabKey = "expenses" | "purchases";
 
 
 function toOptionalNumber(value?: string) {
@@ -76,21 +72,16 @@ function labelize(value: string) {
 export default function InventoryScreen() {
   const router = useRouter();
   const { accessToken, hasPermission } = useAuth();
-  const [activeTab, setActiveTab] = useState<TabKey>("ledger");
+  const [activeTab, setActiveTab] = useState<TabKey>("purchases");
   const [catalogItems, setCatalogItems] = useState<ApiCatalogItem[]>([]);
   const [batches, setBatches] = useState<ApiBatch[]>([]);
-  const [ledgerRows, setLedgerRows] = useState<ApiInventoryLedgerEntry[]>([]);
   const [vendors, setVendors] = useState<ApiVendor[]>([]);
   const [expenses, setExpenses] = useState<ApiBatchExpense[]>([]);
   const [purchases, setPurchases] = useState<ApiFinancePurchase[]>([]);
-  const [ledgerCatalogItemId, setLedgerCatalogItemId] = useState("");
-  const [ledgerBatchId, setLedgerBatchId] = useState("");
-  const [ledgerVendorId, setLedgerVendorId] = useState("");
   const [filterBatchId, setFilterBatchId] = useState("");
   const [filterVendorId, setFilterVendorId] = useState("");
   const [, setLoadingCatalog] = useState(false);
   const [loadingBatches, setLoadingBatches] = useState(false);
-  const [loadingLedger, setLoadingLedger] = useState(false);
   const [loadingExpenses, setLoadingExpenses] = useState(false);
   const [loadingPurchases, setLoadingPurchases] = useState(false);
   const [savingExpense, setSavingExpense] = useState(false);
@@ -173,7 +164,6 @@ export default function InventoryScreen() {
 
       const firstItem = response.data[0];
       if (firstItem) {
-        setLedgerCatalogItemId((current) => current || firstItem.id);
         setExpenseValue("catalogItemId", selectedExpenseItemId || firstItem.id);
         setExpenseValue("unit", firstItem.unit);
       }
@@ -230,34 +220,6 @@ export default function InventoryScreen() {
       );
     }
   }, [accessToken]);
-
-  const loadLedger = useCallback(async () => {
-    if (!accessToken) {
-      setError("Missing access token. Please sign in again.");
-      return;
-    }
-
-    setLoadingLedger(true);
-    setError(null);
-
-    try {
-      const response = await listInventoryLedger(accessToken, {
-        catalogItemId: ledgerCatalogItemId || undefined,
-        batchId: ledgerBatchId.trim() || undefined,
-        vendorId: ledgerVendorId.trim() || undefined,
-      });
-      setLedgerRows(response.data);
-    } catch (err) {
-      setError(
-        showRequestErrorToast(err, {
-          title: "Unable to load stock ledger",
-          fallbackMessage: "Failed to load inventory ledger.",
-        }),
-      );
-    } finally {
-      setLoadingLedger(false);
-    }
-  }, [accessToken, ledgerBatchId, ledgerCatalogItemId, ledgerVendorId]);
 
   const loadPurchases = useCallback(async () => {
     if (!accessToken) {
@@ -454,20 +416,10 @@ export default function InventoryScreen() {
               <Text style={styles.actionButtonText}>Purchase</Text>
             </TouchableOpacity>
           ) : null}
-          <TouchableOpacity
-            style={[styles.actionButton, styles.actionButtonAlt]}
-            onPress={() => router.navigate("/(owner)/manage/inventory/allocate")}
-          >
-            <MaterialCommunityIcons name="swap-horizontal" size={18} color={Colors.primary} />
-            <Text style={[styles.actionButtonText, styles.actionButtonTextAlt]}>
-              Allocate
-            </Text>
-          </TouchableOpacity>
         </View>
 
         <View style={styles.tabBar}>
           {([
-            { key: "ledger", label: "Ledger" },
             { key: "purchases", label: "Purchases" },
             { key: "expenses", label: "Expenses" },
           ] as { key: TabKey; label: string }[]).map((tab) => (
@@ -476,7 +428,6 @@ export default function InventoryScreen() {
               style={[styles.tab, activeTab === tab.key && styles.tabActive]}
               onPress={() => {
                 setActiveTab(tab.key);
-                if (tab.key === "ledger") void loadLedger();
                 if (tab.key === "purchases") void loadPurchases();
               }}
             >
@@ -491,27 +442,6 @@ export default function InventoryScreen() {
             </TouchableOpacity>
           ))}
         </View>
-
-        
-        {activeTab === "ledger" && (
-          <LedgerTab
-            catalogItems={catalogItems}
-            batches={batches}
-            ledgerRows={ledgerRows}
-            ledgerCatalogItemId={ledgerCatalogItemId}
-            setLedgerCatalogItemId={setLedgerCatalogItemId}
-            ledgerBatchId={ledgerBatchId}
-            setLedgerBatchId={setLedgerBatchId}
-            ledgerVendorId={ledgerVendorId}
-            setLedgerVendorId={setLedgerVendorId}
-            vendorOptions={vendorOptions}
-            loadLedger={loadLedger}
-            loadingLedger={loadingLedger}
-            loadingBatches={loadingBatches}
-            labelize={labelize}
-            formatQuantity={formatQuantity}
-          />
-        )}
 
         {activeTab === "expenses" && (
           <ExpensesTab
