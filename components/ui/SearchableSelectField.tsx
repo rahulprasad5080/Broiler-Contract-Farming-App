@@ -32,6 +32,7 @@ type SearchableSelectFieldProps = {
   disabled?: boolean;
   locked?: boolean;
   required?: boolean;
+  variant?: "default" | "filter";
 };
 
 export function SearchableSelectField({
@@ -46,6 +47,7 @@ export function SearchableSelectField({
   disabled = false,
   locked = false,
   required = false,
+  variant = "default",
 }: SearchableSelectFieldProps) {
   const { height } = useWindowDimensions();
   const [visible, setVisible] = useState(false);
@@ -84,13 +86,14 @@ export function SearchableSelectField({
   const closePicker = () => setVisible(false);
 
   return (
-    <View style={styles.inputGroup}>
-      <Text style={styles.label}>
+    <View style={[styles.inputGroup, variant === "filter" && styles.filterInputGroup]}>
+      <Text style={[styles.label, variant === "filter" && styles.filterLabel]}>
         {label} {required ? <Text style={styles.required}>*</Text> : null}
       </Text>
       <TouchableOpacity
         style={[
           styles.inputBox,
+          variant === "filter" && styles.filterInputBox,
           error && styles.inputError,
           (disabled || locked) && styles.inputDisabled,
         ]}
@@ -102,6 +105,7 @@ export function SearchableSelectField({
           <Text
             style={[
               styles.valueText,
+              variant === "filter" && styles.filterValueText,
               !selectedOption && styles.placeholderText,
             ]}
             numberOfLines={1}
@@ -192,11 +196,21 @@ const styles = StyleSheet.create({
   inputGroup: {
     marginBottom: 20,
   },
+  filterInputGroup: {
+    marginBottom: 0,
+  },
   label: {
     fontSize: 14,
     fontWeight: "700",
     color: "#111827",
     marginBottom: 8,
+  },
+  filterLabel: {
+    color: Colors.textSecondary,
+    fontSize: 11,
+    fontWeight: "900",
+    marginBottom: 5,
+    textTransform: "uppercase",
   },
   required: {
     color: Colors.tertiary,
@@ -213,6 +227,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     backgroundColor: "#FFF",
   },
+  filterInputBox: {
+    minHeight: 42,
+    borderRadius: 10,
+    borderColor: "#D9E2EC",
+    paddingHorizontal: 12,
+  },
   inputDisabled: {
     backgroundColor: "#F9FAFB",
   },
@@ -226,6 +246,11 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: "#374151",
     fontWeight: "500",
+  },
+  filterValueText: {
+    color: Colors.text,
+    fontSize: 13,
+    fontWeight: "800",
   },
   placeholderText: {
     color: "#9CA3AF",
