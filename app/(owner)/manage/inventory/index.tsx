@@ -15,7 +15,7 @@ import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useFocusEffect } from "@react-navigation/native";
 import { useRouter } from "expo-router";
-import React, { useCallback, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useForm } from "react-hook-form";
 import {
   KeyboardAvoidingView,
@@ -79,16 +79,6 @@ function labelize(value: string) {
     .replace(/\b\w/g, (char) => char.toUpperCase());
 }
 
-function catalogTypeToExpenseCategory(
-  type: ApiCatalogItemType,
-): ApiExpenseCategoryCode {
-  if (type === "EQUIPMENT" || type === "OTHER") {
-    return "OTHER_COMPANY";
-  }
-
-  return type;
-}
-
 export default function InventoryScreen() {
   const router = useRouter();
   const { accessToken, hasPermission } = useAuth();
@@ -119,6 +109,8 @@ export default function InventoryScreen() {
     control: catalogControl,
     handleSubmit: handleCatalogSubmit,
     reset: resetCatalog,
+    setValue: setCatalogValue,
+    watch: watchCatalog,
     formState: { errors: catalogErrors },
   } = useForm<CatalogFormData>({
     resolver: zodResolver(catalogSchema),
@@ -139,6 +131,8 @@ export default function InventoryScreen() {
   const selectedExpenseItemId = watchExpense("catalogItemId");
   const expenseBatchId = watchExpense("batchId");
   const expenseLedger = watchExpense("ledger");
+  const selectedCatalogType = watchCatalog("type");
+  const selectedExpenseCategory = watchExpense("category");
   const canSeeCost = hasPermission("view:inventory-cost");
   const {
     selectOptions: catalogTypeOptions,
@@ -150,6 +144,52 @@ export default function InventoryScreen() {
     loading: loadingExpenseCategories,
     errorMessage: expenseCategoryError,
   } = useMasterDataTypeOptions("EXPENSE_CATEGORY");
+
+  useEffect(() => {
+    if (!catalogModalVisible || editingCatalogItem || selectedCatalogType || !catalogTypeOptions[0]) {
+      return;
+    }
+
+    setCatalogValue("type", catalogTypeOptions[0].value, {
+      shouldDirty: false,
+      shouldValidate: true,
+    });
+  }, [
+    catalogModalVisible,
+    catalogTypeOptions,
+    editingCatalogItem,
+    selectedCatalogType,
+    setCatalogValue,
+  ]);
+
+  useEffect(() => {
+    if (selectedExpenseCategory || !expenseCategoryOptions[0]) {
+      return;
+    }
+
+    setExpenseValue("category", expenseCategoryOptions[0].value, {
+      shouldDirty: false,
+      shouldValidate: true,
+    });
+  }, [expenseCategoryOptions, selectedExpenseCategory, setExpenseValue]);
+
+  const catalogTypeToExpenseCategory = useCallback(
+    (type: ApiCatalogItemType): ApiExpenseCategoryCode => {
+      if (expenseCategoryOptions.some((option) => option.value === type)) {
+        return type as ApiExpenseCategoryCode;
+      }
+
+      const companyOther = expenseCategoryOptions.find(
+        (option) => option.value === "OTHER_COMPANY",
+      );
+      if (companyOther) {
+        return companyOther.value as ApiExpenseCategoryCode;
+      }
+
+      return (expenseCategoryOptions[0]?.value ?? "") as ApiExpenseCategoryCode;
+    },
+    [expenseCategoryOptions],
+  );
 
   const vendorOptions = useMemo(
     () =>

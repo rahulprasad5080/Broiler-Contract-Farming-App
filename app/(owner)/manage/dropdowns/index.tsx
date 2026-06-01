@@ -1,7 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect } from "@react-navigation/native";
 import { useRouter } from "expo-router";
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
   FlatList,
@@ -23,12 +23,12 @@ import {
   showRequestErrorToast,
   showSuccessToast,
 } from "@/services/apiFeedback";
+import type { MasterDataTypeCategory } from "@/services/management/types";
 import {
   listMasterDataTypeOptions,
   updateMasterDataTypeOption,
   type ApiMasterDataTypeOption,
 } from "@/services/managementApi";
-import type { MasterDataTypeCategory } from "@/services/management/types";
 
 const CATEGORY_LABELS: Record<string, string> = {
   CATALOG_ITEM_TYPE: "Catalog Item",
@@ -58,6 +58,7 @@ export default function DropdownsListScreen() {
   const [selectedCategory, setSelectedCategory] = useState<MasterDataTypeCategory | null>(null);
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
+  const [totalOptions, setTotalOptions] = useState(0);
   const [loadingMore, setLoadingMore] = useState(false);
 
   const requestCountRef = useRef(0);
@@ -109,6 +110,7 @@ export default function DropdownsListScreen() {
 
         setPage(response?.meta?.page || pageToLoad);
         setTotalPages(Math.max(1, response?.meta?.totalPages || 1));
+        setTotalOptions(response?.meta?.total || newItems.length);
       } catch (error) {
         if (requestId === requestCountRef.current) {
           showRequestErrorToast(error, {
@@ -179,6 +181,17 @@ export default function DropdownsListScreen() {
     }
   };
 
+  const formatDate = (value?: string | null) => {
+    if (!value) return "-";
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return value;
+    return date.toLocaleDateString("en-IN", {
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
+    });
+  };
+
   const renderItem = ({ item }: { item: ApiMasterDataTypeOption }) => {
     const isInactive = item.isActive === false;
     const isToggling = togglingId === item.id;
@@ -212,6 +225,7 @@ export default function DropdownsListScreen() {
           ) : null}
 
           <View style={styles.badgeRow}>
+
             {item.category ? (
               <View style={styles.categoryBadge}>
                 <Text style={styles.categoryBadgeText}>
@@ -235,6 +249,11 @@ export default function DropdownsListScreen() {
                 <Text style={styles.inactiveBadgeText}>INACTIVE</Text>
               </View>
             )}
+          </View>
+
+          <View style={styles.dateMetaRow}>
+            <Text style={styles.dateMetaText}>Created: {formatDate(item.createdAt)}</Text>
+            <Text style={styles.dateMetaText}>Updated: {formatDate(item.updatedAt)}</Text>
           </View>
         </View>
 
@@ -344,6 +363,15 @@ export default function DropdownsListScreen() {
             </View>
           )}
         </View>
+
+        {!loading ? (
+          <View style={styles.resultSummary}>
+            <Text style={styles.resultSummaryText}>
+              Showing {options.length} of {totalOptions} option{totalOptions === 1 ? "" : "s"}
+            </Text>
+            <Text style={styles.resultSummaryMeta}>Page {page} of {totalPages}</Text>
+          </View>
+        ) : null}
 
         {/* List */}
         <FlatList
@@ -490,6 +518,28 @@ const styles = StyleSheet.create({
     color: Colors.textSecondary,
     fontWeight: "500",
   },
+  resultSummary: {
+    minHeight: 38,
+    backgroundColor: "#FFF",
+    borderBottomWidth: 1,
+    borderBottomColor: "#EAEEF2",
+    paddingHorizontal: 14,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 10,
+  },
+  resultSummaryText: {
+    flex: 1,
+    color: Colors.text,
+    fontSize: 12,
+    fontWeight: "800",
+  },
+  resultSummaryMeta: {
+    color: Colors.textSecondary,
+    fontSize: 11,
+    fontWeight: "700",
+  },
 
   // ── List ──────────────────────────────────────────────────────────────────
   listContainer: {
@@ -561,6 +611,18 @@ const styles = StyleSheet.create({
     gap: 5,
     marginTop: 5,
   },
+  idBadge: {
+    maxWidth: "100%",
+    backgroundColor: "#F3F4F6",
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+    borderRadius: 5,
+  },
+  idBadgeText: {
+    fontSize: 10,
+    fontWeight: "700",
+    color: "#6B7280",
+  },
   categoryBadge: {
     backgroundColor: "#DBEAFE",
     paddingHorizontal: 7,
@@ -612,6 +674,17 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     color: "#DC2626",
     letterSpacing: 0.2,
+  },
+  dateMetaRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+    marginTop: 6,
+  },
+  dateMetaText: {
+    color: "#9CA3AF",
+    fontSize: 10,
+    fontWeight: "700",
   },
 
   // ── Switch ────────────────────────────────────────────────────────────────

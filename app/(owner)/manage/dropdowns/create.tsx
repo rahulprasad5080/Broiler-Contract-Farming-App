@@ -46,6 +46,7 @@ export default function DropdownCreateScreen() {
   const [category, setCategory] = useState<MasterDataTypeCategory>(defaultCategory);
   const [value, setValue] = useState("");
   const [description, setDescription] = useState("");
+  const [isActive, setIsActive] = useState(true);
   const [saving, setSaving] = useState(false);
   const [valueFocused, setValueFocused] = useState(false);
   const [descFocused, setDescFocused] = useState(false);
@@ -62,7 +63,7 @@ export default function DropdownCreateScreen() {
         category,
         value: formattedValue,
         description: description.trim() || undefined,
-        isActive: true,
+        isActive,
       });
 
       showSuccessToast(
@@ -165,6 +166,27 @@ export default function DropdownCreateScreen() {
                   onBlur={() => setDescFocused(false)}
                 />
               </View>
+
+              <View style={styles.activeCard}>
+                <View style={styles.activeIcon}>
+                  <Ionicons name="power-outline" size={20} color={Colors.primary} />
+                </View>
+                <View style={styles.activeTextBlock}>
+                  <Text style={styles.activeTitle}>Active option</Text>
+                  <Text style={styles.activeSubtitle}>
+                    Active options appear in dropdown lists immediately.
+                  </Text>
+                </View>
+                <TouchableOpacity
+                  style={[styles.customSwitch, isActive && styles.customSwitchActive]}
+                  onPress={() => setIsActive((current) => !current)}
+                  activeOpacity={0.85}
+                  accessibilityRole="switch"
+                  accessibilityState={{ checked: isActive }}
+                >
+                  <View style={[styles.customSwitchKnob, isActive && styles.customSwitchKnobActive]} />
+                </TouchableOpacity>
+              </View>
             </View>
 
             <View style={styles.buttonRow}>
@@ -266,6 +288,64 @@ const styles = StyleSheet.create({
     textAlignVertical: "top",
     paddingTop: 12,
     paddingBottom: 12,
+  },
+  activeCard: {
+    minHeight: 70,
+    marginTop: 16,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: "#DDEFE3",
+    backgroundColor: "#F8FAF9",
+    padding: 12,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+  },
+  activeIcon: {
+    width: 38,
+    height: 38,
+    borderRadius: 10,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#EEF8F0",
+    flexShrink: 0,
+  },
+  activeTextBlock: {
+    flex: 1,
+    minWidth: 0,
+  },
+  activeTitle: {
+    color: Colors.text,
+    fontSize: 14,
+    fontWeight: "900",
+  },
+  activeSubtitle: {
+    marginTop: 3,
+    color: Colors.textSecondary,
+    fontSize: 11,
+    lineHeight: 15,
+    fontWeight: "600",
+  },
+  customSwitch: {
+    width: 42,
+    height: 24,
+    borderRadius: 12,
+    padding: 3,
+    backgroundColor: "#D1D5DB",
+    justifyContent: "center",
+    flexShrink: 0,
+  },
+  customSwitchActive: {
+    backgroundColor: "#10B981",
+  },
+  customSwitchKnob: {
+    width: 18,
+    height: 18,
+    borderRadius: 9,
+    backgroundColor: "#FFF",
+  },
+  customSwitchKnobActive: {
+    alignSelf: "flex-end",
   },
   chipRow: {
     flexDirection: "row",

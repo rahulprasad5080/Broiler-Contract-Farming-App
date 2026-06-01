@@ -44,7 +44,7 @@ type CatalogFormData = z.infer<typeof catalogSchema>;
 
 const CATALOG_DEFAULTS = {
   name: '',
-  type: 'FEED' as const,
+  type: '',
   unit: '',
   manufacturer: '',
 } satisfies CatalogFormData;
@@ -63,10 +63,11 @@ export default function SupervisorCatalogScreen() {
 
   const draftBannerOpacity = useRef(new Animated.Value(0)).current;
 
-  const { control, handleSubmit, reset, watch, formState: { errors: formErrors } } = useForm<CatalogFormData>({
+  const { control, handleSubmit, reset, setValue, watch, formState: { errors: formErrors } } = useForm<CatalogFormData>({
     resolver: zodResolver(catalogSchema),
     defaultValues: CATALOG_DEFAULTS,
   });
+  const selectedCatalogType = watch('type');
 
   const { clearPersistedData, isRestored } = useFormPersistence(
     'form_draft_catalog_item',
@@ -105,6 +106,17 @@ export default function SupervisorCatalogScreen() {
     };
     fetchCatalog();
   }, [accessToken]);
+
+  useEffect(() => {
+    if (selectedCatalogType || !catalogTypeOptions[0]) {
+      return;
+    }
+
+    setValue('type', catalogTypeOptions[0].value, {
+      shouldDirty: false,
+      shouldValidate: true,
+    });
+  }, [catalogTypeOptions, selectedCatalogType, setValue]);
 
   const handleSave = async (data: CatalogFormData) => {
     if (!accessToken) return;

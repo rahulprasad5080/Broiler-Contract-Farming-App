@@ -1,17 +1,9 @@
 import { z } from "zod";
 import { getLocalDateValue } from "@/services/dateUtils";
 import {
-  API_CATALOG_ITEM_TYPE_VALUES,
-  API_EXPENSE_CATEGORY_CODE_VALUES,
   API_EXPENSE_LEDGER_VALUES,
-  type ApiCatalogItemType,
-  type ApiExpenseCategoryCode,
   type ApiExpenseLedger,
 } from "@/services/managementApi";
-
-export const CATALOG_TYPES = API_CATALOG_ITEM_TYPE_VALUES satisfies readonly ApiCatalogItemType[];
-
-export const EXPENSE_CATEGORIES = API_EXPENSE_CATEGORY_CODE_VALUES satisfies readonly ApiExpenseCategoryCode[];
 
 export const LEDGERS = [
   API_EXPENSE_LEDGER_VALUES[1],
@@ -77,7 +69,7 @@ export type ExpenseFormData = z.infer<typeof expenseSchema>;
 
 export const CATALOG_DEFAULTS = {
   name: "",
-  type: "FEED",
+  type: "",
   sku: "",
   unit: "kg",
   defaultRate: "",
@@ -89,7 +81,7 @@ export const CATALOG_DEFAULTS = {
 export const EXPENSE_DEFAULTS = {
   batchId: "",
   ledger: "COMPANY",
-  category: "FEED",
+  category: "",
   catalogItemId: "",
   expenseDate: getLocalDateValue(),
   description: "",
