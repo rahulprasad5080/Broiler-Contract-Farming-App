@@ -158,12 +158,12 @@ export default function FinancialDashboardScreen() {
       ...(hasPermission("create:purchase")
         ? [
             {
-              label: "Purchase Entry",
+              label: "Create Purchase",
               subtitle: "Record stock purchase",
               icon: "cart-outline" as const,
               tone: "#D97706",
               backgroundColor: "#FFF7ED",
-              onPress: () => router.navigate("/(owner)/manage/inventory/purchase" as any),
+              onPress: () => router.navigate("/(owner)/manage/purchase/createupdate" as any),
             },
           ]
         : []),

@@ -5,7 +5,6 @@ import {
   ExpenseFormData,
   expenseSchema
 } from '@/components/inventory/inventoryTypes';
-import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useFocusEffect } from "@react-navigation/native";
 import { useRouter } from "expo-router";
@@ -269,7 +268,6 @@ export default function InventoryScreen() {
     (sum, item) => sum + Number(item.totalAmount ?? 0),
     0,
   );
-  const canCreatePurchase = hasPermission("create:purchase");
 
   const submitExpense = async (data: ExpenseFormData) => {
     if (!accessToken) {
@@ -358,18 +356,6 @@ export default function InventoryScreen() {
             <Text style={styles.statLabel}>Low Stock</Text>
             <Text style={styles.statValue}>{lowStockCount}</Text>
           </View>
-        </View>
-
-        <View style={styles.actionRow}>
-          {canCreatePurchase ? (
-            <TouchableOpacity
-              style={styles.actionButton}
-              onPress={() => router.navigate("/(owner)/manage/inventory/purchase")}
-            >
-              <MaterialCommunityIcons name="plus-box-outline" size={18} color="#FFF" />
-              <Text style={styles.actionButtonText}>Purchase</Text>
-            </TouchableOpacity>
-          ) : null}
         </View>
 
         <ExpensesTab

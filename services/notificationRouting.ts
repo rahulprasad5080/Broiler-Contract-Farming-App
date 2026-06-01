@@ -193,7 +193,7 @@ function routeForTarget(role: AppRole, targetType?: string, targetId?: string): 
     if (isFarmer) return "/(farmer)/tasks/expenses" as Href;
   }
 
-  if (type === "PURCHASE" && isOwner) return "/(owner)/manage/inventory/purchase" as Href;
+  if (type === "PURCHASE" && isOwner) return "/(owner)/manage/purchase" as Href;
   if (type === "PAYMENT" && isOwner) return "/(owner)/manage/payments" as Href;
   if (type === "SETTLEMENT" && isOwner) return "/(owner)/manage/settlement" as Href;
   if (type === "TREATMENT") {

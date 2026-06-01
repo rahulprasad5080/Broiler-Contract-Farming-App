@@ -275,7 +275,7 @@ export default function OwnerDashboard() {
             title: "Add Purchase",
             subtitle: "Record feed or stock",
             icon: "shopping-bag",
-            href: "/(owner)/manage/inventory/purchase" as Href,
+            href: "/(owner)/manage/purchase/createupdate" as Href,
             accentColor: "#D97706",
             backgroundColor: "#FFF7ED",
           },

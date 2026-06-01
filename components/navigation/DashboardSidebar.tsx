@@ -97,13 +97,6 @@ const ownerRoutes: DashboardSidebarRoute[] = [
     requiredPermission: "create:expenses",
   },
   {
-    title: "Purchase Entry",
-    icon: "bag-outline",
-    route: "/(owner)/manage/inventory/purchase",
-    section: "Entries",
-    requiredPermission: "create:purchase",
-  },
-  {
     title: "Inventory Allocation",
     icon: "swap-horizontal-outline",
     route: "/(owner)/manage/inventory/allocate",

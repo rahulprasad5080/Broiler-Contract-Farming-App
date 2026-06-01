@@ -65,15 +65,6 @@ const ENTRY_ITEMS: EntryItem[] = [
     requiredPermission: "create:sales",
   },
   {
-    title: "Purchase Entry",
-    desc: "Add purchases & payments",
-    icon: "bag-outline",
-    iconType: "Ionicons",
-    color: "#F59E0B",
-    route: "/(owner)/manage/inventory/purchase",
-    requiredPermission: "create:purchase",
-  },
-  {
     title: "Investment Entry",
     desc: "Add investments",
     icon: "document-text-outline",
