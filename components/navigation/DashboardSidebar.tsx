@@ -162,6 +162,14 @@ const ownerRoutes: DashboardSidebarRoute[] = [
     requiredPermission: "manage:inventory",
   },
   {
+    title: "Purchases",
+    subtitle: "Purchase list",
+    icon: "bag-handle-outline",
+    route: "/(owner)/manage/purchase" as Href,
+    section: "Finance",
+    requiredPermission: "create:purchase",
+  },
+  {
     title: "Inventory Ledger",
     subtitle: "Stock movement history",
     icon: "swap-horizontal-outline",

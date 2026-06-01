@@ -9,6 +9,7 @@ export default function ManageLayout() {
       <Stack.Screen name="batches" />
       <Stack.Screen name="catalog" />
       <Stack.Screen name="inventory" />
+      <Stack.Screen name="purchase" />
       <Stack.Screen name="ledger" />
       <Stack.Screen name="finance-entry" />
       <Stack.Screen name="payments" />

@@ -5,7 +5,6 @@ import {
   ExpenseFormData,
   expenseSchema
 } from '@/components/inventory/inventoryTypes';
-import { PurchasesTab } from '@/components/inventory/PurchasesTab';
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useFocusEffect } from "@react-navigation/native";
@@ -34,18 +33,13 @@ import {
   listBatchExpenses,
   listCatalogItems,
   listAllVendors,
-  listFinancePurchases,
   type ApiBatch,
   type ApiBatchExpense,
   type ApiCatalogItem,
   type ApiCatalogItemType,
   type ApiExpenseCategoryCode,
   type ApiVendor,
-  type ApiFinancePurchase,
 } from "@/services/managementApi";
-
-type TabKey = "expenses" | "purchases";
-
 
 function toOptionalNumber(value?: string) {
   if (!value?.trim()) return undefined;
@@ -72,18 +66,13 @@ function labelize(value: string) {
 export default function InventoryScreen() {
   const router = useRouter();
   const { accessToken, hasPermission } = useAuth();
-  const [activeTab, setActiveTab] = useState<TabKey>("purchases");
   const [catalogItems, setCatalogItems] = useState<ApiCatalogItem[]>([]);
   const [batches, setBatches] = useState<ApiBatch[]>([]);
   const [vendors, setVendors] = useState<ApiVendor[]>([]);
   const [expenses, setExpenses] = useState<ApiBatchExpense[]>([]);
-  const [purchases, setPurchases] = useState<ApiFinancePurchase[]>([]);
-  const [filterBatchId, setFilterBatchId] = useState("");
-  const [filterVendorId, setFilterVendorId] = useState("");
   const [, setLoadingCatalog] = useState(false);
   const [loadingBatches, setLoadingBatches] = useState(false);
   const [loadingExpenses, setLoadingExpenses] = useState(false);
-  const [loadingPurchases, setLoadingPurchases] = useState(false);
   const [savingExpense, setSavingExpense] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -221,41 +210,6 @@ export default function InventoryScreen() {
     }
   }, [accessToken]);
 
-  const loadPurchases = useCallback(async () => {
-    if (!accessToken) {
-      setError("Missing access token. Please sign in again.");
-      return;
-    }
-
-    setLoadingPurchases(true);
-    setError(null);
-
-    try {
-      const response = await listFinancePurchases(accessToken, {
-        vendorId: filterVendorId.trim() || undefined,
-      });
-      setPurchases(response.data);
-    } catch (err) {
-      setError(
-        showRequestErrorToast(err, {
-          title: "Unable to load purchases",
-          fallbackMessage: "Failed to load stock purchases.",
-        }),
-      );
-    } finally {
-      setLoadingPurchases(false);
-    }
-  }, [accessToken, filterVendorId]);
-
-  const filteredPurchases = useMemo(() => {
-    return purchases.filter((item) => {
-      if (filterBatchId.trim() && item.batchId !== filterBatchId.trim()) {
-        return false;
-      }
-      return true;
-    });
-  }, [purchases, filterBatchId]);
-
   const loadExpenses = useCallback(async () => {
     if (!accessToken) {
       setError("Missing access token. Please sign in again.");
@@ -378,9 +332,9 @@ export default function InventoryScreen() {
   return (
     <View style={styles.safeArea}>
       <TopAppBar
-        title="Stock, Purchases, Expenses"
+        title="Stock & Expenses"
         eyebrow="Inventory operations"
-        subtitle="Catalog, ledger, and expense tracking"
+        subtitle="Catalog stock and expense tracking"
         onBack={() => router.replace('/(owner)/dashboard')}
       />
       <KeyboardAvoidingView
@@ -418,75 +372,29 @@ export default function InventoryScreen() {
           ) : null}
         </View>
 
-        <View style={styles.tabBar}>
-          {([
-            { key: "purchases", label: "Purchases" },
-            { key: "expenses", label: "Expenses" },
-          ] as { key: TabKey; label: string }[]).map((tab) => (
-            <TouchableOpacity
-              key={tab.key}
-              style={[styles.tab, activeTab === tab.key && styles.tabActive]}
-              onPress={() => {
-                setActiveTab(tab.key);
-                if (tab.key === "purchases") void loadPurchases();
-              }}
-            >
-              <Text
-                style={[
-                  styles.tabLabel,
-                  activeTab === tab.key && styles.tabLabelActive,
-                ]}
-              >
-                {tab.label}
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </View>
-
-        {activeTab === "expenses" && (
-          <ExpensesTab
-            expenseControl={expenseControl}
-            expenseErrors={expenseErrors}
-            handleExpenseSubmit={handleExpenseSubmit}
-            submitExpense={submitExpense}
-            savingExpense={savingExpense}
-            loadingExpenses={loadingExpenses}
-            expenses={expenses}
-            loadExpenses={loadExpenses}
-            catalogItems={catalogItems}
-            labelize={labelize}
-            formatQuantity={formatQuantity}
-            formatINR={formatINR}
-            setExpenseValue={setExpenseValue}
-            selectedExpenseItem={selectedExpenseItem}
-            catalogTypeToExpenseCategory={catalogTypeToExpenseCategory}
-            canSeeCost={canSeeCost}
-            loadedExpenseTotal={loadedExpenseTotal}
-            expenseCategoryOptions={expenseCategoryOptions}
-            loadingExpenseCategories={loadingExpenseCategories}
-            expenseCategoryError={expenseCategoryError}
-            vendorOptions={vendorOptions}
-          />
-        )}
-
-        {activeTab === "purchases" && (
-          <PurchasesTab
-            purchases={filteredPurchases}
-            batches={batches}
-            vendors={vendors}
-            filterBatchId={filterBatchId}
-            setFilterBatchId={setFilterBatchId}
-            filterVendorId={filterVendorId}
-            setFilterVendorId={setFilterVendorId}
-            vendorOptions={vendorOptions}
-            loadPurchases={loadPurchases}
-            loadingPurchases={loadingPurchases}
-            loadingBatches={loadingBatches}
-            labelize={labelize}
-            formatQuantity={formatQuantity}
-            formatINR={formatINR}
-          />
-        )}
+        <ExpensesTab
+          expenseControl={expenseControl}
+          expenseErrors={expenseErrors}
+          handleExpenseSubmit={handleExpenseSubmit}
+          submitExpense={submitExpense}
+          savingExpense={savingExpense}
+          loadingExpenses={loadingExpenses}
+          expenses={expenses}
+          loadExpenses={loadExpenses}
+          catalogItems={catalogItems}
+          labelize={labelize}
+          formatQuantity={formatQuantity}
+          formatINR={formatINR}
+          setExpenseValue={setExpenseValue}
+          selectedExpenseItem={selectedExpenseItem}
+          catalogTypeToExpenseCategory={catalogTypeToExpenseCategory}
+          canSeeCost={canSeeCost}
+          loadedExpenseTotal={loadedExpenseTotal}
+          expenseCategoryOptions={expenseCategoryOptions}
+          loadingExpenseCategories={loadingExpenseCategories}
+          expenseCategoryError={expenseCategoryError}
+          vendorOptions={vendorOptions}
+        />
 <View style={{ height: 24 }} />
       </ScrollView>
       </KeyboardAvoidingView>
