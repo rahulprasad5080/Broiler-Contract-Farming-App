@@ -1,375 +1,155 @@
-import { ScreenState } from '@/components/ui/ScreenState';
-import { TopAppBar } from '@/components/ui/TopAppBar';
-import { Colors } from '@/constants/Colors';
-import { Layout } from '@/constants/Layout';
-import { useAuth } from '@/context/AuthContext';
-import { useFormPersistence } from '@/hooks/useFormPersistence';
-import { useMasterDataTypeOptions } from '@/hooks/useMasterDataTypeOptions';
+import { ScreenState } from "@/components/ui/ScreenState";
+import { TopAppBar } from "@/components/ui/TopAppBar";
+import { Colors } from "@/constants/Colors";
+import { useAuth } from "@/context/AuthContext";
 import {
   showRequestErrorToast,
-  showSuccessToast,
-} from '@/services/apiFeedback';
+} from "@/services/apiFeedback";
 import {
-  ApiCatalogItem,
-  createCatalogItem,
   listCatalogItems,
-} from '@/services/managementApi';
-import { Ionicons } from '@expo/vector-icons';
-import { zodResolver } from '@hookform/resolvers/zod';
-import React, { useEffect, useRef, useState } from 'react';
-import { Controller, useForm } from 'react-hook-form';
+  type ApiCatalogItem,
+} from "@/services/managementApi";
+import { useFocusEffect } from "@react-navigation/native";
+import React, { useCallback, useState } from "react";
 import {
   ActivityIndicator,
-  Animated,
   FlatList,
-  KeyboardAvoidingView,
-  Platform,
   StyleSheet,
   Text,
-  TextInput,
-  TouchableOpacity,
   View,
-} from 'react-native';
-import { z } from 'zod';
-import { SearchableSelectField } from '@/components/ui/SearchableSelectField';
-
-const catalogSchema = z.object({
-  name: z.string().min(1, 'Name is required'),
-  type: z.string().min(1, 'Type is required'),
-  unit: z.string().min(1, 'Unit is required'),
-  manufacturer: z.string().optional(),
-});
-
-type CatalogFormData = z.infer<typeof catalogSchema>;
-
-const CATALOG_DEFAULTS = {
-  name: '',
-  type: '',
-  unit: '',
-  manufacturer: '',
-} satisfies CatalogFormData;
+} from "react-native";
 
 export default function SupervisorCatalogScreen() {
   const { accessToken } = useAuth();
-
   const [items, setItems] = useState<ApiCatalogItem[]>([]);
   const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
-  const {
-    selectOptions: catalogTypeOptions,
-    loading: loadingCatalogTypes,
-    errorMessage: catalogTypeError,
-  } = useMasterDataTypeOptions('CATALOG_ITEM_TYPE');
 
-  const draftBannerOpacity = useRef(new Animated.Value(0)).current;
-
-  const { control, handleSubmit, reset, setValue, watch, formState: { errors: formErrors } } = useForm<CatalogFormData>({
-    resolver: zodResolver(catalogSchema),
-    defaultValues: CATALOG_DEFAULTS,
-  });
-  const selectedCatalogType = watch('type');
-
-  const { clearPersistedData, isRestored } = useFormPersistence(
-    'form_draft_catalog_item',
-    watch,
-    reset,
-    CATALOG_DEFAULTS,
-  );
-
-  const [showBanner, setShowBanner] = useState(false);
-
-  useEffect(() => {
-    if (!isRestored) return;
-    setShowBanner(true);
-    Animated.sequence([
-      Animated.timing(draftBannerOpacity, { toValue: 1, duration: 300, useNativeDriver: true }),
-      Animated.delay(2500),
-      Animated.timing(draftBannerOpacity, { toValue: 0, duration: 400, useNativeDriver: true }),
-    ]).start(() => setShowBanner(false));
-  }, [isRestored, draftBannerOpacity]);
-
-  useEffect(() => {
-    const fetchCatalog = async () => {
-      if (!accessToken) return;
-      setLoading(true);
-      try {
-        const res = await listCatalogItems(accessToken, { limit: 100 });
-        setItems(res.data);
-      } catch (error) {
-        showRequestErrorToast(error, {
-          title: 'Unable to load catalog',
-          fallbackMessage: 'Failed to fetch catalog items.',
-        });
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchCatalog();
-  }, [accessToken]);
-
-  useEffect(() => {
-    if (selectedCatalogType || !catalogTypeOptions[0]) {
-      return;
-    }
-
-    setValue('type', catalogTypeOptions[0].value, {
-      shouldDirty: false,
-      shouldValidate: true,
-    });
-  }, [catalogTypeOptions, selectedCatalogType, setValue]);
-
-  const handleSave = async (data: CatalogFormData) => {
+  const loadCatalog = useCallback(async () => {
     if (!accessToken) return;
-
-    setSaving(true);
+    setLoading(true);
     try {
-      const created = await createCatalogItem(accessToken, {
-        name: data.name.trim(),
-        type: data.type,
-        unit: data.unit.trim(),
-        manufacturer: data.manufacturer?.trim() || undefined,
-      });
-      setItems((prev) => [created, ...prev]);
-      await clearPersistedData();
-      reset();
-      showSuccessToast('Catalog item added.');
+      const response = await listCatalogItems(accessToken, { limit: 100 });
+      setItems(response.data);
     } catch (error) {
       showRequestErrorToast(error, {
-        title: 'Catalog save failed',
-        fallbackMessage: 'Failed to add item.',
+        title: "Unable to load catalog",
+        fallbackMessage: "Failed to fetch catalog items.",
       });
     } finally {
-      setSaving(false);
+      setLoading(false);
     }
-  };
+  }, [accessToken]);
+
+  useFocusEffect(
+    useCallback(() => {
+      void loadCatalog();
+    }, [loadCatalog]),
+  );
 
   return (
     <View style={styles.safeArea}>
-      <TopAppBar title="Catalog Master" subtitle="Feed, medicine, vaccine, and equipment items" />
-      <KeyboardAvoidingView
-        behavior={Platform.OS === "ios" ? "padding" : "height"}
-        style={{ flex: 1 }}
-      >
-
-        <FlatList
-          data={loading ? [] : items}
-          keyExtractor={(item) => item.id}
-          style={styles.mainScroll}
-          contentContainerStyle={styles.container}
-          showsVerticalScrollIndicator={false}
-          keyboardShouldPersistTaps="handled"
-          ListHeaderComponent={
-            <>
-              <View style={styles.card}>
-                {/* Draft restored banner */}
-                {showBanner && (
-                  <Animated.View style={[styles.draftBanner, { opacity: draftBannerOpacity }]} pointerEvents="none">
-                    <Ionicons name="cloud-done-outline" size={16} color="#0B5C36" />
-                    <Text style={styles.draftBannerText}>Draft restored</Text>
-                  </Animated.View>
-                )}
-
-                <Text style={styles.sectionTitle}>Add New Item</Text>
-
-                <Controller
-                  control={control}
-                  name="name"
-                  render={({ field: { onChange, value } }) => (
-                    <>
-                      <Text style={styles.label}>Name *</Text>
-                      <View style={[styles.inputBox, formErrors.name && { borderColor: Colors.tertiary }]}>
-                        <TextInput
-                          style={styles.input}
-                          value={value}
-                          onChangeText={onChange}
-                          placeholder="e.g., Pre-starter Feed"
-                          placeholderTextColor={Colors.textSecondary}
-                        />
-                      </View>
-                      {formErrors.name && <Text style={styles.fieldErrorText}>{formErrors.name.message}</Text>}
-                    </>
-                  )}
-                />
-
-                <Controller
-                  control={control}
-                  name="type"
-                  render={({ field: { onChange, value } }) => (
-                    <SearchableSelectField
-                      label="Type"
-                      value={value}
-                      options={catalogTypeOptions}
-                      onSelect={onChange}
-                      placeholder={loadingCatalogTypes ? 'Loading types...' : 'Select type'}
-                      searchPlaceholder="Search catalog type"
-                      emptyMessage="No catalog types found"
-                      error={formErrors.type?.message || catalogTypeError || undefined}
-                      disabled={loadingCatalogTypes}
-                      required
-                    />
-                  )}
-                />
-
-                <Controller
-                  control={control}
-                  name="unit"
-                  render={({ field: { onChange, value } }) => (
-                    <>
-                      <Text style={styles.label}>Unit *</Text>
-                      <View style={[styles.inputBox, formErrors.unit && { borderColor: Colors.tertiary }]}>
-                        <TextInput
-                          style={styles.input}
-                          value={value}
-                          onChangeText={onChange}
-                          placeholder="e.g., kg, ml, pieces"
-                          placeholderTextColor={Colors.textSecondary}
-                        />
-                      </View>
-                      {formErrors.unit && <Text style={styles.fieldErrorText}>{formErrors.unit.message}</Text>}
-                    </>
-                  )}
-                />
-
-                <Controller
-                  control={control}
-                  name="manufacturer"
-                  render={({ field: { onChange, value } }) => (
-                    <>
-                      <Text style={styles.label}>Manufacturer</Text>
-                      <View style={[styles.inputBox, styles.textArea, formErrors.manufacturer && { borderColor: Colors.tertiary }]}>
-                        <TextInput
-                          style={[styles.input, styles.multiLine]}
-                          value={value}
-                          onChangeText={onChange}
-                          placeholder="Optional brand or manufacturer"
-                          placeholderTextColor={Colors.textSecondary}
-                          multiline
-                        />
-                      </View>
-                      {formErrors.manufacturer && <Text style={styles.fieldErrorText}>{formErrors.manufacturer.message}</Text>}
-                    </>
-                  )}
-                />
-
-                <TouchableOpacity style={styles.submitBtn} onPress={handleSubmit(handleSave)} disabled={saving}>
-                  {saving ? <ActivityIndicator color="#FFF" /> : <Text style={styles.submitBtnText}>Add Item</Text>}
-                </TouchableOpacity>
-              </View>
-
-              <View style={styles.listHeaderCard}>
-                <Text style={styles.sectionTitle}>Existing Items</Text>
-                {loading ? <ScreenState title="Loading catalog" message="Fetching catalog items." loading compact /> : null}
-              </View>
-            </>
-          }
-          renderItem={({ item }) => (
-            <View style={[styles.listItem, styles.listItemCard]}>
-              <View style={styles.itemCopy}>
-                <Text style={styles.itemName}>{item.name}</Text>
-                <Text style={styles.itemMeta}>
-                  {item.type}
-                  {item.unit ? ` | ${item.unit}` : ''}
-                  {item.manufacturer ? ` | ${item.manufacturer}` : ''}
+      <TopAppBar title="Catalog" subtitle="Catalog items list" />
+      <FlatList
+        data={loading ? [] : items}
+        keyExtractor={(item) => item.id}
+        contentContainerStyle={[styles.container, !loading && !items.length && styles.empty]}
+        ListHeaderComponent={
+          loading ? (
+            <ScreenState title="Loading catalog" message="Fetching catalog items." loading compact />
+          ) : null
+        }
+        renderItem={({ item }) => (
+          <View style={styles.card}>
+            <View style={styles.cardTop}>
+              <View style={styles.copy}>
+                <Text style={styles.title}>{item.name}</Text>
+                <Text style={styles.meta}>
+                  {[item.type, item.sku, item.unit, item.manufacturer].filter(Boolean).join(" | ")}
                 </Text>
-                <Text style={styles.itemMeta}>
-                  Stock {Number(item.currentStock ?? 0).toLocaleString('en-IN')}
-                  {item.reorderLevel ? ` | Reorder ${item.reorderLevel}` : ''}
+                <Text style={styles.meta}>
+                  Stock {Number(item.currentStock ?? 0).toLocaleString("en-IN")} {item.unit}
+                  {item.reorderLevel ? ` | Reorder ${item.reorderLevel}` : ""}
                 </Text>
               </View>
-              <View style={[styles.statusBadge, { backgroundColor: item.isActive ? '#E8F5E9' : '#FFEBEE' }]}>
-                <Text style={[styles.statusText, { color: item.isActive ? '#2E7D32' : '#C62828' }]}>
-                  {item.isActive ? 'Active' : 'Inactive'}
+              <View style={[styles.badge, item.isActive === false && styles.badgeOff]}>
+                <Text style={[styles.badgeText, item.isActive === false && styles.badgeTextOff]}>
+                  {item.isActive === false ? "Inactive" : "Active"}
                 </Text>
               </View>
             </View>
-          )}
-          ListEmptyComponent={!loading ? (
-            <ScreenState title="No items found" message="Add a catalog item to start tracking inventory." icon="cube-outline" />
-          ) : null}
-        />
-      </KeyboardAvoidingView>
+          </View>
+        )}
+        ListEmptyComponent={
+          !loading ? (
+            <ScreenState title="No catalog items" message="No catalog items found." icon="cube-outline" />
+          ) : null
+        }
+        ListFooterComponent={
+          loading && items.length ? (
+            <ActivityIndicator color={Colors.primary} />
+          ) : (
+            <View style={{ height: 24 }} />
+          )
+        }
+      />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: '#0B5C36' },
-  container: { paddingHorizontal: 20, paddingTop: 10, paddingBottom: 100, maxWidth: Layout.contentMaxWidth, alignSelf: 'center', width: '100%' },
-  mainScroll: { flex: 1, backgroundColor: '#F9FAFB' },
-  draftBanner: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    backgroundColor: '#E7F5ED',
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#B7E0C2',
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    marginBottom: 16,
+  safeArea: {
+    flex: 1,
+    backgroundColor: "#F4F6F8",
   },
-  draftBannerText: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: '#0B5C36',
+  container: {
+    padding: 14,
+    paddingBottom: 48,
+  },
+  empty: {
+    flexGrow: 1,
   },
   card: {
-    backgroundColor: '#FFF', borderRadius: Layout.borderRadius.sm, padding: 20, marginBottom: 20,
-    borderWidth: 1, borderColor: '#F3F4F6',
-    shadowColor: "#000", shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.05, shadowRadius: 10, elevation: 2,
-  },
-  listHeaderCard: {
-    backgroundColor: '#FFF',
-    borderRadius: Layout.borderRadius.sm,
-    padding: 20,
-    marginBottom: 12,
+    backgroundColor: "#FFF",
+    borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#F3F4F6',
-  },
-  sectionTitle: { fontSize: 18, fontWeight: '700', color: "#111827", marginBottom: 20 },
-  label: { fontSize: 14, fontWeight: '600', color: "#374151", marginBottom: 8, marginTop: 14 },
-  inputBox: {
-    minHeight: 52, borderWidth: 1.5, borderColor: "#E5E7EB", borderRadius: 12,
-    paddingHorizontal: 16, justifyContent: 'center', backgroundColor: '#F9FAFB',
-  },
-  input: { fontSize: 15, color: "#111827", padding: 0 },
-  textArea: { minHeight: 90, paddingTop: 12 },
-  multiLine: { minHeight: 70, textAlignVertical: 'top' },
-  chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
-  chip: {
-    paddingHorizontal: 14, paddingVertical: 10, borderRadius: 12, backgroundColor: '#F3F4F6',
-    borderWidth: 1.5, borderColor: 'transparent',
-  },
-  chipActive: { backgroundColor: '#E7F5ED', borderColor: '#0B5C36' },
-  chipText: { fontSize: 12, fontWeight: '700', color: "#6B7280" },
-  chipTextActive: { color: '#0B5C36' },
-  submitBtn: {
-    backgroundColor: "#0B5C36", height: 52, borderRadius: 12,
-    justifyContent: 'center', alignItems: 'center', marginTop: 24,
-    shadowColor: "#0B5C36", shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.2, shadowRadius: 8, elevation: 3
-  },
-  submitBtnText: { color: '#FFF', fontSize: 16, fontWeight: '700' },
-  fieldErrorText: {
-    color: "#DC2626",
-    fontSize: 11,
-    marginTop: 6,
-    fontWeight: '600',
-  },
-  listItem: {
-    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
-    paddingVertical: 16, borderBottomWidth: 1, borderBottomColor: '#F3F4F6',
-  },
-  listItemCard: {
-    backgroundColor: '#FFF',
-    borderRadius: Layout.borderRadius.sm,
-    borderWidth: 1,
-    borderColor: '#F3F4F6',
-    paddingHorizontal: 16,
+    borderColor: "#E5E7EB",
+    padding: 14,
     marginBottom: 10,
   },
-  itemCopy: { flex: 1, paddingRight: 12 },
-  itemName: { fontSize: 16, fontWeight: '700', color: "#111827" },
-  itemMeta: { fontSize: 13, color: "#6B7280", marginTop: 4 },
-  statusBadge: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8 },
-  statusText: { fontSize: 11, fontWeight: '800' },
+  cardTop: {
+    flexDirection: "row",
+    gap: 12,
+  },
+  copy: {
+    flex: 1,
+  },
+  title: {
+    color: Colors.text,
+    fontSize: 15,
+    fontWeight: "900",
+  },
+  meta: {
+    color: Colors.textSecondary,
+    fontSize: 12,
+    lineHeight: 17,
+    marginTop: 3,
+  },
+  badge: {
+    alignSelf: "flex-start",
+    borderRadius: 8,
+    paddingHorizontal: 9,
+    paddingVertical: 4,
+    backgroundColor: "#E8F5E9",
+  },
+  badgeOff: {
+    backgroundColor: "#FEF2F2",
+  },
+  badgeText: {
+    color: Colors.primary,
+    fontSize: 11,
+    fontWeight: "900",
+  },
+  badgeTextOff: {
+    color: Colors.error,
+  },
 });

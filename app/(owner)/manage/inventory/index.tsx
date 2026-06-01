@@ -1,12 +1,8 @@
-import { CatalogTab } from '@/components/inventory/CatalogTab';
 import { ExpensesTab } from '@/components/inventory/ExpensesTab';
 import { styles } from '@/components/inventory/inventoryStyles';
 import {
-  CATALOG_DEFAULTS,
-  CatalogFormData,
   EXPENSE_DEFAULTS,
   ExpenseFormData,
-  catalogSchema,
   expenseSchema
 } from '@/components/inventory/inventoryTypes';
 import { LedgerTab } from '@/components/inventory/LedgerTab';
@@ -36,13 +32,11 @@ import {
 } from "@/services/apiFeedback";
 import {
   createBatchExpense,
-  createCatalogItem,
   listAllBatches,
   listBatchExpenses,
   listCatalogItems,
   listAllVendors,
   listInventoryLedger,
-  updateCatalogItem,
   listFinancePurchases,
   type ApiBatch,
   type ApiBatchExpense,
@@ -54,7 +48,7 @@ import {
   type ApiFinancePurchase,
 } from "@/services/managementApi";
 
-type TabKey = "catalog" | "ledger" | "expenses" | "purchases";
+type TabKey = "ledger" | "expenses" | "purchases";
 
 
 function toOptionalNumber(value?: string) {
@@ -82,7 +76,7 @@ function labelize(value: string) {
 export default function InventoryScreen() {
   const router = useRouter();
   const { accessToken, hasPermission } = useAuth();
-  const [activeTab, setActiveTab] = useState<TabKey>("catalog");
+  const [activeTab, setActiveTab] = useState<TabKey>("ledger");
   const [catalogItems, setCatalogItems] = useState<ApiCatalogItem[]>([]);
   const [batches, setBatches] = useState<ApiBatch[]>([]);
   const [ledgerRows, setLedgerRows] = useState<ApiInventoryLedgerEntry[]>([]);
@@ -94,28 +88,13 @@ export default function InventoryScreen() {
   const [ledgerVendorId, setLedgerVendorId] = useState("");
   const [filterBatchId, setFilterBatchId] = useState("");
   const [filterVendorId, setFilterVendorId] = useState("");
-  const [loadingCatalog, setLoadingCatalog] = useState(false);
+  const [, setLoadingCatalog] = useState(false);
   const [loadingBatches, setLoadingBatches] = useState(false);
   const [loadingLedger, setLoadingLedger] = useState(false);
   const [loadingExpenses, setLoadingExpenses] = useState(false);
   const [loadingPurchases, setLoadingPurchases] = useState(false);
-  const [savingCatalog, setSavingCatalog] = useState(false);
   const [savingExpense, setSavingExpense] = useState(false);
-  const [catalogModalVisible, setCatalogModalVisible] = useState(false);
-  const [editingCatalogItem, setEditingCatalogItem] = useState<ApiCatalogItem | null>(null);
   const [error, setError] = useState<string | null>(null);
-
-  const {
-    control: catalogControl,
-    handleSubmit: handleCatalogSubmit,
-    reset: resetCatalog,
-    setValue: setCatalogValue,
-    watch: watchCatalog,
-    formState: { errors: catalogErrors },
-  } = useForm<CatalogFormData>({
-    resolver: zodResolver(catalogSchema),
-    defaultValues: CATALOG_DEFAULTS,
-  });
 
   const {
     control: expenseControl,
@@ -131,36 +110,13 @@ export default function InventoryScreen() {
   const selectedExpenseItemId = watchExpense("catalogItemId");
   const expenseBatchId = watchExpense("batchId");
   const expenseLedger = watchExpense("ledger");
-  const selectedCatalogType = watchCatalog("type");
   const selectedExpenseCategory = watchExpense("category");
   const canSeeCost = hasPermission("view:inventory-cost");
-  const {
-    selectOptions: catalogTypeOptions,
-    loading: loadingCatalogTypes,
-    errorMessage: catalogTypeError,
-  } = useMasterDataTypeOptions("CATALOG_ITEM_TYPE");
   const {
     selectOptions: expenseCategoryOptions,
     loading: loadingExpenseCategories,
     errorMessage: expenseCategoryError,
   } = useMasterDataTypeOptions("EXPENSE_CATEGORY");
-
-  useEffect(() => {
-    if (!catalogModalVisible || editingCatalogItem || selectedCatalogType || !catalogTypeOptions[0]) {
-      return;
-    }
-
-    setCatalogValue("type", catalogTypeOptions[0].value, {
-      shouldDirty: false,
-      shouldValidate: true,
-    });
-  }, [
-    catalogModalVisible,
-    catalogTypeOptions,
-    editingCatalogItem,
-    selectedCatalogType,
-    setCatalogValue,
-  ]);
 
   useEffect(() => {
     if (selectedExpenseCategory || !expenseCategoryOptions[0]) {
@@ -398,101 +354,6 @@ export default function InventoryScreen() {
     0,
   );
   const canCreatePurchase = hasPermission("create:purchase");
-  const openCreateCatalogModal = useCallback(() => {
-    setEditingCatalogItem(null);
-    resetCatalog(CATALOG_DEFAULTS);
-    setCatalogModalVisible(true);
-  }, [resetCatalog]);
-
-  const openEditCatalogModal = useCallback(
-    (item: ApiCatalogItem) => {
-      setEditingCatalogItem(item);
-      resetCatalog({
-        name: item.name ?? "",
-        type: item.type,
-        sku: item.sku ?? "",
-        unit: item.unit ?? "kg",
-        defaultRate: item.defaultRate?.toString() ?? "",
-        reorderLevel: item.reorderLevel?.toString() ?? "",
-        currentStock: item.currentStock?.toString() ?? "",
-        manufacturer: item.manufacturer ?? "",
-      });
-      setCatalogModalVisible(true);
-    },
-    [resetCatalog],
-  );
-
-  const closeCatalogModal = useCallback(() => {
-    if (savingCatalog) return;
-    setCatalogModalVisible(false);
-    setEditingCatalogItem(null);
-    resetCatalog(CATALOG_DEFAULTS);
-  }, [resetCatalog, savingCatalog]);
-
-  const submitCatalogItem = async (data: CatalogFormData) => {
-    if (!accessToken) {
-      setError("Missing access token. Please sign in again.");
-      return;
-    }
-
-    setSavingCatalog(true);
-    setError(null);
-
-    try {
-      const sharedPayload = {
-        name: data.name.trim(),
-        sku: data.sku?.trim() || undefined,
-        unit: data.unit.trim(),
-        defaultRate: toOptionalNumber(data.defaultRate),
-        reorderLevel: toOptionalNumber(data.reorderLevel),
-        manufacturer: data.manufacturer?.trim() || undefined,
-      };
-
-      if (editingCatalogItem) {
-        const updated = await updateCatalogItem(
-          accessToken,
-          editingCatalogItem.id,
-          sharedPayload,
-        );
-
-        setCatalogItems((prev) =>
-          prev.map((item) => (item.id === updated.id ? updated : item)),
-        );
-        if (selectedExpenseItemId === updated.id) {
-          setExpenseValue("unit", updated.unit);
-        }
-        resetCatalog(CATALOG_DEFAULTS);
-        setEditingCatalogItem(null);
-        setCatalogModalVisible(false);
-        showSuccessToast("Catalog item updated successfully.", "Updated");
-        return;
-      }
-
-      const created = await createCatalogItem(accessToken, {
-        ...sharedPayload,
-        type: data.type,
-        currentStock: toOptionalNumber(data.currentStock),
-      });
-
-      setCatalogItems((prev) => [created, ...prev]);
-      setLedgerCatalogItemId(created.id);
-      setExpenseValue("catalogItemId", created.id);
-      resetCatalog(CATALOG_DEFAULTS);
-      setCatalogModalVisible(false);
-      showSuccessToast("Catalog item created successfully.", "Saved");
-    } catch (err) {
-      setError(
-        showRequestErrorToast(err, {
-          title: "Catalog save failed",
-          fallbackMessage: editingCatalogItem
-            ? "Failed to update catalog item."
-            : "Failed to create catalog item.",
-        }),
-      );
-    } finally {
-      setSavingCatalog(false);
-    }
-  };
 
   const submitExpense = async (data: ExpenseFormData) => {
     if (!accessToken) {
@@ -574,12 +435,6 @@ export default function InventoryScreen() {
 
         <View style={styles.statsRow}>
           <View style={styles.statCard}>
-            <Text style={styles.statLabel}>Catalog</Text>
-            <Text style={styles.statValue}>
-              {loadingCatalog ? "..." : catalogItems.length}
-            </Text>
-          </View>
-          <View style={styles.statCard}>
             <Text style={styles.statLabel}>Stock</Text>
             <Text style={styles.statValue}>{formatQuantity(stockOnHand)}</Text>
           </View>
@@ -612,7 +467,6 @@ export default function InventoryScreen() {
 
         <View style={styles.tabBar}>
           {([
-            { key: "catalog", label: "Catalog" },
             { key: "ledger", label: "Ledger" },
             { key: "purchases", label: "Purchases" },
             { key: "expenses", label: "Expenses" },
@@ -639,29 +493,6 @@ export default function InventoryScreen() {
         </View>
 
         
-        {activeTab === "catalog" && (
-          <CatalogTab
-            catalogControl={catalogControl}
-            catalogErrors={catalogErrors}
-            handleCatalogSubmit={handleCatalogSubmit}
-            submitCatalogItem={submitCatalogItem}
-            savingCatalog={savingCatalog}
-            catalogModalVisible={catalogModalVisible}
-            catalogModalMode={editingCatalogItem ? "edit" : "create"}
-            loadingCatalog={loadingCatalog}
-            catalogItems={catalogItems}
-            loadCatalog={loadCatalog}
-            openCreateCatalogModal={openCreateCatalogModal}
-            openEditCatalogModal={openEditCatalogModal}
-            closeCatalogModal={closeCatalogModal}
-            labelize={labelize}
-            formatQuantity={formatQuantity}
-            catalogTypeOptions={catalogTypeOptions}
-            loadingCatalogTypes={loadingCatalogTypes}
-            catalogTypeError={catalogTypeError}
-          />
-        )}
-
         {activeTab === "ledger" && (
           <LedgerTab
             catalogItems={catalogItems}

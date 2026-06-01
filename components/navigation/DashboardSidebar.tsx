@@ -147,6 +147,14 @@ const ownerRoutes: DashboardSidebarRoute[] = [
     requiredPermission: "manage:users",
   },
   {
+    title: "Catalog",
+    subtitle: "Catalog items list",
+    icon: "cube-outline",
+    route: "/(owner)/manage/catalog" as Href,
+    section: "Management",
+    requiredPermission: "manage:inventory",
+  },
+  {
     title: "Inventory",
     icon: "cube-outline",
     route: "/(owner)/manage/inventory",
@@ -250,13 +258,6 @@ const supervisorRoutes: DashboardSidebarRoute[] = [
     route: "/(supervisor)/tasks/comments",
     section: "Entries",
     requiredPermission: "view:comments",
-  },
-  {
-    title: "Catalog Master",
-    icon: "archive-outline",
-    route: "/(supervisor)/manage/catalog",
-    section: "Management",
-    requiredPermission: "manage:catalog",
   },
   {
     title: "Traders",
