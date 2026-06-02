@@ -148,18 +148,6 @@ export default function InventoryLedgerScreen() {
 
   const hasActiveFilters = Boolean(catalogItemId || batchId || vendorId);
 
-  const ledgerTotals = useMemo(
-    () =>
-      rows.reduce(
-        (totals, item) => ({
-          in: totals.in + Number(item.quantityIn ?? 0),
-          out: totals.out + Number(item.quantityOut ?? 0),
-        }),
-        { in: 0, out: 0 },
-      ),
-    [rows],
-  );
-
   const clearFilters = useCallback(() => {
     setCatalogItemId("");
     setBatchId("");
@@ -226,8 +214,6 @@ export default function InventoryLedgerScreen() {
     const quantityIn = Number(item.quantityIn ?? 0);
     const quantityOut = Number(item.quantityOut ?? 0);
     const netQuantity = quantityIn - quantityOut;
-    const reference = [labelize(item.referenceType), item.referenceId].filter((value) => value && value !== "-").join(" | ");
-
     return (
       <View style={styles.card}>
         <View style={styles.cardHeader}>
@@ -298,6 +284,17 @@ export default function InventoryLedgerScreen() {
         subtitle="Stock movement history"
         leadingMode="back"
         onBack={() => router.back()}
+        right={
+          <TouchableOpacity
+            style={styles.headerAddButton}
+            onPress={() => router.navigate('/(owner)/manage/allocate')}
+            activeOpacity={0.8}
+            accessibilityRole="button"
+            accessibilityLabel="Allocate inventory"
+          >
+            <Ionicons name="add" size={24} color="#FFF" />
+          </TouchableOpacity>
+        }
       />
       <View style={styles.page}>
         <FlatList
@@ -436,6 +433,14 @@ const styles = StyleSheet.create({
   page: {
     flex: 1,
     backgroundColor: "#F4F6F8",
+  },
+  headerAddButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "rgba(255,255,255,0.16)",
   },
   listContent: {
     padding: 14,
