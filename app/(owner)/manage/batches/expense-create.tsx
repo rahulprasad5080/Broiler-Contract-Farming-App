@@ -48,9 +48,7 @@ type ExpenseFormState = {
   unit: string;
   rate: string;
   totalAmount: string;
-  vendorName: string;
   invoiceNumber: string;
-  billPhotoUrl: string;
   paymentStatus: ApiTransactionPaymentStatus;
   approvalStatus: ApiExpenseApprovalStatus;
   rejectedReason: string;
@@ -69,9 +67,7 @@ function createDefaultForm(ledger: ApiBatchExpense['ledger'] = 'COMPANY'): Expen
     unit: '',
     rate: '',
     totalAmount: '',
-    vendorName: '',
     invoiceNumber: '',
-    billPhotoUrl: '',
     paymentStatus: 'PENDING',
     approvalStatus: 'PENDING',
     rejectedReason: '',
@@ -143,9 +139,7 @@ export default function BatchExpenseCreateScreen() {
           unit: expense.unit ?? '',
           rate: expense.rate === undefined || expense.rate === null ? '' : String(expense.rate),
           totalAmount: expense.totalAmount === undefined || expense.totalAmount === null ? '' : String(expense.totalAmount),
-          vendorName: expense.vendorName ?? '',
           invoiceNumber: expense.invoiceNumber ?? '',
-          billPhotoUrl: expense.billPhotoUrl ?? '',
           paymentStatus: expense.paymentStatus ?? 'PENDING',
           approvalStatus: expense.approvalStatus ?? 'PENDING',
           rejectedReason: expense.rejectedReason ?? '',
@@ -202,9 +196,7 @@ export default function BatchExpenseCreateScreen() {
         unit: toOptionalText(form.unit),
         rate: toOptionalNumber(form.rate),
         totalAmount: Number(form.totalAmount),
-        vendorName: toOptionalText(form.vendorName),
         invoiceNumber: toOptionalText(form.invoiceNumber),
-        billPhotoUrl: toOptionalText(form.billPhotoUrl),
         paymentStatus: form.paymentStatus,
         notes: toOptionalText(form.notes),
       };
@@ -347,8 +339,6 @@ export default function BatchExpenseCreateScreen() {
               <InputField label="Vendor ID" value={form.vendorId} onChangeText={(value) => updateForm('vendorId', value)} />
             </View>
 
-            <InputField label="Vendor Name" value={form.vendorName} onChangeText={(value) => updateForm('vendorName', value)} />
-
             <View style={styles.row}>
               <InputField
                 label="Quantity"
@@ -370,15 +360,7 @@ export default function BatchExpenseCreateScreen() {
               />
             </View>
 
-            <View style={styles.row}>
-              <InputField label="Invoice Number" value={form.invoiceNumber} onChangeText={(value) => updateForm('invoiceNumber', value)} />
-              <InputField
-                label="Bill Photo URL"
-                value={form.billPhotoUrl}
-                onChangeText={(value) => updateForm('billPhotoUrl', value)}
-                keyboardType="url"
-              />
-            </View>
+            <InputField label="Invoice Number" value={form.invoiceNumber} onChangeText={(value) => updateForm('invoiceNumber', value)} />
 
             <InputField label="Notes" value={form.notes} onChangeText={(value) => updateForm('notes', value)} multiline />
 

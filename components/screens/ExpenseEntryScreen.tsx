@@ -49,7 +49,6 @@ const EXPENSE_DEFAULTS: ExpenseFormData = {
   catalogItemId: "",
   category: "",
   vendorId: "",
-  vendorName: "",
   description: "",
   quantity: "",
   unit: "",
@@ -57,7 +56,6 @@ const EXPENSE_DEFAULTS: ExpenseFormData = {
   totalAmount: "",
   expenseDate: getLocalDateValue(),
   invoiceNumber: "",
-  billPhotoUrl: "",
   notes: "",
   paymentType: "Cash",
 };
@@ -68,7 +66,6 @@ const expenseSchema = z.object({
   catalogItemId: z.string().optional(),
   category: z.string().min(1, "Select category"),
   vendorId: z.string().optional(),
-  vendorName: z.string().optional(),
   description: z.string().optional(),
   quantity: z.string().optional(),
   unit: z.string().optional(),
@@ -76,7 +73,6 @@ const expenseSchema = z.object({
   totalAmount: z.string().min(1, "Amount is required"),
   expenseDate: z.string().min(1, "Date is required"),
   invoiceNumber: z.string().optional(),
-  billPhotoUrl: z.string().optional(),
   notes: z.string().optional(),
   paymentType: z.string(),
 });
@@ -243,7 +239,7 @@ export function ExpenseEntryScreen({ title = "Expense Entry", subtitle, onBack }
         category: payloadCategory as ApiExpenseCategoryCode,
         catalogItemId: data.catalogItemId?.trim() || undefined,
         vendorId: data.vendorId?.trim() || undefined,
-        vendorName: data.vendorName?.trim() || selectedVendor?.name || undefined,
+        vendorName: selectedVendor?.name || undefined,
         expenseDate: data.expenseDate,
         description: data.description?.trim() || data.notes?.trim() || payloadCategory,
         quantity: data.quantity?.trim() ? Number(data.quantity) : undefined,
@@ -251,7 +247,6 @@ export function ExpenseEntryScreen({ title = "Expense Entry", subtitle, onBack }
         rate: data.rate?.trim() ? Number(data.rate) : undefined,
         totalAmount: Number(data.totalAmount),
         invoiceNumber: data.invoiceNumber?.trim() || undefined,
-        billPhotoUrl: data.billPhotoUrl?.trim() || undefined,
         notes: data.notes?.trim() || undefined,
         clientReferenceId: `expense-${Date.now()}`,
       };
@@ -264,7 +259,7 @@ export function ExpenseEntryScreen({ title = "Expense Entry", subtitle, onBack }
         await clearPersistedData();
         showSuccessToast("Saved offline. It will sync automatically.");
         setSavedMessage("Saved offline. It will sync when internet returns.");
-        reset({ ...data, description: "", quantity: "", rate: "", totalAmount: "", invoiceNumber: "", billPhotoUrl: "", notes: "" });
+        reset({ ...data, description: "", quantity: "", rate: "", totalAmount: "", invoiceNumber: "", notes: "" });
         router.replace(getDashboardRoute(user?.role ?? "FARMER"));
         return;
       }
@@ -273,7 +268,7 @@ export function ExpenseEntryScreen({ title = "Expense Entry", subtitle, onBack }
       showSuccessToast("Expense saved successfully.");
       setSavedMessage("Expense saved successfully.");
       await clearPersistedData();
-      reset({ ...data, description: "", quantity: "", rate: "", totalAmount: "", invoiceNumber: "", billPhotoUrl: "", notes: "" });
+      reset({ ...data, description: "", quantity: "", rate: "", totalAmount: "", invoiceNumber: "", notes: "" });
       router.replace(getDashboardRoute(user?.role ?? "FARMER"));
     } catch (error) {
       showRequestErrorToast(error, { title: "Save failed" });
@@ -417,23 +412,6 @@ export function ExpenseEntryScreen({ title = "Expense Entry", subtitle, onBack }
             ) : null}
 
             <View style={styles.inputGroup}>
-              <Text style={styles.label}>Vendor Name</Text>
-              <Controller
-                control={control}
-                name="vendorName"
-                render={({ field: { value, onChange } }) => (
-                  <TextInput
-                    style={styles.input}
-                    value={value}
-                    onChangeText={onChange}
-                    placeholder="Vendor name"
-                    placeholderTextColor="#9CA3AF"
-                  />
-                )}
-              />
-            </View>
-
-            <View style={styles.inputGroup}>
               <Text style={styles.label}>Description</Text>
               <Controller
                 control={control}
@@ -559,25 +537,6 @@ export function ExpenseEntryScreen({ title = "Expense Entry", subtitle, onBack }
                     onChangeText={onChange}
                     placeholder="INV-001"
                     placeholderTextColor="#9CA3AF"
-                  />
-                )}
-              />
-            </View>
-
-            <View style={styles.inputGroup}>
-              <Text style={styles.label}>Bill Photo URL</Text>
-              <Controller
-                control={control}
-                name="billPhotoUrl"
-                render={({ field: { value, onChange } }) => (
-                  <TextInput
-                    style={styles.input}
-                    value={value}
-                    onChangeText={onChange}
-                    placeholder="https://..."
-                    placeholderTextColor="#9CA3AF"
-                    autoCapitalize="none"
-                    keyboardType="url"
                   />
                 )}
               />
