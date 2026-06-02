@@ -421,7 +421,9 @@ export default function ReportsScreen() {
     [accessToken, batchSummary, exporting],
   );
 
-  if (loading && !refreshing) {
+  const showInitialLoader = loading && !refreshing && activeTab === "overview" && !overview;
+
+  if (showInitialLoader) {
     return (
       <View style={styles.safeArea}>
         <TopAppBar title="Poultry Reports" subtitle="Loading metrics..." />
