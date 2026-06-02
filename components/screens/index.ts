@@ -1,3 +1,4 @@
+export { BatchRecordsListScreen } from "./BatchRecordsListScreen";
 export { DailyEntryListScreen } from "./DailyEntryListScreen";
 export { DailyEntryScreen } from "./DailyEntryScreen";
 export { ExpenseEntryScreen } from "./ExpenseEntryScreen";

@@ -4,11 +4,12 @@ import { styles } from './styles';
 import type { ApiBatchPnl } from '@/services/managementApi';
 
 function formatNumber(value?: number | null, suffix = '') {
-  if (value === undefined || value === null) return '0';
+  if (value === undefined || value === null) return '-';
   return `${Number(value).toLocaleString('en-IN')}${suffix}`;
 }
 
 function formatMoney(value?: number | null) {
+  if (value === undefined || value === null) return '-';
   return `Rs. ${formatNumber(value)}`;
 }
 
@@ -67,7 +68,6 @@ export function PnlTab({
         <View style={styles.expenseHistoryHeader}>
           <View style={styles.expenseHistoryTitleWrap}>
             <Text style={styles.expenseHistoryTitle}>P&L Details</Text>
-            <Text style={styles.expenseHistoryMeta}>Loaded from /batches/{'{batchId}'}/pnl</Text>
           </View>
         </View>
         <View style={styles.expenseInfoGrid}>
@@ -76,7 +76,6 @@ export function PnlTab({
         </View>
       </View>
 
-      {/* P&L Toggle */}
       <View style={styles.expenseToggleBox}>
         <TouchableOpacity
           style={[styles.expenseToggleBtn, activePnlTab === 'company' && styles.expenseToggleBtnActive]}

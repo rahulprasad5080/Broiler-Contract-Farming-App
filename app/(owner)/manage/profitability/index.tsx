@@ -1,15 +1,14 @@
 import { useRouter } from 'expo-router';
 import { BatchRecordsListScreen } from '@/components/screens';
 
-export default function OwnerSalesScreen() {
+export default function OwnerProfitabilityScreen() {
   const router = useRouter();
 
   return (
     <BatchRecordsListScreen
-      mode="sales"
-      title="Sales"
-      subtitle="Batch-wise sales list"
-      createRoute="/(owner)/manage/sales/create"
+      mode="profitability"
+      title="Profitability"
+      subtitle="Batch-wise P&L summary"
       onBack={() => router.replace('/(owner)/dashboard')}
     />
   );
