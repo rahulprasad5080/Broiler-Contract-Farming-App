@@ -1,5 +1,5 @@
-import { DailyEntriesTab } from '@/components/batches/tabs/DailyEntriesTab';
 import { CostsTab } from '@/components/batches/tabs/CostsTab';
+import { DailyEntriesTab } from '@/components/batches/tabs/DailyEntriesTab';
 import { ExpensesTab } from '@/components/batches/tabs/ExpensesTab';
 import { OverviewTab } from '@/components/batches/tabs/OverviewTab';
 import { PnlTab } from '@/components/batches/tabs/PnlTab';
@@ -19,8 +19,8 @@ import {
   fetchBatchSettlement,
   listBatchComments,
   listBatchExpenses,
-  listLegacyBatchCosts,
   listDailyLogs,
+  listLegacyBatchCosts,
   listSales,
   listTreatments,
   updateBatchStatus,
@@ -42,7 +42,7 @@ import { saveAndShareReport } from '@/services/reportExport';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import { useLocalSearchParams, useRouter, type Href } from 'expo-router';
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Modal,
@@ -196,9 +196,6 @@ function BatchFullDetails({ batch }: { batch: ApiBatch }) {
 
       <Text style={styles.detailGroupTitle}>Batch Information</Text>
       <View style={styles.detailGrid}>
-        <DetailItem label="Batch ID" value={batch.id} />
-        <DetailItem label="Organization ID" value={batch.organizationId} />
-        <DetailItem label="Farm ID" value={batch.farmId} />
         <DetailItem label="Farm Name" value={batch.farmName} />
         <DetailItem label="Code" value={batch.code} />
         <DetailItem label="Status" value={labelize(batch.status)} />
