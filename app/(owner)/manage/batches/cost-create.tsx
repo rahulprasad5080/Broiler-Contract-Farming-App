@@ -15,6 +15,7 @@ import {
 
 import { DatePickerField } from '@/components/ui/DatePickerField';
 import { ScreenState } from '@/components/ui/ScreenState';
+import { SearchableSelectField } from '@/components/ui/SearchableSelectField';
 import { TopAppBar } from '@/components/ui/TopAppBar';
 import { Colors } from '@/constants/Colors';
 import { useAuth } from '@/context/AuthContext';
@@ -23,9 +24,14 @@ import { getLocalDateValue } from '@/services/dateUtils';
 import {
   createLegacyBatchCost,
   fetchBatch,
+  listAllBatches,
+  listAllVendors,
+  listCatalogItems,
   type ApiBatch,
   type ApiBatchExpense,
+  type ApiCatalogItem,
   type ApiExpenseCategoryCode,
+  type ApiVendor,
 } from '@/services/managementApi';
 
 const THEME_GREEN = '#0B5C36';
@@ -41,9 +47,7 @@ type CostFormState = {
   unit: string;
   rate: string;
   totalAmount: string;
-  vendorName: string;
   invoiceNumber: string;
-  billPhotoUrl: string;
   notes: string;
 };
 
@@ -59,9 +63,7 @@ function createDefaultForm(ledger: ApiBatchExpense['ledger'] = 'COMPANY'): CostF
     unit: '',
     rate: '',
     totalAmount: '',
-    vendorName: '',
     invoiceNumber: '',
-    billPhotoUrl: '',
     notes: '',
   };
 }
@@ -89,16 +91,25 @@ function labelize(value?: string | null) {
 export default function BatchCostCreateScreen() {
   const router = useRouter();
   const { accessToken } = useAuth();
-  const { batchId, ledger } = useLocalSearchParams<{ batchId?: string; ledger?: string }>();
+  const { batchId: routeBatchId, ledger, lockBatch } = useLocalSearchParams<{
+    batchId?: string;
+    ledger?: string;
+    lockBatch?: string;
+  }>();
   const initialLedger = ledger === 'FARMER' ? 'FARMER' : 'COMPANY';
+  const shouldLockBatch = lockBatch === '1';
+  const [selectedBatchId, setSelectedBatchId] = useState(routeBatchId ?? '');
   const [batch, setBatch] = useState<ApiBatch | null>(null);
+  const [batches, setBatches] = useState<ApiBatch[]>([]);
+  const [vendors, setVendors] = useState<ApiVendor[]>([]);
+  const [catalogItems, setCatalogItems] = useState<ApiCatalogItem[]>([]);
   const [form, setForm] = useState<CostFormState>(() => createDefaultForm(initialLedger));
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const loadBatch = useCallback(async () => {
-    if (!accessToken || !batchId) {
+    if (!accessToken) {
       setLoading(false);
       return;
     }
@@ -106,8 +117,32 @@ export default function BatchCostCreateScreen() {
     setLoading(true);
     try {
       setErrorMessage(null);
-      const response = await fetchBatch(accessToken, batchId);
-      setBatch(response);
+      const [batchesResponse, vendorsResponse, catalogResponse] = await Promise.all([
+        listAllBatches(accessToken),
+        listAllVendors(accessToken),
+        listCatalogItems(accessToken, { limit: 100 }),
+      ]);
+      setBatches(batchesResponse.data ?? []);
+      setVendors(vendorsResponse.data ?? []);
+      setCatalogItems((catalogResponse.data ?? []).filter((item) => item.isActive !== false));
+
+      const effectiveBatchId =
+        selectedBatchId ||
+        routeBatchId ||
+        batchesResponse.data.find((item) => item.status === 'ACTIVE' || item.status === 'SALES_RUNNING')?.id ||
+        batchesResponse.data[0]?.id ||
+        '';
+
+      if (effectiveBatchId && effectiveBatchId !== selectedBatchId) {
+        setSelectedBatchId(effectiveBatchId);
+      }
+
+      if (effectiveBatchId) {
+        const response = await fetchBatch(accessToken, effectiveBatchId);
+        setBatch(response);
+      } else {
+        setBatch(null);
+      }
     } catch (error) {
       setErrorMessage(
         showRequestErrorToast(error, {
@@ -118,7 +153,41 @@ export default function BatchCostCreateScreen() {
     } finally {
       setLoading(false);
     }
-  }, [accessToken, batchId]);
+  }, [accessToken, routeBatchId, selectedBatchId]);
+
+  const vendorOptions = React.useMemo(
+    () =>
+      vendors.map((vendor) => ({
+        label: vendor.name,
+        value: vendor.id,
+        description: vendor.phone ?? undefined,
+        keywords: [vendor.phone, vendor.email, vendor.address].filter(Boolean).join(' '),
+      })),
+    [vendors],
+  );
+
+  const catalogOptions = React.useMemo(
+    () =>
+      catalogItems.map((item) => ({
+        label: item.name,
+        value: item.id,
+        description: `${item.type} - ${item.unit}`,
+        keywords: [item.sku, item.type, item.unit].filter(Boolean).join(' '),
+      })),
+    [catalogItems],
+  );
+
+  const selectedVendor = vendors.find((vendor) => vendor.id === form.vendorId);
+  const batchOptions = React.useMemo(
+    () =>
+      batches.map((item) => ({
+        label: item.code,
+        value: item.id,
+        description: item.farmName ?? undefined,
+        keywords: `${item.farmName ?? ''} ${item.status}`,
+      })),
+    [batches],
+  );
 
   useEffect(() => {
     void loadBatch();
@@ -138,8 +207,23 @@ export default function BatchCostCreateScreen() {
     });
   };
 
+  const selectCatalogItem = (value: string) => {
+    updateForm('catalogItemId', value);
+    const selectedItem = catalogItems.find((item) => item.id === value);
+    if (!selectedItem) return;
+    setForm((current) => ({
+      ...current,
+      catalogItemId: value,
+      unit: selectedItem.unit ?? current.unit,
+      rate:
+        selectedItem.defaultRate !== undefined && selectedItem.defaultRate !== null
+          ? String(selectedItem.defaultRate)
+          : current.rate,
+    }));
+  };
+
   const submitCost = async () => {
-    if (!accessToken || !batchId || submitting) return;
+    if (!accessToken || !selectedBatchId || submitting) return;
     if (!form.category.trim() || !form.expenseDate.trim() || !form.totalAmount.trim()) {
       showRequestErrorToast(new Error('Category, date, and total amount are required.'), {
         title: 'Cost details missing',
@@ -149,7 +233,7 @@ export default function BatchCostCreateScreen() {
 
     setSubmitting(true);
     try {
-      await createLegacyBatchCost(accessToken, batchId, {
+      await createLegacyBatchCost(accessToken, selectedBatchId, {
         ledger: form.ledger,
         catalogItemId: toOptionalText(form.catalogItemId),
         vendorId: toOptionalText(form.vendorId),
@@ -160,9 +244,8 @@ export default function BatchCostCreateScreen() {
         unit: toOptionalText(form.unit),
         rate: toOptionalNumber(form.rate),
         totalAmount: Number(form.totalAmount),
-        vendorName: toOptionalText(form.vendorName),
+        vendorName: selectedVendor?.name,
         invoiceNumber: toOptionalText(form.invoiceNumber),
-        billPhotoUrl: toOptionalText(form.billPhotoUrl),
         notes: toOptionalText(form.notes),
         clientReferenceId: `cost-${Date.now()}`,
       });
@@ -205,11 +288,26 @@ export default function BatchCostCreateScreen() {
             <View style={styles.batchCard}>
               <View>
                 <Text style={styles.batchLabel}>Batch</Text>
-                <Text style={styles.batchTitle}>{batch?.code ?? batchId}</Text>
+                <Text style={styles.batchTitle}>{batch?.code ?? (selectedBatchId || 'Select batch')}</Text>
                 <Text style={styles.batchMeta}>{batch?.farmName ?? 'Farm not loaded'}</Text>
               </View>
               <Ionicons name="calculator-outline" size={24} color={THEME_GREEN} />
             </View>
+
+            <SearchableSelectField
+              label="Batch"
+              value={selectedBatchId}
+              options={batchOptions}
+              onSelect={(value) => {
+                setSelectedBatchId(value);
+                const selected = batches.find((item) => item.id === value) ?? null;
+                setBatch(selected);
+              }}
+              placeholder="Select batch"
+              searchPlaceholder="Search batch or farm"
+              emptyMessage="No batches found"
+              locked={shouldLockBatch}
+            />
 
             <View style={styles.ledgerToggle}>
               {(['COMPANY', 'FARMER'] as const).map((item) => {
@@ -238,12 +336,25 @@ export default function BatchCostCreateScreen() {
 
             <InputField label="Description" value={form.description} onChangeText={(value) => updateForm('description', value)} />
 
-            <View style={styles.row}>
-              <InputField label="Catalog Item ID" value={form.catalogItemId} onChangeText={(value) => updateForm('catalogItemId', value)} />
-              <InputField label="Vendor ID" value={form.vendorId} onChangeText={(value) => updateForm('vendorId', value)} />
-            </View>
+            <SearchableSelectField
+              label="Catalog Item"
+              value={form.catalogItemId}
+              options={[{ label: 'No catalog item', value: '' }, ...catalogOptions]}
+              onSelect={selectCatalogItem}
+              placeholder="Optional catalog item"
+              searchPlaceholder="Search catalog item"
+              emptyMessage="No catalog items found"
+            />
 
-            <InputField label="Vendor Name" value={form.vendorName} onChangeText={(value) => updateForm('vendorName', value)} />
+            <SearchableSelectField
+              label="Vendor"
+              value={form.vendorId}
+              options={[{ label: 'No vendor', value: '' }, ...vendorOptions]}
+              onSelect={(value) => updateForm('vendorId', value)}
+              placeholder="Optional vendor"
+              searchPlaceholder="Search vendor"
+              emptyMessage="No vendors found"
+            />
 
             <View style={styles.row}>
               <InputField
@@ -266,15 +377,7 @@ export default function BatchCostCreateScreen() {
               />
             </View>
 
-            <View style={styles.row}>
-              <InputField label="Invoice Number" value={form.invoiceNumber} onChangeText={(value) => updateForm('invoiceNumber', value)} />
-              <InputField
-                label="Bill Photo URL"
-                value={form.billPhotoUrl}
-                onChangeText={(value) => updateForm('billPhotoUrl', value)}
-                keyboardType="url"
-              />
-            </View>
+            <InputField label="Invoice Number" value={form.invoiceNumber} onChangeText={(value) => updateForm('invoiceNumber', value)} />
 
             <InputField label="Notes" value={form.notes} onChangeText={(value) => updateForm('notes', value)} multiline />
 

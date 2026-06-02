@@ -701,7 +701,7 @@ export default function BatchDetailsScreen() {
                   canUseExpenses
                     ? () =>
                         router.navigate(
-                          `/(owner)/manage/batches/cost-create?batchId=${encodeURIComponent(id)}&ledger=COMPANY` as Href,
+                          `/(owner)/manage/batches/cost-create?batchId=${encodeURIComponent(id)}&ledger=COMPANY&lockBatch=1` as Href,
                         )
                     : undefined
                 }
