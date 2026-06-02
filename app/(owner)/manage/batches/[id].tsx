@@ -76,6 +76,15 @@ function formatNumber(value?: number | null, suffix = '') {
   return `${Number(value).toLocaleString('en-IN')}${suffix}`;
 }
 
+function formatCurrency(value?: number | null) {
+  return `Rs ${Number(value ?? 0).toLocaleString('en-IN')}`;
+}
+
+function formatValue(value?: string | number | null) {
+  if (value === undefined || value === null || value === '') return 'Not set';
+  return String(value);
+}
+
 function labelize(value?: string | null) {
   if (!value) return 'Not set';
   return value
@@ -150,6 +159,88 @@ function getLocalDateValue(date = new Date()) {
   const month = String(date.getMonth() + 1).padStart(2, '0');
   const day = String(date.getDate()).padStart(2, '0');
   return `${year}-${month}-${day}`;
+}
+
+function DetailItem({ label, value }: { label: string; value?: string | number | null }) {
+  return (
+    <View style={styles.detailItem}>
+      <Text style={styles.detailItemLabel}>{label}</Text>
+      <Text style={styles.detailItemValue} numberOfLines={2}>
+        {formatValue(value)}
+      </Text>
+    </View>
+  );
+}
+
+function BatchFullDetails({ batch }: { batch: ApiBatch }) {
+  const summary = batch.summary;
+
+  return (
+    <View style={styles.fullDetailsCard}>
+      <View style={styles.fullDetailsHeader}>
+        <View>
+          <Text style={styles.sectionTitle}>Batch Full Details</Text>
+          <Text style={styles.fullDetailsSub}>Loaded from /batches/{'{batchId}'}</Text>
+        </View>
+        <Ionicons name="server-outline" size={20} color={THEME_GREEN} />
+      </View>
+
+      <Text style={styles.detailGroupTitle}>Batch Information</Text>
+      <View style={styles.detailGrid}>
+        <DetailItem label="Batch ID" value={batch.id} />
+        <DetailItem label="Organization ID" value={batch.organizationId} />
+        <DetailItem label="Farm ID" value={batch.farmId} />
+        <DetailItem label="Farm Name" value={batch.farmName} />
+        <DetailItem label="Code" value={batch.code} />
+        <DetailItem label="Status" value={labelize(batch.status)} />
+        <DetailItem label="Placement Date" value={formatDate(batch.placementDate)} />
+        <DetailItem label="Target Close Date" value={formatDate(batch.targetCloseDate)} />
+        <DetailItem label="Actual Close Date" value={formatDate(batch.actualCloseDate)} />
+        <DetailItem label="Locked At" value={formatDate(batch.lockedAt)} />
+        <DetailItem label="Created At" value={formatDate(batch.createdAt)} />
+        <DetailItem label="Updated At" value={formatDate(batch.updatedAt)} />
+      </View>
+
+      <Text style={styles.detailGroupTitle}>Chick Purchase</Text>
+      <View style={styles.detailGrid}>
+        <DetailItem label="Placement Count" value={formatNumber(batch.placementCount)} />
+        <DetailItem label="Total Chicks Purchased" value={formatNumber(batch.totalChicksPurchased)} />
+        <DetailItem label="Free Chicks" value={formatNumber(batch.freeChicks)} />
+        <DetailItem label="Chargeable Chicks" value={formatNumber(batch.chargeableChicks)} />
+        <DetailItem label="Placement Mortality" value={formatNumber(batch.placementMortality)} />
+        <DetailItem label="Chick Cost Total" value={formatCurrency(batch.chickCostTotal)} />
+        <DetailItem label="Chick Rate/Bird" value={formatCurrency(batch.chickRatePerBird)} />
+        <DetailItem label="Rate Per Chick" value={formatCurrency(batch.ratePerChick)} />
+        <DetailItem label="Transport Charge" value={formatCurrency(batch.chickTransportCharge)} />
+        <DetailItem label="Source Hatchery" value={batch.sourceHatchery} />
+        <DetailItem label="Vendor ID" value={batch.vendorId} />
+        <DetailItem label="Vendor Name" value={batch.vendorName} />
+      </View>
+
+      <Text style={styles.detailGroupTitle}>Summary</Text>
+      <View style={styles.detailGrid}>
+        <DetailItem label="Current Age Days" value={formatNumber(summary?.currentAgeDays)} />
+        <DetailItem label="Live Birds" value={formatNumber(summary?.liveBirds)} />
+        <DetailItem label="Today Mortality %" value={formatNumber(summary?.todayMortality, '%')} />
+        <DetailItem label="Mortality Count" value={formatNumber(summary?.mortalityCount)} />
+        <DetailItem label="Cull Count" value={formatNumber(summary?.cullCount)} />
+        <DetailItem label="Loading Mortality" value={formatNumber(summary?.loadingMortalityCount)} />
+        <DetailItem label="Mortality %" value={formatNumber(summary?.mortalityPercent, '%')} />
+        <DetailItem label="Sold Birds" value={formatNumber(summary?.soldBirds ?? summary?.soldBirdCount)} />
+        <DetailItem label="Feed Consumed" value={formatNumber(summary?.totalFeedConsumedKg, ' kg')} />
+        <DetailItem label="Weight Sold" value={formatNumber(summary?.totalWeightSoldKg, ' kg')} />
+        <DetailItem label="Average Weight" value={formatNumber(summary?.averageWeightGrams, ' g')} />
+        <DetailItem label="FCR" value={formatNumber(summary?.fcr)} />
+      </View>
+
+      {batch.notes ? (
+        <View style={styles.fullNotesBox}>
+          <Text style={styles.detailItemLabel}>Notes</Text>
+          <Text style={styles.fullNotesText}>{batch.notes}</Text>
+        </View>
+      ) : null}
+    </View>
+  );
 }
 
 export default function BatchDetailsScreen() {
@@ -245,9 +336,7 @@ export default function BatchDetailsScreen() {
   const fcr = summary?.fcr ? formatNumber(summary.fcr) : '0';
   const avgWeight = summary?.averageWeightGrams ? formatNumber(summary.averageWeightGrams / 1000, ' kg') : '0 kg';
   const feedConsumed = summary?.totalFeedConsumedKg ? formatNumber(summary.totalFeedConsumedKg, ' kg') : '0 kg';
-  const ageDays = summary?.currentAgeDays ?? 28;
-  const expectedAge = 45;
-  const toGo = expectedAge - ageDays > 0 ? expectedAge - ageDays : 0;
+  const ageDays = summary?.currentAgeDays ?? 0;
   const activeExpenses = activeExpenseTab === 'company' ? companyExpenses : farmerExpenses;
   const activeExpenseTitle = activeExpenseTab === 'company' ? 'Company Expenses' : 'Farmer Expenses';
 
@@ -492,17 +581,19 @@ export default function BatchDetailsScreen() {
           <>
             
             {activeTab === 'overview' && (
-              <OverviewTab
-                chicksPlaced={chicksPlaced}
-                liveBirds={liveBirds}
-                mortality={mortality}
-                fcr={fcr}
-                avgWeight={avgWeight}
-                feedConsumed={feedConsumed}
-                ageDays={ageDays}
-                expectedAge={expectedAge}
-                toGo={toGo}
-              />
+              <>
+                <OverviewTab
+                  chicksPlaced={chicksPlaced}
+                  liveBirds={liveBirds}
+                  mortality={mortality}
+                  fcr={fcr}
+                  avgWeight={avgWeight}
+                  feedConsumed={feedConsumed}
+                  ageDays={ageDays}
+                />
+                {batch ? <BatchFullDetails batch={batch} /> : null}
+                <View style={{ height: 40 }} />
+              </>
             )}
             
             {activeTab === 'daily' && (
@@ -832,6 +923,79 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     color: '#111827',
     marginBottom: 12,
+  },
+  fullDetailsCard: {
+    backgroundColor: '#FFF',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    padding: 14,
+    marginBottom: 20,
+  },
+  fullDetailsHeader: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+    gap: 12,
+    marginBottom: 6,
+  },
+  fullDetailsSub: {
+    color: Colors.textSecondary,
+    fontSize: 11,
+    fontWeight: '700',
+    marginTop: -7,
+  },
+  detailGroupTitle: {
+    color: THEME_GREEN,
+    fontSize: 12,
+    fontWeight: '900',
+    marginTop: 14,
+    marginBottom: 8,
+    textTransform: 'uppercase',
+  },
+  detailGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  detailItem: {
+    flexGrow: 1,
+    flexBasis: 132,
+    minHeight: 62,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#EEF2F7',
+    backgroundColor: '#F8FAFC',
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+  },
+  detailItemLabel: {
+    color: Colors.textSecondary,
+    fontSize: 10,
+    fontWeight: '900',
+    textTransform: 'uppercase',
+  },
+  detailItemValue: {
+    color: Colors.text,
+    fontSize: 12,
+    fontWeight: '800',
+    lineHeight: 16,
+    marginTop: 4,
+  },
+  fullNotesBox: {
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#DBEAFE',
+    backgroundColor: '#EFF6FF',
+    padding: 12,
+    marginTop: 14,
+  },
+  fullNotesText: {
+    color: '#334155',
+    fontSize: 12,
+    fontWeight: '700',
+    lineHeight: 18,
+    marginTop: 5,
   },
   viewAllText: {
     fontSize: 13,

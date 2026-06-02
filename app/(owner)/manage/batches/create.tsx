@@ -121,6 +121,7 @@ const batchSchema = z.object({
   vendorId: z.string().optional(),
   vendorName: z.string().optional(),
   targetCloseDate: z.string().optional(),
+  actualCloseDate: z.string().optional(),
   notes: z.string().optional(),
 });
 
@@ -143,6 +144,7 @@ const BATCH_FORM_DEFAULTS: BatchFormData = {
   vendorId: '',
   vendorName: '',
   targetCloseDate: '',
+  actualCloseDate: '',
   notes: '',
 };
 
@@ -252,6 +254,7 @@ export default function CreateBatchScreen() {
           vendorId: batchResponse.vendorId ?? '',
           vendorName: batchResponse.vendorName ?? '',
           targetCloseDate: toDateInput(batchResponse.targetCloseDate),
+          actualCloseDate: toDateInput(batchResponse.actualCloseDate),
           notes: batchResponse.notes ?? '',
         });
         setAutoCodeOffset(0);
@@ -318,15 +321,17 @@ export default function CreateBatchScreen() {
         vendorId: toOptionalText(data.vendorId),
         vendorName: toOptionalText(data.vendorName),
         targetCloseDate: toOptionalText(data.targetCloseDate),
+        actualCloseDate: toOptionalText(data.actualCloseDate),
         notes: toOptionalText(data.notes),
       };
 
       if (isEditMode && batchId) {
         await updateBatch(accessToken, batchId, payload);
       } else {
+        const { actualCloseDate: _actualCloseDate, ...createPayload } = payload;
         await createBatch(accessToken, {
           farmId: data.farmId,
-          ...payload,
+          ...createPayload,
         });
       }
 
@@ -649,6 +654,22 @@ export default function CreateBatchScreen() {
             />
           )}
         />
+
+        {isEditMode ? (
+          <Controller
+            control={control}
+            name="actualCloseDate"
+            render={({ field: { onChange, value } }) => (
+              <DatePickerField
+                label="Actual Close Date"
+                value={value}
+                onChange={onChange}
+                placeholder="Select actual close date"
+                error={formErrors.actualCloseDate?.message}
+              />
+            )}
+          />
+        ) : null}
 
         <Controller
           control={control}
