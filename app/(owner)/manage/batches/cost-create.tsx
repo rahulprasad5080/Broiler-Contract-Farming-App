@@ -16,6 +16,7 @@ import {
 import { DatePickerField } from '@/components/ui/DatePickerField';
 import { ScreenState } from '@/components/ui/ScreenState';
 import { SearchableSelectField } from '@/components/ui/SearchableSelectField';
+import { useMasterDataTypeOptions } from '@/hooks/useMasterDataTypeOptions';
 import { TopAppBar } from '@/components/ui/TopAppBar';
 import { Colors } from '@/constants/Colors';
 import { useAuth } from '@/context/AuthContext';
@@ -108,6 +109,12 @@ export default function BatchCostCreateScreen() {
   const [submitting, setSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
+  const {
+    selectOptions: categoryOptions,
+    loading: loadingCategories,
+    errorMessage: categoryError,
+  } = useMasterDataTypeOptions('EXPENSE_CATEGORY');
+
   const loadBatch = useCallback(async () => {
     if (!accessToken) {
       setLoading(false);
@@ -193,14 +200,22 @@ export default function BatchCostCreateScreen() {
     void loadBatch();
   }, [loadBatch]);
 
+  useEffect(() => {
+    if (!form.category && categoryOptions.length > 0) {
+      updateForm('category', categoryOptions[0].value);
+    }
+  }, [categoryOptions, form.category]);
+
   const updateForm = (key: keyof CostFormState, value: string) => {
     setForm((current) => {
       const next = { ...current, [key]: value };
       if (key === 'quantity' || key === 'rate') {
         const quantity = Number(key === 'quantity' ? value : current.quantity);
         const rate = Number(key === 'rate' ? value : current.rate);
-        if (quantity > 0 && rate > 0) {
-          next.totalAmount = String(quantity * rate);
+        if (!isNaN(quantity) && !isNaN(rate) && quantity > 0 && rate > 0) {
+          next.totalAmount = String(Number((quantity * rate).toFixed(2)));
+        } else {
+          next.totalAmount = '0';
         }
       }
       return next;
@@ -284,15 +299,13 @@ export default function BatchCostCreateScreen() {
         </View>
       ) : (
         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={styles.keyboard}>
-          <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-            <View style={styles.batchCard}>
-              <View>
-                <Text style={styles.batchLabel}>Batch</Text>
-                <Text style={styles.batchTitle}>{batch?.code ?? (selectedBatchId || 'Select batch')}</Text>
-                <Text style={styles.batchMeta}>{batch?.farmName ?? 'Farm not loaded'}</Text>
+          <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+            {batch ? (
+              <View style={styles.batchInfoBox}>
+                <Text style={styles.batchInfoLabel}>Current Batch Details</Text>
+                <Text style={styles.batchInfoValue}>{batch.code} | {batch.farmName ?? 'Farm'}</Text>
               </View>
-              <Ionicons name="calculator-outline" size={24} color={THEME_GREEN} />
-            </View>
+            ) : null}
 
             <SearchableSelectField
               label="Batch"
@@ -309,32 +322,49 @@ export default function BatchCostCreateScreen() {
               locked={shouldLockBatch}
             />
 
-            <View style={styles.ledgerToggle}>
-              {(['COMPANY', 'FARMER'] as const).map((item) => {
-                const active = form.ledger === item;
-                return (
-                  <TouchableOpacity
-                    key={item}
-                    style={[styles.ledgerButton, active && styles.ledgerButtonActive]}
-                    onPress={() => updateForm('ledger', item)}
-                  >
-                    <Text style={[styles.ledgerText, active && styles.ledgerTextActive]}>{labelize(item)}</Text>
-                  </TouchableOpacity>
-                );
-              })}
+            <View style={styles.inputGroup}>
+              <Text style={styles.inputLabel}>Ledger Type</Text>
+              <View style={styles.ledgerToggle}>
+                {(['COMPANY', 'FARMER'] as const).map((item) => {
+                  const active = form.ledger === item;
+                  return (
+                    <TouchableOpacity
+                      key={item}
+                      style={[styles.ledgerButton, active && styles.ledgerButtonActive]}
+                      onPress={() => updateForm('ledger', item)}
+                    >
+                      <Text style={[styles.ledgerText, active && styles.ledgerTextActive]}>{labelize(item)}</Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
             </View>
 
-            <View style={styles.row}>
-              <InputField label="Category" value={form.category} onChangeText={(value) => updateForm('category', value)} required />
-              <DatePickerField
-                label="Cost Date *"
-                value={form.expenseDate}
-                onChange={(value) => updateForm('expenseDate', value)}
-                disableFuture
-              />
-            </View>
+            <DatePickerField
+              label="Cost Date *"
+              value={form.expenseDate}
+              onChange={(value) => updateForm('expenseDate', value)}
+              disableFuture
+            />
 
-            <InputField label="Description" value={form.description} onChangeText={(value) => updateForm('description', value)} />
+            <SearchableSelectField
+              label="Category"
+              value={form.category}
+              options={categoryOptions}
+              onSelect={(value) => updateForm('category', value)}
+              placeholder={loadingCategories ? 'Loading categories...' : 'Select category'}
+              searchPlaceholder="Search category"
+              emptyMessage="No categories found"
+              error={categoryError || undefined}
+              disabled={loadingCategories}
+              required
+            />
+
+            <InputField
+              label="Description"
+              value={form.description}
+              onChangeText={(value) => updateForm('description', value)}
+            />
 
             <SearchableSelectField
               label="Catalog Item"
@@ -356,30 +386,49 @@ export default function BatchCostCreateScreen() {
               emptyMessage="No vendors found"
             />
 
-            <View style={styles.row}>
-              <InputField
-                label="Quantity"
-                value={form.quantity}
-                onChangeText={(value) => updateForm('quantity', value)}
-                keyboardType="decimal-pad"
-              />
-              <InputField label="Unit" value={form.unit} onChangeText={(value) => updateForm('unit', value)} />
+            <InputField
+              label="Quantity"
+              value={form.quantity}
+              onChangeText={(value) => updateForm('quantity', value)}
+              keyboardType="decimal-pad"
+            />
+
+            <InputField
+              label="Unit"
+              value={form.unit}
+              onChangeText={(value) => updateForm('unit', value)}
+            />
+
+            <InputField
+              label="Rate"
+              value={form.rate}
+              onChangeText={(value) => updateForm('rate', value)}
+              keyboardType="decimal-pad"
+            />
+
+            {/* Total Amount */}
+            <View style={styles.inputGroup}>
+              <Text style={styles.inputLabel}>Total Amount (₹)</Text>
+              <Text style={styles.totalAmountText}>₹ {Number(form.totalAmount || 0).toLocaleString('en-IN')}</Text>
+              {parseFloat(form.quantity) > 0 && parseFloat(form.rate) > 0 ? (
+                <Text style={styles.calculationBreakdown}>
+                  Calculated as: {form.quantity} qty × ₹{form.rate}
+                </Text>
+              ) : null}
             </View>
 
-            <View style={styles.row}>
-              <InputField label="Rate" value={form.rate} onChangeText={(value) => updateForm('rate', value)} keyboardType="decimal-pad" />
-              <InputField
-                label="Total Amount"
-                value={form.totalAmount}
-                onChangeText={(value) => updateForm('totalAmount', value)}
-                keyboardType="decimal-pad"
-                required
-              />
-            </View>
+            <InputField
+              label="Invoice Number"
+              value={form.invoiceNumber}
+              onChangeText={(value) => updateForm('invoiceNumber', value)}
+            />
 
-            <InputField label="Invoice Number" value={form.invoiceNumber} onChangeText={(value) => updateForm('invoiceNumber', value)} />
-
-            <InputField label="Notes" value={form.notes} onChangeText={(value) => updateForm('notes', value)} multiline />
+            <InputField
+              label="Notes"
+              value={form.notes}
+              onChangeText={(value) => updateForm('notes', value)}
+              multiline
+            />
 
             <TouchableOpacity style={[styles.submitButton, submitting && styles.disabled]} onPress={submitCost} disabled={submitting}>
               {submitting ? <ActivityIndicator color="#FFF" /> : <Text style={styles.submitText}>Save Cost</Text>}
@@ -428,119 +477,118 @@ function InputField({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F8FAFC',
+    backgroundColor: '#FFF',
   },
   keyboard: {
     flex: 1,
   },
   content: {
-    padding: 16,
+    paddingHorizontal: 20,
+    paddingTop: 24,
     paddingBottom: 100,
   },
   stateWrap: {
     padding: 16,
   },
-  batchCard: {
-    backgroundColor: '#FFF',
-    borderRadius: 8,
+  batchInfoBox: {
+    backgroundColor: '#F0FDF4',
     borderWidth: 1,
-    borderColor: '#E5E7EB',
-    padding: 14,
-    marginBottom: 14,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+    borderColor: '#BBF7D0',
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    marginBottom: 20,
   },
-  batchLabel: {
-    color: Colors.textSecondary,
-    fontSize: 11,
-    fontWeight: '900',
-    textTransform: 'uppercase',
-  },
-  batchTitle: {
-    color: Colors.text,
-    fontSize: 16,
-    fontWeight: '900',
-    marginTop: 3,
-  },
-  batchMeta: {
-    color: Colors.textSecondary,
+  batchInfoLabel: {
     fontSize: 12,
     fontWeight: '700',
-    marginTop: 2,
+    color: '#166534',
+    marginBottom: 4,
+  },
+  batchInfoValue: {
+    fontSize: 16,
+    fontWeight: '800',
+    color: '#0B5C36',
   },
   ledgerToggle: {
     flexDirection: 'row',
-    backgroundColor: '#E5E7EB',
-    borderRadius: 10,
+    backgroundColor: '#F3F4F6',
+    borderRadius: 12,
     padding: 4,
-    marginBottom: 14,
+    marginTop: 4,
   },
   ledgerButton: {
     flex: 1,
-    borderRadius: 8,
-    paddingVertical: 10,
+    height: 44,
+    borderRadius: 10,
     alignItems: 'center',
+    justifyContent: 'center',
   },
   ledgerButtonActive: {
     backgroundColor: THEME_GREEN,
   },
   ledgerText: {
-    color: Colors.textSecondary,
-    fontSize: 13,
-    fontWeight: '900',
+    color: '#6B7280',
+    fontSize: 14,
+    fontWeight: '600',
   },
   ledgerTextActive: {
     color: '#FFF',
   },
-  row: {
-    flexDirection: 'row',
-    gap: 10,
-  },
   inputGroup: {
-    flex: 1,
-    minWidth: 0,
-    marginBottom: 12,
+    marginBottom: 20,
   },
   inputLabel: {
-    color: Colors.text,
-    fontSize: 12,
-    fontWeight: '900',
-    marginBottom: 6,
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#111827',
+    marginBottom: 8,
   },
   required: {
     color: Colors.tertiary,
   },
   input: {
-    minHeight: 46,
-    borderRadius: 8,
+    backgroundColor: '#FFF',
     borderWidth: 1,
     borderColor: '#E5E7EB',
-    backgroundColor: '#FFF',
-    paddingHorizontal: 11,
-    color: Colors.text,
-    fontSize: 13,
-    fontWeight: '700',
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    height: 52,
+    fontSize: 15,
+    color: '#111827',
   },
   textArea: {
-    minHeight: 90,
-    paddingTop: 11,
+    height: 100,
+    paddingTop: 16,
     textAlignVertical: 'top',
   },
   submitButton: {
-    minHeight: 52,
-    borderRadius: 8,
-    backgroundColor: THEME_GREEN,
+    backgroundColor: '#0B5C36',
+    height: 56,
+    borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
-    marginTop: 8,
+    marginTop: 12,
+    marginBottom: 20,
   },
   disabled: {
     opacity: 0.65,
   },
   submitText: {
     color: '#FFF',
-    fontSize: 15,
-    fontWeight: '900',
+    fontSize: 16,
+    fontWeight: '700',
+  },
+  totalAmountText: {
+    fontSize: 24,
+    fontWeight: '700',
+    color: '#0B5C36',
+    marginTop: 4,
+  },
+  calculationBreakdown: {
+    fontSize: 12,
+    color: Colors.textSecondary,
+    fontWeight: '600',
+    marginTop: 4,
   },
 });
