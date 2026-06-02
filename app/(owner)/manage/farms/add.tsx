@@ -2,7 +2,7 @@ import { Colors } from '@/constants/Colors';
 import { Layout } from '@/constants/Layout';
 import { useAuth } from '@/context/AuthContext';
 import { useFormPersistence } from '@/hooks/useFormPersistence';
-import { API_FARM_STATUS_VALUES, createFarm, fetchFarm, listAllUsers, updateFarm, type ApiUser } from '@/services/managementApi';
+import { API_FARM_STATUS_VALUES, createFarm, fetchFarm, listAllUsers, updateFarm, type ApiUser, type CreateFarmRequest, type UpdateFarmRequest } from '@/services/managementApi';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useEffect, useRef, useState } from 'react';
@@ -333,7 +333,7 @@ export default function AddFarmScreen() {
 
     try {
       const normalizedCapacity = data.capacity?.trim();
-      const payload = {
+      const payload: CreateFarmRequest = {
         name: data.name.trim(),
         code: data.code.trim(),
         location: data.location?.trim() || undefined,
@@ -348,10 +348,11 @@ export default function AddFarmScreen() {
       };
 
       if (isEditMode && farmId) {
-        await updateFarm(accessToken, farmId, {
+        const updatePayload: UpdateFarmRequest = {
           ...payload,
           status: data.status,
-        });
+        };
+        await updateFarm(accessToken, farmId, updatePayload);
         Toast.show({
           type: 'success',
           text1: 'Success',

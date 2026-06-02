@@ -55,6 +55,22 @@ function getRoleAccent(role: string) {
   return Colors.primary;
 }
 
+function formatDate(value?: string | null) {
+  if (!value) return 'N/A';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  return format(date, 'dd MMM yyyy');
+}
+
+function DetailCell({ label, value }: { label: string; value?: string | number | null }) {
+  return (
+    <View style={styles.detailCell}>
+      <Text style={styles.detailLabel}>{label}</Text>
+      <Text style={styles.detailValue} numberOfLines={2}>{value || 'N/A'}</Text>
+    </View>
+  );
+}
+
 export default function OwnerFarmDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
@@ -203,7 +219,7 @@ export default function OwnerFarmDetailScreen() {
             </View>
             <View style={styles.statItemDivider} />
             <View style={styles.statItem}>
-              <Text style={styles.statVal}>{activeBatches.length}</Text>
+              <Text style={styles.statVal}>{farm.activeBatchCount}</Text>
               <Text style={styles.statLabel}>Active Batches</Text>
             </View>
             <View style={styles.statItemDivider} />
@@ -231,7 +247,14 @@ export default function OwnerFarmDetailScreen() {
                   color={isActive ? '#FFF' : Colors.textSecondary}
                   style={styles.tabIcon}
                 />
-                <Text style={[styles.tabText, isActive && styles.tabTextActive]}>{tab.label}</Text>
+                <Text
+                  style={[styles.tabText, isActive && styles.tabTextActive]}
+                  numberOfLines={1}
+                  adjustsFontSizeToFit
+                  minimumFontScale={0.82}
+                >
+                  {tab.label}
+                </Text>
               </TouchableOpacity>
             );
           })}
@@ -244,6 +267,11 @@ export default function OwnerFarmDetailScreen() {
               {/* Profile details */}
               <View style={styles.sectionCard}>
                 <Text style={styles.sectionHeader}>Farm Specifications</Text>
+
+                <View style={styles.detailsGrid}>
+                  <DetailCell label="Farm Name" value={farm.name} />
+                  <DetailCell label="Farm Code" value={farm.code} />
+                </View>
 
                 <View style={styles.specRow}>
                   <View style={styles.specCol}>
@@ -277,6 +305,38 @@ export default function OwnerFarmDetailScreen() {
                     <Text style={styles.specVal}>{farm.status === 'ACTIVE' ? 'Active / Operating' : 'Inactive / Closed'}</Text>
                   </View>
                 </View>
+
+                <View style={styles.detailsGrid}>
+                  <DetailCell label="Primary Farmer" value={farm.primaryFarmerName || farmerName} />
+                  <DetailCell label="Supervisor" value={farm.supervisorName || supervisorName} />
+                  <DetailCell label="Assignment Count" value={farm.assignments.length} />
+                  <DetailCell label="Active Batch Count" value={farm.activeBatchCount} />
+                  <DetailCell label="Created At" value={formatDate(farm.createdAt)} />
+                  <DetailCell label="Updated At" value={formatDate(farm.updatedAt)} />
+                </View>
+              </View>
+
+              <View style={styles.sectionCard}>
+                <Text style={styles.sectionHeader}>Assignments</Text>
+                {farm.assignments.length === 0 ? (
+                  <Text style={styles.notesText}>No staff assignments found for this farm.</Text>
+                ) : (
+                  <View style={styles.assignmentGrid}>
+                    {farm.assignments.map((assignment) => (
+                      <View key={assignment.userId} style={styles.assignmentDetailCard}>
+                        <View style={[styles.assignmentAvatar, { backgroundColor: getRoleAccent(assignment.role) }]}>
+                          <Text style={styles.assignmentAvatarText}>{getUserInitials(assignment.name)}</Text>
+                        </View>
+                        <View style={styles.assignmentDetailText}>
+                          <Text style={styles.assignmentName} numberOfLines={1}>{assignment.name}</Text>
+                          <Text style={styles.assignmentMeta} numberOfLines={1}>
+                            {getRoleLabel(assignment.role)} | {assignment.userId}
+                          </Text>
+                        </View>
+                      </View>
+                    ))}
+                  </View>
+                )}
               </View>
 
               {/* Notes Card */}
@@ -496,9 +556,13 @@ const styles = StyleSheet.create({
   },
   heroCard: {
     backgroundColor: '#FFF',
-    padding: 20,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.border,
+    margin: 14,
+    marginBottom: 10,
+    padding: 16,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    ...Layout.cardShadow,
   },
   heroHeader: {
     flexDirection: 'row',
@@ -564,9 +628,12 @@ const styles = StyleSheet.create({
   },
   statsBar: {
     flexDirection: 'row',
-    borderTopWidth: 1,
-    borderTopColor: Colors.border,
-    paddingTop: 16,
+    borderRadius: 13,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    backgroundColor: '#F8FAFC',
+    paddingVertical: 12,
+    paddingHorizontal: 4,
     alignItems: 'center',
   },
   statItem: {
@@ -591,21 +658,21 @@ const styles = StyleSheet.create({
   },
   tabsWrapper: {
     flexDirection: 'row',
-    backgroundColor: '#FFF',
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.border,
-    gap: 10,
+    backgroundColor: '#F9FAFB',
+    paddingVertical: 8,
+    paddingHorizontal: 14,
+    gap: 8,
   },
   tabBtn: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 10,
+    minHeight: 40,
+    paddingVertical: 8,
+    paddingHorizontal: 6,
     borderRadius: 10,
-    backgroundColor: '#FAFCFA',
+    backgroundColor: '#FFF',
     borderWidth: 1,
     borderColor: '#E4ECE7',
   },
@@ -614,10 +681,10 @@ const styles = StyleSheet.create({
     borderColor: THEME_GREEN,
   },
   tabIcon: {
-    marginRight: 6,
+    marginRight: 4,
   },
   tabText: {
-    fontSize: 13,
+    fontSize: 11,
     fontWeight: '700',
     color: Colors.textSecondary,
   },
@@ -625,22 +692,23 @@ const styles = StyleSheet.create({
     color: '#FFF',
   },
   tabContentArea: {
-    padding: 16,
+    paddingHorizontal: 14,
+    paddingTop: 4,
   },
   tabPane: {
     width: '100%',
   },
   sectionCard: {
     backgroundColor: '#FFF',
-    borderRadius: 14,
-    padding: 16,
-    marginBottom: 16,
+    borderRadius: 12,
+    padding: 14,
+    marginBottom: 12,
     borderWidth: 1,
     borderColor: Colors.border,
     ...Layout.cardShadow,
   },
   sectionHeader: {
-    fontSize: 15,
+    fontSize: 14,
     fontWeight: '900',
     color: Colors.text,
     borderBottomWidth: 1,
@@ -650,11 +718,17 @@ const styles = StyleSheet.create({
   },
   specRow: {
     flexDirection: 'row',
-    marginBottom: 14,
-    gap: 16,
+    marginBottom: 10,
+    gap: 10,
   },
   specCol: {
     flex: 1,
+    borderRadius: 10,
+    backgroundColor: '#F8FAFC',
+    borderWidth: 1,
+    borderColor: '#EEF2F7',
+    paddingHorizontal: 10,
+    paddingVertical: 8,
   },
   specLabel: {
     fontSize: 11,
@@ -669,8 +743,77 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: Colors.text,
   },
+  detailsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginBottom: 10,
+  },
+  detailCell: {
+    flexGrow: 1,
+    flexBasis: 136,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#EEF2F7',
+    backgroundColor: '#F8FAFC',
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+  },
+  detailLabel: {
+    color: Colors.textSecondary,
+    fontSize: 10,
+    fontWeight: '900',
+    textTransform: 'uppercase',
+  },
+  detailValue: {
+    color: Colors.text,
+    fontSize: 12,
+    fontWeight: '800',
+    lineHeight: 16,
+    marginTop: 3,
+  },
+  assignmentGrid: {
+    gap: 9,
+  },
+  assignmentDetailCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    backgroundColor: '#FFF',
+    padding: 10,
+    gap: 10,
+  },
+  assignmentAvatar: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  assignmentAvatarText: {
+    color: '#FFF',
+    fontSize: 12,
+    fontWeight: '900',
+  },
+  assignmentDetailText: {
+    flex: 1,
+    minWidth: 0,
+  },
+  assignmentName: {
+    color: Colors.text,
+    fontSize: 13,
+    fontWeight: '900',
+  },
+  assignmentMeta: {
+    color: Colors.textSecondary,
+    fontSize: 11,
+    fontWeight: '700',
+    marginTop: 2,
+  },
   notesText: {
-    fontSize: 14,
+    fontSize: 13,
     color: Colors.textSecondary,
     lineHeight: 20,
     fontWeight: '600',

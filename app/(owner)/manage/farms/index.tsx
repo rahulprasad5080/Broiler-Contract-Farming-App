@@ -1,7 +1,23 @@
+import { NativeBottomSheet } from '@/components/ui/NativeBottomSheet';
+import { TopAppBar } from '@/components/ui/TopAppBar';
+import { Colors } from '@/constants/Colors';
+import { Layout } from '@/constants/Layout';
+import { useAuth } from '@/context/AuthContext';
+import { getRequestErrorMessage } from '@/services/apiFeedback';
+import {
+  API_FARM_STATUS_VALUES,
+  fetchFarm,
+  listAllUsers,
+  listFarms,
+  updateFarm,
+  type ApiFarm,
+  type ApiFarmAssignment,
+  type ApiUser,
+} from '@/services/managementApi';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
-import React, { useCallback, useEffect, useState } from 'react';
 import { useFocusEffect } from '@react-navigation/native';
+import { useRouter } from 'expo-router';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   FlatList,
@@ -14,41 +30,38 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { Colors } from '@/constants/Colors';
-import { Layout } from '@/constants/Layout';
-import { useAuth } from '@/context/AuthContext';
 import Toast from 'react-native-toast-message';
-import { TopAppBar } from '@/components/ui/TopAppBar';
-import { NativeBottomSheet } from '@/components/ui/NativeBottomSheet';
-import { getRequestErrorMessage } from '@/services/apiFeedback';
-import {
-  API_FARM_STATUS_VALUES,
-  fetchFarm,
-  listAllFarms,
-  listAllUsers,
-  updateFarm,
-  type ApiFarm,
-  type ApiUser,
-} from '@/services/managementApi';
 
-import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
+import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 
 const THEME_GREEN = '#0B5C36';
+const PAGE_LIMIT = 20;
 
 type FarmCard = {
   id: string;
+  organizationId: string;
   name: string;
   code: string;
   location: string;
+  locationRaw: string;
+  village: string;
+  district: string;
+  state: string;
   capacity: number;
   status: 'Active' | 'Inactive';
+  notes: string;
+  primaryFarmerId: string;
+  supervisorId: string;
   staffCount: number;
   activeBatchCount: number;
+  assignments: ApiFarmAssignment[];
   farmer: { role: 'farmer'; name: string } | null;
   supervisor: { role: 'supervisor'; name: string } | null;
   needsSupervisor?: boolean;
+  createdAt: string;
+  updatedAt: string;
 };
 
 const editFarmSchema = z.object({
@@ -116,6 +129,26 @@ function getRoleAccent(role: ApiUser['role']) {
   return Colors.primary;
 }
 
+function formatDate(value?: string | null) {
+  if (!value) return '-';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  return date.toLocaleDateString('en-IN', {
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+  });
+}
+
+function DetailCell({ label, value }: { label: string; value: string }) {
+  return (
+    <View style={styles.detailCell}>
+      <Text style={styles.detailLabel}>{label}</Text>
+      <Text style={styles.detailValue} numberOfLines={2}>{value || '-'}</Text>
+    </View>
+  );
+}
+
 function toFarmCard(farm: ApiFarm): FarmCard {
   const farmerName =
     farm.primaryFarmerName ||
@@ -131,16 +164,27 @@ function toFarmCard(farm: ApiFarm): FarmCard {
 
   return {
     id: farm.id,
+    organizationId: farm.organizationId,
     name: farm.name,
     code: farm.code,
     location,
+    locationRaw: farm.location ?? '',
+    village: farm.village ?? '',
+    district: farm.district ?? '',
+    state: farm.state ?? '',
     capacity: Math.round(farm.capacity ?? 0),
     status: farm.status === 'ACTIVE' ? 'Active' : 'Inactive',
+    notes: farm.notes ?? '',
+    primaryFarmerId: farm.primaryFarmerId ?? '',
+    supervisorId: farm.supervisorId ?? '',
     staffCount: farm.assignments.length,
     activeBatchCount: farm.activeBatchCount,
+    assignments: farm.assignments,
     farmer: farmerName ? { role: 'farmer', name: farmerName } : null,
     supervisor: supervisorName ? { role: 'supervisor', name: supervisorName } : null,
     needsSupervisor: !supervisorName,
+    createdAt: farm.createdAt,
+    updatedAt: farm.updatedAt,
   };
 }
 
@@ -152,6 +196,11 @@ export default function FarmListScreen() {
   const [farms, setFarms] = useState<FarmCard[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<'ALL' | FarmCard['status']>('ALL');
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [total, setTotal] = useState(0);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [showAssignmentPicker, setShowAssignmentPicker] = useState(false);
   
@@ -165,6 +214,7 @@ export default function FarmListScreen() {
   const [isSavingEdit, setIsSavingEdit] = useState(false);
   const [isSavingAssignment, setIsSavingAssignment] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const requestedPageRef = useRef(1);
 
   const { control: editControl, handleSubmit: handleEditSubmit, setValue: setEditValue, watch: watchEdit, reset: resetEdit, formState: { errors: editErrors } } = useForm<EditFarmFormData>({
     resolver: zodResolver(editFarmSchema),
@@ -188,45 +238,70 @@ export default function FarmListScreen() {
   const editSupervisorId = watchEdit('supervisorId');
   const editAssignmentUserIds = watchEdit('assignmentUserIds') || [];
 
-  const loadFarms = async (search?: string) => {
+  const loadUsers = useCallback(async () => {
+    if (!accessToken) return;
+    try {
+      const usersResponse = await listAllUsers(accessToken);
+      setUsers(usersResponse.data.map(normalizeUserOption));
+    } catch (err) {
+      setError(getRequestErrorMessage(err, 'Failed to load users.'));
+    }
+  }, [accessToken]);
+
+  const loadFarms = useCallback(async (search?: string, targetPage = 1, append = false, refresh = false) => {
     if (!accessToken) {
       setError('Your session has expired. Please sign in again.');
       setIsLoading(false);
       return;
     }
 
-    setIsLoading(true);
+    if (refresh) {
+      setIsRefreshing(true);
+    } else if (append) {
+      setIsLoadingMore(true);
+    } else {
+      setIsLoading(true);
+    }
+    requestedPageRef.current = targetPage;
     setError(null);
 
     try {
-      const [farmsResponse, usersResponse] = await Promise.all([
-        listAllFarms(accessToken, search?.trim() || undefined),
-        listAllUsers(accessToken),
-      ]);
-      setFarms(farmsResponse.data.map(toFarmCard));
-      setUsers(usersResponse.data.map(normalizeUserOption));
+      const farmsResponse = await listFarms(accessToken, {
+        page: targetPage,
+        limit: PAGE_LIMIT,
+        search: search?.trim() || undefined,
+      });
+      const nextFarms = (farmsResponse.data ?? []).map(toFarmCard);
+
+      setFarms((current) => (append ? [...current, ...nextFarms] : nextFarms));
+      setPage(farmsResponse.meta?.page ?? targetPage);
+      setTotal(farmsResponse.meta?.total ?? nextFarms.length);
+      setTotalPages(farmsResponse.meta?.totalPages ?? 1);
     } catch (err) {
+      requestedPageRef.current = append ? Math.max(targetPage - 1, 1) : 1;
       setError(getRequestErrorMessage(err, 'Failed to load farms.'));
     } finally {
       setIsLoading(false);
+      setIsLoadingMore(false);
+      setIsRefreshing(false);
     }
-  };
+  }, [accessToken]);
 
   useFocusEffect(
     useCallback(() => {
-      loadFarms(searchQuery);
-      // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [accessToken])
+      void loadUsers();
+      void loadFarms(searchQuery, 1, false);
+    }, [loadFarms, loadUsers, searchQuery])
   );
 
   useEffect(() => {
     if (!accessToken) return;
     const delayDebounce = setTimeout(() => {
-      loadFarms(searchQuery);
+      void loadFarms(searchQuery, 1, false);
     }, 400);
 
     return () => clearTimeout(delayDebounce);
-  }, [searchQuery, accessToken]);
+  }, [searchQuery, accessToken, loadFarms]);
 
   const openEditFarm = (farmId: string) => {
     router.push({ pathname: '/(owner)/manage/farms/add', params: { id: farmId } });
@@ -411,25 +486,22 @@ export default function FarmListScreen() {
     closeAssignmentPicker();
   };
 
-  const totalCapacity = farms.reduce((sum, farm) => sum + farm.capacity, 0);
-  const totalFarms = farms.length;
+  const totalFarms = total || farms.length;
   const activeFarms = farms.filter((farm) => farm.status === 'Active').length;
   const inactiveFarms = farms.filter((farm) => farm.status === 'Inactive').length;
-  const unassigned = farms.filter((farm) => !farm.farmer || !farm.supervisor).length;
-  const assignedFarms = farms.filter((farm) => farm.farmer && farm.supervisor).length;
   const statusFilterOptions: { key: 'ALL' | FarmCard['status']; label: string; count: number }[] = [
     { key: 'ALL', label: 'All', count: totalFarms },
     { key: 'Active', label: 'Active', count: activeFarms },
     { key: 'Inactive', label: 'Inactive', count: inactiveFarms },
   ];
 
-  const filtered = farms.filter((farm) => {
-    const haystack = [farm.name, farm.code, farm.location].join(' ').toLowerCase();
-    const matchesSearch = haystack.includes(searchQuery.toLowerCase());
-    const matchesStatus = statusFilter === 'ALL' || farm.status === statusFilter;
+  const filtered = farms.filter((farm) => statusFilter === 'ALL' || farm.status === statusFilter);
 
-    return matchesSearch && matchesStatus;
-  });
+  const loadNextPage = () => {
+    const nextPage = page + 1;
+    if (isLoading || isLoadingMore || nextPage > totalPages || requestedPageRef.current >= nextPage) return;
+    void loadFarms(searchQuery, nextPage, true);
+  };
 
   const statusColor = (status: FarmCard['status']) => {
     switch (status) {
@@ -510,41 +582,13 @@ export default function FarmListScreen() {
         contentContainerStyle={styles.container}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
+          onEndReached={loadNextPage}
+          onEndReachedThreshold={0.25}
+          refreshing={isRefreshing}
+          onRefresh={() => void loadFarms(searchQuery, 1, false, true)}
         ListHeaderComponent={
           <>
             {error ? <Text style={styles.errorText}>{error}</Text> : null}
-
-            <View style={styles.heroPanel}>
-              <View style={styles.heroHeaderRow}>
-                <View>
-                  <Text style={styles.heroEyebrow}>Farm Directory</Text>
-                  <Text style={styles.heroTitle}>{totalFarms} Farms</Text>
-                  <Text style={styles.heroSubtitle}>
-                    {totalCapacity.toLocaleString()} bird capacity
-                  </Text>
-                </View>
-                <View style={styles.heroIconBox}>
-                  <Ionicons name="business-outline" size={24} color="#FFF" />
-                </View>
-              </View>
-
-              <View style={styles.heroMetrics}>
-                <View style={styles.heroMetric}>
-                  <Text style={styles.heroMetricValue}>{activeFarms}</Text>
-                  <Text style={styles.heroMetricLabel}>Active</Text>
-                </View>
-                <View style={styles.heroMetric}>
-                  <Text style={styles.heroMetricValue}>{assignedFarms}</Text>
-                  <Text style={styles.heroMetricLabel}>Assigned</Text>
-                </View>
-                <View style={styles.heroMetric}>
-                  <Text style={[styles.heroMetricValue, unassigned > 0 && styles.heroMetricAlert]}>
-                    {unassigned}
-                  </Text>
-                  <Text style={styles.heroMetricLabel}>Pending</Text>
-                </View>
-              </View>
-            </View>
 
             <View style={styles.searchRow}>
               <View style={styles.searchBox}>
@@ -557,7 +601,7 @@ export default function FarmListScreen() {
                   onChangeText={setSearchQuery}
                 />
               </View>
-              <TouchableOpacity style={styles.filterBtn} onPress={() => loadFarms(searchQuery)}>
+              <TouchableOpacity style={styles.filterBtn} onPress={() => void loadFarms(searchQuery, 1, false, true)}>
                 <Ionicons name="refresh-outline" size={20} color={THEME_GREEN} />
               </TouchableOpacity>
             </View>
@@ -602,7 +646,7 @@ export default function FarmListScreen() {
 
             <View style={styles.listHeader}>
               <Text style={styles.listTitle}>Farm List</Text>
-              <Text style={styles.listCount}>{filtered.length} shown</Text>
+              <Text style={styles.listCount}>{filtered.length}/{totalFarms} loaded</Text>
             </View>
           </>
         }
@@ -659,37 +703,20 @@ export default function FarmListScreen() {
                     <Text style={styles.metricValue}>{farm.activeBatchCount}</Text>
                   </View>
                 </View>
+
+                <View style={styles.detailsGrid}>
+                  <DetailCell label="Created" value={formatDate(farm.createdAt)} />
+                  <DetailCell label="Updated" value={formatDate(farm.updatedAt)} />
+                </View>
+
+
+
+
               </TouchableOpacity>
 
-                <TouchableOpacity
-                  style={[styles.assignButton, farm.farmer && styles.assignButtonFilled]}
-                  onPress={() => void openQuickAssignment(farm.id, 'primaryFarmerId')}
-                  disabled={isSavingAssignment || !canManageFarms}
-                >
-                  <MaterialCommunityIcons
-                    name={farm.farmer ? 'account-check-outline' : 'account-plus-outline'}
-                    size={16}
-                    color={farm.farmer ? Colors.primary : Colors.text}
-                  />
-                  <Text style={[styles.assignButtonText, farm.farmer && styles.assignButtonTextFilled]}>
-                    {farm.farmer ? `Farmer: ${farm.farmer.name}` : (canManageFarms ? 'Assign Farmer' : 'Farmer: Not Assigned')}
-                  </Text>
-                </TouchableOpacity>
 
-                <TouchableOpacity
-                  style={[styles.assignButton, farm.supervisor && styles.assignButtonFilled]}
-                  onPress={() => void openQuickAssignment(farm.id, 'supervisorId')}
-                  disabled={isSavingAssignment || !canManageFarms}
-                >
-                  <MaterialCommunityIcons
-                    name={farm.supervisor ? 'account-tie-outline' : 'account-plus-outline'}
-                    size={16}
-                    color={farm.supervisor ? Colors.primary : Colors.text}
-                  />
-                  <Text style={[styles.assignButtonText, farm.supervisor && styles.assignButtonTextFilled]}>
-                    {farm.supervisor ? `Supervisor: ${farm.supervisor.name}` : (canManageFarms ? 'Assign Supervisor' : 'Supervisor: Not Assigned')}
-                  </Text>
-                </TouchableOpacity>
+
+
 
                 <View style={styles.cardFooter}>
                   {farm.needsSupervisor ? (
@@ -728,7 +755,16 @@ export default function FarmListScreen() {
             </View>
           )
         }
-        ListFooterComponent={<View style={{ height: 100 }} />}
+          ListFooterComponent={
+            isLoadingMore ? (
+              <View style={styles.footerLoader}>
+                <ActivityIndicator color={Colors.primary} />
+                <Text style={styles.footerText}>Loading more farms...</Text>
+              </View>
+            ) : (
+              <View style={styles.footerSpacer} />
+            )
+          }
       />
       </KeyboardAvoidingView>
 
@@ -884,81 +920,6 @@ const styles = StyleSheet.create({
     color: Colors.tertiary,
     borderWidth: 1,
     borderColor: '#FECACA',
-  },
-  heroPanel: {
-    backgroundColor: THEME_GREEN,
-    borderRadius: 18,
-    padding: 18,
-    marginBottom: 14,
-    shadowColor: '#003E2B',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.18,
-    shadowRadius: 12,
-    elevation: 4,
-  },
-  heroHeaderRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    justifyContent: 'space-between',
-    marginBottom: 18,
-  },
-  heroEyebrow: {
-    color: 'rgba(255,255,255,0.72)',
-    fontSize: 11,
-    fontWeight: '800',
-    textTransform: 'uppercase',
-    letterSpacing: 0,
-    marginBottom: 4,
-  },
-  heroTitle: {
-    color: '#FFF',
-    fontSize: 26,
-    fontWeight: '900',
-    lineHeight: 31,
-  },
-  heroSubtitle: {
-    color: 'rgba(255,255,255,0.78)',
-    fontSize: 13,
-    fontWeight: '600',
-    marginTop: 4,
-  },
-  heroIconBox: {
-    width: 46,
-    height: 46,
-    borderRadius: 14,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: 'rgba(255,255,255,0.14)',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.22)',
-  },
-  heroMetrics: {
-    flexDirection: 'row',
-    gap: 10,
-  },
-  heroMetric: {
-    flex: 1,
-    minHeight: 70,
-    borderRadius: 12,
-    paddingVertical: 11,
-    paddingHorizontal: 10,
-    backgroundColor: 'rgba(255,255,255,0.12)',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.16)',
-  },
-  heroMetricValue: {
-    color: '#FFF',
-    fontSize: 22,
-    fontWeight: '900',
-    marginBottom: 3,
-  },
-  heroMetricAlert: {
-    color: '#FFB4A8',
-  },
-  heroMetricLabel: {
-    color: 'rgba(255,255,255,0.76)',
-    fontSize: 11,
-    fontWeight: '700',
   },
   statsCard: {
     backgroundColor: '#FFF',
@@ -1189,6 +1150,98 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '900',
   },
+  detailsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginBottom: 12,
+  },
+  detailCell: {
+    flexGrow: 1,
+    flexBasis: 142,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#EEF2F7',
+    backgroundColor: '#F8FAFC',
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+  },
+  detailLabel: {
+    color: Colors.textSecondary,
+    fontSize: 10,
+    fontWeight: '900',
+    textTransform: 'uppercase',
+  },
+  detailValue: {
+    color: Colors.text,
+    fontSize: 12,
+    fontWeight: '800',
+    lineHeight: 16,
+    marginTop: 3,
+  },
+  noteBox: {
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    backgroundColor: '#FFF',
+    padding: 10,
+    marginBottom: 12,
+  },
+  noteLabel: {
+    color: Colors.textSecondary,
+    fontSize: 10,
+    fontWeight: '900',
+    textTransform: 'uppercase',
+  },
+  noteText: {
+    color: Colors.text,
+    fontSize: 12,
+    lineHeight: 17,
+    marginTop: 4,
+  },
+  assignmentsBox: {
+    borderTopWidth: 1,
+    borderTopColor: '#F1F5F9',
+    paddingTop: 10,
+    marginBottom: 10,
+  },
+  assignmentsTitle: {
+    color: Colors.textSecondary,
+    fontSize: 10,
+    fontWeight: '900',
+    textTransform: 'uppercase',
+    marginBottom: 8,
+  },
+  assignmentChipWrap: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  assignmentChip: {
+    maxWidth: '100%',
+    borderRadius: 999,
+    backgroundColor: '#F1F8F4',
+    borderWidth: 1,
+    borderColor: '#B7E0C2',
+    paddingHorizontal: 10,
+    paddingVertical: 7,
+  },
+  assignmentChipName: {
+    color: THEME_GREEN,
+    fontSize: 12,
+    fontWeight: '900',
+  },
+  assignmentChipRole: {
+    color: Colors.textSecondary,
+    fontSize: 9,
+    fontWeight: '800',
+    marginTop: 1,
+  },
+  noAssignmentsText: {
+    color: Colors.textSecondary,
+    fontSize: 12,
+    fontWeight: '700',
+  },
   cardDivider: { height: 1, backgroundColor: Colors.border, marginBottom: 12 },
   assignButton: {
     flexDirection: 'row',
@@ -1238,6 +1291,19 @@ const styles = StyleSheet.create({
   batchCountText: { fontSize: 11, color: Colors.primary, fontWeight: '800' },
   emptyState: { alignItems: 'center', paddingVertical: 40, gap: 8 },
   emptyText: { fontSize: 14, color: Colors.textSecondary },
+  footerLoader: {
+    paddingVertical: 18,
+    alignItems: 'center',
+    gap: 8,
+  },
+  footerText: {
+    color: Colors.textSecondary,
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  footerSpacer: {
+    height: 100,
+  },
   modalTitle: { fontSize: 18, fontWeight: 'bold', color: Colors.text, marginBottom: 16 },
   formLabel: {
     fontSize: 13,
