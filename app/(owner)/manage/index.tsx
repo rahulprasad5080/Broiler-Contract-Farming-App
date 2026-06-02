@@ -43,7 +43,7 @@ const ENTRY_ITEMS: EntryItem[] = [
     icon: "cart-outline",
     iconType: "Ionicons",
     color: "#8B5CF6",
-    route: "/(owner)/manage/inventory/allocate",
+    route: "/(owner)/manage/allocate",
     requiredPermission: "manage:inventory",
   },
   {

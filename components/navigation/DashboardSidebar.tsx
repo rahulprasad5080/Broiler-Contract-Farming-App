@@ -97,9 +97,9 @@ const ownerRoutes: DashboardSidebarRoute[] = [
     requiredPermission: "create:expenses",
   },
   {
-    title: "Inventory Allocation",
+    title: "Allocate Entry",
     icon: "swap-horizontal-outline",
-    route: "/(owner)/manage/inventory/allocate",
+    route: "/(owner)/manage/allocate" as Href,
     section: "Entries",
     requiredPermission: "manage:inventory",
   },
