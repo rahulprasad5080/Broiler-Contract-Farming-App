@@ -10,6 +10,7 @@ import {
   listAllBatches,
   listAllTraders,
 } from "@/services/managementApi";
+import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect } from "@react-navigation/native";
 import { useLocalSearchParams } from "expo-router";
 import React, {
@@ -673,16 +674,33 @@ export function SalesEntryScreen({ title = "Sales Entry", subtitle, onBack, onSa
 
             <View style={styles.inputGroup}>
               <Text style={styles.label}>Payment Status</Text>
-              <View style={styles.statusRow}>
+              <View style={styles.paymentStatusGrid}>
                 {API_TRANSACTION_PAYMENT_STATUS_VALUES.map((status) => {
                   const active = paymentStatus === status;
+                  const isPaid = status === "PAID";
+                  const isCancelled = status === "CANCELLED";
                   return (
                     <TouchableOpacity
                       key={status}
-                      style={[styles.statusChip, active && styles.statusChipActive]}
+                      style={[
+                        styles.paymentStatusCard,
+                        active && styles.paymentStatusCardActive,
+                        active && isPaid && styles.paymentStatusPaid,
+                        active && isCancelled && styles.paymentStatusCancelled,
+                      ]}
                       onPress={() => setValue("paymentStatus", status as ApiTransactionPaymentStatus, { shouldDirty: true, shouldValidate: true })}
+                      activeOpacity={0.85}
                     >
-                      <Text style={[styles.statusChipText, active && styles.statusChipTextActive]} numberOfLines={1}>
+                      <Ionicons
+                        name={isPaid ? "checkmark-circle-outline" : isCancelled ? "close-circle-outline" : "time-outline"}
+                        size={17}
+                        color={active ? "#FFFFFF" : isPaid ? "#059669" : isCancelled ? "#DC2626" : "#D97706"}
+                      />
+                      <Text
+                        style={[styles.paymentStatusText, active && styles.paymentStatusTextActive]}
+                        numberOfLines={1}
+                        adjustsFontSizeToFit
+                      >
                         {labelize(status)}
                       </Text>
                     </TouchableOpacity>
@@ -888,6 +906,47 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     flexWrap: "wrap",
     gap: 8,
+  },
+  paymentStatusGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 10,
+  },
+  paymentStatusCard: {
+    flexGrow: 1,
+    flexBasis: "31%",
+    minWidth: 98,
+    minHeight: 46,
+    borderRadius: 12,
+    borderWidth: 1.5,
+    borderColor: "#E5E7EB",
+    backgroundColor: "#F9FAFB",
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+    paddingHorizontal: 10,
+  },
+  paymentStatusCardActive: {
+    backgroundColor: "#0B5C36",
+    borderColor: "#0B5C36",
+  },
+  paymentStatusPaid: {
+    backgroundColor: "#059669",
+    borderColor: "#059669",
+  },
+  paymentStatusCancelled: {
+    backgroundColor: "#DC2626",
+    borderColor: "#DC2626",
+  },
+  paymentStatusText: {
+    fontSize: 12,
+    fontWeight: "900",
+    color: "#374151",
+    flexShrink: 1,
+  },
+  paymentStatusTextActive: {
+    color: "#FFFFFF",
   },
   statusChip: {
     flexGrow: 1,
