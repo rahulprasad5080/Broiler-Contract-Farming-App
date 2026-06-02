@@ -171,6 +171,14 @@ const ownerRoutes: DashboardSidebarRoute[] = [
     requiredPermission: "manage:inventory",
   },
   {
+    title: "Finance Entries",
+    subtitle: "Investment, income, and expense list",
+    icon: "document-text-outline",
+    route: "/(owner)/manage/entries" as Href,
+    section: "Finance",
+    requiredPermission: "view:financial-dashboard",
+  },
+  {
     title: "Payments",
     icon: "card-outline",
     route: "/(owner)/manage/payments",
@@ -425,7 +433,7 @@ export function DashboardSidebar({
 
   const navigateTo = (route: Href) => {
     onClose();
-    router.navigate(route);
+    router.push(route);
   };
 
   const runAction = (action: DashboardSidebarAction) => {
