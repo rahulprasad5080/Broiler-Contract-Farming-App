@@ -242,7 +242,7 @@ export default function CreatePaymentScreen() {
       showSuccessToast("Payment created successfully.");
       setSavedMessage("Payment created successfully.");
       reset(DEFAULTS);
-      router.replace({ pathname: "/(owner)/manage/payments/index" });
+      router.replace({ pathname: "/(owner)/manage/payments" });
     } catch (error) {
       showRequestErrorToast(error, { title: "Payment save failed" });
     } finally {

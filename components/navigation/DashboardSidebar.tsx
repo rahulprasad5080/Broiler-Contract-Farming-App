@@ -150,7 +150,7 @@ const ownerRoutes: DashboardSidebarRoute[] = [
   {
     title: "Inventory",
     icon: "cube-outline",
-    route: "/(owner)/manage/inventory",
+    route: "/(owner)/manage/allocate" as Href,
     section: "Finance",
     requiredPermission: "manage:inventory",
   },

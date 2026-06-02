@@ -317,7 +317,7 @@ export default function PurchaseCreateUpdateScreen() {
 
       showSuccessToast(isEditMode ? "Purchase updated successfully." : "Purchase created successfully.");
       setSavedMessage(isEditMode ? "Purchase updated successfully." : "Purchase created successfully.");
-      router.replace({ pathname: "/(owner)/manage/purchase/index" });
+      router.replace({ pathname: "/(owner)/manage/purchase" });
     } catch (error) {
       showRequestErrorToast(error, { title: "Purchase save failed" });
     } finally {
