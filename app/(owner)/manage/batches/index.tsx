@@ -5,32 +5,37 @@ import { useAuth } from '@/context/AuthContext';
 import { showRequestErrorToast } from '@/services/apiFeedback';
 import {
   ApiBatch,
-  listAllBatches,
+  listBatches,
 } from '@/services/managementApi';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import { useRouter, type Href } from 'expo-router';
-import React, { useCallback, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
+  ActivityIndicator,
   FlatList,
   RefreshControl,
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   TouchableOpacity,
   View,
 } from 'react-native';
 
 const THEME_GREEN = "#0B5C36";
+const PAGE_LIMIT = 20;
 
-type FilterKey = 'ALL' | 'ACTIVE' | 'SALES_RUNNING' | 'SETTLEMENT_PENDING' | 'CLOSED';
+type FilterKey = 'ALL' | ApiBatch['status'];
 
 const FILTERS: { key: FilterKey; label: string }[] = [
   { key: 'ALL', label: 'All' },
+  { key: 'PLANNED', label: 'Planned' },
   { key: 'ACTIVE', label: 'Active' },
   { key: 'SALES_RUNNING', label: 'Sales Ready' },
-  { key: 'SETTLEMENT_PENDING', label: 'Settled' },
+  { key: 'SETTLEMENT_PENDING', label: 'Settlement' },
   { key: 'CLOSED', label: 'Closed' },
+  { key: 'CANCELLED', label: 'Cancelled' },
 ];
 
 function formatReadableDate(value?: string | null) {
@@ -51,19 +56,47 @@ function formatReadableDate(value?: string | null) {
   });
 }
 
+function formatNumber(value?: number | null) {
+  return Number(value ?? 0).toLocaleString('en-IN');
+}
+
+function formatCurrency(value?: number | null) {
+  return `Rs ${Number(value ?? 0).toLocaleString('en-IN')}`;
+}
+
+function labelize(value?: string | null) {
+  if (!value) return '-';
+  return value
+    .replace(/_/g, ' ')
+    .toLowerCase()
+    .replace(/\b\w/g, (char) => char.toUpperCase());
+}
+
 function getBadgeStyle(status: ApiBatch['status']) {
   switch (status) {
+    case 'PLANNED':
+      return { bg: '#EFF6FF', text: '#1D4ED8', label: 'Planned' };
     case 'ACTIVE':
       return { bg: '#E8F5E9', text: THEME_GREEN, label: 'Active' };
     case 'SALES_RUNNING':
       return { bg: '#FFF3E0', text: '#E65100', label: 'Sales Ready' };
     case 'SETTLEMENT_PENDING':
-      return { bg: '#E3F2FD', text: '#1565C0', label: 'Settled' };
-    case 'CLOSED':
+      return { bg: '#E3F2FD', text: '#1565C0', label: 'Settlement' };
     case 'CANCELLED':
+      return { bg: '#FFEBEE', text: Colors.tertiary, label: 'Cancelled' };
+    case 'CLOSED':
     default:
       return { bg: '#F5F5F5', text: '#757575', label: 'Closed' };
   }
+}
+
+function DetailCell({ label, value }: { label: string; value?: string | number | null }) {
+  return (
+    <View style={styles.detailCell}>
+      <Text style={styles.detailLabel}>{label}</Text>
+      <Text style={styles.detailValue} numberOfLines={2}>{value || '-'}</Text>
+    </View>
+  );
 }
 
 export default function BatchManagementScreen() {
@@ -71,24 +104,43 @@ export default function BatchManagementScreen() {
   const { accessToken } = useAuth();
   const [batches, setBatches] = useState<ApiBatch[]>([]);
   const [activeFilter, setActiveFilter] = useState<FilterKey>('ALL');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const requestedPageRef = useRef(1);
 
-  const loadBatches = useCallback(async (isRefresh = false) => {
+  const loadBatches = useCallback(async (targetPage = 1, append = false, isRefresh = false) => {
     if (!accessToken) return;
 
     if (isRefresh) {
       setRefreshing(true);
+    } else if (append) {
+      setLoadingMore(true);
     } else {
       setLoading(true);
     }
+    requestedPageRef.current = targetPage;
 
     try {
       setErrorMessage(null);
-      const response = await listAllBatches(accessToken);
-      setBatches(response.data);
+      const response = await listBatches(accessToken, {
+        page: targetPage,
+        limit: PAGE_LIMIT,
+        search: debouncedSearch.trim() || undefined,
+        status: activeFilter === 'ALL' ? undefined : activeFilter,
+      });
+      setBatches((current) => (append ? [...current, ...(response.data ?? [])] : response.data ?? []));
+      setPage(response.meta?.page ?? targetPage);
+      setTotal(response.meta?.total ?? 0);
+      setTotalPages(response.meta?.totalPages ?? 1);
     } catch (error) {
+      requestedPageRef.current = append ? Math.max(targetPage - 1, 1) : 1;
       setErrorMessage(
         showRequestErrorToast(error, {
           title: 'Unable to load batches',
@@ -97,32 +149,34 @@ export default function BatchManagementScreen() {
       );
     } finally {
       setLoading(false);
+      setLoadingMore(false);
       setRefreshing(false);
     }
-  }, [accessToken]);
+  }, [accessToken, activeFilter, debouncedSearch]);
 
   const onRefresh = useCallback(() => {
-    void loadBatches(true);
+    void loadBatches(1, false, true);
   }, [loadBatches]);
+
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      setDebouncedSearch(searchQuery);
+    }, 350);
+
+    return () => clearTimeout(timeoutId);
+  }, [searchQuery]);
 
   useFocusEffect(
     useCallback(() => {
-      void loadBatches();
+      void loadBatches(1, false);
     }, [loadBatches]),
   );
 
-  const filteredBatches = useMemo(() => {
-    return batches.filter((batch) => {
-      const matchesStatus =
-        activeFilter === 'ALL'
-          ? batch.status !== 'CANCELLED'
-          : activeFilter === 'CLOSED'
-            ? batch.status === 'CLOSED' || batch.status === 'CANCELLED'
-            : batch.status === activeFilter;
-
-      return matchesStatus;
-    });
-  }, [activeFilter, batches]);
+  const loadNextPage = () => {
+    const nextPage = page + 1;
+    if (loading || loadingMore || nextPage > totalPages || requestedPageRef.current >= nextPage) return;
+    void loadBatches(nextPage, true);
+  };
 
   return (
     <View style={styles.container}>
@@ -143,6 +197,23 @@ export default function BatchManagementScreen() {
       />
 
       <View style={styles.filterContainer}>
+        <View style={styles.searchBox}>
+          <Ionicons name="search-outline" size={18} color={Colors.textSecondary} />
+          <TextInput
+            style={styles.searchInput}
+            placeholder="Search batches"
+            placeholderTextColor={Colors.textSecondary}
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+            autoCapitalize="none"
+            autoCorrect={false}
+          />
+          {searchQuery.trim() ? (
+            <TouchableOpacity style={styles.clearSearchBtn} onPress={() => setSearchQuery('')}>
+              <Ionicons name="close" size={16} color={Colors.textSecondary} />
+            </TouchableOpacity>
+          ) : null}
+        </View>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterScroll}>
           {FILTERS.map((filter) => {
             const isActive = activeFilter === filter.key;
@@ -178,12 +249,20 @@ export default function BatchManagementScreen() {
         </View>
       ) : (
         <FlatList
-          data={filteredBatches}
+          data={batches}
           keyExtractor={(item) => item.id}
           contentContainerStyle={styles.listContainer}
           showsVerticalScrollIndicator={false}
+          onEndReached={loadNextPage}
+          onEndReachedThreshold={0.25}
           refreshControl={
             <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[THEME_GREEN]} />
+          }
+          ListHeaderComponent={
+            <View style={styles.listHeader}>
+              <Text style={styles.listTitle}>Batch List</Text>
+              <Text style={styles.listCount}>{batches.length}/{total} loaded</Text>
+            </View>
           }
           ListEmptyComponent={
             <View style={styles.loadingBox}>
@@ -270,9 +349,59 @@ export default function BatchManagementScreen() {
                     <Text style={styles.metricValue}>{batch.summary?.mortalityPercent ?? '0'}</Text>
                   </View>
                 </View>
+
+                <View style={styles.detailsGrid}>
+                  <DetailCell label="Batch ID" value={batch.id} />
+                  <DetailCell label="Organization ID" value={batch.organizationId} />
+                  <DetailCell label="Farm ID" value={batch.farmId} />
+                  <DetailCell label="Farm Name" value={batch.farmName || '-'} />
+                  <DetailCell label="Placement Count" value={formatNumber(batch.placementCount)} />
+                  <DetailCell label="Total Chicks" value={formatNumber(batch.totalChicksPurchased)} />
+                  <DetailCell label="Free Chicks" value={formatNumber(batch.freeChicks)} />
+                  <DetailCell label="Chargeable Chicks" value={formatNumber(batch.chargeableChicks)} />
+                  <DetailCell label="Placement Mortality" value={formatNumber(batch.placementMortality)} />
+                  <DetailCell label="Chick Cost Total" value={formatCurrency(batch.chickCostTotal)} />
+                  <DetailCell label="Chick Rate/Bird" value={formatCurrency(batch.chickRatePerBird)} />
+                  <DetailCell label="Rate/Chick" value={formatCurrency(batch.ratePerChick)} />
+                  <DetailCell label="Transport Charge" value={formatCurrency(batch.chickTransportCharge)} />
+                  <DetailCell label="Source Hatchery" value={batch.sourceHatchery || '-'} />
+                  <DetailCell label="Vendor ID" value={batch.vendorId || '-'} />
+                  <DetailCell label="Vendor Name" value={batch.vendorName || '-'} />
+                  <DetailCell label="Target Close" value={formatReadableDate(batch.targetCloseDate)} />
+                  <DetailCell label="Actual Close" value={formatReadableDate(batch.actualCloseDate)} />
+                  <DetailCell label="Status" value={labelize(batch.status)} />
+                  <DetailCell label="Locked At" value={formatReadableDate(batch.lockedAt)} />
+                  <DetailCell label="Created At" value={formatReadableDate(batch.createdAt)} />
+                  <DetailCell label="Updated At" value={formatReadableDate(batch.updatedAt)} />
+                  <DetailCell label="Mortality Count" value={formatNumber(batch.summary?.mortalityCount)} />
+                  <DetailCell label="Cull Count" value={formatNumber(batch.summary?.cullCount)} />
+                  <DetailCell label="Loading Mortality" value={formatNumber(batch.summary?.loadingMortalityCount)} />
+                  <DetailCell label="Sold Birds" value={formatNumber(batch.summary?.soldBirds)} />
+                  <DetailCell label="Feed Consumed" value={`${formatNumber(batch.summary?.totalFeedConsumedKg)} kg`} />
+                  <DetailCell label="Weight Sold" value={`${formatNumber(batch.summary?.totalWeightSoldKg)} kg`} />
+                  <DetailCell label="Avg Weight" value={`${formatNumber(batch.summary?.averageWeightGrams)} g`} />
+                  <DetailCell label="FCR" value={batch.summary?.fcr?.toFixed(2) || '-'} />
+                </View>
+
+                {batch.notes ? (
+                  <View style={styles.noteBox}>
+                    <Text style={styles.noteLabel}>Notes</Text>
+                    <Text style={styles.noteText}>{batch.notes}</Text>
+                  </View>
+                ) : null}
               </TouchableOpacity>
             );
           }}
+          ListFooterComponent={
+            loadingMore ? (
+              <View style={styles.footerLoader}>
+                <ActivityIndicator color={Colors.primary} />
+                <Text style={styles.footerText}>Loading more batches...</Text>
+              </View>
+            ) : (
+              <View style={styles.footerSpacer} />
+            )
+          }
         />
       )}
 
@@ -299,6 +428,34 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFF',
     borderBottomWidth: 1,
     borderBottomColor: '#EFEFEF',
+  },
+  searchBox: {
+    minHeight: 42,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#D9E2EC',
+    backgroundColor: '#FFF',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginHorizontal: 16,
+    marginTop: 12,
+    paddingHorizontal: 12,
+  },
+  searchInput: {
+    flex: 1,
+    color: Colors.text,
+    fontSize: 13,
+    fontWeight: '700',
+    paddingVertical: 8,
+  },
+  clearSearchBtn: {
+    width: 28,
+    height: 28,
+    borderRadius: 8,
+    backgroundColor: '#F1F5F9',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   filterScroll: {
     paddingHorizontal: 16,
@@ -329,6 +486,22 @@ const styles = StyleSheet.create({
   listContainer: {
     padding: 16,
     paddingBottom: 100,
+  },
+  listHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 10,
+  },
+  listTitle: {
+    color: Colors.text,
+    fontSize: 15,
+    fontWeight: '900',
+  },
+  listCount: {
+    color: Colors.textSecondary,
+    fontSize: 12,
+    fontWeight: '700',
   },
   batchCard: {
     backgroundColor: '#FFF',
@@ -430,6 +603,71 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: 'bold',
     color: Colors.text,
+  },
+  detailsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginTop: 12,
+    paddingTop: 10,
+    borderTopWidth: 1,
+    borderTopColor: '#F1F5F9',
+  },
+  detailCell: {
+    flexGrow: 1,
+    flexBasis: 136,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#EEF2F7',
+    backgroundColor: '#F8FAFC',
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+  },
+  detailLabel: {
+    color: Colors.textSecondary,
+    fontSize: 10,
+    fontWeight: '900',
+    textTransform: 'uppercase',
+  },
+  detailValue: {
+    color: Colors.text,
+    fontSize: 12,
+    fontWeight: '800',
+    lineHeight: 16,
+    marginTop: 3,
+  },
+  noteBox: {
+    marginTop: 10,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    backgroundColor: '#FFF',
+    padding: 10,
+  },
+  noteLabel: {
+    color: Colors.textSecondary,
+    fontSize: 10,
+    fontWeight: '900',
+    textTransform: 'uppercase',
+  },
+  noteText: {
+    color: Colors.text,
+    fontSize: 12,
+    lineHeight: 17,
+    marginTop: 4,
+  },
+  footerLoader: {
+    paddingVertical: 18,
+    alignItems: 'center',
+    gap: 8,
+  },
+  footerText: {
+    color: Colors.textSecondary,
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  footerSpacer: {
+    height: 36,
   },
   loadingBox: {
     padding: 16,

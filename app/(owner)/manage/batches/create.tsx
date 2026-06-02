@@ -115,7 +115,10 @@ const batchSchema = z.object({
   placementMortality: optionalNumberField('Placement mortality'),
   chickCostTotal: optionalNumberField('Chick cost total'),
   chickRatePerBird: optionalNumberField('Chick rate per bird'),
+  ratePerChick: optionalNumberField('Rate per chick'),
   chickTransportCharge: optionalNumberField('Chick transport charge'),
+  sourceHatchery: z.string().optional(),
+  vendorId: z.string().optional(),
   vendorName: z.string().optional(),
   targetCloseDate: z.string().optional(),
   notes: z.string().optional(),
@@ -134,7 +137,10 @@ const BATCH_FORM_DEFAULTS: BatchFormData = {
   placementMortality: '',
   chickCostTotal: '',
   chickRatePerBird: '',
+  ratePerChick: '',
   chickTransportCharge: '',
+  sourceHatchery: '',
+  vendorId: '',
   vendorName: '',
   targetCloseDate: '',
   notes: '',
@@ -240,7 +246,10 @@ export default function CreateBatchScreen() {
           placementMortality: toFormNumber(batchResponse.placementMortality),
           chickCostTotal: toFormNumber(batchResponse.chickCostTotal),
           chickRatePerBird: toFormNumber(batchResponse.chickRatePerBird),
+          ratePerChick: toFormNumber(batchResponse.ratePerChick),
           chickTransportCharge: toFormNumber(batchResponse.chickTransportCharge),
+          sourceHatchery: batchResponse.sourceHatchery ?? '',
+          vendorId: batchResponse.vendorId ?? '',
           vendorName: batchResponse.vendorName ?? '',
           targetCloseDate: toDateInput(batchResponse.targetCloseDate),
           notes: batchResponse.notes ?? '',
@@ -303,7 +312,10 @@ export default function CreateBatchScreen() {
         placementMortality: toOptionalNumber(data.placementMortality),
         chickCostTotal: toOptionalNumber(data.chickCostTotal),
         chickRatePerBird: toOptionalNumber(data.chickRatePerBird),
+        ratePerChick: toOptionalNumber(data.ratePerChick),
         chickTransportCharge: toOptionalNumber(data.chickTransportCharge),
+        sourceHatchery: toOptionalText(data.sourceHatchery),
+        vendorId: toOptionalText(data.vendorId),
         vendorName: toOptionalText(data.vendorName),
         targetCloseDate: toOptionalText(data.targetCloseDate),
         notes: toOptionalText(data.notes),
@@ -554,6 +566,22 @@ export default function CreateBatchScreen() {
 
         <Controller
           control={control}
+          name="ratePerChick"
+          render={({ field: { onChange, value } }) => (
+            <InputField
+              label="Rate Per Chick"
+              value={value}
+              onChangeText={onChange}
+              placeholder="Enter rate per chick"
+              keyboardType="decimal-pad"
+              suffix="Rs"
+              error={formErrors.ratePerChick?.message}
+            />
+          )}
+        />
+
+        <Controller
+          control={control}
           name="chickTransportCharge"
           render={({ field: { onChange, value } }) => (
             <InputField
@@ -564,6 +592,33 @@ export default function CreateBatchScreen() {
               keyboardType="decimal-pad"
               suffix="₹"
               error={formErrors.chickTransportCharge?.message}
+            />
+          )}
+        />
+
+        <Controller
+          control={control}
+          name="sourceHatchery"
+          render={({ field: { onChange, value } }) => (
+            <InputField
+              label="Source Hatchery"
+              value={value}
+              onChangeText={onChange}
+              placeholder="Enter hatchery/source name"
+            />
+          )}
+        />
+
+        <Controller
+          control={control}
+          name="vendorId"
+          render={({ field: { onChange, value } }) => (
+            <InputField
+              label="Vendor ID"
+              value={value}
+              onChangeText={onChange}
+              placeholder="Enter vendor ID"
+              error={formErrors.vendorId?.message}
             />
           )}
         />
