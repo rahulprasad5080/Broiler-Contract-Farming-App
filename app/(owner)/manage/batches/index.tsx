@@ -10,7 +10,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import { useRouter, type Href } from 'expo-router';
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   FlatList,
@@ -349,46 +349,6 @@ export default function BatchManagementScreen() {
                     <Text style={styles.metricValue}>{batch.summary?.mortalityPercent ?? '0'}</Text>
                   </View>
                 </View>
-
-                <View style={styles.detailsGrid}>
-                  <DetailCell label="Batch ID" value={batch.id} />
-                  <DetailCell label="Organization ID" value={batch.organizationId} />
-                  <DetailCell label="Farm ID" value={batch.farmId} />
-                  <DetailCell label="Farm Name" value={batch.farmName || '-'} />
-                  <DetailCell label="Placement Count" value={formatNumber(batch.placementCount)} />
-                  <DetailCell label="Total Chicks" value={formatNumber(batch.totalChicksPurchased)} />
-                  <DetailCell label="Free Chicks" value={formatNumber(batch.freeChicks)} />
-                  <DetailCell label="Chargeable Chicks" value={formatNumber(batch.chargeableChicks)} />
-                  <DetailCell label="Placement Mortality" value={formatNumber(batch.placementMortality)} />
-                  <DetailCell label="Chick Cost Total" value={formatCurrency(batch.chickCostTotal)} />
-                  <DetailCell label="Chick Rate/Bird" value={formatCurrency(batch.chickRatePerBird)} />
-                  <DetailCell label="Rate/Chick" value={formatCurrency(batch.ratePerChick)} />
-                  <DetailCell label="Transport Charge" value={formatCurrency(batch.chickTransportCharge)} />
-                  <DetailCell label="Source Hatchery" value={batch.sourceHatchery || '-'} />
-                  <DetailCell label="Vendor ID" value={batch.vendorId || '-'} />
-                  <DetailCell label="Vendor Name" value={batch.vendorName || '-'} />
-                  <DetailCell label="Target Close" value={formatReadableDate(batch.targetCloseDate)} />
-                  <DetailCell label="Actual Close" value={formatReadableDate(batch.actualCloseDate)} />
-                  <DetailCell label="Status" value={labelize(batch.status)} />
-                  <DetailCell label="Locked At" value={formatReadableDate(batch.lockedAt)} />
-                  <DetailCell label="Created At" value={formatReadableDate(batch.createdAt)} />
-                  <DetailCell label="Updated At" value={formatReadableDate(batch.updatedAt)} />
-                  <DetailCell label="Mortality Count" value={formatNumber(batch.summary?.mortalityCount)} />
-                  <DetailCell label="Cull Count" value={formatNumber(batch.summary?.cullCount)} />
-                  <DetailCell label="Loading Mortality" value={formatNumber(batch.summary?.loadingMortalityCount)} />
-                  <DetailCell label="Sold Birds" value={formatNumber(batch.summary?.soldBirds)} />
-                  <DetailCell label="Feed Consumed" value={`${formatNumber(batch.summary?.totalFeedConsumedKg)} kg`} />
-                  <DetailCell label="Weight Sold" value={`${formatNumber(batch.summary?.totalWeightSoldKg)} kg`} />
-                  <DetailCell label="Avg Weight" value={`${formatNumber(batch.summary?.averageWeightGrams)} g`} />
-                  <DetailCell label="FCR" value={batch.summary?.fcr?.toFixed(2) || '-'} />
-                </View>
-
-                {batch.notes ? (
-                  <View style={styles.noteBox}>
-                    <Text style={styles.noteLabel}>Notes</Text>
-                    <Text style={styles.noteText}>{batch.notes}</Text>
-                  </View>
-                ) : null}
               </TouchableOpacity>
             );
           }}
