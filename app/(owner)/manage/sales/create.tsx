@@ -9,6 +9,7 @@ export default function OwnerSalesCreateScreen() {
       title="Create Sale"
       subtitle="Owner can record sales"
       onBack={() => router.replace('/(owner)/manage/sales')}
+      onSaved={() => router.replace('/(owner)/manage/sales')}
     />
   );
 }

@@ -127,9 +127,10 @@ interface SalesEntryScreenProps {
   title?: string;
   subtitle?: string;
   onBack?: () => void;
+  onSaved?: () => void;
 }
 
-export function SalesEntryScreen({ title = "Sales Entry", subtitle, onBack }: SalesEntryScreenProps) {
+export function SalesEntryScreen({ title = "Sales Entry", subtitle, onBack, onSaved }: SalesEntryScreenProps) {
   const { accessToken, user } = useAuth();
   const { batchId: routeBatchId } = useLocalSearchParams<{ batchId?: string }>();
   const initialBatchId = typeof routeBatchId === "string" ? routeBatchId : "";
@@ -142,6 +143,7 @@ export function SalesEntryScreen({ title = "Sales Entry", subtitle, onBack }: Sa
   const {
     control,
     handleSubmit,
+    getValues,
     setError,
     setValue,
     watch,
@@ -163,6 +165,7 @@ export function SalesEntryScreen({ title = "Sales Entry", subtitle, onBack }: Sa
       batchId: initialBatchId,
     },
   );
+  const initialBatchAppliedRef = React.useRef(false);
 
   const selectedBatchId = watch("batchId");
   const selectedTraderId = watch("traderId");
@@ -278,15 +281,17 @@ export function SalesEntryScreen({ title = "Sales Entry", subtitle, onBack }: Sa
       setTraders(tradersRes.data);
 
       const firstActiveId = batchesRes.data.find((b) => b.status === "ACTIVE" || b.status === "SALES_RUNNING")?.id;
-      if (initialBatchId) {
+      const currentBatchId = getValues("batchId");
+      if (initialBatchId && !initialBatchAppliedRef.current) {
+        initialBatchAppliedRef.current = true;
         setValue("batchId", initialBatchId, { shouldDirty: false, shouldValidate: true });
-      } else if (firstActiveId && !selectedBatchId) {
+      } else if (firstActiveId && !currentBatchId) {
         setValue("batchId", firstActiveId);
       }
     } catch (error) {
       showRequestErrorToast(error, { title: "Unable to load data" });
     }
-  }, [accessToken, initialBatchId, selectedBatchId, setValue]);
+  }, [accessToken, getValues, initialBatchId, setValue]);
 
   useFocusEffect(
     useCallback(() => {
@@ -348,6 +353,7 @@ export function SalesEntryScreen({ title = "Sales Entry", subtitle, onBack }: Sa
         showSuccessToast("Saved offline. It will sync automatically.");
         setSavedMessage("Saved offline. It will sync when internet returns.");
         reset({ ...SALES_ENTRY_DEFAULTS, batchId: data.batchId });
+        onSaved?.();
         return;
       }
 
@@ -356,6 +362,7 @@ export function SalesEntryScreen({ title = "Sales Entry", subtitle, onBack }: Sa
       setSavedMessage("Sales entry saved successfully.");
       await clearPersistedData();
       reset({ ...SALES_ENTRY_DEFAULTS, batchId: data.batchId });
+      onSaved?.();
     } catch (error) {
       showRequestErrorToast(error, { title: "Save failed" });
     } finally {
