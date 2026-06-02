@@ -185,7 +185,7 @@ export default function CatalogListScreen() {
         title="Catalog"
         subtitle="Catalog items list"
         leadingMode="back"
-        onBack={() => router.back()}
+        onBack={() => router.replace('/(owner)/dashboard')}
         right={
           <TouchableOpacity
             style={styles.addButton}

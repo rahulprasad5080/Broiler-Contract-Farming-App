@@ -5,6 +5,7 @@ import { ApiBatch, ApiComment, listAllBatches, listBatchComments } from '@/servi
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import { format } from 'date-fns';
+import { useRouter } from 'expo-router';
 import React, { useCallback, useEffect, useState } from 'react';
 import { FlatList, RefreshControl, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
@@ -13,7 +14,8 @@ import { TopAppBar } from '@/components/ui/TopAppBar';
 import { showRequestErrorToast } from '@/services/apiFeedback';
 
 export default function FarmerCommentsScreen() {
-  const { accessToken } = useAuth();
+  const { accessToken, user } = useAuth();
+  const router = useRouter();
 
   const [batches, setBatches] = useState<ApiBatch[]>([]);
   const [selectedBatchId, setSelectedBatchId] = useState<string>('');
@@ -104,7 +106,21 @@ export default function FarmerCommentsScreen() {
 
   return (
     <View style={styles.safeArea}>
-      <TopAppBar title="Comments & Notes" subtitle="Supervisor feedback" />
+      <TopAppBar
+        title="Comments & Notes"
+        subtitle="Supervisor feedback"
+        onBack={() => {
+          if (user?.role === 'OWNER' || user?.role === 'ACCOUNTS') {
+            router.replace('/(owner)/dashboard');
+            return;
+          }
+          if (user?.role === 'SUPERVISOR') {
+            router.replace('/(supervisor)/dashboard');
+            return;
+          }
+          router.replace('/(farmer)/dashboard');
+        }}
+      />
 
       <View style={styles.container}>
         {loadingBatches ? (

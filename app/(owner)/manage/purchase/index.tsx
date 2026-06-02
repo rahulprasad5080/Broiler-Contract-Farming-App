@@ -290,7 +290,7 @@ export default function PurchaseListScreen() {
         title="Purchases"
         subtitle="Purchase list and vendor history"
         leadingMode="back"
-        onBack={() => router.back()}
+        onBack={() => router.replace('/(owner)/dashboard')}
         right={
           <TouchableOpacity
             style={styles.addButton}

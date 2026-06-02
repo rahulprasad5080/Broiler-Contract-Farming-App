@@ -273,7 +273,7 @@ export default function PaymentsScreen() {
         title="Payments"
         subtitle="Payment history"
         leadingMode="back"
-        onBack={() => router.back()}
+        onBack={() => router.replace('/(owner)/dashboard')}
         right={
           <TouchableOpacity
             style={styles.addButton}

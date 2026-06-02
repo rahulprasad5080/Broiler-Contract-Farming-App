@@ -213,7 +213,7 @@ export default function FinanceEntriesScreen() {
         title="Finance Entries"
         subtitle="GET /finance/entries"
         leadingMode="back"
-        onBack={() => router.back()}
+        onBack={() => router.replace('/(owner)/dashboard')}
         right={
           <TouchableOpacity
             style={styles.addButton}

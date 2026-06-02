@@ -162,7 +162,7 @@ export default function AllocateInventoryScreen() {
         title="Inventory Allocation"
         subtitle="Assign stock to batches"
         leadingMode="back"
-        onBack={() => router.back()}
+        onBack={() => router.replace('/(owner)/dashboard')}
       />
 
       <KeyboardAvoidingView

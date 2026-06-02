@@ -28,6 +28,7 @@ type TreatmentListScreenProps = {
   title?: string;
   subtitle?: string;
   addRoute: string;
+  onBack?: () => void;
 };
 
 function formatTreatmentDate(value?: string | null) {
@@ -72,6 +73,7 @@ export function TreatmentListScreen({
   title = 'Treatments',
   subtitle = 'Treatment history by batch',
   addRoute,
+  onBack,
 }: TreatmentListScreenProps) {
   const { accessToken } = useAuth();
   const router = useRouter();
@@ -188,6 +190,7 @@ export function TreatmentListScreen({
       <TopAppBar
         title={title}
         subtitle={subtitle}
+        onBack={onBack}
         right={
           <TouchableOpacity
             style={styles.headerBtn}

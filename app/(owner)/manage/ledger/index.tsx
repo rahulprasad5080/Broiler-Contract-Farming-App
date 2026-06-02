@@ -283,7 +283,7 @@ export default function InventoryLedgerScreen() {
         title="Inventory Ledger"
         subtitle="Stock movement history"
         leadingMode="back"
-        onBack={() => router.back()}
+        onBack={() => router.replace('/(owner)/dashboard')}
         right={
           <TouchableOpacity
             style={styles.headerAddButton}
