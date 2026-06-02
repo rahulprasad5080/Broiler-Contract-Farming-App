@@ -1,8 +1,7 @@
-import React from 'react';
-import { View, Text, TouchableOpacity } from 'react-native';
-import { Ionicons, Feather, MaterialCommunityIcons } from '@expo/vector-icons';
-import { styles } from './styles';
 import type { ApiDailyLog } from '@/services/managementApi';
+import { Feather, Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import { Text, TouchableOpacity, View } from 'react-native';
+import { styles } from './styles';
 
 const THEME_GREEN = '#0B5C36';
 
@@ -213,15 +212,8 @@ export function DailyEntriesTab({ dailyLogs, openDailyEntry }: DailyEntriesTabPr
                 ) : null}
 
                 <View style={styles.expenseInfoGrid}>
-                  <InfoPill label="Log ID" value={log.id} />
-                  <InfoPill label="Organization ID" value={log.organizationId} />
-                  <InfoPill label="Batch ID" value={log.batchId} />
                   <InfoPill label="Log Date" value={formatDate(log.logDate)} />
-                  <InfoPill label="Client Ref ID" value={log.clientReferenceId} />
-                  <InfoPill label="Recorded By ID" value={log.recordedById} />
-                  <InfoPill label="Corrected By ID" value={log.correctedById} />
                   <InfoPill label="Created At" value={formatDate(log.createdAt)} />
-                  <InfoPill label="Updated At" value={formatDate(log.updatedAt)} />
                 </View>
               </View>
             </TouchableOpacity>

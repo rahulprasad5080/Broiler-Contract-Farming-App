@@ -1,8 +1,7 @@
-import React from 'react';
-import { View, Text, TouchableOpacity, Linking } from 'react-native';
-import { Ionicons, Feather } from '@expo/vector-icons';
-import { styles } from './styles';
 import type { ApiBatchExpense } from '@/services/managementApi';
+import { Feather, Ionicons } from '@expo/vector-icons';
+import { Linking, Text, TouchableOpacity, View } from 'react-native';
+import { styles } from './styles';
 
 const THEME_GREEN = '#0B5C36';
 
@@ -65,11 +64,6 @@ function ExpenseHistoryCard({ expense, onPress }: { expense: ApiBatchExpense; on
       </View>
 
       <View style={styles.expenseInfoGrid}>
-        <InfoPill label="ID" value={expense.id} />
-        <InfoPill label="Organization ID" value={expense.organizationId} />
-        <InfoPill label="Batch ID" value={expense.batchId} />
-        <InfoPill label="Catalog Item ID" value={expense.catalogItemId} />
-        <InfoPill label="Vendor ID" value={expense.vendorId} />
         <InfoPill label="Ledger" value={labelize(expense.ledger)} />
         <InfoPill label="Category" value={expense.category} />
         <InfoPill label="Expense Date" value={formatDate(expense.expenseDate)} />
@@ -84,11 +78,8 @@ function ExpenseHistoryCard({ expense, onPress }: { expense: ApiBatchExpense; on
         <InfoPill label="Payment" value={labelize(expense.paymentStatus)} />
         <InfoPill label="Paid Amount" value={formatMoney(expense.paidAmount)} />
         <InfoPill label="Approval" value={labelize(expense.approvalStatus)} />
-        <InfoPill label="Approved By ID" value={expense.approvedById} />
         <InfoPill label="Approved At" value={formatDate(expense.approvedAt)} />
         <InfoPill label="Rejected Reason" value={expense.rejectedReason} />
-        <InfoPill label="Client Ref ID" value={expense.clientReferenceId} />
-        <InfoPill label="Created By ID" value={expense.createdById} />
         <InfoPill label="Created At" value={formatDate(expense.createdAt)} />
         <InfoPill label="Updated At" value={formatDate(expense.updatedAt)} />
         {quantityText ? <InfoPill label="Qty Display" value={quantityText} /> : null}

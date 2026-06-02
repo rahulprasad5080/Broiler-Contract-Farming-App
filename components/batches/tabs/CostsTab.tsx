@@ -1,5 +1,4 @@
 import { Feather, Ionicons } from '@expo/vector-icons';
-import React from 'react';
 import { Linking, Text, TouchableOpacity, View } from 'react-native';
 
 import type { ApiBatchExpense } from '@/services/managementApi';
@@ -60,11 +59,6 @@ function CostCard({ cost }: { cost: ApiBatchExpense }) {
       </View>
 
       <View style={styles.expenseInfoGrid}>
-        <InfoPill label="ID" value={cost.id} />
-        <InfoPill label="Organization ID" value={cost.organizationId} />
-        <InfoPill label="Batch ID" value={cost.batchId} />
-        <InfoPill label="Catalog Item ID" value={cost.catalogItemId} />
-        <InfoPill label="Vendor ID" value={cost.vendorId} />
         <InfoPill label="Ledger" value={labelize(cost.ledger)} />
         <InfoPill label="Category" value={cost.category} />
         <InfoPill label="Expense Date" value={formatDate(cost.expenseDate)} />
@@ -79,11 +73,8 @@ function CostCard({ cost }: { cost: ApiBatchExpense }) {
         <InfoPill label="Payment" value={labelize(cost.paymentStatus)} />
         <InfoPill label="Paid Amount" value={formatMoney(cost.paidAmount)} />
         <InfoPill label="Approval" value={labelize(cost.approvalStatus)} />
-        <InfoPill label="Approved By ID" value={cost.approvedById} />
         <InfoPill label="Approved At" value={formatDate(cost.approvedAt)} />
         <InfoPill label="Rejected Reason" value={cost.rejectedReason} />
-        <InfoPill label="Client Ref ID" value={cost.clientReferenceId} />
-        <InfoPill label="Created By ID" value={cost.createdById} />
         <InfoPill label="Created At" value={formatDate(cost.createdAt)} />
         <InfoPill label="Updated At" value={formatDate(cost.updatedAt)} />
       </View>

@@ -1,7 +1,6 @@
-import React from 'react';
-import { View, Text, TouchableOpacity } from 'react-native';
-import { styles } from './styles';
 import type { ApiBatchPnl } from '@/services/managementApi';
+import { Text, TouchableOpacity, View } from 'react-native';
+import { styles } from './styles';
 
 function formatNumber(value?: number | null, suffix = '') {
   if (value === undefined || value === null) return '-';
@@ -64,17 +63,7 @@ export function PnlTab({
 }: PnlTabProps) {
   return (
     <View style={styles.section}>
-      <View style={styles.expenseHistoryCard}>
-        <View style={styles.expenseHistoryHeader}>
-          <View style={styles.expenseHistoryTitleWrap}>
-            <Text style={styles.expenseHistoryTitle}>P&L Details</Text>
-          </View>
-        </View>
-        <View style={styles.expenseInfoGrid}>
-          <InfoPill label="Batch ID" value={batchPnl?.batchId} />
-          <InfoPill label="Batch Code" value={batchPnl?.batchCode} />
-        </View>
-      </View>
+
 
       <View style={styles.expenseToggleBox}>
         <TouchableOpacity

@@ -1,5 +1,4 @@
 import { Feather, Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
-import React from 'react';
 import { Text, TouchableOpacity, View } from 'react-native';
 
 import type { ApiTreatment } from '@/services/managementApi';
@@ -54,20 +53,12 @@ function TreatmentCard({ treatment }: { treatment: ApiTreatment }) {
       </View>
 
       <View style={styles.expenseInfoGrid}>
-        <InfoPill label="ID" value={treatment.id} />
-        <InfoPill label="Organization ID" value={treatment.organizationId} />
-        <InfoPill label="Batch ID" value={treatment.batchId} />
-        <InfoPill label="Daily Log ID" value={treatment.dailyLogId} />
         <InfoPill label="Treatment Date" value={formatDate(treatment.treatmentDate)} />
         <InfoPill label="Kind" value={labelize(treatment.kind)} />
-        <InfoPill label="Catalog Item ID" value={treatment.catalogItemId} />
         <InfoPill label="Treatment Name" value={treatment.treatmentName} />
         <InfoPill label="Dosage" value={treatment.dosage} />
         <InfoPill label="Bird Count" value={formatNumber(treatment.birdCount)} />
-        <InfoPill label="Client Ref ID" value={treatment.clientReferenceId} />
-        <InfoPill label="Administered By ID" value={treatment.administeredById} />
         <InfoPill label="Created At" value={formatDate(treatment.createdAt)} />
-        <InfoPill label="Updated At" value={formatDate(treatment.updatedAt)} />
       </View>
 
       {treatment.notes ? (

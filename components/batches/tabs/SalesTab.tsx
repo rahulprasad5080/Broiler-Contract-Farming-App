@@ -1,10 +1,9 @@
-import React from 'react';
-import { View, Text, TouchableOpacity } from 'react-native';
-import { Ionicons, Feather } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
-import { styles } from './styles';
 import { useAuth } from '@/context/AuthContext';
 import type { ApiSale } from '@/services/managementApi';
+import { Feather, Ionicons } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
+import { Text, TouchableOpacity, View } from 'react-native';
+import { styles } from './styles';
 
 const THEME_GREEN = '#0B5C36';
 
@@ -70,10 +69,6 @@ function SaleHistoryCard({
       </View>
 
       <View style={styles.expenseInfoGrid}>
-        <InfoPill label="ID" value={sale.id} />
-        <InfoPill label="Organization ID" value={sale.organizationId} />
-        <InfoPill label="Batch ID" value={sale.batchId} />
-        <InfoPill label="Trader ID" value={sale.traderId} />
         <InfoPill label="Trader Name" value={sale.traderName} />
         <InfoPill label="Sale Date" value={formatDate(sale.saleDate)} />
         <InfoPill label="Vehicle No." value={sale.vehicleNumber} />
@@ -90,25 +85,22 @@ function SaleHistoryCard({
         <InfoPill label="Net Amount" value={formatMoney(sale.netAmount)} />
         <InfoPill label="Received" value={formatMoney(sale.paymentReceivedAmount)} />
         <InfoPill label="Loading Mortality" value={formatNumber(sale.loadingMortalityCount)} />
-        <InfoPill label="Client Ref ID" value={sale.clientReferenceId} />
-        <InfoPill label="Created By ID" value={sale.createdById} />
-        <InfoPill label="Finalized By ID" value={sale.finalizedById} />
         <InfoPill label="Finalized At" value={formatDate(sale.finalizedAt)} />
         <InfoPill label="Created At" value={formatDate(sale.createdAt)} />
-        <InfoPill label="Updated At" value={formatDate(sale.updatedAt)} />
       </View>
+      <View style={styles.expenseDivider} />
 
-      <View style={styles.auditRow}>
+      <View style={[styles.auditRow, { justifyContent: 'space-between' }]}>
         {sale.grossAmount !== undefined && sale.grossAmount !== null ? (
-          <View style={styles.auditItem}>
-            <Feather name="trending-up" size={13} color="#6B7280" />
-            <Text style={styles.auditText}>Gross {formatMoney(sale.grossAmount)}</Text>
+          <View style={[styles.auditItem, { backgroundColor: '#F0FDF4', borderColor: '#BBF7D0', borderWidth: 1, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 5 }]}>
+            <Feather name="trending-up" size={13} color="#166534" />
+            <Text style={[styles.auditText, { color: '#166534', fontWeight: '800' }]}>Gross: {formatMoney(sale.grossAmount)}</Text>
           </View>
         ) : null}
         {sale.paymentReceivedAmount !== undefined && sale.paymentReceivedAmount !== null ? (
-          <View style={styles.auditItem}>
-            <Feather name="credit-card" size={13} color="#6B7280" />
-            <Text style={styles.auditText}>Received {formatMoney(sale.paymentReceivedAmount)}</Text>
+          <View style={[styles.auditItem, { backgroundColor: '#EFF6FF', borderColor: '#BFDBFE', borderWidth: 1, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 5 }]}>
+            <Feather name="credit-card" size={13} color="#1E40AF" />
+            <Text style={[styles.auditText, { color: '#1E40AF', fontWeight: '800' }]}>Received: {formatMoney(sale.paymentReceivedAmount)}</Text>
           </View>
         ) : null}
       </View>
@@ -168,7 +160,7 @@ export function SalesTab({
   const router = useRouter();
   const { hasPermission } = useAuth();
   const canCreateSale = hasPermission('create:sales');
-  
+
   return (
     <View style={styles.section}>
       <View style={styles.expenseSummaryCard}>
