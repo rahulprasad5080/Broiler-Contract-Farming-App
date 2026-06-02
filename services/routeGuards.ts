@@ -19,11 +19,14 @@ const OWNER_MANAGE_INDEX_PERMISSIONS: AppPermission[] = [
   "manage:batches",
   "manage:inventory",
   "create:purchase",
+  "create:treatments",
+  "view:comments",
   "create:expenses",
   "view:financial-dashboard",
   "manage:settlements",
   "create:sales",
   "manage:users",
+  "manage:catalog",
 ];
 
 const OWNER_MANAGE_ROUTE_PERMISSIONS: Record<string, AppPermission> = {
@@ -31,15 +34,23 @@ const OWNER_MANAGE_ROUTE_PERMISSIONS: Record<string, AppPermission> = {
   farms: "manage:farms",
   batches: "manage:batches",
   inventory: "manage:inventory",
+  allocate: "manage:inventory",
+  catalog: "manage:inventory",
+  purchase: "create:purchase",
+  ledger: "manage:inventory",
+  entries: "view:financial-dashboard",
   "finance-entry": "view:financial-dashboard",
   payments: "manage:settlements",
   expenses: "create:expenses",
   "daily-entry": "create:daily-entry",
+  treatments: "create:treatments",
+  comments: "view:comments",
   sales: "create:sales",
   settlement: "manage:settlements",
   settings: "manage:users",
   users: "manage:users",
   dropdowns: "manage:users",
+  billing: "view:financial-dashboard",
   api: "manage:users",
 };
 

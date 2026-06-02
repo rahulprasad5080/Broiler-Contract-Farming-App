@@ -38,6 +38,15 @@ const ENTRY_ITEMS: EntryItem[] = [
     requiredPermission: "create:daily-entry",
   },
   {
+    title: "Treatments",
+    desc: "List and add batch treatments",
+    icon: "medical-outline",
+    iconType: "Ionicons",
+    color: "#0EA5E9",
+    route: "/(owner)/manage/treatments",
+    requiredPermission: "create:treatments",
+  },
+  {
     title: "Inventory Allocation",
     desc: "Allocate feed, medicine etc.",
     icon: "cart-outline",
@@ -63,6 +72,15 @@ const ENTRY_ITEMS: EntryItem[] = [
     color: "#EF4444",
     route: "/(owner)/manage/sales",
     requiredPermission: "create:sales",
+  },
+  {
+    title: "Comments",
+    desc: "View batch notes and corrections",
+    icon: "chatbubbles-outline",
+    iconType: "Ionicons",
+    color: "#F59E0B",
+    route: "/(owner)/manage/comments",
+    requiredPermission: "view:comments",
   },
   {
     title: "Investment Entry",

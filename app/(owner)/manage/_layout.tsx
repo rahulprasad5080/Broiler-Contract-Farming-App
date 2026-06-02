@@ -18,10 +18,12 @@ export default function ManageLayout() {
       <Stack.Screen name="expenses" />
       <Stack.Screen name="daily-entry" />
       <Stack.Screen name="treatments" />
+      <Stack.Screen name="comments" />
       <Stack.Screen name="users" />
       <Stack.Screen name="partners" />
       <Stack.Screen name="sales" />
       <Stack.Screen name="settlement" />
+      <Stack.Screen name="billing" />
       <Stack.Screen name="settings" />
       <Stack.Screen name="dropdowns" />
       <Stack.Screen name="api" />
