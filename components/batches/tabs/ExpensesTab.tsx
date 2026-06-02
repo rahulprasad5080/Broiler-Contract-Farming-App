@@ -2,11 +2,7 @@ import React from 'react';
 import { View, Text, TouchableOpacity, Linking } from 'react-native';
 import { Ionicons, Feather } from '@expo/vector-icons';
 import { styles } from './styles';
-import type {
-  ApiBatchExpense,
-  ApiInventoryLedgerEntry,
-  ApiCatalogItem,
-} from '@/services/managementApi';
+import type { ApiBatchExpense } from '@/services/managementApi';
 
 const THEME_GREEN = '#0B5C36';
 
@@ -34,16 +30,18 @@ function formatDate(value?: string | null) {
   return date.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
 }
 
-function InfoPill({ label, value }: { label: string; value: string }) {
+function InfoPill({ label, value }: { label: string; value?: string | number | null }) {
   return (
     <View style={styles.infoPill}>
       <Text style={styles.infoPillLabel}>{label}</Text>
-      <Text style={styles.infoPillValue} numberOfLines={1}>{value}</Text>
+      <Text style={styles.infoPillValue} numberOfLines={2}>
+        {value === undefined || value === null || value === '' ? 'Not set' : String(value)}
+      </Text>
     </View>
   );
 }
 
-function ExpenseHistoryCard({ expense }: { expense: ApiBatchExpense }) {
+function ExpenseHistoryCard({ expense, onPress }: { expense: ApiBatchExpense; onPress?: () => void }) {
   const hasBill = Boolean(expense.billPhotoUrl);
   const quantityText =
     expense.quantity === undefined || expense.quantity === null
@@ -53,7 +51,7 @@ function ExpenseHistoryCard({ expense }: { expense: ApiBatchExpense }) {
     expense.rate === undefined || expense.rate === null ? null : `${formatMoney(expense.rate)} rate`;
 
   return (
-    <View style={styles.expenseHistoryCard}>
+    <TouchableOpacity style={styles.expenseHistoryCard} activeOpacity={onPress ? 0.86 : 1} onPress={onPress}>
       <View style={styles.expenseHistoryHeader}>
         <View style={styles.expenseHistoryTitleWrap}>
           <Text style={styles.expenseHistoryTitle} numberOfLines={1}>
@@ -67,14 +65,34 @@ function ExpenseHistoryCard({ expense }: { expense: ApiBatchExpense }) {
       </View>
 
       <View style={styles.expenseInfoGrid}>
+        <InfoPill label="ID" value={expense.id} />
+        <InfoPill label="Organization ID" value={expense.organizationId} />
+        <InfoPill label="Batch ID" value={expense.batchId} />
+        <InfoPill label="Catalog Item ID" value={expense.catalogItemId} />
+        <InfoPill label="Vendor ID" value={expense.vendorId} />
         <InfoPill label="Ledger" value={labelize(expense.ledger)} />
+        <InfoPill label="Category" value={expense.category} />
+        <InfoPill label="Expense Date" value={formatDate(expense.expenseDate)} />
+        <InfoPill label="Description" value={expense.description} />
+        <InfoPill label="Quantity" value={formatNumber(expense.quantity)} />
+        <InfoPill label="Unit" value={expense.unit} />
+        <InfoPill label="Rate" value={formatMoney(expense.rate)} />
+        <InfoPill label="Total Amount" value={formatMoney(expense.totalAmount)} />
+        <InfoPill label="Vendor Name" value={expense.vendorName} />
+        <InfoPill label="Invoice No." value={expense.invoiceNumber} />
+        <InfoPill label="Bill Photo URL" value={expense.billPhotoUrl} />
         <InfoPill label="Payment" value={labelize(expense.paymentStatus)} />
+        <InfoPill label="Paid Amount" value={formatMoney(expense.paidAmount)} />
         <InfoPill label="Approval" value={labelize(expense.approvalStatus)} />
-        {quantityText ? <InfoPill label="Qty" value={quantityText} /> : null}
-        {rateText ? <InfoPill label="Rate" value={rateText} /> : null}
-        {expense.paidAmount !== undefined && expense.paidAmount !== null ? (
-          <InfoPill label="Paid" value={formatMoney(expense.paidAmount)} />
-        ) : null}
+        <InfoPill label="Approved By ID" value={expense.approvedById} />
+        <InfoPill label="Approved At" value={formatDate(expense.approvedAt)} />
+        <InfoPill label="Rejected Reason" value={expense.rejectedReason} />
+        <InfoPill label="Client Ref ID" value={expense.clientReferenceId} />
+        <InfoPill label="Created By ID" value={expense.createdById} />
+        <InfoPill label="Created At" value={formatDate(expense.createdAt)} />
+        <InfoPill label="Updated At" value={formatDate(expense.updatedAt)} />
+        {quantityText ? <InfoPill label="Qty Display" value={quantityText} /> : null}
+        {rateText ? <InfoPill label="Rate Display" value={rateText} /> : null}
       </View>
 
       {expense.vendorName || expense.invoiceNumber ? (
@@ -110,50 +128,7 @@ function ExpenseHistoryCard({ expense }: { expense: ApiBatchExpense }) {
           <Text style={styles.billButtonText}>Open Bill Attachment</Text>
         </TouchableOpacity>
       ) : null}
-    </View>
-  );
-}
-
-function AllocatedStockCard({
-  allocation,
-  catalogItem,
-}: {
-  allocation: ApiInventoryLedgerEntry;
-  catalogItem?: ApiCatalogItem;
-}) {
-  const qty = allocation.quantityOut || 0;
-  const rate = catalogItem?.defaultRate || 0;
-  const unit = catalogItem?.unit || 'units';
-  const totalCost = qty * rate;
-
-  return (
-    <View style={styles.expenseHistoryCard}>
-      <View style={styles.expenseHistoryHeader}>
-        <View style={styles.expenseHistoryTitleWrap}>
-          <Text style={styles.expenseHistoryTitle} numberOfLines={1}>
-            {allocation.catalogItemName || catalogItem?.name || 'Allocated Stock'}
-          </Text>
-          <Text style={styles.expenseHistoryMeta}>
-            {['Stock Allocation', formatDate(allocation.movementDate)].filter(Boolean).join(' | ')}
-          </Text>
-        </View>
-        <Text style={[styles.expenseHistoryAmount, { color: '#0B5C36' }]}>
-          {totalCost > 0 ? formatMoney(totalCost) : 'Rate not set'}
-        </Text>
-      </View>
-
-      <View style={styles.expenseInfoGrid}>
-        <InfoPill label="Ledger" value="Company Stock" />
-        <InfoPill label="Qty Issued" value={`${formatNumber(qty)} ${unit}`} />
-        {rate > 0 ? <InfoPill label="Rate" value={`${formatMoney(rate)} / ${unit}`} /> : null}
-      </View>
-
-      {allocation.notes ? (
-        <Text style={styles.expenseNotes} numberOfLines={2}>
-          {allocation.notes}
-        </Text>
-      ) : null}
-    </View>
+    </TouchableOpacity>
   );
 }
 
@@ -164,8 +139,8 @@ interface ExpensesTabProps {
   activeExpenses: ApiBatchExpense[];
   activeExpenseTotal: number;
   todayExpenseTotal: number;
-  allocations?: ApiInventoryLedgerEntry[];
-  catalogItems?: ApiCatalogItem[];
+  onAddExpense?: () => void;
+  onEditExpense?: (expense: ApiBatchExpense) => void;
 }
 
 export function ExpensesTab({
@@ -175,8 +150,8 @@ export function ExpensesTab({
   activeExpenses,
   activeExpenseTotal,
   todayExpenseTotal,
-  allocations = [],
-  catalogItems = [],
+  onAddExpense,
+  onEditExpense,
 }: ExpensesTabProps) {
   return (
     <View style={styles.section}>
@@ -222,10 +197,12 @@ export function ExpensesTab({
 
       <View style={styles.sectionHeader}>
         <Text style={styles.sectionTitle}>{activeExpenseTitle}</Text>
-        <TouchableOpacity style={styles.addExpenseBtn}>
-          <Feather name="plus" size={16} color={THEME_GREEN} />
-          <Text style={styles.addExpenseText}>Add Expense</Text>
-        </TouchableOpacity>
+        {onAddExpense ? (
+          <TouchableOpacity style={styles.addExpenseBtn} onPress={onAddExpense}>
+            <Feather name="plus" size={16} color={THEME_GREEN} />
+            <Text style={styles.addExpenseText}>Add Expense</Text>
+          </TouchableOpacity>
+        ) : null}
       </View>
 
       {activeExpenses.length === 0 ? (
@@ -238,35 +215,9 @@ export function ExpensesTab({
         </View>
       ) : (
         activeExpenses.map((expense) => (
-          <ExpenseHistoryCard key={expense.id} expense={expense} />
+          <ExpenseHistoryCard key={expense.id} expense={expense} onPress={onEditExpense ? () => onEditExpense(expense) : undefined} />
         ))
       )}
-
-      {activeExpenseTab === 'company' && allocations && allocations.length > 0 && (
-        <View style={{ marginTop: 24 }}>
-          <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Allocated Stock Items</Text>
-          </View>
-          {allocations
-            .filter((a) => a.movementType === 'ALLOCATION' || (a.quantityOut !== undefined && a.quantityOut !== null && a.quantityOut > 0))
-            .map((allocation) => {
-              const catalogItem = catalogItems?.find((c) => c.id === allocation.catalogItemId);
-              return (
-                <AllocatedStockCard
-                  key={allocation.id}
-                  allocation={allocation}
-                  catalogItem={catalogItem}
-                />
-              );
-            })}
-        </View>
-      )}
-
-      <View style={styles.noteBox}>
-        <Text style={styles.noteText}>
-          Company and farmer ledgers are loaded separately from the batch expenses API.
-        </Text>
-      </View>
 
       <View style={{ height: 40 }} />
     </View>

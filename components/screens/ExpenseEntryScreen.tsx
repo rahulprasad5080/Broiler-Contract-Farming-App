@@ -15,7 +15,7 @@ import {
 } from "react-native";
 import { z } from "zod";
 
-import { useRouter } from "expo-router";
+import { useLocalSearchParams, useRouter } from "expo-router";
 import { DatePickerField } from "@/components/ui/DatePickerField";
 import { ScreenState } from "@/components/ui/ScreenState";
 import { SearchableSelectField } from "@/components/ui/SearchableSelectField";
@@ -32,9 +32,11 @@ import { getLocalDateValue } from "@/services/dateUtils";
 import {
   API_EXPENSE_LEDGER_VALUES,
   createBatchExpense,
+  listCatalogItems,
   listAllBatches,
   listAllVendors,
   type ApiBatch,
+  type ApiCatalogItem,
   type ApiExpenseCategoryCode,
   type ApiVendor,
 } from "@/services/managementApi";
@@ -44,10 +46,18 @@ const PAYMENT_TYPES = ["Cash", "UPI", "Bank", "Credit"];
 const EXPENSE_DEFAULTS: ExpenseFormData = {
   batchId: "",
   ledger: "COMPANY",
+  catalogItemId: "",
   category: "",
   vendorId: "",
+  vendorName: "",
+  description: "",
+  quantity: "",
+  unit: "",
+  rate: "",
   totalAmount: "",
   expenseDate: getLocalDateValue(),
+  invoiceNumber: "",
+  billPhotoUrl: "",
   notes: "",
   paymentType: "Cash",
 };
@@ -55,10 +65,18 @@ const EXPENSE_DEFAULTS: ExpenseFormData = {
 const expenseSchema = z.object({
   batchId: z.string().min(1, "Please select a batch"),
   ledger: z.enum(API_EXPENSE_LEDGER_VALUES),
+  catalogItemId: z.string().optional(),
   category: z.string().min(1, "Select category"),
   vendorId: z.string().optional(),
+  vendorName: z.string().optional(),
+  description: z.string().optional(),
+  quantity: z.string().optional(),
+  unit: z.string().optional(),
+  rate: z.string().optional(),
   totalAmount: z.string().min(1, "Amount is required"),
   expenseDate: z.string().min(1, "Date is required"),
+  invoiceNumber: z.string().optional(),
+  billPhotoUrl: z.string().optional(),
   notes: z.string().optional(),
   paymentType: z.string(),
 });
@@ -73,9 +91,11 @@ type ExpenseEntryScreenProps = {
 
 export function ExpenseEntryScreen({ title = "Expense Entry", subtitle, onBack }: ExpenseEntryScreenProps) {
   const router = useRouter();
+  const { batchId: routeBatchId } = useLocalSearchParams<{ batchId?: string }>();
   const { accessToken, hasPermission, user } = useAuth();
   const [batches, setBatches] = useState<ApiBatch[]>([]);
   const [vendors, setVendors] = useState<ApiVendor[]>([]);
+  const [catalogItems, setCatalogItems] = useState<ApiCatalogItem[]>([]);
   const [submitting, setSubmitting] = useState(false);
   const [savedMessage, setSavedMessage] = useState<string | null>(null);
   const canCreateCompanyExpense = hasPermission("create:company-expense");
@@ -101,7 +121,10 @@ export function ExpenseEntryScreen({ title = "Expense Entry", subtitle, onBack }
   const selectedLedger = watch("ledger");
   const selectedBatchId = watch("batchId");
   const selectedVendorId = watch("vendorId");
+  const selectedCatalogItemId = watch("catalogItemId");
   const selectedCategory = watch("category");
+  const selectedQuantity = watch("quantity");
+  const selectedRate = watch("rate");
   const selectedBatch = batches.find((b) => b.id === selectedBatchId) ?? null;
   const effectiveLedger = canCreateCompanyExpense ? selectedLedger : "FARMER";
   const {
@@ -118,6 +141,16 @@ export function ExpenseEntryScreen({ title = "Expense Entry", subtitle, onBack }
         keywords: [vendor.phone, vendor.email, vendor.address].filter(Boolean).join(" "),
       })),
     [vendors],
+  );
+  const catalogItemOptions = useMemo(
+    () =>
+      catalogItems.map((item) => ({
+        label: item.name,
+        value: item.id,
+        description: item.unit ?? undefined,
+        keywords: [item.sku, item.type, item.unit].filter(Boolean).join(" "),
+      })),
+    [catalogItems],
   );
   const selectedFarmId = selectedBatch?.farmId ?? "";
   const farmOptions = useMemo(() => {
@@ -154,21 +187,46 @@ export function ExpenseEntryScreen({ title = "Expense Entry", subtitle, onBack }
     }
   }, [categoryOptions, selectedCategory, setValue]);
 
+  React.useEffect(() => {
+    const qty = Number(selectedQuantity || 0);
+    const rate = Number(selectedRate || 0);
+    if (qty > 0 && rate > 0) {
+      setValue("totalAmount", String(qty * rate), { shouldDirty: true, shouldValidate: true });
+    }
+  }, [selectedQuantity, selectedRate, setValue]);
+
+  React.useEffect(() => {
+    if (!selectedCatalogItemId) return;
+    const selectedItem = catalogItems.find((item) => item.id === selectedCatalogItemId);
+    if (!selectedItem) return;
+
+    setValue("unit", selectedItem.unit ?? "", { shouldDirty: true });
+    if (selectedItem.defaultRate !== undefined && selectedItem.defaultRate !== null) {
+      setValue("rate", String(selectedItem.defaultRate), { shouldDirty: true, shouldValidate: true });
+    }
+  }, [catalogItems, selectedCatalogItemId, setValue]);
+
   const loadData = useCallback(async () => {
     if (!accessToken) return;
     try {
-      const [response, vendorsRes] = await Promise.all([
+      const [response, vendorsRes, catalogRes] = await Promise.all([
         listAllBatches(accessToken),
         listAllVendors(accessToken),
+        listCatalogItems(accessToken, { limit: 100 }),
       ]);
       setBatches(response.data);
       setVendors(vendorsRes.data);
+      setCatalogItems(catalogRes.data || []);
+      if (routeBatchId && response.data.some((batch) => batch.id === routeBatchId)) {
+        setValue("batchId", routeBatchId, { shouldDirty: false, shouldValidate: true });
+        return;
+      }
       const firstActive = response.data.find(b => b.status === "ACTIVE")?.id;
       if (firstActive && !selectedBatchId) setValue("batchId", firstActive);
     } catch (error) {
       showRequestErrorToast(error, { title: "Unable to load expense data" });
     }
-  }, [accessToken, selectedBatchId, setValue]);
+  }, [accessToken, routeBatchId, selectedBatchId, setValue]);
 
   useFocusEffect(useCallback(() => { void loadData(); }, [loadData]));
 
@@ -179,13 +237,22 @@ export function ExpenseEntryScreen({ title = "Expense Entry", subtitle, onBack }
     try {
       const payloadLedger = canCreateCompanyExpense ? data.ledger : "FARMER";
       const payloadCategory = data.category;
+      const selectedVendor = vendors.find((vendor) => vendor.id === data.vendorId);
       const payload = {
         ledger: payloadLedger,
         category: payloadCategory as ApiExpenseCategoryCode,
+        catalogItemId: data.catalogItemId?.trim() || undefined,
         vendorId: data.vendorId?.trim() || undefined,
+        vendorName: data.vendorName?.trim() || selectedVendor?.name || undefined,
         expenseDate: data.expenseDate,
-        description: data.notes || payloadCategory,
+        description: data.description?.trim() || data.notes?.trim() || payloadCategory,
+        quantity: data.quantity?.trim() ? Number(data.quantity) : undefined,
+        unit: data.unit?.trim() || undefined,
+        rate: data.rate?.trim() ? Number(data.rate) : undefined,
         totalAmount: Number(data.totalAmount),
+        invoiceNumber: data.invoiceNumber?.trim() || undefined,
+        billPhotoUrl: data.billPhotoUrl?.trim() || undefined,
+        notes: data.notes?.trim() || undefined,
         clientReferenceId: `expense-${Date.now()}`,
       };
 
@@ -197,7 +264,7 @@ export function ExpenseEntryScreen({ title = "Expense Entry", subtitle, onBack }
         await clearPersistedData();
         showSuccessToast("Saved offline. It will sync automatically.");
         setSavedMessage("Saved offline. It will sync when internet returns.");
-        reset({ ...data, totalAmount: "", notes: "" });
+        reset({ ...data, description: "", quantity: "", rate: "", totalAmount: "", invoiceNumber: "", billPhotoUrl: "", notes: "" });
         router.replace(getDashboardRoute(user?.role ?? "FARMER"));
         return;
       }
@@ -206,7 +273,7 @@ export function ExpenseEntryScreen({ title = "Expense Entry", subtitle, onBack }
       showSuccessToast("Expense saved successfully.");
       setSavedMessage("Expense saved successfully.");
       await clearPersistedData();
-      reset({ ...data, totalAmount: "", notes: "" });
+      reset({ ...data, description: "", quantity: "", rate: "", totalAmount: "", invoiceNumber: "", billPhotoUrl: "", notes: "" });
       router.replace(getDashboardRoute(user?.role ?? "FARMER"));
     } catch (error) {
       showRequestErrorToast(error, { title: "Save failed" });
@@ -325,6 +392,17 @@ export function ExpenseEntryScreen({ title = "Expense Entry", subtitle, onBack }
               required
             />
 
+            <SearchableSelectField
+              label="Catalog Item"
+              value={selectedCatalogItemId}
+              options={[{ label: "No catalog item", value: "" }, ...catalogItemOptions]}
+              onSelect={(value) => setValue("catalogItemId", value, { shouldDirty: true, shouldValidate: true })}
+              placeholder="Optional catalog item"
+              searchPlaceholder="Search catalog item"
+              emptyMessage="No catalog items found"
+              error={errors.catalogItemId?.message}
+            />
+
             {effectiveLedger === "COMPANY" ? (
               <SearchableSelectField
                 label="Vendor"
@@ -337,6 +415,94 @@ export function ExpenseEntryScreen({ title = "Expense Entry", subtitle, onBack }
                 error={errors.vendorId?.message}
               />
             ) : null}
+
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Vendor Name</Text>
+              <Controller
+                control={control}
+                name="vendorName"
+                render={({ field: { value, onChange } }) => (
+                  <TextInput
+                    style={styles.input}
+                    value={value}
+                    onChangeText={onChange}
+                    placeholder="Vendor name"
+                    placeholderTextColor="#9CA3AF"
+                  />
+                )}
+              />
+            </View>
+
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Description</Text>
+              <Controller
+                control={control}
+                name="description"
+                render={({ field: { value, onChange } }) => (
+                  <TextInput
+                    style={styles.input}
+                    value={value}
+                    onChangeText={onChange}
+                    placeholder="Feed purchase, labour, medicine..."
+                    placeholderTextColor="#9CA3AF"
+                  />
+                )}
+              />
+            </View>
+
+            <View style={styles.twoColRow}>
+              <View style={styles.twoColItem}>
+                <Text style={styles.label}>Quantity</Text>
+                <Controller
+                  control={control}
+                  name="quantity"
+                  render={({ field: { value, onChange } }) => (
+                    <TextInput
+                      style={styles.input}
+                      value={value}
+                      onChangeText={onChange}
+                      keyboardType="decimal-pad"
+                      placeholder="0"
+                      placeholderTextColor="#9CA3AF"
+                    />
+                  )}
+                />
+              </View>
+              <View style={styles.twoColItem}>
+                <Text style={styles.label}>Unit</Text>
+                <Controller
+                  control={control}
+                  name="unit"
+                  render={({ field: { value, onChange } }) => (
+                    <TextInput
+                      style={styles.input}
+                      value={value}
+                      onChangeText={onChange}
+                      placeholder="kg, bag, pcs"
+                      placeholderTextColor="#9CA3AF"
+                    />
+                  )}
+                />
+              </View>
+            </View>
+
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Rate</Text>
+              <Controller
+                control={control}
+                name="rate"
+                render={({ field: { value, onChange } }) => (
+                  <TextInput
+                    style={styles.input}
+                    value={value}
+                    onChangeText={onChange}
+                    keyboardType="decimal-pad"
+                    placeholder="0"
+                    placeholderTextColor="#9CA3AF"
+                  />
+                )}
+              />
+            </View>
 
             {/* Amount Input */}
             <View style={styles.inputGroup}>
@@ -379,6 +545,42 @@ export function ExpenseEntryScreen({ title = "Expense Entry", subtitle, onBack }
                   )}
                 />
               </View>
+            </View>
+
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Invoice Number</Text>
+              <Controller
+                control={control}
+                name="invoiceNumber"
+                render={({ field: { value, onChange } }) => (
+                  <TextInput
+                    style={styles.input}
+                    value={value}
+                    onChangeText={onChange}
+                    placeholder="INV-001"
+                    placeholderTextColor="#9CA3AF"
+                  />
+                )}
+              />
+            </View>
+
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Bill Photo URL</Text>
+              <Controller
+                control={control}
+                name="billPhotoUrl"
+                render={({ field: { value, onChange } }) => (
+                  <TextInput
+                    style={styles.input}
+                    value={value}
+                    onChangeText={onChange}
+                    placeholder="https://..."
+                    placeholderTextColor="#9CA3AF"
+                    autoCapitalize="none"
+                    keyboardType="url"
+                  />
+                )}
+              />
             </View>
 
             {/* Remarks */}
@@ -428,6 +630,15 @@ const styles = StyleSheet.create({
   input: {
     backgroundColor: "#FFF", borderWidth: 1, borderColor: "#E5E7EB", borderRadius: 12,
     paddingHorizontal: 16, height: 52, fontSize: 15, color: "#111827",
+  },
+  twoColRow: {
+    flexDirection: "row",
+    gap: 12,
+    marginBottom: 20,
+  },
+  twoColItem: {
+    flex: 1,
+    minWidth: 0,
   },
   inputMock: {
     flexDirection: "row", alignItems: "center", justifyContent: "space-between",

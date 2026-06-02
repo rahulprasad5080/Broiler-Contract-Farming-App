@@ -11,6 +11,29 @@ function formatNumber(value?: number | null, suffix = '') {
   return `${Number(value).toLocaleString('en-IN')}${suffix}`;
 }
 
+function formatDate(value?: string | null) {
+  if (!value) return 'Not set';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  return date.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
+}
+
+function formatValue(value?: string | number | null) {
+  if (value === undefined || value === null || value === '') return 'Not set';
+  return String(value);
+}
+
+function InfoPill({ label, value }: { label: string; value?: string | number | null }) {
+  return (
+    <View style={styles.infoPill}>
+      <Text style={styles.infoPillLabel}>{label}</Text>
+      <Text style={styles.infoPillValue} numberOfLines={2}>
+        {formatValue(value)}
+      </Text>
+    </View>
+  );
+}
+
 function getDateParts(value?: string | null) {
   if (!value) return { day: "--", month: "---", year: "----", weekday: "---" };
   const parts = value.slice(0, 10).split("-");
@@ -92,9 +115,14 @@ export function DailyEntriesTab({ dailyLogs, openDailyEntry }: DailyEntriesTabPr
                     <Text style={styles.batchCodeTitle}>Opening: {formatNumber(log.openingBirdCount)} birds</Text>
                   </View>
 
-                  <View style={styles.editButtonIcon}>
+                  <TouchableOpacity
+                    style={styles.editButtonIcon}
+                    activeOpacity={0.75}
+                    onPress={() => openDailyEntry(log.id)}
+                  >
                     <Ionicons name="create-outline" size={14} color={THEME_GREEN} />
-                  </View>
+                    <Text style={styles.editButtonText}>Edit</Text>
+                  </TouchableOpacity>
                 </View>
 
                 <View style={styles.dividerLine} />
@@ -179,6 +207,18 @@ export function DailyEntriesTab({ dailyLogs, openDailyEntry }: DailyEntriesTabPr
                     </Text>
                   </View>
                 ) : null}
+
+                <View style={styles.expenseInfoGrid}>
+                  <InfoPill label="Log ID" value={log.id} />
+                  <InfoPill label="Organization ID" value={log.organizationId} />
+                  <InfoPill label="Batch ID" value={log.batchId} />
+                  <InfoPill label="Log Date" value={formatDate(log.logDate)} />
+                  <InfoPill label="Client Ref ID" value={log.clientReferenceId} />
+                  <InfoPill label="Recorded By ID" value={log.recordedById} />
+                  <InfoPill label="Corrected By ID" value={log.correctedById} />
+                  <InfoPill label="Created At" value={formatDate(log.createdAt)} />
+                  <InfoPill label="Updated At" value={formatDate(log.updatedAt)} />
+                </View>
               </View>
             </TouchableOpacity>
           );

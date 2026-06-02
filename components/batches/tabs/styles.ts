@@ -1,5 +1,4 @@
 import { StyleSheet } from 'react-native';
-import { Colors } from '@/constants/Colors';
 const THEME_GREEN = '#0B5C36';
 export const styles = StyleSheet.create({
   container: {
@@ -827,14 +826,22 @@ export const styles = StyleSheet.create({
     color: "#1E293B",
   },
   editButtonIcon: {
-    width: 26,
+    minWidth: 58,
     height: 26,
     borderRadius: 13,
     backgroundColor: "#F1F5F9",
     alignItems: "center",
     justifyContent: "center",
+    flexDirection: "row",
+    gap: 4,
+    paddingHorizontal: 8,
     borderWidth: 1,
     borderColor: "#E2E8F0",
+  },
+  editButtonText: {
+    fontSize: 11,
+    fontWeight: "900",
+    color: THEME_GREEN,
   },
   dividerLine: {
     height: 1,

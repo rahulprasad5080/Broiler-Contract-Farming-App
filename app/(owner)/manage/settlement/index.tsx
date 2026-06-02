@@ -2,7 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useFocusEffect } from '@react-navigation/native';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Controller, useForm } from 'react-hook-form';
 import {
   ActivityIndicator,
@@ -24,7 +24,7 @@ import {
   showSuccessToast,
 } from '@/services/apiFeedback';
 import {
-  API_OPEN_TRANSACTION_PAYMENT_STATUS_VALUES,
+  API_TRANSACTION_PAYMENT_STATUS_VALUES,
   API_PAYOUT_UNIT_VALUES,
   ApiBatch,
   ApiBatchSettlement,
@@ -34,7 +34,7 @@ import {
 } from '@/services/managementApi';
 
 const PAYOUT_UNITS = API_PAYOUT_UNIT_VALUES;
-const PAYMENT_STATUSES = API_OPEN_TRANSACTION_PAYMENT_STATUS_VALUES;
+const PAYMENT_STATUSES = API_TRANSACTION_PAYMENT_STATUS_VALUES;
 
 const settlementSchema = z.object({
   payoutRate: z.string().trim().min(1, 'Payout rate is required'),
@@ -74,6 +74,8 @@ function labelizeStatus(value?: string | null) {
 export default function SettlementScreen() {
   const { accessToken } = useAuth();
   const router = useRouter();
+  const { batchId: routeBatchId } = useLocalSearchParams<{ batchId?: string }>();
+  const initialBatchId = typeof routeBatchId === 'string' ? routeBatchId : '';
   const [batches, setBatches] = useState<ApiBatch[]>([]);
   const [selectedBatchId, setSelectedBatchId] = useState('');
   const [settlement, setSettlement] = useState<ApiBatchSettlement | null>(null);
@@ -84,7 +86,6 @@ export default function SettlementScreen() {
   const {
     control,
     handleSubmit,
-    reset,
   } = useForm<SettlementFormData>({
     resolver: zodResolver(settlementSchema),
     defaultValues: SETTLEMENT_DEFAULTS,
@@ -150,13 +151,17 @@ export default function SettlementScreen() {
       const response = await listAllBatches(accessToken);
       setBatches(response.data);
       const first = response.data.find((b) => b.status === 'SETTLEMENT_PENDING' || b.status === 'CLOSED') || response.data[0];
-      if (first) setSelectedBatchId(first.id);
+      if (initialBatchId) {
+        setSelectedBatchId(initialBatchId);
+      } else if (first) {
+        setSelectedBatchId(first.id);
+      }
     } catch (error) {
       showRequestErrorToast(error, { title: 'Unable to load batches' });
     } finally {
       setLoading(false);
     }
-  }, [accessToken]);
+  }, [accessToken, initialBatchId]);
 
   useFocusEffect(
     useCallback(() => {
@@ -193,7 +198,13 @@ export default function SettlementScreen() {
       <TopAppBar
         title="Farmer Settlement"
         subtitle="Review farmer payable and settlement status"
-        onBack={() => router.replace('/(owner)/dashboard')}
+        onBack={() => {
+          if (initialBatchId) {
+            router.back();
+            return;
+          }
+          router.replace('/(owner)/dashboard');
+        }}
       />
 
       <ScrollView 

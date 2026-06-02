@@ -139,11 +139,13 @@ export function ExpenseHistoryCard({ expense }: { expense: ApiBatchExpense }) {
   );
 }
 
-export function InfoPill({ label, value }: { label: string; value: string }) {
+export function InfoPill({ label, value }: { label: string; value?: string | number | null }) {
   return (
     <View style={styles.infoPill}>
       <Text style={styles.infoPillLabel}>{label}</Text>
-      <Text style={styles.infoPillValue} numberOfLines={1}>{value}</Text>
+      <Text style={styles.infoPillValue} numberOfLines={2}>
+        {value === undefined || value === null || value === '' ? 'Not set' : String(value)}
+      </Text>
     </View>
   );
 }
@@ -228,6 +230,17 @@ export function CommentCard({ comment }: { comment: ApiComment }) {
       </View>
 
       <Text style={styles.commentText}>{comment.comment}</Text>
+
+      <View style={styles.expenseInfoGrid}>
+        <InfoPill label="ID" value={comment.id} />
+        <InfoPill label="Organization ID" value={comment.organizationId} />
+        <InfoPill label="Farm ID" value={comment.farmId} />
+        <InfoPill label="Batch ID" value={comment.batchId} />
+        <InfoPill label="Target Type" value={labelize(comment.targetType)} />
+        <InfoPill label="Target ID" value={comment.targetId} />
+        <InfoPill label="Created By ID" value={comment.createdById} />
+        <InfoPill label="Created At" value={formatDate(comment.createdAt)} />
+      </View>
 
       {comment.correctionNote ? (
         <View style={styles.correctionBox}>

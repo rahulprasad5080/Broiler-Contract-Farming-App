@@ -3,8 +3,6 @@ import { View, Text, TouchableOpacity } from 'react-native';
 import { styles } from './styles';
 import type { ApiBatchPnl } from '@/services/managementApi';
 
-const THEME_GREEN = '#0B5C36';
-
 function formatNumber(value?: number | null, suffix = '') {
   if (value === undefined || value === null) return '0';
   return `${Number(value).toLocaleString('en-IN')}${suffix}`;
@@ -37,6 +35,17 @@ function PnlRow({
   );
 }
 
+function InfoPill({ label, value }: { label: string; value?: string | number | null }) {
+  return (
+    <View style={styles.infoPill}>
+      <Text style={styles.infoPillLabel}>{label}</Text>
+      <Text style={styles.infoPillValue} numberOfLines={2}>
+        {value === undefined || value === null || value === '' ? 'Not set' : String(value)}
+      </Text>
+    </View>
+  );
+}
+
 interface PnlTabProps {
   activePnlTab: 'company' | 'farmer';
   setActivePnlTab: (val: 'company' | 'farmer') => void;
@@ -54,6 +63,19 @@ export function PnlTab({
 }: PnlTabProps) {
   return (
     <View style={styles.section}>
+      <View style={styles.expenseHistoryCard}>
+        <View style={styles.expenseHistoryHeader}>
+          <View style={styles.expenseHistoryTitleWrap}>
+            <Text style={styles.expenseHistoryTitle}>P&L Details</Text>
+            <Text style={styles.expenseHistoryMeta}>Loaded from /batches/{'{batchId}'}/pnl</Text>
+          </View>
+        </View>
+        <View style={styles.expenseInfoGrid}>
+          <InfoPill label="Batch ID" value={batchPnl?.batchId} />
+          <InfoPill label="Batch Code" value={batchPnl?.batchCode} />
+        </View>
+      </View>
+
       {/* P&L Toggle */}
       <View style={styles.expenseToggleBox}>
         <TouchableOpacity

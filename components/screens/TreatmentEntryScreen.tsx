@@ -52,6 +52,7 @@ function todayValue() {
 
 const treatmentSchema = z.object({
   batchId: z.string().min(1, 'Please select a batch'),
+  dailyLogId: z.string().optional(),
   treatmentDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Date must be in YYYY-MM-DD format'),
   kind: z.string().min(1, 'Type is required'),
   catalogItemId: z.string().optional(),
@@ -67,6 +68,7 @@ type TreatmentFormData = z.infer<typeof treatmentSchema>;
 
 const TREATMENT_DEFAULTS = {
   batchId: '',
+  dailyLogId: '',
   treatmentDate: todayValue(),
   kind: '',
   catalogItemId: '',
@@ -211,6 +213,7 @@ export function TreatmentEntryScreen({
     setMessage(null);
     try {
       const payload = {
+        dailyLogId: data.dailyLogId?.trim() || undefined,
         treatmentDate: data.treatmentDate,
         kind: data.kind,
         catalogItemId: data.catalogItemId?.trim() || undefined,
@@ -218,6 +221,7 @@ export function TreatmentEntryScreen({
         dosage: data.dosage?.trim() || undefined,
         birdCount: data.birdCount ? Number(data.birdCount) : undefined,
         notes: data.notes?.trim() || undefined,
+        clientReferenceId: `treatment-${Date.now()}`,
       };
 
       if (!(await isNetworkConnected())) {
@@ -233,6 +237,7 @@ export function TreatmentEntryScreen({
           notes: '',
           catalogItemId: '',
           treatmentName: '',
+          dailyLogId: data.dailyLogId,
         });
         await clearPersistedData();
         if (closeOnSave) {
@@ -252,6 +257,7 @@ export function TreatmentEntryScreen({
         notes: '',
         catalogItemId: '',
         treatmentName: '',
+        dailyLogId: data.dailyLogId,
       };
       reset(nextValues);
       await clearPersistedData();
@@ -388,6 +394,28 @@ export function TreatmentEntryScreen({
                 emptyMessage="No active catalog items found"
                 error={formErrors.catalogItemId?.message}
               />
+            )}
+          />
+
+          <Controller
+            control={control}
+            name="dailyLogId"
+            render={({ field: { onChange, value } }) => (
+              <View style={styles.inputGroup}>
+                <Text style={styles.label}>Daily Log ID</Text>
+                <View style={[styles.inputMock, formErrors.dailyLogId && { borderColor: Colors.tertiary }]}>
+                  <TextInput
+                    style={styles.textInput}
+                    value={value}
+                    onChangeText={onChange}
+                    placeholder="Optional daily log ID"
+                    placeholderTextColor={Colors.textSecondary}
+                    autoCapitalize="none"
+                  />
+                  <MaterialCommunityIcons name="calendar-text" size={20} color={Colors.textSecondary} />
+                </View>
+                {formErrors.dailyLogId && <Text style={styles.fieldErrorText}>{formErrors.dailyLogId.message}</Text>}
+              </View>
             )}
           />
 

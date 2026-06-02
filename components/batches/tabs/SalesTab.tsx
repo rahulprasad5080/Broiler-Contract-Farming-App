@@ -32,16 +32,24 @@ function formatDate(value?: string | null) {
   return date.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
 }
 
-function InfoPill({ label, value }: { label: string; value: string }) {
+function InfoPill({ label, value }: { label: string; value?: string | number | null }) {
   return (
     <View style={styles.infoPill}>
       <Text style={styles.infoPillLabel}>{label}</Text>
-      <Text style={styles.infoPillValue} numberOfLines={1}>{value}</Text>
+      <Text style={styles.infoPillValue} numberOfLines={2}>
+        {value === undefined || value === null || value === '' ? 'Not set' : String(value)}
+      </Text>
     </View>
   );
 }
 
-function SaleHistoryCard({ sale }: { sale: ApiSale }) {
+function SaleHistoryCard({
+  sale,
+  onFinalizeSale,
+}: {
+  sale: ApiSale;
+  onFinalizeSale?: (sale: ApiSale) => void;
+}) {
   const mainAmount = sale.netAmount ?? sale.grossAmount;
   const avgWeight =
     sale.averageWeightKg ??
@@ -62,12 +70,32 @@ function SaleHistoryCard({ sale }: { sale: ApiSale }) {
       </View>
 
       <View style={styles.expenseInfoGrid}>
+        <InfoPill label="ID" value={sale.id} />
+        <InfoPill label="Organization ID" value={sale.organizationId} />
+        <InfoPill label="Batch ID" value={sale.batchId} />
+        <InfoPill label="Trader ID" value={sale.traderId} />
+        <InfoPill label="Trader Name" value={sale.traderName} />
+        <InfoPill label="Sale Date" value={formatDate(sale.saleDate)} />
+        <InfoPill label="Vehicle No." value={sale.vehicleNumber} />
         <InfoPill label="Status" value={labelize(sale.status)} />
         <InfoPill label="Payment" value={labelize(sale.paymentStatus)} />
         <InfoPill label="Birds" value={formatNumber(sale.birdCount)} />
         <InfoPill label="Weight" value={formatNumber(sale.totalWeightKg, ' kg')} />
         <InfoPill label="Avg Weight" value={formatNumber(avgWeight, ' kg')} />
         <InfoPill label="Rate" value={formatMoney(sale.ratePerKg)} />
+        <InfoPill label="Gross Amount" value={formatMoney(sale.grossAmount)} />
+        <InfoPill label="Transport" value={formatMoney(sale.transportCharge)} />
+        <InfoPill label="Commission" value={formatMoney(sale.commissionCharge)} />
+        <InfoPill label="Other Deduction" value={formatMoney(sale.otherDeduction)} />
+        <InfoPill label="Net Amount" value={formatMoney(sale.netAmount)} />
+        <InfoPill label="Received" value={formatMoney(sale.paymentReceivedAmount)} />
+        <InfoPill label="Loading Mortality" value={formatNumber(sale.loadingMortalityCount)} />
+        <InfoPill label="Client Ref ID" value={sale.clientReferenceId} />
+        <InfoPill label="Created By ID" value={sale.createdById} />
+        <InfoPill label="Finalized By ID" value={sale.finalizedById} />
+        <InfoPill label="Finalized At" value={formatDate(sale.finalizedAt)} />
+        <InfoPill label="Created At" value={formatDate(sale.createdAt)} />
+        <InfoPill label="Updated At" value={formatDate(sale.updatedAt)} />
       </View>
 
       <View style={styles.auditRow}>
@@ -103,6 +131,17 @@ function SaleHistoryCard({ sale }: { sale: ApiSale }) {
       ) : null}
 
       {sale.notes ? <Text style={styles.expenseNotes} numberOfLines={2}>{sale.notes}</Text> : null}
+
+      {onFinalizeSale ? (
+        <TouchableOpacity
+          style={styles.billButton}
+          activeOpacity={0.75}
+          onPress={() => onFinalizeSale(sale)}
+        >
+          <Feather name="check-circle" size={14} color={THEME_GREEN} />
+          <Text style={styles.billButtonText}>Finalize Sale</Text>
+        </TouchableOpacity>
+      ) : null}
     </View>
   );
 }
@@ -113,6 +152,8 @@ interface SalesTabProps {
   todaySalesAmount: number;
   totalSoldBirds: number;
   totalSoldWeight: number;
+  onAddSale?: () => void;
+  onFinalizeSale?: (sale: ApiSale) => void;
 }
 
 export function SalesTab({
@@ -121,6 +162,8 @@ export function SalesTab({
   todaySalesAmount,
   totalSoldBirds,
   totalSoldWeight,
+  onAddSale,
+  onFinalizeSale,
 }: SalesTabProps) {
   const router = useRouter();
   const { hasPermission } = useAuth();
@@ -154,7 +197,7 @@ export function SalesTab({
         {canCreateSale ? (
           <TouchableOpacity
             style={styles.addExpenseBtn}
-            onPress={() => router.navigate('/(owner)/manage/sales')}
+            onPress={onAddSale ?? (() => router.navigate('/(owner)/manage/sales'))}
           >
             <Feather name="plus" size={16} color={THEME_GREEN} />
             <Text style={styles.addExpenseText}>Add Sale</Text>
@@ -171,7 +214,9 @@ export function SalesTab({
           </Text>
         </View>
       ) : (
-        sales.map((sale) => <SaleHistoryCard key={sale.id} sale={sale} />)
+        sales.map((sale) => (
+          <SaleHistoryCard key={sale.id} sale={sale} onFinalizeSale={onFinalizeSale} />
+        ))
       )}
 
       <View style={{ height: 40 }} />

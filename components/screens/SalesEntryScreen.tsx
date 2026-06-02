@@ -1,12 +1,17 @@
 import { useAuth } from "@/context/AuthContext";
 import {
+  API_SALE_STATUS_VALUES,
+  API_TRANSACTION_PAYMENT_STATUS_VALUES,
   ApiBatch,
   ApiTrader,
+  type ApiSaleStatus,
+  type ApiTransactionPaymentStatus,
   createSale,
   listAllBatches,
   listAllTraders,
 } from "@/services/managementApi";
 import { useFocusEffect } from "@react-navigation/native";
+import { useLocalSearchParams } from "expo-router";
 import React, {
   useCallback,
   useEffect,
@@ -51,6 +56,14 @@ function parseNumberInput(value: string) {
   return Number.isNaN(next) ? undefined : next;
 }
 
+function labelize(value?: string | null) {
+  if (!value) return "Not set";
+  return value
+    .split("_")
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1).toLowerCase())
+    .join(" ");
+}
+
 const numericField = (label: string) =>
   z.string().min(1, `${label} is required`).refine((value) => parseNumberInput(value) !== undefined, {
     message: `${label} must be a number`,
@@ -60,11 +73,29 @@ const salesEntrySchema = z.object({
   batchId: z.string().min(1, "Please select a batch"),
   traderId: z.string().min(1, "Please select a customer"),
   saleDate: z.string().min(1, "Date is required"),
+  vehicleNumber: z.string().optional(),
   birdCount: numericField("Quantity sold"),
   totalWeightKg: numericField("Total weight"),
   averageWeightKg: z.string().optional(),
+  loadingMortalityCount: z.string().optional().refine((value) => !value || parseNumberInput(value) !== undefined, {
+    message: "Loading mortality must be a number",
+  }),
   ratePerKg: numericField("Rate"),
   rateType: z.enum(["LIVE", "DRESSED"]),
+  transportCharge: z.string().optional().refine((value) => !value || parseNumberInput(value) !== undefined, {
+    message: "Transport charge must be a number",
+  }),
+  commissionCharge: z.string().optional().refine((value) => !value || parseNumberInput(value) !== undefined, {
+    message: "Commission charge must be a number",
+  }),
+  otherDeduction: z.string().optional().refine((value) => !value || parseNumberInput(value) !== undefined, {
+    message: "Other deduction must be a number",
+  }),
+  paymentReceivedAmount: z.string().optional().refine((value) => !value || parseNumberInput(value) !== undefined, {
+    message: "Payment received must be a number",
+  }),
+  paymentStatus: z.enum(API_TRANSACTION_PAYMENT_STATUS_VALUES),
+  status: z.enum(API_SALE_STATUS_VALUES),
   notes: z.string().optional(),
 });
 
@@ -74,11 +105,19 @@ const SALES_ENTRY_DEFAULTS: SalesEntryFormData = {
   batchId: "",
   traderId: "",
   saleDate: todayValue(),
+  vehicleNumber: "",
   birdCount: "",
   totalWeightKg: "",
   averageWeightKg: "",
+  loadingMortalityCount: "",
   ratePerKg: "",
   rateType: "LIVE",
+  transportCharge: "",
+  commissionCharge: "",
+  otherDeduction: "",
+  paymentReceivedAmount: "",
+  paymentStatus: "PENDING",
+  status: "CONFIRMED",
   notes: "",
 };
 
@@ -92,6 +131,8 @@ interface SalesEntryScreenProps {
 
 export function SalesEntryScreen({ title = "Sales Entry", subtitle, onBack }: SalesEntryScreenProps) {
   const { accessToken, user } = useAuth();
+  const { batchId: routeBatchId } = useLocalSearchParams<{ batchId?: string }>();
+  const initialBatchId = typeof routeBatchId === "string" ? routeBatchId : "";
   const [batches, setBatches] = useState<ApiBatch[]>([]);
   const [traders, setTraders] = useState<ApiTrader[]>([]);
   const [submitting, setSubmitting] = useState(false);
@@ -108,13 +149,19 @@ export function SalesEntryScreen({ title = "Sales Entry", subtitle, onBack }: Sa
     formState: { errors },
   } = useForm<SalesEntryFormData>({
     resolver: zodResolver(salesEntrySchema),
-    defaultValues: SALES_ENTRY_DEFAULTS,
+    defaultValues: {
+      ...SALES_ENTRY_DEFAULTS,
+      batchId: initialBatchId,
+    },
   });
   const { clearPersistedData, isRestored } = useFormPersistence(
-    "form_draft_sales_entry",
+    `form_draft_sales_entry_${initialBatchId || "new"}`,
     watch,
     reset,
-    SALES_ENTRY_DEFAULTS,
+    {
+      ...SALES_ENTRY_DEFAULTS,
+      batchId: initialBatchId,
+    },
   );
 
   const selectedBatchId = watch("batchId");
@@ -123,11 +170,22 @@ export function SalesEntryScreen({ title = "Sales Entry", subtitle, onBack }: Sa
   const totalWeightKg = watch("totalWeightKg");
   const ratePerKg = watch("ratePerKg");
   const rateType = watch("rateType");
+  const transportCharge = watch("transportCharge");
+  const commissionCharge = watch("commissionCharge");
+  const otherDeduction = watch("otherDeduction");
+  const paymentStatus = watch("paymentStatus");
+  const saleStatus = watch("status");
   const canUseLiveRate = user?.role === "OWNER";
 
   const activeBatches = useMemo(
-    () => batches.filter((batch) => batch.status === "ACTIVE" || batch.status === "SALES_RUNNING"),
-    [batches]
+    () =>
+      batches.filter(
+        (batch) =>
+          batch.status === "ACTIVE" ||
+          batch.status === "SALES_RUNNING" ||
+          batch.id === initialBatchId,
+      ),
+    [batches, initialBatchId]
   );
   const batchOptions = useMemo(
     () =>
@@ -202,6 +260,13 @@ export function SalesEntryScreen({ title = "Sales Entry", subtitle, onBack }: Sa
     return totalWeight * rate;
   }, [totalWeightKg, ratePerKg]);
 
+  const netAmount = useMemo(() => {
+    const transport = parseNumberInput(transportCharge ?? "") || 0;
+    const commission = parseNumberInput(commissionCharge ?? "") || 0;
+    const deduction = parseNumberInput(otherDeduction ?? "") || 0;
+    return Math.max(totalAmount - transport - commission - deduction, 0);
+  }, [commissionCharge, otherDeduction, totalAmount, transportCharge]);
+
   const loadData = useCallback(async () => {
     if (!accessToken) return;
     try {
@@ -213,13 +278,15 @@ export function SalesEntryScreen({ title = "Sales Entry", subtitle, onBack }: Sa
       setTraders(tradersRes.data);
 
       const firstActiveId = batchesRes.data.find((b) => b.status === "ACTIVE" || b.status === "SALES_RUNNING")?.id;
-      if (firstActiveId && !selectedBatchId) {
+      if (initialBatchId) {
+        setValue("batchId", initialBatchId, { shouldDirty: false, shouldValidate: true });
+      } else if (firstActiveId && !selectedBatchId) {
         setValue("batchId", firstActiveId);
       }
     } catch (error) {
       showRequestErrorToast(error, { title: "Unable to load data" });
     }
-  }, [accessToken, selectedBatchId, setValue]);
+  }, [accessToken, initialBatchId, selectedBatchId, setValue]);
 
   useFocusEffect(
     useCallback(() => {
@@ -247,15 +314,27 @@ export function SalesEntryScreen({ title = "Sales Entry", subtitle, onBack }: Sa
       const weight = qty > 0 ? totalWeight / qty : 0;
       const rate = parseNumberInput(data.ratePerKg) || 0;
       const total = totalWeight * rate;
+      const transport = parseNumberInput(data.transportCharge ?? "") || 0;
+      const commission = parseNumberInput(data.commissionCharge ?? "") || 0;
+      const deduction = parseNumberInput(data.otherDeduction ?? "") || 0;
+      const net = Math.max(total - transport - commission - deduction, 0);
       const payload = {
         traderId: data.traderId,
         saleDate: data.saleDate,
+        vehicleNumber: data.vehicleNumber?.trim() || undefined,
         birdCount: qty,
         totalWeightKg: totalWeight,
         averageWeightKg: weight,
+        loadingMortalityCount: parseNumberInput(data.loadingMortalityCount ?? ""),
         ratePerKg: rate,
         grossAmount: total,
-        netAmount: total,
+        transportCharge: transport,
+        commissionCharge: commission,
+        otherDeduction: deduction,
+        netAmount: net,
+        paymentReceivedAmount: parseNumberInput(data.paymentReceivedAmount ?? ""),
+        paymentStatus: data.paymentStatus,
+        status: data.status,
         notes: data.notes?.trim() || undefined,
         clientReferenceId: `sale-${Date.now()}`,
       };
@@ -361,6 +440,24 @@ export function SalesEntryScreen({ title = "Sales Entry", subtitle, onBack }: Sa
               error={errors.traderId?.message}
             />
 
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Vehicle Number</Text>
+              <Controller
+                control={control}
+                name="vehicleNumber"
+                render={({ field: { value, onChange } }) => (
+                  <TextInput
+                    style={styles.input}
+                    value={value}
+                    onChangeText={onChange}
+                    placeholder="Vehicle number"
+                    placeholderTextColor="#9CA3AF"
+                    autoCapitalize="characters"
+                  />
+                )}
+              />
+            </View>
+
             {/* Quantity Sold */}
             <View style={styles.inputGroup}>
               <Text style={styles.label}>Quantity Sold</Text>
@@ -382,6 +479,25 @@ export function SalesEntryScreen({ title = "Sales Entry", subtitle, onBack }: Sa
                 )}
               />
               {errors.birdCount && <Text style={styles.errorText}>{errors.birdCount.message}</Text>}
+            </View>
+
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Loading Mortality</Text>
+              <Controller
+                control={control}
+                name="loadingMortalityCount"
+                render={({ field: { value, onChange } }) => (
+                  <TextInput
+                    style={styles.input}
+                    value={value}
+                    onChangeText={onChange}
+                    keyboardType="numeric"
+                    placeholder="0"
+                    placeholderTextColor="#9CA3AF"
+                  />
+                )}
+              />
+              {errors.loadingMortalityCount && <Text style={styles.errorText}>{errors.loadingMortalityCount.message}</Text>}
             </View>
 
             {/* Total Weight */}
@@ -465,6 +581,127 @@ export function SalesEntryScreen({ title = "Sales Entry", subtitle, onBack }: Sa
             <View style={styles.inputGroup}>
               <Text style={styles.label}>Total Amount (₹)</Text>
               <Text style={styles.totalAmountText}>₹ {totalAmount.toLocaleString('en-IN')}</Text>
+            </View>
+
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Transport Charge</Text>
+              <Controller
+                control={control}
+                name="transportCharge"
+                render={({ field: { value, onChange } }) => (
+                  <TextInput
+                    style={styles.input}
+                    value={value}
+                    onChangeText={onChange}
+                    keyboardType="numeric"
+                    placeholder="0"
+                    placeholderTextColor="#9CA3AF"
+                  />
+                )}
+              />
+              {errors.transportCharge && <Text style={styles.errorText}>{errors.transportCharge.message}</Text>}
+            </View>
+
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Commission Charge</Text>
+              <Controller
+                control={control}
+                name="commissionCharge"
+                render={({ field: { value, onChange } }) => (
+                  <TextInput
+                    style={styles.input}
+                    value={value}
+                    onChangeText={onChange}
+                    keyboardType="numeric"
+                    placeholder="0"
+                    placeholderTextColor="#9CA3AF"
+                  />
+                )}
+              />
+              {errors.commissionCharge && <Text style={styles.errorText}>{errors.commissionCharge.message}</Text>}
+            </View>
+
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Other Deduction</Text>
+              <Controller
+                control={control}
+                name="otherDeduction"
+                render={({ field: { value, onChange } }) => (
+                  <TextInput
+                    style={styles.input}
+                    value={value}
+                    onChangeText={onChange}
+                    keyboardType="numeric"
+                    placeholder="0"
+                    placeholderTextColor="#9CA3AF"
+                  />
+                )}
+              />
+              {errors.otherDeduction && <Text style={styles.errorText}>{errors.otherDeduction.message}</Text>}
+            </View>
+
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Net Amount (Rs)</Text>
+              <Text style={styles.totalAmountText}>Rs {netAmount.toLocaleString('en-IN')}</Text>
+            </View>
+
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Payment Received</Text>
+              <Controller
+                control={control}
+                name="paymentReceivedAmount"
+                render={({ field: { value, onChange } }) => (
+                  <TextInput
+                    style={styles.input}
+                    value={value}
+                    onChangeText={onChange}
+                    keyboardType="numeric"
+                    placeholder="0"
+                    placeholderTextColor="#9CA3AF"
+                  />
+                )}
+              />
+              {errors.paymentReceivedAmount && <Text style={styles.errorText}>{errors.paymentReceivedAmount.message}</Text>}
+            </View>
+
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Payment Status</Text>
+              <View style={styles.statusRow}>
+                {API_TRANSACTION_PAYMENT_STATUS_VALUES.map((status) => {
+                  const active = paymentStatus === status;
+                  return (
+                    <TouchableOpacity
+                      key={status}
+                      style={[styles.statusChip, active && styles.statusChipActive]}
+                      onPress={() => setValue("paymentStatus", status as ApiTransactionPaymentStatus, { shouldDirty: true, shouldValidate: true })}
+                    >
+                      <Text style={[styles.statusChipText, active && styles.statusChipTextActive]} numberOfLines={1}>
+                        {labelize(status)}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            </View>
+
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Sale Status</Text>
+              <View style={styles.statusRow}>
+                {API_SALE_STATUS_VALUES.map((status) => {
+                  const active = saleStatus === status;
+                  return (
+                    <TouchableOpacity
+                      key={status}
+                      style={[styles.statusChip, active && styles.statusChipActive]}
+                      onPress={() => setValue("status", status as ApiSaleStatus, { shouldDirty: true, shouldValidate: true })}
+                    >
+                      <Text style={[styles.statusChipText, active && styles.statusChipTextActive]} numberOfLines={1}>
+                        {labelize(status)}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
             </View>
 
             {/* Remarks */}
@@ -639,6 +876,35 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     color: "#0B5C36",
     marginTop: 4,
+  },
+  statusRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+  },
+  statusChip: {
+    flexGrow: 1,
+    minWidth: 92,
+    minHeight: 42,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
+    backgroundColor: "#FFF",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 10,
+  },
+  statusChipActive: {
+    borderColor: "#0B5C36",
+    backgroundColor: "#E8F5E9",
+  },
+  statusChipText: {
+    fontSize: 12,
+    fontWeight: "800",
+    color: "#6B7280",
+  },
+  statusChipTextActive: {
+    color: "#0B5C36",
   },
   dropdownList: {
     marginTop: 4,

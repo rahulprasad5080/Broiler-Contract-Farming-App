@@ -17,6 +17,7 @@ export default function ManageLayout() {
       <Stack.Screen name="payments" />
       <Stack.Screen name="expenses" />
       <Stack.Screen name="daily-entry" />
+      <Stack.Screen name="treatments" />
       <Stack.Screen name="users" />
       <Stack.Screen name="partners" />
       <Stack.Screen name="sales" />

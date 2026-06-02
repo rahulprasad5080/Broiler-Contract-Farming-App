@@ -342,6 +342,7 @@ export type ApiBatchExpense = {
   unit?: string | null;
   rate?: number | null;
   totalAmount: number;
+  vendorId?: string | null;
   vendorName?: string | null;
   invoiceNumber?: string | null;
   billPhotoUrl?: string | null;

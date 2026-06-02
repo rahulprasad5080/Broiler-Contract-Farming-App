@@ -1,32 +1,38 @@
 import { DailyEntriesTab } from '@/components/batches/tabs/DailyEntriesTab';
+import { CostsTab } from '@/components/batches/tabs/CostsTab';
 import { ExpensesTab } from '@/components/batches/tabs/ExpensesTab';
 import { OverviewTab } from '@/components/batches/tabs/OverviewTab';
 import { PnlTab } from '@/components/batches/tabs/PnlTab';
 import { SalesTab } from '@/components/batches/tabs/SalesTab';
+import { SettlementTab } from '@/components/batches/tabs/SettlementTab';
+import { TreatmentsTab } from '@/components/batches/tabs/TreatmentsTab';
 import { ScreenState } from '@/components/ui/ScreenState';
 import { TopAppBar } from '@/components/ui/TopAppBar';
 import { Colors } from '@/constants/Colors';
 import { useAuth } from '@/context/AuthContext';
 import { showRequestErrorToast, showSuccessToast } from '@/services/apiFeedback';
 import {
+  API_COMMENT_TARGET_TYPE_VALUES,
   createBatchComment,
   fetchBatch,
   fetchBatchPnl,
+  fetchBatchSettlement,
   listBatchComments,
   listBatchExpenses,
-  listCatalogItems,
+  listLegacyBatchCosts,
   listDailyLogs,
-  listInventoryLedger,
   listSales,
+  listTreatments,
   updateBatchStatus,
   type ApiBatch,
   type ApiBatchExpense,
   type ApiBatchPnl,
-  type ApiCatalogItem,
+  type ApiBatchSettlement,
   type ApiComment,
+  type ApiCommentTargetType,
   type ApiDailyLog,
-  type ApiInventoryLedgerEntry,
   type ApiSale,
+  type ApiTreatment,
 } from '@/services/managementApi';
 import {
   downloadBatchExcelReport,
@@ -35,7 +41,7 @@ import {
 import { saveAndShareReport } from '@/services/reportExport';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
-import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter, type Href } from 'expo-router';
 import React, { useCallback, useState } from 'react';
 import {
   ActivityIndicator,
@@ -51,14 +57,17 @@ import {
   CommentCard
 } from './components/HistoryCards';
 
-type TabKey = 'overview' | 'daily' | 'expenses' | 'sales' | 'pnl' | 'comments';
+type TabKey = 'overview' | 'daily' | 'treatments' | 'expenses' | 'costs' | 'sales' | 'pnl' | 'settlement' | 'comments';
 
 const TABS: { key: TabKey; label: string }[] = [
   { key: 'overview', label: 'Overview' },
   { key: 'daily', label: 'Daily Entries' },
+  { key: 'treatments', label: 'Treatments' },
   { key: 'expenses', label: 'Expenses' },
+  { key: 'costs', label: 'Costs' },
   { key: 'sales', label: 'Sales' },
   { key: 'pnl', label: 'P&L' },
+  { key: 'settlement', label: 'Settlement' },
   { key: 'comments', label: 'Comments' },
 ];
 
@@ -253,19 +262,22 @@ export default function BatchDetailsScreen() {
   const [activePnlTab, setActivePnlTab] = useState<'company' | 'farmer'>('company');
   const [batch, setBatch] = useState<ApiBatch | null>(null);
   const [dailyLogs, setDailyLogs] = useState<ApiDailyLog[]>([]);
+  const [treatments, setTreatments] = useState<ApiTreatment[]>([]);
   const [companyExpenses, setCompanyExpenses] = useState<ApiBatchExpense[]>([]);
   const [farmerExpenses, setFarmerExpenses] = useState<ApiBatchExpense[]>([]);
+  const [batchCosts, setBatchCosts] = useState<ApiBatchExpense[]>([]);
   const [batchPnl, setBatchPnl] = useState<ApiBatchPnl | null>(null);
+  const [settlement, setSettlement] = useState<ApiBatchSettlement | null>(null);
   const [sales, setSales] = useState<ApiSale[]>([]);
   const [comments, setComments] = useState<ApiComment[]>([]);
-  const [allocations, setAllocations] = useState<ApiInventoryLedgerEntry[]>([]);
-  const [catalogItems, setCatalogItems] = useState<ApiCatalogItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [exporting, setExporting] = useState<'pdf' | 'excel' | null>(null);
 
   const [newComment, setNewComment] = useState('');
   const [correctionNote, setCorrectionNote] = useState('');
+  const [commentTargetType, setCommentTargetType] = useState<ApiCommentTargetType>('BATCH');
+  const [commentTargetId, setCommentTargetId] = useState(id ?? '');
   const [submittingComment, setSubmittingComment] = useState(false);
 
   // Lifecycle modal state
@@ -281,34 +293,37 @@ export default function BatchDetailsScreen() {
       const [
         batchRes,
         dailyLogsRes,
+        treatmentsRes,
         companyExpensesRes,
         farmerExpensesRes,
+        costsRes,
         pnlRes,
+        settlementRes,
         salesRes,
         commentsRes,
-        allocationsRes,
-        catalogRes,
       ] = await Promise.all([
         fetchBatch(accessToken, id),
         listDailyLogs(accessToken, id),
+        listTreatments(accessToken, id),
         listBatchExpenses(accessToken, id, { ledger: 'COMPANY' }),
         listBatchExpenses(accessToken, id, { ledger: 'FARMER' }),
+        listLegacyBatchCosts(accessToken, id),
         fetchBatchPnl(accessToken, id),
+        fetchBatchSettlement(accessToken, id).catch(() => null),
         listSales(accessToken, id),
         listBatchComments(accessToken, id),
-        listInventoryLedger(accessToken, { batchId: id, limit: 100 }),
-        listCatalogItems(accessToken, { limit: 100 }),
       ]);
       setBatch(batchRes);
       setEditStatus(batchRes.status || 'ACTIVE');
       setDailyLogs(dailyLogsRes.data);
+      setTreatments(treatmentsRes.data);
       setCompanyExpenses(companyExpensesRes.data);
       setFarmerExpenses(farmerExpensesRes.data);
+      setBatchCosts(costsRes.data);
       setBatchPnl(pnlRes);
+      setSettlement(settlementRes);
       setSales(salesRes.data);
       setComments(commentsRes.data);
-      setAllocations(allocationsRes.data || []);
-      setCatalogItems(catalogRes.data || []);
     } catch (error) {
       setErrorMessage(
         showRequestErrorToast(error, {
@@ -340,34 +355,10 @@ export default function BatchDetailsScreen() {
   const activeExpenses = activeExpenseTab === 'company' ? companyExpenses : farmerExpenses;
   const activeExpenseTitle = activeExpenseTab === 'company' ? 'Company Expenses' : 'Farmer Expenses';
 
-  const stockAllocations = allocations.filter(
-    (a) => a.movementType === 'ALLOCATION' || (a.quantityOut !== undefined && a.quantityOut !== null && a.quantityOut > 0)
-  );
-
-  const getStockAllocationCost = (a: ApiInventoryLedgerEntry) => {
-    const qty = a.quantityOut || 0;
-    const catItem = catalogItems.find((c) => c.id === a.catalogItemId);
-    const rate = catItem?.defaultRate || 0;
-    return qty * rate;
-  };
-
-  const companyAllocationsTotal = stockAllocations.reduce(
-    (sum, a) => sum + getStockAllocationCost(a),
-    0
-  );
-
-  const todayAllocationsTotal = stockAllocations
-    .filter((a) => {
-      const localDate = getLocalDateValue();
-      const movementDateOnly = a.movementDate ? a.movementDate.split('T')[0] : '';
-      return movementDateOnly === localDate;
-    })
-    .reduce((sum, a) => sum + getStockAllocationCost(a), 0);
-
-  const activeExpenseTotal = sumExpenses(activeExpenses) + (activeExpenseTab === 'company' ? companyAllocationsTotal : 0);
+  const activeExpenseTotal = sumExpenses(activeExpenses);
   const todayExpenseTotal = sumExpenses(
     activeExpenses.filter((expense) => expense.expenseDate === getLocalDateValue()),
-  ) + (activeExpenseTab === 'company' ? todayAllocationsTotal : 0);
+  );
   const companyProfitLoss = Number(batchPnl?.company.netProfitOrLoss ?? 0);
   const companyResultColor = companyProfitLoss >= 0 ? THEME_GREEN : '#D32F2F';
   const totalSalesAmount = sumSalesAmount(sales);
@@ -382,24 +373,28 @@ export default function BatchDetailsScreen() {
       if (!id) return;
       router.navigate({
         pathname: '/(owner)/manage/daily-entry/form',
-        params: dailyLogId ? { batchId: id, dailyLogId } : { batchId: id },
+        params: dailyLogId
+          ? { batchId: id, dailyLogId, returnTo: `/(owner)/manage/batches/${id}` }
+          : { batchId: id, returnTo: `/(owner)/manage/batches/${id}` },
       });
     },
     [id, router],
   );
 
   const handleSubmitComment = async () => {
-    if (!newComment.trim() || !accessToken || !id) return;
+    if (!newComment.trim() || !commentTargetId.trim() || !accessToken || !id) return;
     setSubmittingComment(true);
     try {
       await createBatchComment(accessToken, id, {
-        targetType: 'BATCH',
-        targetId: id,
+        targetType: commentTargetType,
+        targetId: commentTargetId.trim(),
         comment: newComment.trim(),
         correctionNote: correctionNote.trim() || undefined,
       });
       setNewComment('');
       setCorrectionNote('');
+      setCommentTargetType('BATCH');
+      setCommentTargetId(id);
       showSuccessToast('Comment posted successfully.');
       void loadBatchDetails();
     } catch (error) {
@@ -418,9 +413,18 @@ export default function BatchDetailsScreen() {
 
     setSavingActions(true);
     try {
-      await updateBatchStatus(accessToken, id, {
+      const statusPayload = {
         status: editStatus,
-        ...(editStatus === 'CLOSED' ? { actualCloseDate: getLocalDateValue() } : {}),
+        ...(editStatus === 'CLOSED'
+          ? {
+              actualCloseDate: getLocalDateValue(),
+              lockedAt: new Date().toISOString(),
+            }
+          : {}),
+      };
+
+      await updateBatchStatus(accessToken, id, {
+        ...statusPayload,
       });
 
       showSuccessToast('Batch lifecycle updated successfully.');
@@ -600,6 +604,17 @@ export default function BatchDetailsScreen() {
               <DailyEntriesTab dailyLogs={dailyLogs} openDailyEntry={openDailyEntry} />
             )}
 
+            {activeTab === 'treatments' && (
+              <TreatmentsTab
+                treatments={treatments}
+                onAddTreatment={() =>
+                  router.navigate(
+                    `/(owner)/manage/treatments/add?batchId=${encodeURIComponent(id)}` as Href,
+                  )
+                }
+              />
+            )}
+
             {activeTab === 'expenses' && (
               <ExpensesTab
                 activeExpenseTab={activeExpenseTab}
@@ -608,8 +623,31 @@ export default function BatchDetailsScreen() {
                 activeExpenses={activeExpenses}
                 activeExpenseTotal={activeExpenseTotal}
                 todayExpenseTotal={todayExpenseTotal}
-                allocations={allocations}
-                catalogItems={catalogItems}
+                onAddExpense={() =>
+                  router.navigate(
+                    `/(owner)/manage/batches/expense-create?batchId=${encodeURIComponent(id)}&ledger=${
+                      activeExpenseTab === 'farmer' ? 'FARMER' : 'COMPANY'
+                    }` as Href,
+                  )
+                }
+                onEditExpense={(expense) =>
+                  router.navigate(
+                    `/(owner)/manage/batches/expense-create?batchId=${encodeURIComponent(id)}&expenseId=${encodeURIComponent(
+                      expense.id,
+                    )}` as Href,
+                  )
+                }
+              />
+            )}
+
+            {activeTab === 'costs' && (
+              <CostsTab
+                costs={batchCosts}
+                onAddCost={() =>
+                  router.navigate(
+                    `/(owner)/manage/batches/cost-create?batchId=${encodeURIComponent(id)}&ledger=COMPANY` as Href,
+                  )
+                }
               />
             )}
 
@@ -620,6 +658,16 @@ export default function BatchDetailsScreen() {
                 todaySalesAmount={todaySalesAmount}
                 totalSoldBirds={totalSoldBirds}
                 totalSoldWeight={totalSoldWeight}
+                onAddSale={() =>
+                  router.navigate(`/(owner)/manage/sales?batchId=${encodeURIComponent(id)}` as Href)
+                }
+                onFinalizeSale={(sale) =>
+                  router.navigate(
+                    `/(owner)/manage/batches/sale-finalize?batchId=${encodeURIComponent(id)}&saleId=${encodeURIComponent(
+                      sale.id,
+                    )}` as Href,
+                  )
+                }
               />
             )}
 
@@ -633,6 +681,15 @@ export default function BatchDetailsScreen() {
               />
             )}
 
+            {activeTab === 'settlement' && (
+              <SettlementTab
+                settlement={settlement}
+                onCreateSettlement={() =>
+                  router.navigate(`/(owner)/manage/settlement?batchId=${encodeURIComponent(id)}` as Href)
+                }
+              />
+            )}
+
             {activeTab === 'comments' && (
               <View style={styles.section}>
                 <View style={styles.sectionHeader}>
@@ -642,6 +699,36 @@ export default function BatchDetailsScreen() {
                 {/* Add Comment Input Form */}
                 <View style={styles.addCommentContainer}>
                   <Text style={styles.addCommentTitle}>Add a Review Comment</Text>
+                  <Text style={styles.commentFieldLabel}>Target Type</Text>
+                  <View style={styles.commentTargetRow}>
+                    {API_COMMENT_TARGET_TYPE_VALUES.map((targetType) => {
+                      const active = commentTargetType === targetType;
+                      return (
+                        <TouchableOpacity
+                          key={targetType}
+                          style={[styles.commentTargetChip, active && styles.commentTargetChipActive]}
+                          onPress={() => {
+                            setCommentTargetType(targetType);
+                            if (targetType === 'BATCH') {
+                              setCommentTargetId(id);
+                            }
+                          }}
+                        >
+                          <Text style={[styles.commentTargetChipText, active && styles.commentTargetChipTextActive]} numberOfLines={1}>
+                            {labelize(targetType)}
+                          </Text>
+                        </TouchableOpacity>
+                      );
+                    })}
+                  </View>
+                  <TextInput
+                    style={[styles.commentInput, { height: 44, marginTop: 8, paddingTop: 10 }]}
+                    placeholder="Target ID"
+                    placeholderTextColor="#9CA3AF"
+                    value={commentTargetId}
+                    onChangeText={setCommentTargetId}
+                    autoCapitalize="none"
+                  />
                   <TextInput
                     style={styles.commentInput}
                     placeholder="Write your comment..."
@@ -1631,6 +1718,41 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     color: '#111827',
     marginBottom: 10,
+  },
+  commentFieldLabel: {
+    fontSize: 12,
+    fontWeight: '900',
+    color: Colors.text,
+    marginBottom: 6,
+  },
+  commentTargetRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginBottom: 8,
+  },
+  commentTargetChip: {
+    minHeight: 36,
+    minWidth: 88,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    backgroundColor: '#FFF',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 10,
+  },
+  commentTargetChipActive: {
+    borderColor: THEME_GREEN,
+    backgroundColor: '#E8F5E9',
+  },
+  commentTargetChipText: {
+    color: Colors.textSecondary,
+    fontSize: 11,
+    fontWeight: '900',
+  },
+  commentTargetChipTextActive: {
+    color: THEME_GREEN,
   },
   commentInput: {
     backgroundColor: '#F9FAFB',

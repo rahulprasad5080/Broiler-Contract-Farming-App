@@ -155,9 +155,10 @@ export function DailyEntryScreen({
   listPath = "/(owner)/manage/daily-entry",
 }: DailyEntryScreenProps) {
   const router = useRouter();
-  const { batchId: routeBatchId, dailyLogId } = useLocalSearchParams<{
+  const { batchId: routeBatchId, dailyLogId, returnTo } = useLocalSearchParams<{
     batchId?: string;
     dailyLogId?: string;
+    returnTo?: string;
   }>();
   const { accessToken } = useAuth();
   const [batches, setBatches] = useState<ApiBatch[]>([]);
@@ -194,6 +195,7 @@ export function DailyEntryScreen({
 
   const selectedBatchId = watch("batchId");
   const isEditMode = typeof dailyLogId === "string" && dailyLogId.length > 0;
+  const submitRedirectPath = typeof returnTo === "string" && returnTo.length > 0 ? returnTo : listPath;
   const lockedBatchId =
     typeof routeBatchId === "string" && routeBatchId.length > 0 ? routeBatchId : null;
   const activeBatches = useMemo(
@@ -317,7 +319,7 @@ export function DailyEntryScreen({
         showSuccessToast("Saved offline. It will sync automatically.");
         setSavedMessage("Saved offline. It will sync when internet returns.");
         reset({ ...DAILY_ENTRY_DEFAULTS, batchId: data.batchId });
-        router.replace(listPath as never);
+        router.replace(submitRedirectPath as never);
         return;
       }
 
@@ -326,7 +328,7 @@ export function DailyEntryScreen({
         showSuccessToast("Daily log updated successfully.");
         setSavedMessage("Daily log updated successfully.");
         await clearPersistedData();
-        router.replace(listPath as never);
+        router.replace(submitRedirectPath as never);
       } else {
         const existingLogs = await listDailyLogs(accessToken, data.batchId);
         const duplicateLog = existingLogs.data.find((log) => log.logDate === data.logDate);
@@ -341,7 +343,7 @@ export function DailyEntryScreen({
         setSavedMessage("Daily log saved successfully.");
         await clearPersistedData();
         reset({ ...DAILY_ENTRY_DEFAULTS, batchId: data.batchId });
-        router.replace(listPath as never);
+        router.replace(submitRedirectPath as never);
       }
     } catch (error) {
       showRequestErrorToast(error, { title: "Save failed" });
