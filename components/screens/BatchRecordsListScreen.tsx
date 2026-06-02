@@ -18,6 +18,7 @@ import { TopAppBar } from '@/components/ui/TopAppBar';
 import { Colors } from '@/constants/Colors';
 import { useAuth } from '@/context/AuthContext';
 import { showRequestErrorToast } from '@/services/apiFeedback';
+import { canShowForPermissions, type PermissionRequirement } from '@/services/permissionRules';
 import {
   ApiBatch,
   ApiBatchExpense,
@@ -39,6 +40,7 @@ type BatchRecordsListScreenProps = {
   title: string;
   subtitle: string;
   createRoute?: Href;
+  createPermission?: PermissionRequirement;
   onBack?: () => void;
 };
 
@@ -164,9 +166,10 @@ export function BatchRecordsListScreen({
   title,
   subtitle,
   createRoute,
+  createPermission,
   onBack,
 }: BatchRecordsListScreenProps) {
-  const { accessToken } = useAuth();
+  const { accessToken, user } = useAuth();
   const router = useRouter();
   const [batches, setBatches] = useState<ApiBatch[]>([]);
   const [selectedBatchId, setSelectedBatchId] = useState('');
@@ -272,6 +275,9 @@ export function BatchRecordsListScreen({
   };
 
   const totalCount = mode === 'sales' ? sales.length : mode === 'profitability' ? (pnl ? 1 : 0) : expenses.length;
+  const canCreate = Boolean(
+    createRoute && canShowForPermissions(user?.permissions ?? [], createPermission),
+  );
 
   return (
     <View style={styles.safeArea}>
@@ -280,7 +286,7 @@ export function BatchRecordsListScreen({
         subtitle={subtitle}
         onBack={onBack}
         right={
-          createRoute ? (
+          canCreate ? (
             <TouchableOpacity
               style={styles.headerAction}
               onPress={openCreate}

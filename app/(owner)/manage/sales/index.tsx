@@ -10,6 +10,7 @@ export default function OwnerSalesScreen() {
       title="Sales"
       subtitle="Batch-wise sales list"
       createRoute="/(owner)/manage/sales/create"
+      createPermission="create:sales"
       onBack={() => router.replace('/(owner)/dashboard')}
     />
   );

@@ -10,6 +10,7 @@ export default function OwnerCostsScreen() {
       title="Costs"
       subtitle="Batch-wise cost list"
       createRoute="/(owner)/manage/batches/cost-create"
+      createPermission="create:expenses"
       onBack={() => router.replace('/(owner)/dashboard')}
     />
   );

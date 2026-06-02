@@ -10,6 +10,7 @@ export default function OwnerExpenseEntryRoute() {
       title="Expenses"
       subtitle="Batch-wise expense list"
       createRoute="/(owner)/manage/expenses/create"
+      createPermission="create:expenses"
       onBack={() => router.replace('/(owner)/dashboard')}
     />
   );

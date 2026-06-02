@@ -12,7 +12,8 @@ import {
 
 import { ScreenState } from "@/components/ui/ScreenState";
 import { TopAppBar } from "@/components/ui/TopAppBar";
-import { useAuth, type Permission } from "@/context/AuthContext";
+import { useAuth } from "@/context/AuthContext";
+import { canShowForPermissions, type PermissionRequirement } from "@/services/permissionRules";
 
 const { width } = Dimensions.get("window");
 const CARD_WIDTH = (width - 48) / 2;
@@ -24,7 +25,7 @@ type EntryItem = {
   iconType: "Ionicons" | "MaterialCommunityIcons";
   color: string;
   route: any;
-  requiredPermission: Permission;
+  requiredPermission: PermissionRequirement;
 };
 
 const ENTRY_ITEMS: EntryItem[] = [
@@ -101,6 +102,15 @@ const ENTRY_ITEMS: EntryItem[] = [
     requiredPermission: "create:expenses",
   },
   {
+    title: "Costs List",
+    desc: "View batch costs",
+    icon: "calculator-outline",
+    iconType: "Ionicons",
+    color: "#0F766E",
+    route: "/(owner)/manage/costs",
+    requiredPermission: "view:inventory-cost",
+  },
+  {
     title: "Sales Entry",
     desc: "Add sales & collection",
     icon: "cart-outline",
@@ -134,7 +144,7 @@ const ENTRY_ITEMS: EntryItem[] = [
     iconType: "Ionicons",
     color: "#0F766E",
     route: "/(owner)/manage/partners",
-    requiredPermission: "manage:partners",
+    requiredPermission: ["manage:partners", "create:sales"],
   },
   {
     title: "Catalog List",
@@ -143,7 +153,7 @@ const ENTRY_ITEMS: EntryItem[] = [
     iconType: "Ionicons",
     color: "#0891B2",
     route: "/(owner)/manage/catalog",
-    requiredPermission: "manage:inventory",
+    requiredPermission: "manage:catalog",
   },
   {
     title: "Users List",
@@ -200,6 +210,15 @@ const ENTRY_ITEMS: EntryItem[] = [
     requiredPermission: "manage:settlements",
   },
   {
+    title: "Profitability",
+    desc: "Batch P&L summary",
+    icon: "trending-up-outline",
+    iconType: "Ionicons",
+    color: "#15803D",
+    route: "/(owner)/manage/profitability",
+    requiredPermission: "view:inventory-cost",
+  },
+  {
     title: "Billing",
     desc: "Plans and subscription",
     icon: "wallet-outline",
@@ -212,8 +231,10 @@ const ENTRY_ITEMS: EntryItem[] = [
 
 export default function EntriesScreen() {
   const router = useRouter();
-  const { hasPermission } = useAuth();
-  const visibleItems = ENTRY_ITEMS.filter((item) => hasPermission(item.requiredPermission));
+  const { user } = useAuth();
+  const visibleItems = ENTRY_ITEMS.filter((item) =>
+    canShowForPermissions(user?.permissions ?? [], item.requiredPermission),
+  );
 
   const renderIcon = (item: EntryItem) => {
     if (item.iconType === "Ionicons") {

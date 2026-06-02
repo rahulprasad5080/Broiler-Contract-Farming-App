@@ -16,8 +16,7 @@ import {
   type ApiRole,
   type RegisterOwnerRequest,
 } from "../services/authApi";
-import { ApiError } from "../services/api";
-import { subscribeToApiAuthFailures } from "../services/api";
+import { ApiError, subscribeToApiAuthFailures } from "../services/api";
 import { showRequestErrorToast } from "../services/apiFeedback";
 import {
   assertUserCanKeepSession,
@@ -235,8 +234,6 @@ function getPermissionsForRole(role: UserRole): Permission[] {
 function getStructuralPermissionsForRole(role: UserRole): Permission[] {
   if (role === "OWNER") {
     return [
-      "finalize:sales",
-      "manage:partners",
       "manage:users",
       "manage:farms",
       "manage:batches",
@@ -249,12 +246,6 @@ function getStructuralPermissionsForRole(role: UserRole): Permission[] {
     return [
       "view:notifications",
       "view:farms",
-      "create:treatments",
-      "view:comments",
-      "review:entries",
-      "manage:catalog",
-      "manage:traders",
-      "manage:users",
     ];
   }
 
@@ -262,8 +253,6 @@ function getStructuralPermissionsForRole(role: UserRole): Permission[] {
     return [
       "view:notifications",
       "view:farms",
-      "create:treatments",
-      "view:comments",
     ];
   }
 
@@ -284,15 +273,17 @@ function getPermissionsFromApi(permissions?: ApiPermissionMatrix): Permission[] 
 
   const mapped: Permission[] = [];
 
-  if (permissions.dailyEntry) mapped.push("create:daily-entry");
-  if (permissions.salesEntry) mapped.push("create:sales");
+  if (permissions.dailyEntry) {
+    mapped.push("create:daily-entry", "create:treatments", "view:comments");
+  }
+  if (permissions.salesEntry) mapped.push("create:sales", "finalize:sales", "manage:traders");
   if (permissions.expenseEntry) mapped.push("create:expenses");
-  if (permissions.inventoryView) mapped.push("manage:inventory");
+  if (permissions.inventoryView) mapped.push("manage:inventory", "manage:catalog");
   if (permissions.costVisibility) mapped.push("view:inventory-cost");
   if (permissions.reportAccess) mapped.push("view:reports");
   if (permissions.companyExpenseEntry) mapped.push("create:company-expense");
-  if (permissions.farmerExpenseApproval) mapped.push("approve:farmer-expense");
-  if (permissions.purchaseEntry) mapped.push("create:purchase");
+  if (permissions.farmerExpenseApproval) mapped.push("approve:farmer-expense", "review:entries");
+  if (permissions.purchaseEntry) mapped.push("create:purchase", "manage:partners");
   if (permissions.settlementEntry) mapped.push("manage:settlements");
   if (permissions.financialDashboard) mapped.push("view:financial-dashboard");
 

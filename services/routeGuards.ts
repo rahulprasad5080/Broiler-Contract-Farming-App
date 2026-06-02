@@ -1,5 +1,9 @@
 import type { Href } from "expo-router";
-import { canShowForPermissions, type AppPermission } from "./permissionRules";
+import {
+  canShowForPermissions,
+  type AppPermission,
+  type PermissionRequirement,
+} from "./permissionRules";
 
 export type AppRole = "OWNER" | "ACCOUNTS" | "SUPERVISOR" | "FARMER" | null;
 
@@ -18,6 +22,7 @@ const OWNER_MANAGE_INDEX_PERMISSIONS: AppPermission[] = [
   "manage:farms",
   "manage:batches",
   "manage:inventory",
+  "view:inventory-cost",
   "create:purchase",
   "create:treatments",
   "view:comments",
@@ -29,26 +34,26 @@ const OWNER_MANAGE_INDEX_PERMISSIONS: AppPermission[] = [
   "manage:catalog",
 ];
 
-const OWNER_MANAGE_ROUTE_PERMISSIONS: Record<string, AppPermission> = {
+const OWNER_MANAGE_ROUTE_PERMISSIONS: Record<string, PermissionRequirement> = {
   partners: "manage:partners",
   farms: "manage:farms",
   batches: "manage:batches",
   inventory: "manage:inventory",
   allocate: "manage:inventory",
-  catalog: "manage:inventory",
+  catalog: "manage:catalog",
   purchase: "create:purchase",
   ledger: "manage:inventory",
   entries: "view:financial-dashboard",
   "finance-entry": "view:financial-dashboard",
   payments: "manage:settlements",
   expenses: "create:expenses",
-  costs: "create:expenses",
+  costs: "view:inventory-cost",
   "daily-entry": "create:daily-entry",
   treatments: "create:treatments",
   comments: "view:comments",
   sales: "create:sales",
   settlement: "manage:settlements",
-  profitability: "view:financial-dashboard",
+  profitability: "view:inventory-cost",
   settings: "manage:users",
   users: "manage:users",
   dropdowns: "manage:users",
@@ -73,8 +78,6 @@ const TASK_ROUTE_PERMISSIONS: Record<string, AppPermission> = {
 };
 
 const SUPERVISOR_MANAGE_INDEX_PERMISSIONS: AppPermission[] = [
-  "manage:farms",
-  "manage:batches",
   "manage:catalog",
   "manage:traders",
 ];
@@ -151,6 +154,14 @@ export function getRouteRequiredPermission(segments: string[]) {
 
     if (manageSection === "inventory" && segments[protectedGroupIndex + 3] === "purchase") {
       return "create:purchase";
+    }
+
+    const childSection = segments[protectedGroupIndex + 3];
+
+    if (manageSection === "batches") {
+      if (childSection === "expense-create") return "create:expenses";
+      if (childSection === "cost-create") return "create:expenses";
+      if (childSection === "sale-finalize") return "finalize:sales";
     }
 
     return OWNER_MANAGE_ROUTE_PERMISSIONS[manageSection] ?? null;

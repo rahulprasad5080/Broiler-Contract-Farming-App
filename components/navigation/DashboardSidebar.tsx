@@ -113,7 +113,7 @@ const ownerRoutes: DashboardSidebarRoute[] = [
     icon: "calculator-outline",
     route: "/(owner)/manage/costs" as Href,
     section: "Entries",
-    requiredPermission: "create:expenses",
+    requiredPermission: "view:inventory-cost",
   },
   {
     title: "Allocate Entry",
@@ -152,7 +152,7 @@ const ownerRoutes: DashboardSidebarRoute[] = [
     icon: "people-outline",
     route: "/(owner)/manage/partners",
     section: "Management",
-    requiredPermission: "manage:partners",
+    requiredPermission: ["manage:partners", "create:sales"],
   },
   {
     title: "Users",
@@ -176,7 +176,7 @@ const ownerRoutes: DashboardSidebarRoute[] = [
     icon: "cube-outline",
     route: "/(owner)/manage/catalog" as Href,
     section: "Management",
-    requiredPermission: "manage:inventory",
+    requiredPermission: "manage:catalog",
   },
   {
     title: "Inventory",
@@ -232,7 +232,7 @@ const ownerRoutes: DashboardSidebarRoute[] = [
     icon: "trending-up-outline",
     route: "/(owner)/manage/profitability" as Href,
     section: "Finance",
-    requiredPermission: "view:financial-dashboard",
+    requiredPermission: "view:inventory-cost",
   },
   {
     title: "Billing",

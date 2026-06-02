@@ -42,6 +42,7 @@ export const OWNER_MANAGE_PERMISSION_REQUIREMENTS: AppPermission[] = [
   "manage:farms",
   "manage:batches",
   "manage:inventory",
+  "view:inventory-cost",
   "manage:settlements",
   "manage:users",
   "manage:catalog",
