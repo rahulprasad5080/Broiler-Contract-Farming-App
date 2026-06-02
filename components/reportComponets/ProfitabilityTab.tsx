@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
 import {
   ActivityIndicator,
   StyleSheet,
@@ -46,6 +46,25 @@ export default function ProfitabilityTab({
   const [profitabilityDateTo, setProfitabilityDateTo] = useState("");
   const [loadingProfitability, setLoadingProfitability] = useState(false);
 
+  const reportTotals = useMemo(() => {
+    return profitability.reduce(
+      (totals, row) => ({
+        companyProfit: totals.companyProfit + (row.companyProfitOrLoss ?? 0),
+        farmerEarnings: totals.farmerEarnings + (row.farmerNetEarnings ?? 0),
+      }),
+      { companyProfit: 0, farmerEarnings: 0 },
+    );
+  }, [profitability]);
+
+  const hasActiveFilters = Boolean(
+    profitabilityFarmId ||
+      profitabilityBatchId ||
+      profitabilityFarmerId ||
+      profitabilitySupervisorId ||
+      profitabilityDateFrom ||
+      profitabilityDateTo,
+  );
+
   const loadFilteredProfitability = async () => {
     if (!accessToken) return;
     setLoadingProfitability(true);
@@ -70,49 +89,48 @@ export default function ProfitabilityTab({
   return (
     <View style={styles.tabContent}>
       <SurfaceCard style={styles.statementCard}>
-        <View style={[styles.statementHeader, { marginBottom: 10 }]}>
-          <Text style={styles.categoryTitle}>Batch Profitability Ledger</Text>
+        <View style={styles.statementHeader}>
+          <View style={styles.headerTitleWrap}>
+            <Text style={styles.categoryTitle}>Batch Profitability</Text>
+            <Text style={styles.categorySubtitle}>
+              {profitability.length} batch{profitability.length === 1 ? "" : "es"} evaluated
+            </Text>
+          </View>
           <TouchableOpacity
-            style={{
-              flexDirection: "row",
-              alignItems: "center",
-              gap: 4,
-              paddingHorizontal: 8,
-              paddingVertical: 5,
-              backgroundColor: showProfitabilityFilters ? "#EFF6FF" : "#F3F4F6",
-              borderRadius: 6,
-              borderWidth: 1,
-              borderColor: showProfitabilityFilters ? "#BFDBFE" : "#E5E7EB",
-            }}
+            style={[
+              styles.filterToggle,
+              showProfitabilityFilters && styles.filterToggleActive,
+            ]}
             onPress={() => setShowProfitabilityFilters(!showProfitabilityFilters)}
             activeOpacity={0.8}
           >
             <Ionicons name="funnel-outline" size={13} color={showProfitabilityFilters ? "#2563EB" : "#4B5563"} />
-            <Text style={{ fontSize: 10, fontWeight: "800", color: showProfitabilityFilters ? "#2563EB" : "#4B5563" }}>
+            <Text style={[styles.filterToggleText, showProfitabilityFilters && styles.filterToggleTextActive]}>
               {showProfitabilityFilters ? "Hide Filters" : "Filters"}
             </Text>
+            {hasActiveFilters ? <View style={styles.activeFilterDot} /> : null}
           </TouchableOpacity>
         </View>
 
         {/* Profitability Advanced Filters Panel */}
         {showProfitabilityFilters && (
-          <View style={{ backgroundColor: "#F9FAFB", padding: 12, borderRadius: 8, borderWidth: 1, borderColor: "#E5E7EB", marginBottom: 12 }}>
-            <Text style={{ fontSize: 11, fontWeight: "900", color: "#374151", marginBottom: 8, textTransform: "uppercase" }}>
+          <View style={styles.filterPanel}>
+            <Text style={styles.filterTitle}>
               Filter Profitability Report
             </Text>
 
             {/* Date Range Row */}
-            <View style={{ flexDirection: "row", gap: 10, marginBottom: 10 }}>
-              <View style={{ flex: 1 }}>
+            <View style={styles.dateGrid}>
+              <View style={styles.dateField}>
                 <DatePickerField label="From Date" value={profitabilityDateFrom} onChange={setProfitabilityDateFrom} />
               </View>
-              <View style={{ flex: 1 }}>
+              <View style={styles.dateField}>
                 <DatePickerField label="To Date" value={profitabilityDateTo} onChange={setProfitabilityDateTo} />
               </View>
             </View>
 
             {/* Farm Selector */}
-            <View style={{ marginBottom: 10 }}>
+            <View style={styles.filterField}>
               <SearchableSelectField
                 label="Filter by Farm"
                 value={profitabilityFarmId}
@@ -125,7 +143,7 @@ export default function ProfitabilityTab({
             </View>
 
             {/* Batch Selector */}
-            <View style={{ marginBottom: 10 }}>
+            <View style={styles.filterField}>
               <SearchableSelectField
                 label="Filter by Batch"
                 value={profitabilityBatchId}
@@ -138,7 +156,7 @@ export default function ProfitabilityTab({
             </View>
 
             {/* Farmer Selector */}
-            <View style={{ marginBottom: 10 }}>
+            <View style={styles.filterField}>
               <SearchableSelectField
                 label="Filter by Farmer"
                 value={profitabilityFarmerId}
@@ -151,7 +169,7 @@ export default function ProfitabilityTab({
             </View>
 
             {/* Supervisor Selector */}
-            <View style={{ marginBottom: 12 }}>
+            <View style={styles.filterFieldLast}>
               <SearchableSelectField
                 label="Filter by Supervisor"
                 value={profitabilitySupervisorId}
@@ -164,16 +182,9 @@ export default function ProfitabilityTab({
             </View>
 
             {/* Action buttons */}
-            <View style={{ flexDirection: "row", gap: 10 }}>
+            <View style={styles.actionRow}>
               <TouchableOpacity
-                style={{
-                  flex: 1,
-                  height: 38,
-                  borderRadius: 6,
-                  backgroundColor: "#E5E7EB",
-                  alignItems: "center",
-                  justifyContent: "center",
-                }}
+                style={styles.resetBtn}
                 onPress={() => {
                   setProfitabilityFarmId("");
                   setProfitabilityBatchId("");
@@ -184,20 +195,11 @@ export default function ProfitabilityTab({
                 }}
                 activeOpacity={0.8}
               >
-                <Text style={{ color: "#374151", fontSize: 12, fontWeight: "800" }}>Reset</Text>
+                <Text style={styles.resetBtnText}>Reset</Text>
               </TouchableOpacity>
 
               <TouchableOpacity
-                style={{
-                  flex: 2,
-                  height: 38,
-                  borderRadius: 6,
-                  backgroundColor: THEME_GREEN,
-                  alignItems: "center",
-                  justifyContent: "center",
-                  flexDirection: "row",
-                  gap: 6,
-                }}
+                style={[styles.applyBtn, { backgroundColor: THEME_GREEN }]}
                 onPress={() => void loadFilteredProfitability()}
                 disabled={loadingProfitability}
                 activeOpacity={0.85}
@@ -207,13 +209,52 @@ export default function ProfitabilityTab({
                 ) : (
                   <>
                     <Ionicons name="checkmark-circle-outline" size={16} color="#FFF" />
-                    <Text style={{ color: "#FFF", fontSize: 12, fontWeight: "800" }}>Apply Filters</Text>
+                    <Text style={styles.applyBtnText}>Apply Filters</Text>
                   </>
                 )}
               </TouchableOpacity>
             </View>
           </View>
         )}
+
+        {profitability.length > 0 ? (
+          <View style={styles.summaryGrid}>
+            <View style={[styles.summaryBox, reportTotals.companyProfit >= 0 ? styles.summaryProfit : styles.summaryLoss]}>
+              <View style={styles.summaryIconWrap}>
+                <Ionicons
+                  name={reportTotals.companyProfit >= 0 ? "trending-up-outline" : "trending-down-outline"}
+                  size={17}
+                  color={reportTotals.companyProfit >= 0 ? "#059669" : "#DC2626"}
+                />
+              </View>
+              <Text style={styles.summaryLabel}>Company P&L</Text>
+              <Text
+                style={[
+                  styles.summaryValue,
+                  { color: reportTotals.companyProfit >= 0 ? "#047857" : "#B91C1C" },
+                ]}
+                numberOfLines={1}
+                adjustsFontSizeToFit
+              >
+                {formatINR(reportTotals.companyProfit)}
+              </Text>
+            </View>
+
+            <View style={[styles.summaryBox, styles.summaryFarmer]}>
+              <View style={styles.summaryIconWrap}>
+                <Ionicons name="person-outline" size={17} color="#2563EB" />
+              </View>
+              <Text style={styles.summaryLabel}>Farmer Earnings</Text>
+              <Text
+                style={[styles.summaryValue, { color: "#1D4ED8" }]}
+                numberOfLines={1}
+                adjustsFontSizeToFit
+              >
+                {formatINR(reportTotals.farmerEarnings)}
+              </Text>
+            </View>
+          </View>
+        ) : null}
 
         {/* Profitability List */}
         {profitability.length > 0 ? (
@@ -224,36 +265,51 @@ export default function ProfitabilityTab({
               <View key={row.batchId} style={styles.ledgerCard}>
                 {/* Header row */}
                 <View style={styles.ledgerHeader}>
-                  {row.batchCode ? (
+                  <View style={styles.batchInfo}>
                     <View style={[styles.batchTag, { backgroundColor: isProfit ? "#E7F5ED" : "#FFF5F5" }]}>
-                      <Ionicons name="home-outline" size={10} color={isProfit ? "#0B5C36" : "#DC2626"} />
-                      <Text style={[styles.batchTagText, { color: isProfit ? "#0B5C36" : "#DC2626" }]}>{row.batchCode}</Text>
+                      <Ionicons name="home-outline" size={12} color={isProfit ? "#0B5C36" : "#DC2626"} />
+                      <Text style={[styles.batchTagText, { color: isProfit ? "#0B5C36" : "#DC2626" }]}>
+                        {row.batchCode || "Batch"}
+                      </Text>
                     </View>
-                  ) : null}
-                  <Text style={styles.ledgerRef} numberOfLines={1}>
-                    {row.farmName || "Farm Name"}
-                  </Text>
+                    <Text style={styles.ledgerRef} numberOfLines={2}>
+                      {row.farmName || "Farm not available"}
+                    </Text>
+                  </View>
+                  <View style={[styles.pnlBadge, isProfit ? styles.pnlBadgeProfit : styles.pnlBadgeLoss]}>
+                    <Ionicons
+                      name={isProfit ? "arrow-up-outline" : "arrow-down-outline"}
+                      size={12}
+                      color={isProfit ? "#059669" : "#DC2626"}
+                    />
+                    <Text style={[styles.pnlBadgeText, { color: isProfit ? "#059669" : "#DC2626" }]}>
+                      {isProfit ? "Profit" : "Loss"}
+                    </Text>
+                  </View>
                 </View>
 
                 {/* Body details */}
                 <View style={styles.ledgerBody}>
-                  <View style={styles.ledgerDetails}>
-                    <Text style={styles.ledgerTitle}>Batch Evaluation Details</Text>
+                  <View style={styles.metricBox}>
+                    <Text style={styles.amountLabel}>Company P&L</Text>
+                    <Text
+                      style={[styles.amountValue, { color: isProfit ? "#059669" : "#DC2626" }]}
+                      numberOfLines={1}
+                      adjustsFontSizeToFit
+                    >
+                      {formatINR(row.companyProfitOrLoss)}
+                    </Text>
                   </View>
 
-                  <View style={[styles.ledgerAmounts, { minWidth: 155, alignItems: "flex-end" }]}>
-                    <View style={styles.amountRow}>
-                      <Text style={styles.amountLabel}>Company P&L:</Text>
-                      <Text style={[styles.amountValue, { color: isProfit ? "#059669" : "#DC2626", fontWeight: "800" }]}>
-                        {formatINR(row.companyProfitOrLoss)}
-                      </Text>
-                    </View>
-                    <View style={[styles.amountRow, { borderTopWidth: 0.5, borderTopColor: "#E5E7EB", paddingTop: 4, marginTop: 2 }]}>
-                      <Text style={styles.amountLabelBold}>Farmer Net Earnings:</Text>
-                      <Text style={[styles.amountValueBold, { color: "#2563EB" }]}>
-                        {formatINR(row.farmerNetEarnings)}
-                      </Text>
-                    </View>
+                  <View style={styles.metricBox}>
+                    <Text style={styles.amountLabel}>Farmer Earnings</Text>
+                    <Text
+                      style={[styles.amountValue, { color: "#2563EB" }]}
+                      numberOfLines={1}
+                      adjustsFontSizeToFit
+                    >
+                      {formatINR(row.farmerNetEarnings)}
+                    </Text>
                   </View>
                 </View>
               </View>
@@ -281,16 +337,137 @@ const styles = StyleSheet.create({
   },
   statementHeader: {
     flexDirection: "row",
-    alignItems: "center",
+    alignItems: "flex-start",
     justifyContent: "space-between",
+    gap: 12,
+    marginBottom: 12,
   },
-  categoryTitle: { fontSize: 13, fontWeight: "800", color: "#111827", marginBottom: 8, marginTop: 4 },
+  headerTitleWrap: {
+    flex: 1,
+  },
+  categoryTitle: { fontSize: 16, fontWeight: "900", color: "#111827" },
+  categorySubtitle: { fontSize: 11, fontWeight: "700", color: "#6B7280", marginTop: 3 },
+  filterToggle: {
+    minHeight: 34,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+    paddingHorizontal: 10,
+    paddingVertical: 7,
+    backgroundColor: "#F3F4F6",
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
+  },
+  filterToggleActive: {
+    backgroundColor: "#EFF6FF",
+    borderColor: "#BFDBFE",
+  },
+  filterToggleText: { fontSize: 11, fontWeight: "900", color: "#4B5563" },
+  filterToggleTextActive: { color: "#2563EB" },
+  activeFilterDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: "#2563EB",
+  },
+  filterPanel: {
+    backgroundColor: "#F9FAFB",
+    padding: 12,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
+    marginBottom: 12,
+  },
+  filterTitle: {
+    fontSize: 11,
+    fontWeight: "900",
+    color: "#374151",
+    marginBottom: 10,
+    textTransform: "uppercase",
+  },
+  dateGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 10,
+    marginBottom: 10,
+  },
+  dateField: {
+    flex: 1,
+    minWidth: 140,
+  },
+  filterField: { marginBottom: 10 },
+  filterFieldLast: { marginBottom: 12 },
+  actionRow: { flexDirection: "row", gap: 10 },
+  resetBtn: {
+    flex: 1,
+    minHeight: 42,
+    borderRadius: 10,
+    backgroundColor: "#E5E7EB",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  resetBtnText: { color: "#374151", fontSize: 12, fontWeight: "900" },
+  applyBtn: {
+    flex: 2,
+    minHeight: 42,
+    borderRadius: 10,
+    alignItems: "center",
+    justifyContent: "center",
+    flexDirection: "row",
+    gap: 6,
+  },
+  applyBtnText: { color: "#FFF", fontSize: 12, fontWeight: "900" },
+  summaryGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 10,
+    marginBottom: 4,
+  },
+  summaryBox: {
+    flex: 1,
+    minWidth: 145,
+    borderRadius: 12,
+    borderWidth: 1,
+    padding: 12,
+  },
+  summaryProfit: {
+    backgroundColor: "#F0FDF4",
+    borderColor: "#BBF7D0",
+  },
+  summaryLoss: {
+    backgroundColor: "#FEF2F2",
+    borderColor: "#FECACA",
+  },
+  summaryFarmer: {
+    backgroundColor: "#EFF6FF",
+    borderColor: "#BFDBFE",
+  },
+  summaryIconWrap: {
+    width: 28,
+    height: 28,
+    borderRadius: 8,
+    backgroundColor: "#FFFFFF",
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 8,
+  },
+  summaryLabel: {
+    fontSize: 11,
+    fontWeight: "800",
+    color: "#6B7280",
+    marginBottom: 3,
+  },
+  summaryValue: {
+    fontSize: 17,
+    fontWeight: "900",
+  },
   selectedBatchBoxEmpty: {
     backgroundColor: "#F9FAFB",
-    borderRadius: 8,
+    borderRadius: 12,
     borderWidth: 1,
-    borderColor: "#F3F4F6",
-    padding: 12,
+    borderColor: "#E5E7EB",
+    padding: 18,
     marginTop: 12,
     alignItems: "center",
   },
@@ -300,87 +477,88 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     borderWidth: 1,
     borderColor: "#E5E7EB",
-    padding: 10,
+    padding: 12,
     marginTop: 12,
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.02,
-    shadowRadius: 3,
-    elevation: 1,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 6,
+    elevation: 2,
   },
   ledgerHeader: {
     flexDirection: "row",
-    alignItems: "center",
-    marginBottom: 6,
+    alignItems: "flex-start",
+    justifyContent: "space-between",
+    gap: 10,
+    marginBottom: 12,
+  },
+  batchInfo: {
+    flex: 1,
     gap: 6,
-    flexWrap: "wrap",
   },
   ledgerRef: {
+    fontSize: 12,
+    fontWeight: "700",
+    color: "#4B5563",
+    lineHeight: 16,
+  },
+  pnlBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    borderRadius: 999,
+    paddingHorizontal: 8,
+    paddingVertical: 5,
+    borderWidth: 1,
+  },
+  pnlBadgeProfit: {
+    backgroundColor: "#ECFDF5",
+    borderColor: "#A7F3D0",
+  },
+  pnlBadgeLoss: {
+    backgroundColor: "#FEF2F2",
+    borderColor: "#FECACA",
+  },
+  pnlBadgeText: {
     fontSize: 10,
-    fontWeight: "600",
-    color: "#9CA3AF",
+    fontWeight: "900",
   },
   ledgerBody: {
     flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "flex-start",
-    gap: 12,
-  },
-  ledgerDetails: {
-    flex: 1,
-  },
-  ledgerTitle: {
-    fontSize: 12,
-    fontWeight: "800",
-    color: "#1F2937",
-    marginBottom: 6,
+    flexWrap: "wrap",
+    gap: 10,
   },
   batchTag: {
     flexDirection: "row",
     alignItems: "center",
     gap: 4,
-    paddingHorizontal: 6,
-    paddingVertical: 3,
-    borderRadius: 6,
+    paddingHorizontal: 8,
+    paddingVertical: 5,
+    borderRadius: 999,
     alignSelf: "flex-start",
   },
   batchTagText: {
-    fontSize: 9,
-    fontWeight: "700",
+    fontSize: 11,
+    fontWeight: "900",
   },
-  ledgerAmounts: {
-    minWidth: 100,
+  metricBox: {
+    flex: 1,
+    minWidth: 135,
     backgroundColor: "#F9FAFB",
-    paddingHorizontal: 8,
-    paddingVertical: 6,
-    borderRadius: 8,
-    borderWidth: 0.5,
+    paddingHorizontal: 10,
+    paddingVertical: 9,
+    borderRadius: 10,
+    borderWidth: 1,
     borderColor: "#E5E7EB",
-    gap: 2,
-  },
-  amountRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    width: "100%",
-    gap: 8,
   },
   amountLabel: {
-    fontSize: 10,
-    fontWeight: "600",
+    fontSize: 11,
+    fontWeight: "800",
     color: "#6B7280",
+    marginBottom: 4,
   },
   amountValue: {
-    fontSize: 10,
-    fontWeight: "700",
-  },
-  amountLabelBold: {
-    fontSize: 10,
-    fontWeight: "800",
-    color: "#111827",
-  },
-  amountValueBold: {
-    fontSize: 10,
+    fontSize: 15,
     fontWeight: "900",
-    color: "#111827",
   },
 });
