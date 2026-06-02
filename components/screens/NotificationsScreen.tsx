@@ -28,6 +28,16 @@ type NotificationGroup = {
   data: ApiNotification[];
 };
 
+const labelize = (value?: string | null) => {
+  if (!value) return "";
+  return value
+    .toLowerCase()
+    .split("_")
+    .filter(Boolean)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(" ");
+};
+
 //new 
 export function NotificationsScreen() {
   const { accessToken, user } = useAuth();
@@ -189,20 +199,12 @@ export function NotificationsScreen() {
     }
   };
 
-  const formatTime = (dateStr: string) => {
+  const formatTime = (dateStr?: string | null) => {
+    if (!dateStr) return "";
     const d = new Date(dateStr);
+    if (Number.isNaN(d.getTime())) return "";
     return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   };
-
-  const getNotificationMeta = (item: ApiNotification) =>
-    [
-      item.type,
-      item.severity,
-      item.targetType && item.targetId ? `${item.targetType}: ${item.targetId}` : null,
-      item.farmId ? `Farm: ${item.farmId}` : null,
-      item.batchId ? `Batch: ${item.batchId}` : null,
-      item.isRead ? "Read" : "Unread",
-    ].filter(Boolean) as string[];
 
   return (
     <View style={styles.safeArea}>
@@ -279,6 +281,10 @@ export function NotificationsScreen() {
             renderItem={({ item, index, section }) => {
               const meta = getIconMeta(item.type, item.severity);
               const isLast = index === section.data.length - 1;
+              const severityLabel =
+                item.severity === "CRITICAL" || item.severity === "WARNING"
+                  ? labelize(item.severity)
+                  : null;
               return (
                 <TouchableOpacity
                   style={[
@@ -295,35 +301,42 @@ export function NotificationsScreen() {
                   <View style={styles.notifContent}>
                     <View style={styles.notifHeaderRow}>
                       <View style={styles.titleWrap}>
-                        <Text style={styles.notifTitle} numberOfLines={1}>{item.title}</Text>
-                        {item.severity === "CRITICAL" && (
-                          <View style={styles.criticalBadge}>
-                            <Text style={styles.criticalBadgeText}>CRITICAL</Text>
-                          </View>
-                        )}
+                        <Text style={styles.notifTitle} numberOfLines={2}>{item.title}</Text>
                       </View>
-                      <Text style={styles.notifTime}>{formatTime(item.createdAt)}</Text>
+                      <View style={styles.timeWrap}>
+                        {!item.isRead ? <View style={styles.unreadDot} /> : null}
+                        <Text style={styles.notifTime}>{formatTime(item.createdAt)}</Text>
+                      </View>
                     </View>
+                    {severityLabel ? (
+                      <View
+                        style={[
+                          styles.severityBadge,
+                          item.severity === "CRITICAL" ? styles.criticalBadge : styles.warningBadge,
+                        ]}
+                      >
+                        <Text
+                          style={[
+                            styles.severityBadgeText,
+                            item.severity === "CRITICAL"
+                              ? styles.criticalBadgeText
+                              : styles.warningBadgeText,
+                          ]}
+                        >
+                          {severityLabel}
+                        </Text>
+                      </View>
+                    ) : null}
                     <Text style={styles.notifMessage} numberOfLines={2}>{item.message}</Text>
-                    <View style={styles.metaWrap}>
-                      {getNotificationMeta(item).map((metaItem) => (
-                        <View key={metaItem} style={styles.metaPill}>
-                          <Text style={styles.metaPillText} numberOfLines={1}>{metaItem}</Text>
-                        </View>
-                      ))}
-                    </View>
-                    {(item.readAt || item.readById) ? (
+                    {item.readAt ? (
                       <Text style={styles.readMeta} numberOfLines={1}>
-                        {item.readAt ? `Read at ${formatTime(item.readAt)}` : "Read"}
-                        {item.readById ? ` by ${item.readById}` : ""}
+                        Read at {formatTime(item.readAt)}
                       </Text>
                     ) : null}
                   </View>
-                  {!item.isRead ? (
-                    <View style={styles.unreadDot} />
-                  ) : (
-                    <Ionicons name="checkmark-done" size={16} color="#9CA3AF" style={{ marginLeft: 12 }} />
-                  )}
+                  {item.isRead ? (
+                    <Ionicons name="checkmark-done" size={16} color="#9CA3AF" style={styles.readIcon} />
+                  ) : null}
                 </TouchableOpacity>
               );
             }}
@@ -348,11 +361,23 @@ const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: "#0B5C36" },
   container: { flex: 1, backgroundColor: "#F9FAFB" },
   tabsRow: {
-    flexDirection: "row", paddingHorizontal: 16, paddingVertical: 12, gap: 10,
+    flexDirection: "row",
+    paddingHorizontal: 16,
+    paddingTop: 12,
+    paddingBottom: 8,
+    gap: 10,
   },
   tab: {
-    flex: 1, height: 40, borderRadius: 10, alignItems: "center", justifyContent: "center",
-    backgroundColor: "#FFF", borderWidth: 1, borderColor: "#E5E7EB", flexDirection: "row",
+    flex: 1,
+    minHeight: 42,
+    borderRadius: 12,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#FFF",
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
+    flexDirection: "row",
+    paddingHorizontal: 8,
   },
   tabActive: { backgroundColor: "#0B5C36", borderColor: "#0B5C36" },
   tabText: { fontSize: 13, fontWeight: "600", color: "#6B7280" },
@@ -367,62 +392,85 @@ const styles = StyleSheet.create({
   },
   listContent: { paddingHorizontal: 16, paddingBottom: 40, flexGrow: 1 },
   sectionHeader: {
-    fontSize: 14, fontWeight: "700", color: "#111827", marginTop: 20, marginBottom: 12,
+    fontSize: 13,
+    fontWeight: "800",
+    color: "#374151",
+    marginTop: 16,
+    marginBottom: 10,
+    textTransform: "uppercase",
   },
   notifCard: {
-    flexDirection: "row", alignItems: "center", backgroundColor: "#FFF",
-    padding: 16, borderBottomWidth: 1, borderBottomColor: "#F3F4F6",
-    borderRadius: 8, marginBottom: 4,
-    borderLeftWidth: 3, borderLeftColor: "transparent",
+    flexDirection: "row",
+    alignItems: "flex-start",
+    backgroundColor: "#FFF",
+    padding: 14,
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
+    borderRadius: 14,
+    marginBottom: 10,
+    borderLeftWidth: 4,
+    borderLeftColor: "transparent",
+    shadowColor: "#111827",
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 3 },
+    elevation: 2,
   },
   criticalCard: {
     borderLeftColor: "#EF4444",
   },
   iconBox: {
-    width: 44, height: 44, borderRadius: 12, alignItems: "center", justifyContent: "center", marginRight: 16,
+    width: 44,
+    height: 44,
+    borderRadius: 12,
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: 12,
   },
   notifContent: { flex: 1 },
-  notifHeaderRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 4 },
-  titleWrap: { flexDirection: "row", alignItems: "center", flex: 1, marginRight: 8, gap: 6 },
-  notifTitle: { fontSize: 15, fontWeight: "700", color: "#111827", flexShrink: 1 },
+  notifHeaderRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "flex-start",
+    marginBottom: 6,
+  },
+  titleWrap: { flex: 1, marginRight: 10 },
+  notifTitle: { fontSize: 15, fontWeight: "800", color: "#111827", lineHeight: 20 },
+  timeWrap: {
+    flexDirection: "row",
+    alignItems: "center",
+    minHeight: 20,
+    gap: 6,
+  },
+  severityBadge: {
+    alignSelf: "flex-start",
+    borderRadius: 999,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    marginBottom: 8,
+  },
   criticalBadge: {
     backgroundColor: "#FEE2E2",
-    borderRadius: 4,
-    paddingHorizontal: 5,
-    paddingVertical: 1,
   },
-  criticalBadgeText: {
-    color: "#EF4444",
-    fontSize: 8,
+  warningBadge: {
+    backgroundColor: "#FEF3C7",
+  },
+  severityBadgeText: {
+    fontSize: 10,
     fontWeight: "900",
   },
+  criticalBadgeText: { color: "#DC2626" },
+  warningBadgeText: { color: "#B45309" },
   notifTime: { fontSize: 11, color: "#9CA3AF" },
-  notifMessage: { fontSize: 13, color: "#6B7280", lineHeight: 18 },
-  metaWrap: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 6,
-    marginTop: 8,
-  },
-  metaPill: {
-    maxWidth: "100%",
-    borderRadius: 999,
-    backgroundColor: "#F3F4F6",
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-  },
-  metaPillText: {
-    color: "#6B7280",
-    fontSize: 10,
-    fontWeight: "800",
-  },
+  notifMessage: { fontSize: 13, color: "#4B5563", lineHeight: 19 },
   readMeta: {
     marginTop: 6,
     color: "#9CA3AF",
     fontSize: 10,
     fontWeight: "700",
   },
-  unreadDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: "#EF4444", marginLeft: 12 },
+  unreadDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: "#EF4444" },
+  readIcon: { marginLeft: 10, marginTop: 3 },
   markAllBtn: {
     width: 40,
     height: 40,
