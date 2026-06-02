@@ -82,6 +82,7 @@ export default function ReportsScreen() {
   const [error, setError] = useState<string | null>(null);
   const [exporting, setExporting] = useState<"pdf" | "excel" | null>(null);
   const [selectedBatchId, setSelectedBatchId] = useState("");
+  const [stockSubTab, setStockSubTab] = useState<"inventory" | "batch" | "farm">("inventory");
 
   // Expense Register search/filter states
   const [expenseLedgerFilter, setExpenseLedgerFilter] = useState<"ALL" | "COMPANY" | "FARMER">("ALL");
@@ -975,7 +976,31 @@ export default function ReportsScreen() {
                   </SurfaceCard>
                 )}
 
+                <View style={styles.stockSubTabs}>
+                  {[
+                    { key: "inventory", label: "Stock", icon: "cube-outline" },
+                    { key: "batch", label: "Batch PDF", icon: "document-text-outline" },
+                    { key: "farm", label: "Farm Summary", icon: "business-outline" },
+                  ].map((tab) => {
+                    const active = stockSubTab === tab.key;
+                    return (
+                      <TouchableOpacity
+                        key={tab.key}
+                        style={[styles.stockSubTabBtn, active && styles.stockSubTabBtnActive]}
+                        onPress={() => setStockSubTab(tab.key as "inventory" | "batch" | "farm")}
+                        activeOpacity={0.85}
+                      >
+                        <Ionicons name={tab.icon as any} size={15} color={active ? "#FFFFFF" : "#64748B"} />
+                        <Text style={[styles.stockSubTabText, active && styles.stockSubTabTextActive]}>
+                          {tab.label}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+
                 {/* Central Inventory Stock Status */}
+                {stockSubTab === "inventory" ? (
                 <SurfaceCard style={[styles.statementCard, { marginTop: 0, marginBottom: 16 }]}>
                   <View style={[styles.statementHeader, { marginBottom: 10 }]}>
                     <Text style={styles.categoryTitle}>📦 Central Inventory Stock Status</Text>
@@ -1033,8 +1058,11 @@ export default function ReportsScreen() {
                     </View>
                   )}
                 </SurfaceCard>
+                ) : null}
 
                 {/* Interactive Document Center */}
+                {stockSubTab === "batch" ? (
+                <>
                 <SurfaceCard style={styles.documentCenterCard}>
                   <View style={styles.docHeader}>
                     <Ionicons name="cloud-download-outline" size={22} color={THEME_GREEN} />
@@ -1060,26 +1088,11 @@ export default function ReportsScreen() {
                     </View>
                   ) : null}
 
-                  {batchSummary ? (
-                    <View style={styles.selectedBatchBox}>
-                      <Text style={styles.selectedBatchLabel}>Active Export Target</Text>
-                      <Text style={styles.selectedBatchCode}>
-                        Batch ID: {batchSummary.batchCode || batchSummary.batchId.slice(0, 8)}
-                      </Text>
-                      <View style={styles.metaBadgeRow}>
-                        <View style={styles.metaBadge}>
-                          <Text style={styles.metaBadgeText}>FCR: {Number(batchSummary.fcr || 0).toFixed(2)}</Text>
-                        </View>
-                        <View style={styles.metaBadge}>
-                          <Text style={styles.metaBadgeText}>Chicks: {batchSummary.liveBirds}</Text>
-                        </View>
-                      </View>
-                    </View>
-                  ) : (
+                  {!batchSummary ? (
                     <View style={styles.selectedBatchBoxEmpty}>
                       <Text style={styles.emptyBatchText}>No active batches to download.</Text>
                     </View>
-                  )}
+                  ) : null}
 
                   <View style={styles.docBtnRow}>
                     <TouchableOpacity
@@ -1249,9 +1262,13 @@ export default function ReportsScreen() {
                     </SurfaceCard>
                   </View>
                 ) : null}
+                </>
+                ) : null}
 
                 {/* Sub data snapshots */}
-                <Text style={styles.categoryTitle}>Inventory & Farm Records</Text>
+                {stockSubTab === "farm" ? (
+                <>
+                <Text style={styles.categoryTitle}>Farm Records</Text>
                 
                 {farmSummary || farmOptions.length > 0 ? (
                   <View style={styles.summaryDetailsContainer}>
@@ -1358,6 +1375,8 @@ export default function ReportsScreen() {
                     bgColor="#EBF8FF"
                   />
                 )}
+                </>
+                ) : null}
               </View>
             )}
 
@@ -1518,6 +1537,38 @@ const styles = StyleSheet.create({
   activeTabBtnText: {
     color: "#FFFFFF",
     fontWeight: "700",
+  },
+  stockSubTabs: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+    marginBottom: 14,
+  },
+  stockSubTabBtn: {
+    flex: 1,
+    minWidth: 105,
+    minHeight: 40,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "#E2E8F0",
+    backgroundColor: "#FFFFFF",
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+    paddingHorizontal: 10,
+  },
+  stockSubTabBtnActive: {
+    backgroundColor: THEME_GREEN,
+    borderColor: THEME_GREEN,
+  },
+  stockSubTabText: {
+    fontSize: 11,
+    fontWeight: "800",
+    color: "#64748B",
+  },
+  stockSubTabTextActive: {
+    color: "#FFFFFF",
   },
 
   scrollContainer: { flexGrow: 1, paddingHorizontal: 16, paddingTop: 16 },
