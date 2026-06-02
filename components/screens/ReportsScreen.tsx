@@ -1,6 +1,5 @@
 import { MaterialCommunityIcons, Ionicons, FontAwesome5 } from "@expo/vector-icons";
-import { useFocusEffect } from "@react-navigation/native";
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   KeyboardAvoidingView,
@@ -40,9 +39,11 @@ import {
 } from "@/services/reportApi";
 import {
   listAllFarms,
+  listAllBatches,
   listAllTraders,
   listAllVendors,
   listAllUsers,
+  type ApiBatch,
   type ApiFarm,
   type ApiTrader,
   type ApiVendor,
@@ -71,6 +72,7 @@ export default function ReportsScreen() {
   const [inventory, setInventory] = useState<ApiInventoryReportRow[]>([]);
   const [profitability, setProfitability] = useState<ApiProfitabilityReportRow[]>([]);
   const [settlements, setSettlements] = useState<ApiSettlementReportRow[]>([]);
+  const [batches, setBatches] = useState<ApiBatch[]>([]);
   const [farms, setFarms] = useState<ApiFarm[]>([]);
   const [selectedFarmId, setSelectedFarmId] = useState("");
   const [vendors, setVendors] = useState<ApiVendor[]>([]);
@@ -83,6 +85,7 @@ export default function ReportsScreen() {
   const [exporting, setExporting] = useState<"pdf" | "excel" | null>(null);
   const [selectedBatchId, setSelectedBatchId] = useState("");
   const [stockSubTab, setStockSubTab] = useState<"inventory" | "batch" | "farm">("inventory");
+  const loadReportsRef = useRef<((isRefresh?: boolean) => Promise<void>) | null>(null);
 
   // Expense Register search/filter states
   const [expenseLedgerFilter, setExpenseLedgerFilter] = useState<"ALL" | "COMPANY" | "FARMER">("ALL");
@@ -100,6 +103,11 @@ export default function ReportsScreen() {
 
   const batchOptions = useMemo(() => {
     const map = new Map<string, string>();
+    batches.forEach((batch) => {
+      if (batch.id) {
+        map.set(batch.id, batch.code || `Batch ${batch.id.slice(0, 8)}`);
+      }
+    });
     profitability.forEach((row) => {
       if (row.batchId) {
         map.set(row.batchId, row.batchCode || `Batch ${row.batchId.slice(0, 8)}`);
@@ -119,7 +127,7 @@ export default function ReportsScreen() {
       label: code,
       value: id,
     }));
-  }, [profitability, settlements, expenses]);
+  }, [batches, profitability, settlements, expenses]);
 
   const farmOptions = useMemo(
     () =>
@@ -131,6 +139,26 @@ export default function ReportsScreen() {
       })),
     [farms],
   );
+
+  const ensureUsersLoaded = useCallback(async () => {
+    if (!accessToken || users.length > 0) return;
+    const usersRes = await listAllUsers(accessToken);
+    setUsers(usersRes.data);
+  }, [accessToken, users.length]);
+
+  const ensureFarmsLoaded = useCallback(async () => {
+    if (!accessToken || farms.length > 0) return farms;
+    const farmsRes = await listAllFarms(accessToken);
+    setFarms(farmsRes.data);
+    return farmsRes.data;
+  }, [accessToken, farms]);
+
+  const ensureBatchesLoaded = useCallback(async () => {
+    if (!accessToken || batches.length > 0) return batches;
+    const batchesRes = await listAllBatches(accessToken);
+    setBatches(batchesRes.data);
+    return batchesRes.data;
+  }, [accessToken, batches]);
 
   const loadReports = useCallback(async (isRefresh = false) => {
     if (!accessToken) return;
@@ -144,40 +172,55 @@ export default function ReportsScreen() {
     setError(null);
 
     try {
-      const [overviewRes, expenseRes, inventoryRes, profitabilityRes, settlementRes, vendorRes, traderRes, usersRes] = await Promise.all([
-        fetchOverviewReport(accessToken),
-        fetchExpenseReport(accessToken),
-        fetchInventoryReport(accessToken),
-        fetchProfitabilityReport(accessToken),
-        fetchSettlementReport(accessToken),
-        listAllVendors(accessToken),
-        listAllTraders(accessToken),
-        listAllUsers(accessToken),
-      ]);
-
-      setOverview(overviewRes);
-      setExpenses(expenseRes);
-      setInventory(inventoryRes);
-      setProfitability(profitabilityRes);
-      setSettlements(settlementRes);
-      const farmsRes = await listAllFarms(accessToken);
-      setFarms(farmsRes.data);
-
-      setVendors(vendorRes.data);
-      setTraders(traderRes.data);
-      setUsers(usersRes.data);
-
-      const firstFarmId = farmsRes.data[0]?.id ?? expenseRes[0]?.farmId;
-      if (firstFarmId) {
-        setSelectedFarmId(firstFarmId);
-        const farmSummaryRes = await fetchFarmSummary(accessToken, firstFarmId);
-        setFarmSummary(farmSummaryRes);
-      }
-
-      const firstBatchId =
-        profitabilityRes[0]?.batchId ?? settlementRes[0]?.batchId ?? expenseRes[0]?.batchId;
-      if (firstBatchId) {
-        setSelectedBatchId(firstBatchId);
+      if (activeTab === "overview") {
+        const overviewRes = await fetchOverviewReport(accessToken);
+        setOverview(overviewRes);
+      } else if (activeTab === "financials") {
+        const [expenseRes] = await Promise.all([
+          fetchExpenseReport(accessToken),
+          ensureFarmsLoaded(),
+          ensureBatchesLoaded(),
+          ensureUsersLoaded(),
+        ]);
+        setExpenses(expenseRes);
+      } else if (activeTab === "stock") {
+        if (stockSubTab === "inventory") {
+          const inventoryRes = await fetchInventoryReport(accessToken);
+          setInventory(inventoryRes);
+        } else if (stockSubTab === "batch") {
+          const batchList = await ensureBatchesLoaded();
+          if (!selectedBatchId && batchList[0]?.id) {
+            setSelectedBatchId(batchList[0].id);
+          }
+        } else if (stockSubTab === "farm") {
+          const farmList = await ensureFarmsLoaded();
+          if (!selectedFarmId && farmList[0]?.id) {
+            setSelectedFarmId(farmList[0].id);
+          }
+        }
+      } else if (activeTab === "settlements") {
+        const [settlementRes] = await Promise.all([
+          fetchSettlementReport(accessToken),
+          ensureFarmsLoaded(),
+          ensureBatchesLoaded(),
+          ensureUsersLoaded(),
+        ]);
+        setSettlements(settlementRes);
+      } else if (activeTab === "profitability") {
+        const [profitabilityRes] = await Promise.all([
+          fetchProfitabilityReport(accessToken),
+          ensureFarmsLoaded(),
+          ensureBatchesLoaded(),
+          ensureUsersLoaded(),
+        ]);
+        setProfitability(profitabilityRes);
+      } else if (activeTab === "statements") {
+        const [vendorRes, traderRes] = await Promise.all([
+          listAllVendors(accessToken),
+          listAllTraders(accessToken),
+        ]);
+        setVendors(vendorRes.data);
+        setTraders(traderRes.data);
       }
     } catch (err) {
       setError(getRequestErrorMessage(err, "Unable to load reports."));
@@ -185,7 +228,18 @@ export default function ReportsScreen() {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [accessToken]);
+  }, [
+    accessToken,
+    activeTab,
+    stockSubTab,
+    ensureBatchesLoaded,
+    ensureFarmsLoaded,
+    ensureUsersLoaded,
+    selectedBatchId,
+    selectedFarmId,
+  ]);
+
+  loadReportsRef.current = loadReports;
 
   // Fetch batch summary dynamically when selectedBatchId changes
   useEffect(() => {
@@ -278,15 +332,9 @@ export default function ReportsScreen() {
     [users],
   );
 
-  useFocusEffect(
-    useCallback(() => {
-      void loadReports();
-    }, [loadReports]),
-  );
-
   useEffect(() => {
-    void loadFilteredExpenses();
-  }, [loadFilteredExpenses]);
+    void loadReportsRef.current?.();
+  }, [accessToken, activeTab, stockSubTab]);
 
   const reportStats = useMemo(() => {
     const totalExpenses = expenses.reduce((sum, row) => sum + Number(row.totalAmount ?? 0), 0);
