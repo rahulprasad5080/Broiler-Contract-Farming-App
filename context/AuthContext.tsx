@@ -1,6 +1,7 @@
 import { useRouter, useSegments, type Href } from "expo-router";
 import React from "react";
 import { AppState, AppStateStatus } from "react-native";
+import Toast from "react-native-toast-message";
 
 import {
   fetchMe,
@@ -384,6 +385,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const backgroundedAtRef = React.useRef<number | null>(null);
   const userRef = React.useRef<User | null>(null);
   const isAppUnlockedRef = React.useRef(false);
+  const lastPermissionToastAtRef = React.useRef(0);
 
   React.useEffect(() => {
     userRef.current = user;
@@ -539,6 +541,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
         if (!hasRoutePermission) {
           if (!cancelled) {
+            const now = Date.now();
+            if (now - lastPermissionToastAtRef.current > 1500) {
+              lastPermissionToastAtRef.current = now;
+              Toast.show({
+                type: "error",
+                text1: "Access denied",
+                text2: "You do not have permission for this page.",
+                position: "bottom",
+              });
+            }
             router.replace(getDashboardRoute(user.role));
           }
           if (!isReady) setIsReady(true);

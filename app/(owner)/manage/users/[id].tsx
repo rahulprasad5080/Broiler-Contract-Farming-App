@@ -40,17 +40,17 @@ const PERMISSION_LABELS: { key: PermissionKey; label: string }[] = [
 ];
 
 const PERMISSION_DETAILS: Record<PermissionKey, string> = {
-  dailyEntry: 'Daily farm performance entries',
-  salesEntry: 'Sales and collection records',
-  expenseEntry: 'Batch and farm expenses',
-  inventoryView: 'Inventory stock and ledger access',
-  costVisibility: 'Rates, costs, and margins',
-  reportAccess: 'Operational and financial reports',
-  companyExpenseEntry: 'Company expense ledger',
-  farmerExpenseApproval: 'Farmer expense approvals',
-  purchaseEntry: 'Purchase entries and vendor costs',
-  settlementEntry: 'Settlement and payout access',
-  financialDashboard: 'Financial dashboard visibility',
+  dailyEntry: 'Daily log list/create, treatments list/create, and batch comments',
+  salesEntry: 'Sales list/create/finalize and trader access',
+  expenseEntry: 'Expense list/create for permitted ledgers',
+  inventoryView: 'Inventory list, ledger, allocation, and catalog access',
+  costVisibility: 'Cost list, rates, margins, and profitability/P&L access',
+  reportAccess: 'Reports tab, farm summaries, exports, and report filters',
+  companyExpenseEntry: 'Company ledger expense create option',
+  farmerExpenseApproval: 'Farmer expense review and approval access',
+  purchaseEntry: 'Purchase list/create/update plus vendor/partner access',
+  settlementEntry: 'Settlement list/create and payment records',
+  financialDashboard: 'Finance dashboard, finance entries, billing, and totals',
 };
 
 const PERMISSION_GROUPS: {

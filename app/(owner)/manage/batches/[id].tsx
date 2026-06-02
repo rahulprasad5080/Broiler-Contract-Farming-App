@@ -42,7 +42,7 @@ import { saveAndShareReport } from '@/services/reportExport';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import { useLocalSearchParams, useRouter, type Href } from 'expo-router';
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Modal,
@@ -255,7 +255,7 @@ function BatchFullDetails({ batch }: { batch: ApiBatch }) {
 export default function BatchDetailsScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
-  const { accessToken } = useAuth();
+  const { accessToken, hasPermission } = useAuth();
 
   const [activeTab, setActiveTab] = useState<TabKey>('overview');
   const [activeExpenseTab, setActiveExpenseTab] = useState<'company' | 'farmer'>('company');
@@ -285,6 +285,38 @@ export default function BatchDetailsScreen() {
   const [editStatus, setEditStatus] = useState<ApiBatch['status']>('ACTIVE');
   const [savingActions, setSavingActions] = useState(false);
 
+  const canUseDailyLogs = hasPermission('create:daily-entry');
+  const canUseTreatments = hasPermission('create:treatments');
+  const canUseExpenses = hasPermission('create:expenses');
+  const canUseCosts = hasPermission('view:inventory-cost');
+  const canUseSales = hasPermission('create:sales');
+  const canFinalizeSales = hasPermission('finalize:sales');
+  const canUseSettlement = hasPermission('manage:settlements');
+  const canUseComments = hasPermission('view:comments');
+  const visibleTabs = useMemo(
+    () =>
+      TABS.filter((tab) => {
+        if (tab.key === 'daily') return canUseDailyLogs;
+        if (tab.key === 'treatments') return canUseTreatments;
+        if (tab.key === 'expenses') return canUseExpenses;
+        if (tab.key === 'costs') return canUseCosts;
+        if (tab.key === 'sales') return canUseSales;
+        if (tab.key === 'pnl') return canUseCosts;
+        if (tab.key === 'settlement') return canUseSettlement;
+        if (tab.key === 'comments') return canUseComments;
+        return true;
+      }),
+    [
+      canUseComments,
+      canUseCosts,
+      canUseDailyLogs,
+      canUseExpenses,
+      canUseSales,
+      canUseSettlement,
+      canUseTreatments,
+    ],
+  );
+
   const loadBatchDetails = useCallback(async () => {
     if (!accessToken || !id) return;
     setLoading(true);
@@ -303,15 +335,15 @@ export default function BatchDetailsScreen() {
         commentsRes,
       ] = await Promise.all([
         fetchBatch(accessToken, id),
-        listDailyLogs(accessToken, id),
-        listTreatments(accessToken, id),
-        listBatchExpenses(accessToken, id, { ledger: 'COMPANY' }),
-        listBatchExpenses(accessToken, id, { ledger: 'FARMER' }),
-        listLegacyBatchCosts(accessToken, id),
-        fetchBatchPnl(accessToken, id),
-        fetchBatchSettlement(accessToken, id).catch(() => null),
-        listSales(accessToken, id),
-        listBatchComments(accessToken, id),
+        canUseDailyLogs ? listDailyLogs(accessToken, id) : Promise.resolve({ data: [] }),
+        canUseTreatments ? listTreatments(accessToken, id) : Promise.resolve({ data: [] }),
+        canUseExpenses ? listBatchExpenses(accessToken, id, { ledger: 'COMPANY' }) : Promise.resolve({ data: [] }),
+        canUseExpenses ? listBatchExpenses(accessToken, id, { ledger: 'FARMER' }) : Promise.resolve({ data: [] }),
+        canUseCosts ? listLegacyBatchCosts(accessToken, id) : Promise.resolve({ data: [] }),
+        canUseCosts ? fetchBatchPnl(accessToken, id) : Promise.resolve(null),
+        canUseSettlement ? fetchBatchSettlement(accessToken, id).catch(() => null) : Promise.resolve(null),
+        canUseSales ? listSales(accessToken, id) : Promise.resolve({ data: [] }),
+        canUseComments ? listBatchComments(accessToken, id) : Promise.resolve({ data: [] }),
       ]);
       setBatch(batchRes);
       setEditStatus(batchRes.status || 'ACTIVE');
@@ -334,7 +366,23 @@ export default function BatchDetailsScreen() {
     } finally {
       setLoading(false);
     }
-  }, [accessToken, id]);
+  }, [
+    accessToken,
+    canUseComments,
+    canUseCosts,
+    canUseDailyLogs,
+    canUseExpenses,
+    canUseSales,
+    canUseSettlement,
+    canUseTreatments,
+    id,
+  ]);
+
+  useEffect(() => {
+    if (!visibleTabs.some((tab) => tab.key === activeTab)) {
+      setActiveTab('overview');
+    }
+  }, [activeTab, visibleTabs]);
 
   useFocusEffect(
     useCallback(() => {
@@ -554,7 +602,7 @@ export default function BatchDetailsScreen() {
       {/* Tabs */}
       <View style={styles.tabsWrapper}>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.tabsScroll}>
-          {TABS.map((tab) => {
+          {visibleTabs.map((tab) => {
             const isActive = activeTab === tab.key;
             return (
               <TouchableOpacity
@@ -601,16 +649,19 @@ export default function BatchDetailsScreen() {
             )}
             
             {activeTab === 'daily' && (
-              <DailyEntriesTab dailyLogs={dailyLogs} openDailyEntry={openDailyEntry} />
+              <DailyEntriesTab dailyLogs={dailyLogs} openDailyEntry={canUseDailyLogs ? openDailyEntry : undefined} />
             )}
 
             {activeTab === 'treatments' && (
               <TreatmentsTab
                 treatments={treatments}
-                onAddTreatment={() =>
-                  router.navigate(
-                    `/(owner)/manage/treatments/add?batchId=${encodeURIComponent(id)}` as Href,
-                  )
+                onAddTreatment={
+                  canUseTreatments
+                    ? () =>
+                        router.navigate(
+                          `/(owner)/manage/treatments/add?batchId=${encodeURIComponent(id)}` as Href,
+                        )
+                    : undefined
                 }
               />
             )}
@@ -623,19 +674,25 @@ export default function BatchDetailsScreen() {
                 activeExpenses={activeExpenses}
                 activeExpenseTotal={activeExpenseTotal}
                 todayExpenseTotal={todayExpenseTotal}
-                onAddExpense={() =>
-                  router.navigate(
-                    `/(owner)/manage/batches/expense-create?batchId=${encodeURIComponent(id)}&ledger=${
-                      activeExpenseTab === 'farmer' ? 'FARMER' : 'COMPANY'
-                    }` as Href,
-                  )
+                onAddExpense={
+                  canUseExpenses
+                    ? () =>
+                        router.navigate(
+                          `/(owner)/manage/batches/expense-create?batchId=${encodeURIComponent(id)}&ledger=${
+                            activeExpenseTab === 'farmer' ? 'FARMER' : 'COMPANY'
+                          }` as Href,
+                        )
+                    : undefined
                 }
-                onEditExpense={(expense) =>
-                  router.navigate(
-                    `/(owner)/manage/batches/expense-create?batchId=${encodeURIComponent(id)}&expenseId=${encodeURIComponent(
-                      expense.id,
-                    )}` as Href,
-                  )
+                onEditExpense={
+                  canUseExpenses
+                    ? (expense) =>
+                        router.navigate(
+                          `/(owner)/manage/batches/expense-create?batchId=${encodeURIComponent(
+                            id,
+                          )}&expenseId=${encodeURIComponent(expense.id)}` as Href,
+                        )
+                    : undefined
                 }
               />
             )}
@@ -643,10 +700,13 @@ export default function BatchDetailsScreen() {
             {activeTab === 'costs' && (
               <CostsTab
                 costs={batchCosts}
-                onAddCost={() =>
-                  router.navigate(
-                    `/(owner)/manage/batches/cost-create?batchId=${encodeURIComponent(id)}&ledger=COMPANY` as Href,
-                  )
+                onAddCost={
+                  canUseExpenses
+                    ? () =>
+                        router.navigate(
+                          `/(owner)/manage/batches/cost-create?batchId=${encodeURIComponent(id)}&ledger=COMPANY` as Href,
+                        )
+                    : undefined
                 }
               />
             )}
@@ -658,15 +718,20 @@ export default function BatchDetailsScreen() {
                 todaySalesAmount={todaySalesAmount}
                 totalSoldBirds={totalSoldBirds}
                 totalSoldWeight={totalSoldWeight}
-                onAddSale={() =>
-                  router.navigate(`/(owner)/manage/sales?batchId=${encodeURIComponent(id)}` as Href)
+                onAddSale={
+                  canUseSales
+                    ? () => router.navigate(`/(owner)/manage/sales/create?batchId=${encodeURIComponent(id)}` as Href)
+                    : undefined
                 }
-                onFinalizeSale={(sale) =>
-                  router.navigate(
-                    `/(owner)/manage/batches/sale-finalize?batchId=${encodeURIComponent(id)}&saleId=${encodeURIComponent(
-                      sale.id,
-                    )}` as Href,
-                  )
+                onFinalizeSale={
+                  canFinalizeSales
+                    ? (sale) =>
+                        router.navigate(
+                          `/(owner)/manage/batches/sale-finalize?batchId=${encodeURIComponent(
+                            id,
+                          )}&saleId=${encodeURIComponent(sale.id)}` as Href,
+                        )
+                    : undefined
                 }
               />
             )}
@@ -684,8 +749,10 @@ export default function BatchDetailsScreen() {
             {activeTab === 'settlement' && (
               <SettlementTab
                 settlement={settlement}
-                onCreateSettlement={() =>
-                  router.navigate(`/(owner)/manage/settlement?batchId=${encodeURIComponent(id)}` as Href)
+                onCreateSettlement={
+                  canUseSettlement
+                    ? () => router.navigate(`/(owner)/manage/settlement?batchId=${encodeURIComponent(id)}` as Href)
+                    : undefined
                 }
               />
             )}

@@ -20,6 +20,7 @@ import { useAuth } from '@/context/AuthContext';
 import { getRequestErrorMessage } from '@/services/apiFeedback';
 import { fetchMe, type ApiUser } from '@/services/authApi';
 import { authenticateWithBiometrics, getBiometricAvailability } from '@/services/authSecurity';
+import type { AppPermission } from '@/services/permissionRules';
 
 type SettingItemProps = {
   icon: any;
@@ -44,6 +45,94 @@ type PersonalInfoRowProps = {
   value?: string | null;
   isLast?: boolean;
 };
+
+const ACCESS_ITEMS: { permission: AppPermission; label: string; description: string }[] = [
+  {
+    permission: 'create:daily-entry',
+    label: 'Daily Logs',
+    description: 'Daily list/create, treatments, and comments',
+  },
+  {
+    permission: 'create:sales',
+    label: 'Sales',
+    description: 'Sales list/create and trader workflow',
+  },
+  {
+    permission: 'finalize:sales',
+    label: 'Sales Finalize',
+    description: 'Finalize sale rates and collections',
+  },
+  {
+    permission: 'create:expenses',
+    label: 'Expenses',
+    description: 'Expense list/create access',
+  },
+  {
+    permission: 'create:company-expense',
+    label: 'Company Expenses',
+    description: 'Company ledger expense option',
+  },
+  {
+    permission: 'approve:farmer-expense',
+    label: 'Farmer Approval',
+    description: 'Review and approve farmer expenses',
+  },
+  {
+    permission: 'manage:inventory',
+    label: 'Inventory',
+    description: 'Stock, ledger, and allocation',
+  },
+  {
+    permission: 'manage:catalog',
+    label: 'Catalog',
+    description: 'Catalog items used in operations',
+  },
+  {
+    permission: 'view:inventory-cost',
+    label: 'Costs & Profitability',
+    description: 'Costs, rates, margins, and P&L',
+  },
+  {
+    permission: 'create:purchase',
+    label: 'Purchases',
+    description: 'Purchase list/create/update',
+  },
+  {
+    permission: 'manage:partners',
+    label: 'Partners',
+    description: 'Vendor and partner access',
+  },
+  {
+    permission: 'manage:settlements',
+    label: 'Settlement',
+    description: 'Settlement and payment records',
+  },
+  {
+    permission: 'view:financial-dashboard',
+    label: 'Finance',
+    description: 'Financial dashboard and entries',
+  },
+  {
+    permission: 'view:reports',
+    label: 'Reports',
+    description: 'Report tab and exports',
+  },
+  {
+    permission: 'manage:farms',
+    label: 'Farms',
+    description: 'Farm list and management',
+  },
+  {
+    permission: 'manage:batches',
+    label: 'Batches',
+    description: 'Batch list and management',
+  },
+  {
+    permission: 'manage:users',
+    label: 'Users',
+    description: 'User and permission management',
+  },
+];
 
 const SettingItem = ({ icon, label, value, onPress, isLast, color = "#4B5563" }: SettingItemProps) => (
   <TouchableOpacity
@@ -123,19 +212,6 @@ function getRoleLabel(role?: string | null) {
   return 'Staff';
 }
 
-function formatDateTime(value?: string | null) {
-  if (!value) return null;
-
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return value;
-
-  return date.toLocaleDateString('en-IN', {
-    day: '2-digit',
-    month: 'short',
-    year: 'numeric',
-  });
-}
-
 export default function ProfileScreen() {
   const { accessToken, hasPermission, signOut, user, setBiometricPreference } = useAuth();
   const router = useRouter();
@@ -200,6 +276,10 @@ export default function ProfileScreen() {
 
   const personalInfo = profileUser ?? user;
   const companyName = personalInfo?.organization?.name;
+  const visibleAccessItems = React.useMemo(() => {
+    const permissions = new Set(user?.permissions ?? []);
+    return ACCESS_ITEMS.filter((item) => permissions.has(item.permission));
+  }, [user?.permissions]);
 
   const initials =
     user?.name
@@ -324,6 +404,30 @@ export default function ProfileScreen() {
             <PersonalInfoRow label="Email" value={personalInfo?.email} />
             <PersonalInfoRow label="Role" value={getRoleLabel(personalInfo?.role)} />
             <PersonalInfoRow label="Status" value={personalInfo?.status} />
+          </SurfaceCard>
+
+          <Text style={styles.sectionTitle}>Your Access</Text>
+          <SurfaceCard style={styles.accessCard}>
+            {visibleAccessItems.length > 0 ? (
+              <View style={styles.accessGrid}>
+                {visibleAccessItems.map((item) => (
+                  <View key={item.permission} style={styles.accessItem}>
+                    <View style={styles.accessIcon}>
+                      <Ionicons name="checkmark-circle-outline" size={17} color="#0B5C36" />
+                    </View>
+                    <View style={styles.accessTextBlock}>
+                      <Text style={styles.accessLabel}>{item.label}</Text>
+                      <Text style={styles.accessDescription}>{item.description}</Text>
+                    </View>
+                  </View>
+                ))}
+              </View>
+            ) : (
+              <View style={styles.accessEmpty}>
+                <Ionicons name="lock-closed-outline" size={22} color="#9CA3AF" />
+                <Text style={styles.accessEmptyText}>No module permissions assigned.</Text>
+              </View>
+            )}
           </SurfaceCard>
 
           {canManageUsers ? (
@@ -492,6 +596,58 @@ const styles = StyleSheet.create({
     color: "#EF4444",
     fontSize: 12,
     fontWeight: "600",
+  },
+  accessCard: {
+    marginBottom: 24,
+  },
+  accessGrid: {
+    gap: 10,
+  },
+  accessItem: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 10,
+    paddingVertical: 10,
+    paddingHorizontal: 10,
+    borderRadius: 10,
+    backgroundColor: "#F9FAFB",
+    borderWidth: 1,
+    borderColor: "#ECFDF5",
+  },
+  accessIcon: {
+    width: 26,
+    height: 26,
+    borderRadius: 8,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#E7F5ED",
+    marginTop: 1,
+  },
+  accessTextBlock: {
+    flex: 1,
+    minWidth: 0,
+  },
+  accessLabel: {
+    fontSize: 13,
+    fontWeight: "800",
+    color: "#111827",
+  },
+  accessDescription: {
+    fontSize: 11,
+    fontWeight: "600",
+    color: "#6B7280",
+    marginTop: 2,
+    lineHeight: 16,
+  },
+  accessEmpty: {
+    alignItems: "center",
+    gap: 8,
+    paddingVertical: 14,
+  },
+  accessEmptyText: {
+    fontSize: 12,
+    fontWeight: "700",
+    color: "#6B7280",
   },
   biometricTextBlock: { flex: 1, minWidth: 0, marginRight: 12 },
   toggleContainer: { flexShrink: 0, flexDirection: "row", alignItems: "center", minWidth: 58, justifyContent: "flex-end" },

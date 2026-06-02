@@ -65,7 +65,7 @@ function getDateParts(value?: string | null) {
 
 interface DailyEntriesTabProps {
   dailyLogs: ApiDailyLog[];
-  openDailyEntry: (logId?: string) => void;
+  openDailyEntry?: (logId?: string) => void;
 }
 
 export function DailyEntriesTab({ dailyLogs, openDailyEntry }: DailyEntriesTabProps) {
@@ -73,10 +73,12 @@ export function DailyEntriesTab({ dailyLogs, openDailyEntry }: DailyEntriesTabPr
     <View style={styles.section}>
       <View style={styles.sectionHeader}>
         <Text style={styles.sectionTitle}>Daily Flock History</Text>
-        <TouchableOpacity style={styles.addExpenseBtn} onPress={() => openDailyEntry()}>
-          <Feather name="plus" size={16} color={THEME_GREEN} />
-          <Text style={styles.addExpenseText}>Add Entry</Text>
-        </TouchableOpacity>
+        {openDailyEntry ? (
+          <TouchableOpacity style={styles.addExpenseBtn} onPress={() => openDailyEntry()}>
+            <Feather name="plus" size={16} color={THEME_GREEN} />
+            <Text style={styles.addExpenseText}>Add Entry</Text>
+          </TouchableOpacity>
+        ) : null}
       </View>
 
       {dailyLogs.length === 0 ? (
@@ -98,7 +100,8 @@ export function DailyEntriesTab({ dailyLogs, openDailyEntry }: DailyEntriesTabPr
               key={log.id}
               style={styles.dailyLogCardPremium}
               activeOpacity={0.75}
-              onPress={() => openDailyEntry(log.id)}
+              onPress={() => openDailyEntry?.(log.id)}
+              disabled={!openDailyEntry}
             >
               {/* Left Column: Date Badge */}
               <View style={styles.dateBadge}>
@@ -118,7 +121,8 @@ export function DailyEntriesTab({ dailyLogs, openDailyEntry }: DailyEntriesTabPr
                   <TouchableOpacity
                     style={styles.editButtonIcon}
                     activeOpacity={0.75}
-                    onPress={() => openDailyEntry(log.id)}
+                    onPress={() => openDailyEntry?.(log.id)}
+                    disabled={!openDailyEntry}
                   >
                     <Ionicons name="create-outline" size={14} color={THEME_GREEN} />
                     <Text style={styles.editButtonText}>Edit</Text>

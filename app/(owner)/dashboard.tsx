@@ -256,6 +256,7 @@ export default function OwnerDashboard() {
   const canManageInventory = hasPermission("manage:inventory");
   const canViewFinancialDashboard = hasPermission("view:financial-dashboard");
   const canCreateExpenses = hasPermission("create:expenses");
+  const canCreatePurchase = hasPermission("create:purchase");
   const quickActions: QuickAction[] = [
     ...(canManageBatches
       ? [
@@ -269,7 +270,7 @@ export default function OwnerDashboard() {
           },
         ]
       : []),
-    ...(canManageInventory
+    ...(canCreatePurchase
       ? [
           {
             title: "Add Purchase",
@@ -287,7 +288,7 @@ export default function OwnerDashboard() {
             title: "Add Sales",
             subtitle: "Create sales entry",
             icon: "shopping-cart",
-            href: "/(owner)/manage/sales" as Href,
+            href: "/(owner)/manage/sales/create" as Href,
             accentColor: "#1976D2",
             backgroundColor: "#EFF6FF",
           },
@@ -299,7 +300,7 @@ export default function OwnerDashboard() {
             title: "Add Expense",
             subtitle: "Track farm cost",
             icon: "credit-card",
-            href: "/(owner)/manage/expenses" as Href,
+            href: "/(owner)/manage/expenses/create" as Href,
             accentColor: "#D32F2F",
             backgroundColor: "#FFF4F4",
           },
