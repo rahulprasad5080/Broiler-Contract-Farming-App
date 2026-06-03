@@ -355,7 +355,8 @@ export default function PurchaseCreateUpdateScreen() {
             <ScreenState title={savedMessage} message="Form is ready for another purchase." compact style={styles.stateSpacing} />
           ) : null}
 
-          <View style={styles.formCard}>
+          {/* Card 1: Purchase Details */}
+          <View style={styles.card}>
             {purchaseTypeError ? (
               <ScreenState
                 title="Using fallback purchase types"
@@ -404,8 +405,6 @@ export default function PurchaseCreateUpdateScreen() {
               required
             />
 
-
-
             <SearchableSelectField
               label="Catalog Item"
               value={selectedCatalogItemId}
@@ -451,10 +450,12 @@ export default function PurchaseCreateUpdateScreen() {
                 />
               )}
             />
+          </View>
 
-            <View style={styles.sectionDivider} />
+          {/* Card 2: Cost Calculation */}
+          <View style={styles.card}>
             <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>Calculation</Text>
+              <Text style={styles.sectionTitle}>Calculation & Cost</Text>
             </View>
 
             <ControlledInput
@@ -485,6 +486,15 @@ export default function PurchaseCreateUpdateScreen() {
               required
             />
 
+            <ControlledInput
+              control={control}
+              name="remarks"
+              label="Remarks"
+              placeholder="Purchase remarks"
+              multiline
+              error={errors.remarks?.message}
+            />
+
             <View style={styles.totalCard}>
               <View style={styles.totalCardHeader}>
                 <View>
@@ -500,15 +510,6 @@ export default function PurchaseCreateUpdateScreen() {
                 <Text style={styles.errorText}>{errors.totalAmount.message}</Text>
               ) : null}
             </View>
-
-            <ControlledInput
-              control={control}
-              name="remarks"
-              label="Remarks"
-              placeholder="Purchase remarks"
-              multiline
-              error={errors.remarks?.message}
-            />
 
             <TouchableOpacity
               style={[styles.submitButton, saving && styles.submitButtonDisabled]}
@@ -596,12 +597,18 @@ const styles = StyleSheet.create({
   stateSpacing: {
     marginBottom: 12,
   },
-  formCard: {
+  card: {
     backgroundColor: "#FFF",
-    borderRadius: 14,
+    borderRadius: 16,
     borderWidth: 1,
     borderColor: "#E5E7EB",
-    padding: 14,
+    padding: 20,
+    marginBottom: 16,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.05,
+    shadowRadius: 10,
+    elevation: 3,
   },
   sectionHeader: {
     marginBottom: 12,
