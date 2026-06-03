@@ -50,7 +50,7 @@ const PERMISSION_DETAILS: Record<PermissionKey, string> = {
   farmerExpenseApproval: 'Farmer expense review and approval access',
   purchaseEntry: 'Purchase list/create/update plus vendor/partner access',
   settlementEntry: 'Settlement list/create and payment records',
-  financialDashboard: 'Finance dashboard, finance entries, billing, and totals',
+  financialDashboard: 'Finance dashboard, finance entries, and totals',
 };
 
 const PERMISSION_GROUPS: {

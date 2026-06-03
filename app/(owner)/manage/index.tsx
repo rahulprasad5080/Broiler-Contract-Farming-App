@@ -218,15 +218,15 @@ const ENTRY_ITEMS: EntryItem[] = [
     route: "/(owner)/manage/profitability",
     requiredPermission: "view:inventory-cost",
   },
-  {
-    title: "Billing",
-    desc: "Plans and subscription",
-    icon: "wallet-outline",
-    iconType: "Ionicons",
-    color: "#16A34A",
-    route: "/(owner)/manage/billing",
-    requiredPermission: "view:financial-dashboard",
-  },
+//   {
+//     title: "Billing",
+//     desc: "Plans and subscription",
+//     icon: "wallet-outline",
+//     iconType: "Ionicons",
+//     color: "#16A34A",
+//     route: "/(owner)/manage/billing",
+//     requiredPermission: "view:financial-dashboard",
+//   },
 ];
 
 export default function EntriesScreen() {

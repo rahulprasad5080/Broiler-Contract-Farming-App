@@ -234,12 +234,12 @@ const ownerRoutes: DashboardSidebarRoute[] = [
     section: "Finance",
     requiredPermission: "view:inventory-cost",
   },
-  {
-    title: "Billing",
-    icon: "wallet-outline",
-    route: "/(owner)/manage/billing" as Href,
-    section: "Finance",
-  },
+//   {
+//     title: "Billing",
+//     icon: "wallet-outline",
+//     route: "/(owner)/manage/billing" as Href,
+//     section: "Finance",
+//   },
   {
     title: "Settings",
     icon: "settings-outline",
