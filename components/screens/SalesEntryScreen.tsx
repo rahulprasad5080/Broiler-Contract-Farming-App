@@ -612,19 +612,6 @@ export function SalesEntryScreen({ title = "Sales Entry", subtitle, onBack, onSa
                 {errors.ratePerKg && <Text style={styles.errorText}>{errors.ratePerKg.message}</Text>}
               </View>
 
-              {/* Gross Amount Card */}
-              <View style={styles.totalCard}>
-                <View style={styles.totalCardHeader}>
-                  <View>
-                    <Text style={styles.totalLabel}>Gross Amount</Text>
-                  </View>
-                  <View style={styles.totalIconBox}>
-                    <Ionicons name="calculator-outline" size={18} color="#0B5C36" />
-                  </View>
-                </View>
-                <Text style={styles.totalAmount}>₹ {totalAmount.toLocaleString('en-IN')}</Text>
-              </View>
-
               {/* Transport Charge */}
               <View style={styles.inputGroup}>
                 <Text style={styles.label}>Transport Charge</Text>
@@ -685,19 +672,6 @@ export function SalesEntryScreen({ title = "Sales Entry", subtitle, onBack, onSa
                 {errors.otherDeduction && <Text style={styles.errorText}>{errors.otherDeduction.message}</Text>}
               </View>
 
-              {/* Net Amount Card */}
-              <View style={styles.totalCard}>
-                <View style={styles.totalCardHeader}>
-                  <View>
-                    <Text style={styles.totalLabel}>Net Amount</Text>
-                  </View>
-                  <View style={styles.totalIconBox}>
-                    <Ionicons name="cash-outline" size={18} color="#0B5C36" />
-                  </View>
-                </View>
-                <Text style={styles.totalAmount}>Rs {netAmount.toLocaleString('en-IN')}</Text>
-              </View>
-
               {/* Payment Received */}
               <View style={styles.inputGroup}>
                 <Text style={styles.label}>Payment Received</Text>
@@ -721,38 +695,74 @@ export function SalesEntryScreen({ title = "Sales Entry", subtitle, onBack, onSa
               {/* Payment Status */}
               <View style={styles.inputGroup}>
                 <Text style={styles.label}>Payment Status</Text>
-                <View style={styles.paymentStatusGrid}>
-                  {API_TRANSACTION_PAYMENT_STATUS_VALUES.map((status) => {
-                    const active = paymentStatus === status;
-                    const isPaid = status === "PAID";
-                    const isCancelled = status === "CANCELLED";
-                    return (
-                      <TouchableOpacity
-                        key={status}
-                        style={[
-                          styles.paymentStatusCard,
-                          active && styles.paymentStatusCardActive,
-                          active && isPaid && styles.paymentStatusPaid,
-                          active && isCancelled && styles.paymentStatusCancelled,
-                        ]}
-                        onPress={() => setValue("paymentStatus", status as ApiTransactionPaymentStatus, { shouldDirty: true, shouldValidate: true })}
-                        activeOpacity={0.85}
-                      >
-                        <Ionicons
-                          name={isPaid ? "checkmark-circle-outline" : isCancelled ? "close-circle-outline" : "time-outline"}
-                          size={17}
-                          color={active ? "#FFFFFF" : isPaid ? "#059669" : isCancelled ? "#DC2626" : "#D97706"}
-                        />
-                        <Text
-                          style={[styles.paymentStatusText, active && styles.paymentStatusTextActive]}
-                          numberOfLines={1}
-                          adjustsFontSizeToFit
+                <View style={styles.paymentStatusContainer}>
+                  {/* Row 1: Cancelled & Pending */}
+                  <View style={styles.paymentStatusRow}>
+                    {["CANCELLED", "PENDING"].map((status) => {
+                      const active = paymentStatus === status;
+                      const isCancelled = status === "CANCELLED";
+                      return (
+                        <TouchableOpacity
+                          key={status}
+                          style={[
+                            styles.paymentStatusCard2Col,
+                            active && styles.paymentStatusCardActive,
+                            active && isCancelled && styles.paymentStatusCancelled,
+                          ]}
+                          onPress={() => setValue("paymentStatus", status as ApiTransactionPaymentStatus, { shouldDirty: true, shouldValidate: true })}
+                          activeOpacity={0.85}
                         >
-                          {labelize(status)}
-                        </Text>
-                      </TouchableOpacity>
-                    );
-                  })}
+                          <Ionicons
+                            name={isCancelled ? "close-circle-outline" : "time-outline"}
+                            size={17}
+                            color={active ? "#FFFFFF" : isCancelled ? "#DC2626" : "#D97706"}
+                          />
+                          <Text
+                            style={[styles.paymentStatusText, active && styles.paymentStatusTextActive]}
+                            numberOfLines={1}
+                            adjustsFontSizeToFit
+                          >
+                            {labelize(status)}
+                          </Text>
+                        </TouchableOpacity>
+                      );
+                    })}
+                  </View>
+
+                  {/* Row 2: Partial & Paid */}
+                  <View style={[styles.paymentStatusRow, { marginTop: 10 }]}>
+                    {["PARTIAL", "PAID"].map((status) => {
+                      const active = paymentStatus === status;
+                      const isPaid = status === "PAID";
+                      const isPartial = status === "PARTIAL";
+                      return (
+                        <TouchableOpacity
+                          key={status}
+                          style={[
+                            styles.paymentStatusCard2Col,
+                            active && styles.paymentStatusCardActive,
+                            active && isPaid && styles.paymentStatusPaid,
+                            active && isPartial && styles.paymentStatusPartial,
+                          ]}
+                          onPress={() => setValue("paymentStatus", status as ApiTransactionPaymentStatus, { shouldDirty: true, shouldValidate: true })}
+                          activeOpacity={0.85}
+                        >
+                          <Ionicons
+                            name={isPaid ? "checkmark-circle-outline" : "pie-chart-outline"}
+                            size={17}
+                            color={active ? "#FFFFFF" : isPaid ? "#059669" : "#2563EB"}
+                          />
+                          <Text
+                            style={[styles.paymentStatusText, active && styles.paymentStatusTextActive]}
+                            numberOfLines={1}
+                            adjustsFontSizeToFit
+                          >
+                            {labelize(status)}
+                          </Text>
+                        </TouchableOpacity>
+                      );
+                    })}
+                  </View>
                 </View>
               </View>
 
@@ -794,6 +804,21 @@ export function SalesEntryScreen({ title = "Sales Entry", subtitle, onBack, onSa
                     />
                   )}
                 />
+              </View>
+
+              {/* Gross & Net Amount Combined Summary Card */}
+              <View style={styles.summaryCard}>
+                <View style={styles.summaryRow}>
+                  <View style={styles.summaryColumn}>
+                    <Text style={styles.summaryLabel}>Gross Amount</Text>
+                    <Text style={styles.summaryGrossValue}>₹ {totalAmount.toLocaleString('en-IN')}</Text>
+                  </View>
+                  <View style={styles.summaryDividerVertical} />
+                  <View style={styles.summaryColumn}>
+                    <Text style={styles.summaryLabel}>Net Amount</Text>
+                    <Text style={styles.summaryNetValue}>₹ {netAmount.toLocaleString('en-IN')}</Text>
+                  </View>
+                </View>
               </View>
 
               <TouchableOpacity
@@ -1016,15 +1041,15 @@ const styles = StyleSheet.create({
     flexWrap: "wrap",
     gap: 8,
   },
-  paymentStatusGrid: {
+  paymentStatusContainer: {
+    flexDirection: "column",
+  },
+  paymentStatusRow: {
     flexDirection: "row",
-    flexWrap: "wrap",
     gap: 10,
   },
-  paymentStatusCard: {
-    flexGrow: 1,
-    flexBasis: "31%",
-    minWidth: 98,
+  paymentStatusCard2Col: {
+    flex: 1,
     minHeight: 46,
     borderRadius: 12,
     borderWidth: 1.5,
@@ -1047,6 +1072,10 @@ const styles = StyleSheet.create({
   paymentStatusCancelled: {
     backgroundColor: "#DC2626",
     borderColor: "#DC2626",
+  },
+  paymentStatusPartial: {
+    backgroundColor: "#2563EB",
+    borderColor: "#2563EB",
   },
   paymentStatusText: {
     fontSize: 12,
@@ -1126,5 +1155,49 @@ const styles = StyleSheet.create({
     fontSize: 12,
     marginTop: 4,
     marginLeft: 4,
+  },
+  summaryCard: {
+    backgroundColor: "#0B5C36",
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 20,
+    shadowColor: "#0B5C36",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+    elevation: 3,
+  },
+  summaryRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  summaryColumn: {
+    flex: 1,
+    alignItems: "center",
+  },
+  summaryLabel: {
+    color: "#A7F3D0",
+    fontSize: 11,
+    fontWeight: "800",
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
+    marginBottom: 4,
+  },
+  summaryGrossValue: {
+    color: "#FFF",
+    fontSize: 18,
+    fontWeight: "800",
+  },
+  summaryNetValue: {
+    color: "#FFF",
+    fontSize: 20,
+    fontWeight: "900",
+  },
+  summaryDividerVertical: {
+    width: 1.5,
+    height: 32,
+    backgroundColor: "rgba(255, 255, 255, 0.25)",
+    marginHorizontal: 8,
   },
 });
