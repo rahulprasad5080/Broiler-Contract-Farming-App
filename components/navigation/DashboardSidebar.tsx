@@ -116,13 +116,6 @@ const ownerRoutes: DashboardSidebarRoute[] = [
     requiredPermission: "view:inventory-cost",
   },
   {
-    title: "Allocate Entry",
-    icon: "swap-horizontal-outline",
-    route: "/(owner)/manage/allocate" as Href,
-    section: "Entries",
-    requiredPermission: "manage:inventory",
-  },
-  {
     title: "Comments",
     subtitle: "Batch notes and corrections",
     icon: "chatbubbles-outline",
@@ -193,14 +186,6 @@ const ownerRoutes: DashboardSidebarRoute[] = [
     route: "/(owner)/manage/purchase" as Href,
     section: "Finance",
     requiredPermission: "create:purchase",
-  },
-  {
-    title: "Inventory Ledger",
-    subtitle: "Stock movement history",
-    icon: "swap-horizontal-outline",
-    route: "/(owner)/manage/ledger" as Href,
-    section: "Finance",
-    requiredPermission: "manage:inventory",
   },
   {
     title: "Finance Entries",
