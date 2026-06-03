@@ -249,12 +249,8 @@ export default function PaymentsScreen() {
         </View>
 
         <View style={styles.detailsGrid}>
-          <InfoCell label="Party Name" value={item.partyName || "-"} />
           <InfoCell label="Direction" value={item.direction || "-"} />
-          <InfoCell label="Amount" value={formatAmount(item.amount)} />
           <InfoCell label="Payment Date" value={formatDate(item.paymentDate)} />
-          <InfoCell label="Created At" value={formatDate(item.createdAt)} />
-          <InfoCell label="Updated At" value={formatDate(item.updatedAt)} />
         </View>
 
         {item.notes ? (

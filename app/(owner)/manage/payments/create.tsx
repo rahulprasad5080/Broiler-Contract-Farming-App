@@ -97,6 +97,7 @@ export default function CreatePaymentScreen() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [savedMessage, setSavedMessage] = useState<string | null>(null);
+  const [partyType, setPartyType] = useState<'vendor' | 'trader'>('vendor');
 
   const {
     control,
@@ -104,11 +105,21 @@ export default function CreatePaymentScreen() {
     setValue,
     watch,
     reset,
+    setError,
+    clearErrors,
     formState: { errors },
   } = useForm<PaymentFormData>({
     resolver: zodResolver(paymentSchema),
     defaultValues: DEFAULTS,
   });
+
+  const handlePartyTypeChange = (type: 'vendor' | 'trader') => {
+    setPartyType(type);
+    setValue("vendorId", "", { shouldDirty: true, shouldValidate: true });
+    setValue("traderId", "", { shouldDirty: true, shouldValidate: true });
+    setValue("partyName", "", { shouldDirty: true, shouldValidate: true });
+    clearErrors(["vendorId", "traderId", "partyName"]);
+  };
 
   const batchId = watch("batchId");
   const vendorId = watch("vendorId");
@@ -221,6 +232,15 @@ export default function CreatePaymentScreen() {
   };
 
   const onSubmit = async (data: PaymentFormData) => {
+    if (partyType === "vendor" && !data.vendorId) {
+      setError("vendorId", { type: "manual", message: "Vendor is required" });
+      return;
+    }
+    if (partyType === "trader" && !data.traderId) {
+      setError("traderId", { type: "manual", message: "Trader is required" });
+      return;
+    }
+
     if (!accessToken || saving) return;
     setSaving(true);
     setSavedMessage(null);
@@ -286,35 +306,85 @@ export default function CreatePaymentScreen() {
               error={errors.batchId?.message}
             />
 
-            <SearchableSelectField
-                          label="Vendor"
-              value={vendorId}
-              options={vendorOptions}
-              onSelect={onVendorSelect}
-              placeholder="Select Vendor"
-              searchPlaceholder="Search vendor"
-              emptyMessage="No vendors found"
-              error={errors.vendorId?.message}
-            />
+            {/* Party Type Selection */}
+            <View style={styles.segmentedContainer}>
+              <Text style={styles.label}>
+                Party Type <Text style={styles.required}>*</Text>
+              </Text>
+              <View style={styles.segmentedControl}>
+                <TouchableOpacity
+                  style={[
+                    styles.segmentButton,
+                    partyType === "vendor" && styles.segmentButtonActive,
+                  ]}
+                  onPress={() => handlePartyTypeChange("vendor")}
+                >
+                  <Ionicons
+                    name="business-outline"
+                    size={16}
+                    color={partyType === "vendor" ? "#FFF" : "#4B5563"}
+                  />
+                  <Text
+                    style={[
+                      styles.segmentButtonText,
+                      partyType === "vendor" && styles.segmentButtonTextActive,
+                    ]}
+                  >
+                    Vendor
+                  </Text>
+                </TouchableOpacity>
 
-            <SearchableSelectField
-                          label="Trader"
-              value={traderId}
-              options={traderOptions}
-              onSelect={onTraderSelect}
-              placeholder="Select Trader"
-              searchPlaceholder="Search trader"
-              emptyMessage="No traders found"
-              error={errors.traderId?.message}
-            />
+                <TouchableOpacity
+                  style={[
+                    styles.segmentButton,
+                    partyType === "trader" && styles.segmentButtonActive,
+                  ]}
+                  onPress={() => handlePartyTypeChange("trader")}
+                >
+                  <Ionicons
+                    name="people-outline"
+                    size={16}
+                    color={partyType === "trader" ? "#FFF" : "#4B5563"}
+                  />
+                  <Text
+                    style={[
+                      styles.segmentButtonText,
+                      partyType === "trader" && styles.segmentButtonTextActive,
+                    ]}
+                  >
+                    Trader
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            </View>
 
-            <ControlledInput
-              control={control}
-              name="partyName"
-              label="Party Name"
-              placeholder="Party name"
-              error={errors.partyName?.message}
-            />
+            {partyType === "vendor" && (
+              <SearchableSelectField
+                label="Vendor"
+                value={vendorId}
+                options={vendorOptions}
+                onSelect={onVendorSelect}
+                placeholder="Select Vendor"
+                searchPlaceholder="Search vendor"
+                emptyMessage="No vendors found"
+                error={errors.vendorId?.message}
+                required
+              />
+            )}
+
+            {partyType === "trader" && (
+              <SearchableSelectField
+                label="Trader"
+                value={traderId}
+                options={traderOptions}
+                onSelect={onTraderSelect}
+                placeholder="Select Trader"
+                searchPlaceholder="Search trader"
+                emptyMessage="No traders found"
+                error={errors.traderId?.message}
+                required
+              />
+            )}
 
             <SearchableSelectField
               label="Payment Type"
@@ -470,10 +540,15 @@ const styles = StyleSheet.create({
   },
   formCard: {
     backgroundColor: "#FFF",
-    borderRadius: 14,
+    borderRadius: 16,
     borderWidth: 1,
     borderColor: "#E5E7EB",
-    padding: 14,
+    padding: 20,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.05,
+    shadowRadius: 10,
+    elevation: 3,
   },
   inputGroup: {
     marginBottom: 20,
@@ -516,7 +591,12 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     flexDirection: "row",
     gap: 8,
-    marginTop: 4,
+    marginTop: 16,
+    shadowColor: Colors.primary,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 6,
+    elevation: 3,
   },
   submitButtonDisabled: {
     opacity: 0.7,
@@ -525,5 +605,42 @@ const styles = StyleSheet.create({
     color: "#FFF",
     fontSize: 15,
     fontWeight: "900",
+  },
+  segmentedContainer: {
+    marginBottom: 20,
+  },
+  segmentedControl: {
+    flexDirection: "row",
+    backgroundColor: "#F3F4F6",
+    borderRadius: 12,
+    padding: 4,
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
+  },
+  segmentButton: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+    paddingVertical: 10,
+    borderRadius: 8,
+  },
+  segmentButtonActive: {
+    backgroundColor: Colors.primary,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  segmentButtonText: {
+    fontSize: 13,
+    fontWeight: "600",
+    color: "#4B5563",
+  },
+  segmentButtonTextActive: {
+    color: "#FFF",
+    fontWeight: "700",
   },
 });
