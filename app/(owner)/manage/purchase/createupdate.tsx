@@ -114,6 +114,8 @@ export default function PurchaseCreateUpdateScreen() {
     setValue,
     watch,
     reset,
+    setError,
+    clearErrors,
     formState: { errors },
   } = useForm<PurchaseFormData>({
     resolver: zodResolver(purchaseSchema),
@@ -274,9 +276,14 @@ export default function PurchaseCreateUpdateScreen() {
     if (item?.defaultRate !== undefined && item.defaultRate !== null) {
       setValue("unitCost", String(item.defaultRate), { shouldDirty: true, shouldValidate: true });
     }
+    clearErrors("catalogItemId");
   };
 
   const onSubmit = async (data: PurchaseFormData) => {
+    if (!data.catalogItemId) {
+      setError("catalogItemId", { type: "manual", message: "Catalog item is required" });
+      return;
+    }
     if (!accessToken || saving) return;
     setSaving(true);
     setSavedMessage(null);
@@ -363,7 +370,7 @@ export default function PurchaseCreateUpdateScreen() {
             </View>
 
             <SearchableSelectField
-              label="Batch ID"
+              label="Batch"
               value={selectedBatchId}
               options={batchOptions}
               onSelect={(value) => setValue("batchId", value, { shouldDirty: true, shouldValidate: true })}
@@ -374,7 +381,7 @@ export default function PurchaseCreateUpdateScreen() {
             />
 
             <SearchableSelectField
-              label="Vendor ID"
+              label="Vendor"
               value={selectedVendorId}
               options={vendorOptions}
               onSelect={onVendorSelect}
@@ -397,16 +404,10 @@ export default function PurchaseCreateUpdateScreen() {
               required
             />
 
-            <ControlledInput
-              control={control}
-              name="vendorName"
-              label="Vendor Name"
-              placeholder="Vendor name"
-              error={errors.vendorName?.message}
-            />
+
 
             <SearchableSelectField
-              label="Catalog Item ID"
+              label="Catalog Item"
               value={selectedCatalogItemId}
               options={catalogOptions}
               onSelect={onCatalogSelect}
@@ -414,14 +415,6 @@ export default function PurchaseCreateUpdateScreen() {
               searchPlaceholder="Search catalog item"
               emptyMessage="No catalog items found"
               error={errors.catalogItemId?.message}
-            />
-
-            <ControlledInput
-              control={control}
-              name="itemName"
-              label="Item Name"
-              placeholder="Item name"
-              error={errors.itemName?.message}
               required
             />
 
