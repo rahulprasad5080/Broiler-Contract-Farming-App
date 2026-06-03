@@ -14,7 +14,6 @@ import {
   View,
 } from 'react-native';
 import { Controller, useForm } from 'react-hook-form';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 
@@ -25,7 +24,7 @@ import { TopAppBar } from '@/components/ui/TopAppBar';
 import { Colors } from '@/constants/Colors';
 import { useAuth } from '@/context/AuthContext';
 import { getLocalDateValue } from '@/services/dateUtils';
-import { ApiFarm, createBatch, fetchBatch, listAllFarms, updateBatch } from '@/services/managementApi';
+import { ApiFarm, ApiVendor, createBatch, fetchBatch, listAllFarms, listAllVendors, updateBatch } from '@/services/managementApi';
 import {
   showRequestErrorToast,
   showSuccessToast,
@@ -201,8 +200,8 @@ export default function CreateBatchScreen() {
   const { id: batchId } = useLocalSearchParams<{ id?: string }>();
   const isEditMode = Boolean(batchId);
   const { accessToken } = useAuth();
-  const insets = useSafeAreaInsets();
   const [farms, setFarms] = useState<ApiFarm[]>([]);
+  const [vendors, setVendors] = useState<ApiVendor[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -228,12 +227,14 @@ export default function CreateBatchScreen() {
     setLoading(true);
     try {
       setLoadError(null);
-      const [farmsResponse, batchResponse] = await Promise.all([
+      const [farmsResponse, vendorsResponse, batchResponse] = await Promise.all([
         listAllFarms(accessToken),
+        listAllVendors(accessToken),
         isEditMode && batchId ? fetchBatch(accessToken, batchId) : Promise.resolve(null),
       ]);
 
       setFarms(farmsResponse.data);
+      setVendors(vendorsResponse.data ?? []);
 
       if (batchResponse) {
         reset({
@@ -291,6 +292,15 @@ export default function CreateBatchScreen() {
   );
 
   const farmOptions = farms.map(farm => ({ label: farm.name, value: farm.id }));
+
+  const vendorOptions = React.useMemo(
+    () =>
+      vendors.map((vendor) => ({
+        label: vendor.name,
+        value: vendor.id,
+      })),
+    [vendors],
+  );
 
   const autoGenerateBatchId = () => {
     const selectedFarm = farms.find((farm) => farm.id === selectedFarmId) ?? null;
@@ -374,321 +384,324 @@ export default function CreateBatchScreen() {
           />
         ) : null}
 
-        
-        <Controller
-          control={control}
-          name="farmId"
-          render={({ field: { onChange, value } }) => (
-            <SearchableSelectField
-              label="Farm"
-              required
-              value={value}
-              onSelect={(farmId: string) => {
-                onChange(farmId);
-                const selectedFarm = farms.find((farm) => farm.id === farmId) ?? null;
-                setAutoCodeOffset(0);
-                setValue('code', generateBatchCode(selectedFarm), {
-                  shouldDirty: true,
-                  shouldValidate: true,
-                });
-              }}
-              options={farmOptions}
-              placeholder={loading ? "Loading..." : "Select Farm"}
-              searchPlaceholder="Search farm"
-              emptyMessage="No eligible farms found"
-              error={formErrors.farmId?.message}
-              locked={isEditMode}
-            />
-          )}
-        />
-
-        <Controller
-          control={control}
-          name="code"
-          render={({ field: { onChange, value } }) => (
-            <View style={styles.inputGroup}>
-              <View style={styles.labelRow}>
-                <Text style={styles.label}>
-                  Batch Code <Text style={{ color: 'red' }}>*</Text>
-                </Text>
-                <TouchableOpacity
-                  style={styles.autoButton}
-                  activeOpacity={0.82}
-                  onPress={autoGenerateBatchId}
-                >
-                  <Ionicons name="sparkles-outline" size={13} color={THEME_GREEN} />
-                  <Text style={styles.autoButtonText}>Auto</Text>
-                </TouchableOpacity>
-              </View>
-              <View style={[styles.inputBox, formErrors.code && styles.inputError]}>
-                <TextInput
-                  style={styles.input}
-                  value={value}
-                  onChangeText={onChange}
-                  placeholder="e.g. GV-B-2307"
-                  placeholderTextColor={Colors.textSecondary}
-                  autoCapitalize="characters"
-                />
-              </View>
-              <Text style={styles.helperText}>Auto generate or type your own batch ID.</Text>
-              {formErrors.code?.message ? (
-                <Text style={styles.fieldErrorText}>{formErrors.code.message}</Text>
-              ) : null}
-            </View>
-          )}
-        />
-
-        <Controller
-          control={control}
-          name="placementDate"
-          render={({ field: { onChange, value } }) => (
-            <DatePickerField
-              label="Chick Placement Date *"
-              value={value}
-              onChange={onChange}
-              placeholder="Select placement date"
-              error={formErrors.placementDate?.message}
-            />
-          )}
-        />
-
-        <Controller
-          control={control}
-          name="placementCount"
-          render={({ field: { onChange, value } }) => (
-            <InputField
-              label="No. of Chicks Placed"
-              required
-              value={value}
-              onChangeText={onChange}
-              placeholder="Enter number of chicks placed"
-              keyboardType="numeric"
-              suffix="birds"
-              error={formErrors.placementCount?.message}
-            />
-          )}
-        />
-
-        <Text style={styles.sectionTitle}>Chick Purchase Details</Text>
-
-        <Controller
-          control={control}
-          name="totalChicksPurchased"
-          render={({ field: { onChange, value } }) => (
-            <InputField
-              label="Total Chicks Purchased"
-              value={value}
-              onChangeText={onChange}
-              placeholder="Enter total chicks purchased"
-              keyboardType="numeric"
-              suffix="birds"
-              error={formErrors.totalChicksPurchased?.message}
-            />
-          )}
-        />
-
-        <Controller
-          control={control}
-          name="freeChicks"
-          render={({ field: { onChange, value } }) => (
-            <InputField
-              label="Free Chicks"
-              value={value}
-              onChangeText={onChange}
-              placeholder="Enter number of free chicks"
-              keyboardType="numeric"
-              suffix="birds"
-              error={formErrors.freeChicks?.message}
-            />
-          )}
-        />
-
-        <Controller
-          control={control}
-          name="chargeableChicks"
-          render={({ field: { onChange, value } }) => (
-            <InputField
-              label="Chargeable Chicks"
-              value={value}
-              onChangeText={onChange}
-              placeholder="Enter number of chargeable chicks"
-              keyboardType="numeric"
-              suffix="birds"
-              error={formErrors.chargeableChicks?.message}
-            />
-          )}
-        />
-
-        <Controller
-          control={control}
-          name="placementMortality"
-          render={({ field: { onChange, value } }) => (
-            <InputField
-              label="Placement Mortality"
-              value={value}
-              onChangeText={onChange}
-              placeholder="Enter placement mortality"
-              keyboardType="numeric"
-              suffix="birds"
-              error={formErrors.placementMortality?.message}
-            />
-          )}
-        />
-
-        <Text style={styles.sectionTitle}>Purchase Cost</Text>
-
-        <Controller
-          control={control}
-          name="chickCostTotal"
-          render={({ field: { onChange, value } }) => (
-            <InputField
-              label="Chick Cost Total"
-              value={value}
-              onChangeText={onChange}
-              placeholder="Enter chick cost total"
-              keyboardType="decimal-pad"
-              suffix="₹"
-              error={formErrors.chickCostTotal?.message}
-            />
-          )}
-        />
-
-        <Controller
-          control={control}
-          name="chickRatePerBird"
-          render={({ field: { onChange, value } }) => (
-            <InputField
-              label="Chick Rate Per Bird"
-              value={value}
-              onChangeText={onChange}
-              placeholder="Enter chick rate per bird"
-              keyboardType="decimal-pad"
-              suffix="₹"
-              error={formErrors.chickRatePerBird?.message}
-            />
-          )}
-        />
-
-        <Controller
-          control={control}
-          name="ratePerChick"
-          render={({ field: { onChange, value } }) => (
-            <InputField
-              label="Rate Per Chick"
-              value={value}
-              onChangeText={onChange}
-              placeholder="Enter rate per chick"
-              keyboardType="decimal-pad"
-              suffix="Rs"
-              error={formErrors.ratePerChick?.message}
-            />
-          )}
-        />
-
-        <Controller
-          control={control}
-          name="chickTransportCharge"
-          render={({ field: { onChange, value } }) => (
-            <InputField
-              label="Chick Transport Charge"
-              value={value}
-              onChangeText={onChange}
-              placeholder="Enter chick transport charge"
-              keyboardType="decimal-pad"
-              suffix="₹"
-              error={formErrors.chickTransportCharge?.message}
-            />
-          )}
-        />
-
-        <Controller
-          control={control}
-          name="sourceHatchery"
-          render={({ field: { onChange, value } }) => (
-            <InputField
-              label="Source Hatchery"
-              value={value}
-              onChangeText={onChange}
-              placeholder="Enter hatchery/source name"
-            />
-          )}
-        />
-
-        <Controller
-          control={control}
-          name="vendorId"
-          render={({ field: { onChange, value } }) => (
-            <InputField
-              label="Vendor ID"
-              value={value}
-              onChangeText={onChange}
-              placeholder="Enter vendor ID"
-              error={formErrors.vendorId?.message}
-            />
-          )}
-        />
-
-        <Controller
-          control={control}
-          name="vendorName"
-          render={({ field: { onChange, value } }) => (
-            <InputField
-              label="Vendor Name"
-              value={value}
-              onChangeText={onChange}
-              placeholder="Enter vendor name"
-            />
-          )}
-        />
-
-        <Controller
-          control={control}
-          name="targetCloseDate"
-          render={({ field: { onChange, value } }) => (
-            <DatePickerField
-              label="Target Close Date"
-              value={value}
-              onChange={onChange}
-              placeholder="Select target close date"
-              error={formErrors.targetCloseDate?.message}
-            />
-          )}
-        />
-
-        {isEditMode ? (
+        {/* CARD 1: Basic Batch Setup */}
+        <View style={styles.card}>
+          <Text style={styles.cardHeader}>Basic Setup</Text>
           <Controller
             control={control}
-            name="actualCloseDate"
+            name="farmId"
             render={({ field: { onChange, value } }) => (
-              <DatePickerField
-                label="Actual Close Date"
+              <SearchableSelectField
+                label="Farm"
+                required
                 value={value}
-                onChange={onChange}
-                placeholder="Select actual close date"
-                error={formErrors.actualCloseDate?.message}
+                onSelect={(farmId: string) => {
+                  onChange(farmId);
+                  const selectedFarm = farms.find((farm) => farm.id === farmId) ?? null;
+                  setAutoCodeOffset(0);
+                  setValue('code', generateBatchCode(selectedFarm), {
+                    shouldDirty: true,
+                    shouldValidate: true,
+                  });
+                }}
+                options={farmOptions}
+                placeholder={loading ? "Loading..." : "Select Farm"}
+                searchPlaceholder="Search farm"
+                emptyMessage="No eligible farms found"
+                error={formErrors.farmId?.message}
+                locked={isEditMode}
               />
             )}
           />
-        ) : null}
 
-        <Controller
-          control={control}
-          name="notes"
-          render={({ field: { onChange, value } }) => (
-            <InputField
-              label="Notes (Optional)"
-              value={value}
-              onChangeText={onChange}
-              placeholder="Enter notes or special instructions"
-              multiline
+          <Controller
+            control={control}
+            name="code"
+            render={({ field: { onChange, value } }) => (
+              <View style={styles.inputGroup}>
+                <View style={styles.labelRow}>
+                  <Text style={styles.label}>
+                    Batch Code <Text style={{ color: 'red' }}>*</Text>
+                  </Text>
+                  <TouchableOpacity
+                    style={styles.autoButton}
+                    activeOpacity={0.82}
+                    onPress={autoGenerateBatchId}
+                  >
+                    <Ionicons name="sparkles-outline" size={13} color={THEME_GREEN} />
+                    <Text style={styles.autoButtonText}>Auto</Text>
+                  </TouchableOpacity>
+                </View>
+                <View style={[styles.inputBox, formErrors.code && styles.inputError]}>
+                  <TextInput
+                    style={styles.input}
+                    value={value}
+                    onChangeText={onChange}
+                    placeholder="e.g. GV-B-2307"
+                    placeholderTextColor={Colors.textSecondary}
+                    autoCapitalize="characters"
+                  />
+                </View>
+                <Text style={styles.helperText}>Auto generate or type your own batch ID.</Text>
+                {formErrors.code?.message ? (
+                  <Text style={styles.fieldErrorText}>{formErrors.code.message}</Text>
+                ) : null}
+              </View>
+            )}
+          />
+
+          <Controller
+            control={control}
+            name="placementDate"
+            render={({ field: { onChange, value } }) => (
+              <DatePickerField
+                label="Chick Placement Date *"
+                value={value}
+                onChange={onChange}
+                placeholder="Select placement date"
+                error={formErrors.placementDate?.message}
+              />
+            )}
+          />
+
+          <Controller
+            control={control}
+            name="placementCount"
+            render={({ field: { onChange, value } }) => (
+              <InputField
+                label="No. of Chicks Placed"
+                required
+                value={value}
+                onChangeText={onChange}
+                placeholder="Enter number of chicks placed"
+                keyboardType="numeric"
+                suffix="birds"
+                error={formErrors.placementCount?.message}
+              />
+            )}
+          />
+        </View>
+
+        {/* CARD 2: Chick Purchase Details */}
+        <View style={styles.card}>
+          <Text style={styles.cardHeader}>Chick Details</Text>
+          <Controller
+            control={control}
+            name="totalChicksPurchased"
+            render={({ field: { onChange, value } }) => (
+              <InputField
+                label="Total Chicks Purchased"
+                value={value}
+                onChangeText={onChange}
+                placeholder="Enter total chicks purchased"
+                keyboardType="numeric"
+                suffix="birds"
+                error={formErrors.totalChicksPurchased?.message}
+              />
+            )}
+          />
+
+          <Controller
+            control={control}
+            name="freeChicks"
+            render={({ field: { onChange, value } }) => (
+              <InputField
+                label="Free Chicks"
+                value={value}
+                onChangeText={onChange}
+                placeholder="Enter number of free chicks"
+                keyboardType="numeric"
+                suffix="birds"
+                error={formErrors.freeChicks?.message}
+              />
+            )}
+          />
+
+          <Controller
+            control={control}
+            name="chargeableChicks"
+            render={({ field: { onChange, value } }) => (
+              <InputField
+                label="Chargeable Chicks"
+                value={value}
+                onChangeText={onChange}
+                placeholder="Enter number of chargeable chicks"
+                keyboardType="numeric"
+                suffix="birds"
+                error={formErrors.chargeableChicks?.message}
+              />
+            )}
+          />
+
+          <Controller
+            control={control}
+            name="placementMortality"
+            render={({ field: { onChange, value } }) => (
+              <InputField
+                label="Placement Mortality"
+                value={value}
+                onChangeText={onChange}
+                placeholder="Enter placement mortality"
+                keyboardType="numeric"
+                suffix="birds"
+                error={formErrors.placementMortality?.message}
+              />
+            )}
+          />
+        </View>
+
+        {/* CARD 3: Purchase Cost */}
+        <View style={styles.card}>
+          <Text style={styles.cardHeader}>Purchase Cost & Vendor</Text>
+          <Controller
+            control={control}
+            name="chickCostTotal"
+            render={({ field: { onChange, value } }) => (
+              <InputField
+                label="Chick Cost Total"
+                value={value}
+                onChangeText={onChange}
+                placeholder="Enter chick cost total"
+                keyboardType="decimal-pad"
+                suffix="₹"
+                error={formErrors.chickCostTotal?.message}
+              />
+            )}
+          />
+
+          <Controller
+            control={control}
+            name="chickRatePerBird"
+            render={({ field: { onChange, value } }) => (
+              <InputField
+                label="Chick Rate Per Bird"
+                value={value}
+                onChangeText={onChange}
+                placeholder="Enter chick rate per bird"
+                keyboardType="decimal-pad"
+                suffix="₹"
+                error={formErrors.chickRatePerBird?.message}
+              />
+            )}
+          />
+
+          <Controller
+            control={control}
+            name="ratePerChick"
+            render={({ field: { onChange, value } }) => (
+              <InputField
+                label="Rate Per Chick"
+                value={value}
+                onChangeText={onChange}
+                placeholder="Enter rate per chick"
+                keyboardType="decimal-pad"
+                suffix="Rs"
+                error={formErrors.ratePerChick?.message}
+              />
+            )}
+          />
+
+          <Controller
+            control={control}
+            name="chickTransportCharge"
+            render={({ field: { onChange, value } }) => (
+              <InputField
+                label="Chick Transport Charge"
+                value={value}
+                onChangeText={onChange}
+                placeholder="Enter chick transport charge"
+                keyboardType="decimal-pad"
+                suffix="₹"
+                error={formErrors.chickTransportCharge?.message}
+              />
+            )}
+          />
+
+          <Controller
+            control={control}
+            name="sourceHatchery"
+            render={({ field: { onChange, value } }) => (
+              <InputField
+                label="Source Hatchery"
+                value={value}
+                onChangeText={onChange}
+                placeholder="Enter hatchery/source name"
+              />
+            )}
+          />
+
+          <Controller
+            control={control}
+            name="vendorId"
+            render={({ field: { onChange, value } }) => (
+              <SearchableSelectField
+                label="Vendor"
+                value={value}
+                onSelect={(vendorId: string) => {
+                  onChange(vendorId);
+                  const selectedVendor = vendors.find((v) => v.id === vendorId);
+                  setValue('vendorName', selectedVendor?.name ?? '', {
+                    shouldDirty: true,
+                    shouldValidate: true,
+                  });
+                }}
+                options={vendorOptions}
+                placeholder="Select Vendor"
+                searchPlaceholder="Search vendor"
+                emptyMessage="No vendors found"
+                error={formErrors.vendorId?.message}
+              />
+            )}
+          />
+        </View>
+
+        {/* CARD 4: Schedule & Notes */}
+        <View style={styles.card}>
+          <Text style={styles.cardHeader}>Schedule & Notes</Text>
+          <Controller
+            control={control}
+            name="targetCloseDate"
+            render={({ field: { onChange, value } }) => (
+              <DatePickerField
+                label="Target Close Date"
+                value={value}
+                onChange={onChange}
+                placeholder="Select target close date"
+                error={formErrors.targetCloseDate?.message}
+              />
+            )}
+          />
+
+          {isEditMode ? (
+            <Controller
+              control={control}
+              name="actualCloseDate"
+              render={({ field: { onChange, value } }) => (
+                <DatePickerField
+                  label="Actual Close Date"
+                  value={value}
+                  onChange={onChange}
+                  placeholder="Select actual close date"
+                  error={formErrors.actualCloseDate?.message}
+                />
+              )}
             />
-          )}
-        />
-        <View style={{ height: 40 }} />
-      </ScrollView>
+          ) : null}
 
-        {/* Bottom Button */}
-        <View style={[styles.bottomContainer, { paddingBottom: Math.max(insets.bottom, 16) }]}>
+          <Controller
+            control={control}
+            name="notes"
+            render={({ field: { onChange, value } }) => (
+              <InputField
+                label="Notes (Optional)"
+                value={value}
+                onChangeText={onChange}
+                placeholder="Enter notes or special instructions"
+                multiline
+              />
+            )}
+          />
+
           <TouchableOpacity
             style={[styles.createButton, submitting && styles.createButtonDisabled]}
             activeOpacity={0.8}
@@ -702,6 +715,8 @@ export default function CreateBatchScreen() {
             )}
           </TouchableOpacity>
         </View>
+        <View style={{ height: 40 }} />
+      </ScrollView>
       </KeyboardAvoidingView>
     </View>
   );
@@ -710,16 +725,38 @@ export default function CreateBatchScreen() {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#FFF',
+    backgroundColor: THEME_GREEN,
   },
   container: {
     flex: 1,
-    backgroundColor: '#FFF',
+    backgroundColor: '#F4F6F8',
   },
   scrollContent: {
-    paddingHorizontal: 20,
-    paddingTop: 24,
+    backgroundColor: '#F4F6F8',
+    paddingHorizontal: 16,
+    paddingTop: 16,
     paddingBottom: 24,
+  },
+  card: {
+    backgroundColor: '#FFF',
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  cardHeader: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: THEME_GREEN,
+    marginBottom: 16,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
   },
   stateSpacing: {
     marginBottom: 18,
@@ -853,10 +890,16 @@ const styles = StyleSheet.create({
   },
   createButton: {
     backgroundColor: THEME_GREEN,
-    height: 50,
-    borderRadius: 8,
+    height: 52,
+    borderRadius: 12,
     justifyContent: 'center',
     alignItems: 'center',
+    marginTop: 16,
+    shadowColor: THEME_GREEN,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 6,
+    elevation: 3,
   },
   createButtonDisabled: {
     opacity: 0.7,
