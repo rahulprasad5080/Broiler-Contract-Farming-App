@@ -378,7 +378,6 @@ export function SalesEntryScreen({ title = "Sales Entry", subtitle, onBack, onSa
         behavior={Platform.OS === "ios" ? "padding" : "height"}
         style={{ flex: 1 }}
       >
-
         <ScrollView
           contentContainerStyle={styles.scrollContainer}
           showsVerticalScrollIndicator={false}
@@ -401,364 +400,417 @@ export function SalesEntryScreen({ title = "Sales Entry", subtitle, onBack, onSa
                 style={styles.stateSpacing}
               />
             ) : null}
-            {/* Date */}
-            <Controller
-              control={control}
-              name="saleDate"
-              render={({ field: { value, onChange } }) => (
-                <DatePickerField
-                  label="Date"
-                  value={value}
-                  onChange={onChange}
-                  error={errors.saleDate?.message}
-                  disableFuture
-                />
-              )}
-            />
 
-            {/* Batch */}
-            <SearchableSelectField
-              label="Batch"
-              value={selectedBatchId}
-              options={batchOptions}
-              onSelect={(value) => setValue("batchId", value, { shouldDirty: true, shouldValidate: true })}
-              placeholder="Select Batch"
-              searchPlaceholder="Search batch or farm"
-              emptyMessage="No sales-ready batches found"
-              error={errors.batchId?.message}
-            />
-            {selectedBatch ? (
-              <View style={styles.liveBirdBox}>
-                <Text style={styles.liveBirdLabel}>Live Birds Available</Text>
-                <Text style={[styles.liveBirdValue, liveBirdCount === 0 && styles.liveBirdValueDanger]}>
-                  {liveBirdDisplay}
-                </Text>
+            {/* Card 1: Sale Information */}
+            <View style={styles.card}>
+              <View style={styles.sectionHeader}>
+                <Text style={styles.sectionTitle}>Sale Information</Text>
+                <View style={styles.sectionDivider} />
               </View>
-            ) : null}
 
-            {/* Customer / Buyer */}
-            <SearchableSelectField
-              label="Customer / Buyer"
-              value={selectedTraderId}
-              options={traderOptions}
-              onSelect={(value) => setValue("traderId", value, { shouldDirty: true, shouldValidate: true })}
-              placeholder="Select Customer"
-              searchPlaceholder="Search customer"
-              emptyMessage="No customers found"
-              error={errors.traderId?.message}
-            />
-
-            <View style={styles.inputGroup}>
-              <Text style={styles.label}>Vehicle Number</Text>
+              {/* Date */}
               <Controller
                 control={control}
-                name="vehicleNumber"
+                name="saleDate"
                 render={({ field: { value, onChange } }) => (
-                  <TextInput
-                    style={styles.input}
+                  <DatePickerField
+                    label="Date"
                     value={value}
-                    onChangeText={onChange}
-                    placeholder="Vehicle number"
-                    placeholderTextColor="#9CA3AF"
-                    autoCapitalize="characters"
+                    onChange={onChange}
+                    error={errors.saleDate?.message}
+                    disableFuture
                   />
                 )}
               />
+
+              {/* Batch */}
+              <SearchableSelectField
+                label="Batch"
+                value={selectedBatchId}
+                options={batchOptions}
+                onSelect={(value) => setValue("batchId", value, { shouldDirty: true, shouldValidate: true })}
+                placeholder="Select Batch"
+                searchPlaceholder="Search batch or farm"
+                emptyMessage="No sales-ready batches found"
+                error={errors.batchId?.message}
+                required
+              />
+              {selectedBatch ? (
+                <View style={styles.liveBirdBox}>
+                  <Text style={styles.liveBirdLabel}>Live Birds Available</Text>
+                  <Text style={[styles.liveBirdValue, liveBirdCount === 0 && styles.liveBirdValueDanger]}>
+                    {liveBirdDisplay}
+                  </Text>
+                </View>
+              ) : null}
+
+              {/* Customer / Buyer */}
+              <SearchableSelectField
+                label="Customer / Buyer"
+                value={selectedTraderId}
+                options={traderOptions}
+                onSelect={(value) => setValue("traderId", value, { shouldDirty: true, shouldValidate: true })}
+                placeholder="Select Customer"
+                searchPlaceholder="Search customer"
+                emptyMessage="No customers found"
+                error={errors.traderId?.message}
+                required
+              />
+
+              {/* Vehicle Number */}
+              <View style={styles.inputGroup}>
+                <Text style={styles.label}>Vehicle Number</Text>
+                <Controller
+                  control={control}
+                  name="vehicleNumber"
+                  render={({ field: { value, onChange } }) => (
+                    <TextInput
+                      style={styles.input}
+                      value={value}
+                      onChangeText={onChange}
+                      placeholder="Vehicle number"
+                      placeholderTextColor="#9CA3AF"
+                      autoCapitalize="characters"
+                    />
+                  )}
+                />
+              </View>
             </View>
 
-            {/* Quantity Sold */}
-            <View style={styles.inputGroup}>
-              <Text style={styles.label}>Quantity Sold</Text>
-              <Controller
-                control={control}
-                name="birdCount"
-                render={({ field: { value, onChange } }) => (
-                  <View style={styles.inputContainer}>
+            {/* Card 2: Shipment Details */}
+            <View style={styles.card}>
+              <View style={styles.sectionHeader}>
+                <Text style={styles.sectionTitle}>Shipment Details</Text>
+                <View style={styles.sectionDivider} />
+              </View>
+
+              {/* Quantity Sold */}
+              <View style={styles.inputGroup}>
+                <Text style={styles.label}>Quantity Sold <Text style={styles.required}>*</Text></Text>
+                <Controller
+                  control={control}
+                  name="birdCount"
+                  render={({ field: { value, onChange } }) => (
+                    <View style={styles.inputContainer}>
+                      <TextInput
+                        style={styles.inputWithSuffix}
+                        value={value}
+                        onChangeText={onChange}
+                        keyboardType="numeric"
+                        placeholder="5,000"
+                        placeholderTextColor="#9CA3AF"
+                      />
+                      <Text style={styles.suffix}>birds</Text>
+                    </View>
+                  )}
+                />
+                {errors.birdCount && <Text style={styles.errorText}>{errors.birdCount.message}</Text>}
+              </View>
+
+              {/* Loading Mortality */}
+              <View style={styles.inputGroup}>
+                <Text style={styles.label}>Loading Mortality</Text>
+                <Controller
+                  control={control}
+                  name="loadingMortalityCount"
+                  render={({ field: { value, onChange } }) => (
                     <TextInput
-                      style={styles.inputWithSuffix}
+                      style={styles.input}
                       value={value}
                       onChangeText={onChange}
                       keyboardType="numeric"
-                      placeholder="5,000"
+                      placeholder="0"
                       placeholderTextColor="#9CA3AF"
                     />
-                    <Text style={styles.suffix}>birds</Text>
-                  </View>
-                )}
-              />
-              {errors.birdCount && <Text style={styles.errorText}>{errors.birdCount.message}</Text>}
-            </View>
-
-            <View style={styles.inputGroup}>
-              <Text style={styles.label}>Loading Mortality</Text>
-              <Controller
-                control={control}
-                name="loadingMortalityCount"
-                render={({ field: { value, onChange } }) => (
-                  <TextInput
-                    style={styles.input}
-                    value={value}
-                    onChangeText={onChange}
-                    keyboardType="numeric"
-                    placeholder="0"
-                    placeholderTextColor="#9CA3AF"
-                  />
-                )}
-              />
-              {errors.loadingMortalityCount && <Text style={styles.errorText}>{errors.loadingMortalityCount.message}</Text>}
-            </View>
-
-            {/* Total Weight */}
-            <View style={styles.inputGroup}>
-              <Text style={styles.label}>Total Weight (kg)</Text>
-              <Controller
-                control={control}
-                name="totalWeightKg"
-                render={({ field: { value, onChange } }) => (
-                  <TextInput
-                    style={styles.input}
-                    value={value}
-                    onChangeText={onChange}
-                    keyboardType="numeric"
-                    placeholder="10,750"
-                    placeholderTextColor="#9CA3AF"
-                  />
-                )}
-              />
-              {errors.totalWeightKg && <Text style={styles.errorText}>{errors.totalWeightKg.message}</Text>}
-            </View>
-
-            {/* Average Weight */}
-            <View style={styles.inputGroup}>
-              <Text style={styles.label}>Average Weight (kg)</Text>
-              <View style={styles.inputMock}>
-                <Text style={[styles.inputValue, !averageWeightDisplay && styles.placeholderText]}>
-                  {averageWeightDisplay || "Auto calculated"}
-                </Text>
+                  )}
+                />
+                {errors.loadingMortalityCount && <Text style={styles.errorText}>{errors.loadingMortalityCount.message}</Text>}
               </View>
-              {errors.averageWeightKg && <Text style={styles.errorText}>{errors.averageWeightKg.message}</Text>}
+
+              {/* Total Weight */}
+              <View style={styles.inputGroup}>
+                <Text style={styles.label}>Total Weight (kg) <Text style={styles.required}>*</Text></Text>
+                <Controller
+                  control={control}
+                  name="totalWeightKg"
+                  render={({ field: { value, onChange } }) => (
+                    <TextInput
+                      style={styles.input}
+                      value={value}
+                      onChangeText={onChange}
+                      keyboardType="numeric"
+                      placeholder="10,750"
+                      placeholderTextColor="#9CA3AF"
+                    />
+                  )}
+                />
+                {errors.totalWeightKg && <Text style={styles.errorText}>{errors.totalWeightKg.message}</Text>}
+              </View>
+
+              {/* Average Weight */}
+              <View style={styles.inputGroup}>
+                <Text style={styles.label}>Average Weight (kg)</Text>
+                <View style={styles.inputMock}>
+                  <Text style={[styles.inputValue, !averageWeightDisplay && styles.placeholderText]}>
+                    {averageWeightDisplay || "Auto calculated"}
+                  </Text>
+                </View>
+                {errors.averageWeightKg && <Text style={styles.errorText}>{errors.averageWeightKg.message}</Text>}
+              </View>
             </View>
 
-            {canUseLiveRate ? (
+            {/* Card 3: Pricing & Settlement */}
+            <View style={styles.card}>
+              <View style={styles.sectionHeader}>
+                <Text style={styles.sectionTitle}>Pricing & Settlement</Text>
+                <View style={styles.sectionDivider} />
+              </View>
+
+              {canUseLiveRate ? (
+                <View style={styles.inputGroup}>
+                  <Text style={styles.label}>Rate Type</Text>
+                  <View style={styles.toggleContainer}>
+                    <TouchableOpacity
+                      style={[styles.toggleBtn, rateType === "LIVE" && styles.toggleBtnActive]}
+                      onPress={() => setValue("rateType", "LIVE")}
+                    >
+                      <Text style={[styles.toggleBtnText, rateType === "LIVE" && styles.toggleBtnTextActive]}>
+                        Live Rate
+                      </Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={[styles.toggleBtn, rateType === "DRESSED" && styles.toggleBtnActive]}
+                      onPress={() => setValue("rateType", "DRESSED")}
+                    >
+                      <Text style={[styles.toggleBtnText, rateType === "DRESSED" && styles.toggleBtnTextActive]}>
+                        Dressed Rate
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              ) : null}
+
+              {/* Rate */}
               <View style={styles.inputGroup}>
-                <Text style={styles.label}>Rate Type</Text>
-                <View style={styles.toggleContainer}>
-                  <TouchableOpacity
-                    style={[styles.toggleBtn, rateType === "LIVE" && styles.toggleBtnActive]}
-                    onPress={() => setValue("rateType", "LIVE")}
-                  >
-                    <Text style={[styles.toggleBtnText, rateType === "LIVE" && styles.toggleBtnTextActive]}>
-                      Live Rate
-                    </Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={[styles.toggleBtn, rateType === "DRESSED" && styles.toggleBtnActive]}
-                    onPress={() => setValue("rateType", "DRESSED")}
-                  >
-                    <Text style={[styles.toggleBtnText, rateType === "DRESSED" && styles.toggleBtnTextActive]}>
-                      Dressed Rate
-                    </Text>
-                  </TouchableOpacity>
+                <Text style={styles.label}>
+                  {canUseLiveRate && rateType === "LIVE" ? "Live Rate" : "Dressed Rate"} (₹ / kg) <Text style={styles.required}>*</Text>
+                </Text>
+                <Controller
+                  control={control}
+                  name="ratePerKg"
+                  render={({ field: { value, onChange } }) => (
+                    <TextInput
+                      style={styles.input}
+                      value={value}
+                      onChangeText={onChange}
+                      keyboardType="numeric"
+                      placeholder="112"
+                      placeholderTextColor="#9CA3AF"
+                    />
+                  )}
+                />
+                {errors.ratePerKg && <Text style={styles.errorText}>{errors.ratePerKg.message}</Text>}
+              </View>
+
+              {/* Gross Amount Card */}
+              <View style={styles.totalCard}>
+                <View style={styles.totalCardHeader}>
+                  <View>
+                    <Text style={styles.totalLabel}>Gross Amount</Text>
+                  </View>
+                  <View style={styles.totalIconBox}>
+                    <Ionicons name="calculator-outline" size={18} color="#0B5C36" />
+                  </View>
+                </View>
+                <Text style={styles.totalAmount}>₹ {totalAmount.toLocaleString('en-IN')}</Text>
+              </View>
+
+              {/* Transport Charge */}
+              <View style={styles.inputGroup}>
+                <Text style={styles.label}>Transport Charge</Text>
+                <Controller
+                  control={control}
+                  name="transportCharge"
+                  render={({ field: { value, onChange } }) => (
+                    <TextInput
+                      style={styles.input}
+                      value={value}
+                      onChangeText={onChange}
+                      keyboardType="numeric"
+                      placeholder="0"
+                      placeholderTextColor="#9CA3AF"
+                    />
+                  )}
+                />
+                {errors.transportCharge && <Text style={styles.errorText}>{errors.transportCharge.message}</Text>}
+              </View>
+
+              {/* Commission Charge */}
+              <View style={styles.inputGroup}>
+                <Text style={styles.label}>Commission Charge</Text>
+                <Controller
+                  control={control}
+                  name="commissionCharge"
+                  render={({ field: { value, onChange } }) => (
+                    <TextInput
+                      style={styles.input}
+                      value={value}
+                      onChangeText={onChange}
+                      keyboardType="numeric"
+                      placeholder="0"
+                      placeholderTextColor="#9CA3AF"
+                    />
+                  )}
+                />
+                {errors.commissionCharge && <Text style={styles.errorText}>{errors.commissionCharge.message}</Text>}
+              </View>
+
+              {/* Other Deduction */}
+              <View style={styles.inputGroup}>
+                <Text style={styles.label}>Other Deduction</Text>
+                <Controller
+                  control={control}
+                  name="otherDeduction"
+                  render={({ field: { value, onChange } }) => (
+                    <TextInput
+                      style={styles.input}
+                      value={value}
+                      onChangeText={onChange}
+                      keyboardType="numeric"
+                      placeholder="0"
+                      placeholderTextColor="#9CA3AF"
+                    />
+                  )}
+                />
+                {errors.otherDeduction && <Text style={styles.errorText}>{errors.otherDeduction.message}</Text>}
+              </View>
+
+              {/* Net Amount Card */}
+              <View style={styles.totalCard}>
+                <View style={styles.totalCardHeader}>
+                  <View>
+                    <Text style={styles.totalLabel}>Net Amount</Text>
+                  </View>
+                  <View style={styles.totalIconBox}>
+                    <Ionicons name="cash-outline" size={18} color="#0B5C36" />
+                  </View>
+                </View>
+                <Text style={styles.totalAmount}>Rs {netAmount.toLocaleString('en-IN')}</Text>
+              </View>
+
+              {/* Payment Received */}
+              <View style={styles.inputGroup}>
+                <Text style={styles.label}>Payment Received</Text>
+                <Controller
+                  control={control}
+                  name="paymentReceivedAmount"
+                  render={({ field: { value, onChange } }) => (
+                    <TextInput
+                      style={styles.input}
+                      value={value}
+                      onChangeText={onChange}
+                      keyboardType="numeric"
+                      placeholder="0"
+                      placeholderTextColor="#9CA3AF"
+                    />
+                  )}
+                />
+                {errors.paymentReceivedAmount && <Text style={styles.errorText}>{errors.paymentReceivedAmount.message}</Text>}
+              </View>
+
+              {/* Payment Status */}
+              <View style={styles.inputGroup}>
+                <Text style={styles.label}>Payment Status</Text>
+                <View style={styles.paymentStatusGrid}>
+                  {API_TRANSACTION_PAYMENT_STATUS_VALUES.map((status) => {
+                    const active = paymentStatus === status;
+                    const isPaid = status === "PAID";
+                    const isCancelled = status === "CANCELLED";
+                    return (
+                      <TouchableOpacity
+                        key={status}
+                        style={[
+                          styles.paymentStatusCard,
+                          active && styles.paymentStatusCardActive,
+                          active && isPaid && styles.paymentStatusPaid,
+                          active && isCancelled && styles.paymentStatusCancelled,
+                        ]}
+                        onPress={() => setValue("paymentStatus", status as ApiTransactionPaymentStatus, { shouldDirty: true, shouldValidate: true })}
+                        activeOpacity={0.85}
+                      >
+                        <Ionicons
+                          name={isPaid ? "checkmark-circle-outline" : isCancelled ? "close-circle-outline" : "time-outline"}
+                          size={17}
+                          color={active ? "#FFFFFF" : isPaid ? "#059669" : isCancelled ? "#DC2626" : "#D97706"}
+                        />
+                        <Text
+                          style={[styles.paymentStatusText, active && styles.paymentStatusTextActive]}
+                          numberOfLines={1}
+                          adjustsFontSizeToFit
+                        >
+                          {labelize(status)}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
                 </View>
               </View>
-            ) : null}
 
-            {/* Rate */}
-            <View style={styles.inputGroup}>
-              <Text style={styles.label}>
-                {canUseLiveRate && rateType === "LIVE" ? "Live Rate" : "Dressed Rate"} (₹ / kg)
-              </Text>
-              <Controller
-                control={control}
-                name="ratePerKg"
-                render={({ field: { value, onChange } }) => (
-                  <TextInput
-                    style={styles.input}
-                    value={value}
-                    onChangeText={onChange}
-                    keyboardType="numeric"
-                    placeholder="112"
-                    placeholderTextColor="#9CA3AF"
-                  />
-                )}
-              />
-              {errors.ratePerKg && <Text style={styles.errorText}>{errors.ratePerKg.message}</Text>}
-            </View>
-
-            {/* Total Amount */}
-            <View style={styles.inputGroup}>
-              <Text style={styles.label}>Total Amount (₹)</Text>
-              <Text style={styles.totalAmountText}>₹ {totalAmount.toLocaleString('en-IN')}</Text>
-            </View>
-
-            <View style={styles.inputGroup}>
-              <Text style={styles.label}>Transport Charge</Text>
-              <Controller
-                control={control}
-                name="transportCharge"
-                render={({ field: { value, onChange } }) => (
-                  <TextInput
-                    style={styles.input}
-                    value={value}
-                    onChangeText={onChange}
-                    keyboardType="numeric"
-                    placeholder="0"
-                    placeholderTextColor="#9CA3AF"
-                  />
-                )}
-              />
-              {errors.transportCharge && <Text style={styles.errorText}>{errors.transportCharge.message}</Text>}
-            </View>
-
-            <View style={styles.inputGroup}>
-              <Text style={styles.label}>Commission Charge</Text>
-              <Controller
-                control={control}
-                name="commissionCharge"
-                render={({ field: { value, onChange } }) => (
-                  <TextInput
-                    style={styles.input}
-                    value={value}
-                    onChangeText={onChange}
-                    keyboardType="numeric"
-                    placeholder="0"
-                    placeholderTextColor="#9CA3AF"
-                  />
-                )}
-              />
-              {errors.commissionCharge && <Text style={styles.errorText}>{errors.commissionCharge.message}</Text>}
-            </View>
-
-            <View style={styles.inputGroup}>
-              <Text style={styles.label}>Other Deduction</Text>
-              <Controller
-                control={control}
-                name="otherDeduction"
-                render={({ field: { value, onChange } }) => (
-                  <TextInput
-                    style={styles.input}
-                    value={value}
-                    onChangeText={onChange}
-                    keyboardType="numeric"
-                    placeholder="0"
-                    placeholderTextColor="#9CA3AF"
-                  />
-                )}
-              />
-              {errors.otherDeduction && <Text style={styles.errorText}>{errors.otherDeduction.message}</Text>}
-            </View>
-
-            <View style={styles.inputGroup}>
-              <Text style={styles.label}>Net Amount (Rs)</Text>
-              <Text style={styles.totalAmountText}>Rs {netAmount.toLocaleString('en-IN')}</Text>
-            </View>
-
-            <View style={styles.inputGroup}>
-              <Text style={styles.label}>Payment Received</Text>
-              <Controller
-                control={control}
-                name="paymentReceivedAmount"
-                render={({ field: { value, onChange } }) => (
-                  <TextInput
-                    style={styles.input}
-                    value={value}
-                    onChangeText={onChange}
-                    keyboardType="numeric"
-                    placeholder="0"
-                    placeholderTextColor="#9CA3AF"
-                  />
-                )}
-              />
-              {errors.paymentReceivedAmount && <Text style={styles.errorText}>{errors.paymentReceivedAmount.message}</Text>}
-            </View>
-
-            <View style={styles.inputGroup}>
-              <Text style={styles.label}>Payment Status</Text>
-              <View style={styles.paymentStatusGrid}>
-                {API_TRANSACTION_PAYMENT_STATUS_VALUES.map((status) => {
-                  const active = paymentStatus === status;
-                  const isPaid = status === "PAID";
-                  const isCancelled = status === "CANCELLED";
-                  return (
-                    <TouchableOpacity
-                      key={status}
-                      style={[
-                        styles.paymentStatusCard,
-                        active && styles.paymentStatusCardActive,
-                        active && isPaid && styles.paymentStatusPaid,
-                        active && isCancelled && styles.paymentStatusCancelled,
-                      ]}
-                      onPress={() => setValue("paymentStatus", status as ApiTransactionPaymentStatus, { shouldDirty: true, shouldValidate: true })}
-                      activeOpacity={0.85}
-                    >
-                      <Ionicons
-                        name={isPaid ? "checkmark-circle-outline" : isCancelled ? "close-circle-outline" : "time-outline"}
-                        size={17}
-                        color={active ? "#FFFFFF" : isPaid ? "#059669" : isCancelled ? "#DC2626" : "#D97706"}
-                      />
-                      <Text
-                        style={[styles.paymentStatusText, active && styles.paymentStatusTextActive]}
-                        numberOfLines={1}
-                        adjustsFontSizeToFit
+              {/* Sale Status */}
+              <View style={styles.inputGroup}>
+                <Text style={styles.label}>Sale Status</Text>
+                <View style={styles.statusRow}>
+                  {API_SALE_STATUS_VALUES.map((status) => {
+                    const active = saleStatus === status;
+                    return (
+                      <TouchableOpacity
+                        key={status}
+                        style={[styles.statusChip, active && styles.statusChipActive]}
+                        onPress={() => setValue("status", status as ApiSaleStatus, { shouldDirty: true, shouldValidate: true })}
                       >
-                        {labelize(status)}
-                      </Text>
-                    </TouchableOpacity>
-                  );
-                })}
+                        <Text style={[styles.statusChipText, active && styles.statusChipTextActive]} numberOfLines={1}>
+                          {labelize(status)}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
               </View>
-            </View>
 
-            <View style={styles.inputGroup}>
-              <Text style={styles.label}>Sale Status</Text>
-              <View style={styles.statusRow}>
-                {API_SALE_STATUS_VALUES.map((status) => {
-                  const active = saleStatus === status;
-                  return (
-                    <TouchableOpacity
-                      key={status}
-                      style={[styles.statusChip, active && styles.statusChipActive]}
-                      onPress={() => setValue("status", status as ApiSaleStatus, { shouldDirty: true, shouldValidate: true })}
-                    >
-                      <Text style={[styles.statusChipText, active && styles.statusChipTextActive]} numberOfLines={1}>
-                        {labelize(status)}
-                      </Text>
-                    </TouchableOpacity>
-                  );
-                })}
+              {/* Remarks */}
+              <View style={styles.inputGroup}>
+                <Text style={styles.label}>Remarks (Optional)</Text>
+                <Controller
+                  control={control}
+                  name="notes"
+                  render={({ field: { value, onChange } }) => (
+                    <TextInput
+                      style={[styles.input, styles.textArea]}
+                      value={value}
+                      onChangeText={onChange}
+                      placeholder="Morning sale completed"
+                      placeholderTextColor="#9CA3AF"
+                      multiline
+                    />
+                  )}
+                />
               </View>
-            </View>
 
-            {/* Remarks */}
-            <View style={styles.inputGroup}>
-              <Text style={styles.label}>Remarks (Optional)</Text>
-              <Controller
-                control={control}
-                name="notes"
-                render={({ field: { value, onChange } }) => (
-                  <TextInput
-                    style={[styles.input, styles.textArea]}
-                    value={value}
-                    onChangeText={onChange}
-                    placeholder="Morning sale completed"
-                    placeholderTextColor="#9CA3AF"
-                    multiline
-                  />
+              <TouchableOpacity
+                style={[styles.submitBtn, submitting && styles.btnDisabled]}
+                onPress={handleSubmit(onSubmit)}
+                disabled={submitting}
+              >
+                {submitting ? (
+                  <ActivityIndicator color="#FFF" />
+                ) : (
+                  <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "center" }}>
+                    <Ionicons name="save-outline" size={18} color="#FFF" style={{ marginRight: 8 }} />
+                    <Text style={styles.submitBtnText}>Save Sales Entry</Text>
+                  </View>
                 )}
-              />
+              </TouchableOpacity>
             </View>
-
-            <TouchableOpacity
-              style={[styles.submitBtn, submitting && styles.btnDisabled]}
-              onPress={handleSubmit(onSubmit)}
-              disabled={submitting}
-            >
-              {submitting ? (
-                <ActivityIndicator color="#FFF" />
-              ) : (
-                <Text style={styles.submitBtnText}>Save Sales Entry</Text>
-              )}
-            </TouchableOpacity>
           </View>
           <View style={{ height: 40 }} />
         </ScrollView>
@@ -770,19 +822,46 @@ export function SalesEntryScreen({ title = "Sales Entry", subtitle, onBack, onSa
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: "#0B5C36"
+    backgroundColor: "#0B5C36",
   },
   scrollContainer: {
     flexGrow: 1,
-    backgroundColor: "#FFF",
-    paddingHorizontal: 20,
-    paddingTop: 24,
+    backgroundColor: "#F4F6F8",
+    paddingHorizontal: 14,
+    paddingTop: 16,
   },
   form: {
     flex: 1,
   },
   stateSpacing: {
     marginBottom: 20,
+  },
+  card: {
+    backgroundColor: "#FFF",
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
+    padding: 20,
+    marginBottom: 16,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.05,
+    shadowRadius: 10,
+    elevation: 3,
+  },
+  sectionHeader: {
+    marginBottom: 12,
+  },
+  sectionTitle: {
+    color: "#111827",
+    fontSize: 16,
+    fontWeight: "900",
+  },
+  sectionDivider: {
+    height: 1,
+    backgroundColor: "#E5E7EB",
+    marginTop: 8,
+    marginBottom: 16,
   },
   inputGroup: {
     marginBottom: 20,
@@ -792,6 +871,9 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     color: "#111827",
     marginBottom: 8,
+  },
+  required: {
+    color: "#EF4444",
   },
   input: {
     backgroundColor: "#FFF",
@@ -896,11 +978,38 @@ const styles = StyleSheet.create({
   toggleBtnTextActive: {
     color: "#FFF",
   },
-  totalAmountText: {
-    fontSize: 24,
-    fontWeight: "700",
+  totalCard: {
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: "#CDEBDD",
+    backgroundColor: "#F0FBF5",
+    padding: 14,
+    marginBottom: 20,
+  },
+  totalCardHeader: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    justifyContent: "space-between",
+    gap: 12,
+  },
+  totalLabel: {
+    color: "#212B36",
+    fontSize: 13,
+    fontWeight: "900",
+  },
+  totalIconBox: {
+    width: 34,
+    height: 34,
+    borderRadius: 10,
+    backgroundColor: "#FFF",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  totalAmount: {
     color: "#0B5C36",
-    marginTop: 4,
+    fontSize: 24,
+    fontWeight: "900",
+    marginTop: 12,
   },
   statusRow: {
     flexDirection: "row",
