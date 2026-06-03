@@ -11,6 +11,7 @@ import {
   Text,
   TouchableOpacity,
   View,
+  Modal,
 } from 'react-native';
 import Toast from 'react-native-toast-message';
 
@@ -223,6 +224,7 @@ export default function ProfileScreen() {
   const [biometricEnabled, setBiometricEnabled] = React.useState(user?.biometricEnabled ?? false);
   const [isTogglingBiometric, setIsTogglingBiometric] = React.useState(false);
   const [biometricAvailable, setBiometricAvailable] = React.useState(true);
+  const [permissionsModalVisible, setPermissionsModalVisible] = React.useState(false);
 
   React.useEffect(() => {
     // Check if biometric is available on the device
@@ -407,28 +409,79 @@ export default function ProfileScreen() {
           </SurfaceCard>
 
           <Text style={styles.sectionTitle}>Your Access</Text>
-          <SurfaceCard style={styles.accessCard}>
-            {visibleAccessItems.length > 0 ? (
-              <View style={styles.accessGrid}>
-                {visibleAccessItems.map((item) => (
-                  <View key={item.permission} style={styles.accessItem}>
-                    <View style={styles.accessIcon}>
-                      <Ionicons name="checkmark-circle-outline" size={17} color="#0B5C36" />
-                    </View>
-                    <View style={styles.accessTextBlock}>
-                      <Text style={styles.accessLabel}>{item.label}</Text>
-                      <Text style={styles.accessDescription}>{item.description}</Text>
-                    </View>
-                  </View>
-                ))}
-              </View>
-            ) : (
-              <View style={styles.accessEmpty}>
-                <Ionicons name="lock-closed-outline" size={22} color="#9CA3AF" />
-                <Text style={styles.accessEmptyText}>No module permissions assigned.</Text>
-              </View>
-            )}
+          <SurfaceCard padded={false} style={styles.settingsGroup}>
+            <SettingItem
+              icon="shield-checkmark-outline"
+              label="View Permissions"
+              value={`${visibleAccessItems.length} active`}
+              onPress={() => setPermissionsModalVisible(true)}
+              isLast
+            />
           </SurfaceCard>
+
+          {/* Permissions Modal */}
+          <Modal
+            visible={permissionsModalVisible}
+            transparent
+            animationType="slide"
+            onRequestClose={() => setPermissionsModalVisible(false)}
+          >
+            <View style={styles.modalOverlay}>
+              <View style={styles.modalContainer}>
+                <View style={styles.modalHeader}>
+                  <View>
+                    <Text style={styles.modalTitle}>Your Permissions</Text>
+                    <Text style={styles.modalSubtitle}>
+                      Active access for {getRoleLabel(user?.role)}
+                    </Text>
+                  </View>
+                  <TouchableOpacity
+                    style={styles.modalCloseIcon}
+                    onPress={() => setPermissionsModalVisible(false)}
+                  >
+                    <Ionicons name="close" size={22} color="#4B5563" />
+                  </TouchableOpacity>
+                </View>
+
+                <ScrollView
+                  style={styles.modalScrollView}
+                  showsVerticalScrollIndicator={false}
+                >
+                  {visibleAccessItems.length > 0 ? (
+                    <View style={styles.modalAccessGrid}>
+                      {visibleAccessItems.map((item) => (
+                        <View key={item.permission} style={styles.modalAccessItem}>
+                          <View style={styles.modalAccessIcon}>
+                            <Ionicons name="checkmark-circle" size={18} color="#0B5C36" />
+                          </View>
+                          <View style={styles.modalAccessTextBlock}>
+                            <Text style={styles.modalAccessLabel}>{item.label}</Text>
+                            <Text style={styles.modalAccessDescription}>
+                              {item.description}
+                            </Text>
+                          </View>
+                        </View>
+                      ))}
+                    </View>
+                  ) : (
+                    <View style={styles.modalAccessEmpty}>
+                      <Ionicons name="lock-closed-outline" size={32} color="#9CA3AF" />
+                      <Text style={styles.modalAccessEmptyText}>
+                        No specific module permissions assigned.
+                      </Text>
+                    </View>
+                  )}
+                </ScrollView>
+
+                <TouchableOpacity
+                  style={styles.modalCloseButton}
+                  onPress={() => setPermissionsModalVisible(false)}
+                >
+                  <Text style={styles.modalCloseButtonText}>Close</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </Modal>
 
           {canManageUsers ? (
             <>
@@ -597,57 +650,112 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: "600",
   },
-  accessCard: {
-    marginBottom: 24,
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.5)",
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 20,
   },
-  accessGrid: {
-    gap: 10,
+  modalContainer: {
+    width: "100%",
+    maxHeight: "80%",
+    backgroundColor: "#FFFFFF",
+    borderRadius: 20,
+    padding: 20,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 12,
+    elevation: 8,
   },
-  accessItem: {
+  modalHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "flex-start",
+    borderBottomWidth: 1,
+    borderBottomColor: "#F3F4F6",
+    paddingBottom: 14,
+    marginBottom: 16,
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: "800",
+    color: "#0B5C36",
+  },
+  modalSubtitle: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: "#6B7280",
+    marginTop: 2,
+  },
+  modalCloseIcon: {
+    padding: 4,
+    borderRadius: 8,
+    backgroundColor: "#F3F4F6",
+  },
+  modalScrollView: {
+    flexGrow: 0,
+  },
+  modalAccessGrid: {
+    gap: 12,
+  },
+  modalAccessItem: {
     flexDirection: "row",
     alignItems: "flex-start",
-    gap: 10,
-    paddingVertical: 10,
-    paddingHorizontal: 10,
-    borderRadius: 10,
+    gap: 12,
+    padding: 12,
+    borderRadius: 12,
     backgroundColor: "#F9FAFB",
     borderWidth: 1,
-    borderColor: "#ECFDF5",
+    borderColor: "#E5E7EB",
   },
-  accessIcon: {
-    width: 26,
-    height: 26,
+  modalAccessIcon: {
+    width: 28,
+    height: 28,
     borderRadius: 8,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "#E7F5ED",
+    backgroundColor: "#DCFCE7",
     marginTop: 1,
   },
-  accessTextBlock: {
+  modalAccessTextBlock: {
     flex: 1,
-    minWidth: 0,
   },
-  accessLabel: {
-    fontSize: 13,
+  modalAccessLabel: {
+    fontSize: 14,
     fontWeight: "800",
     color: "#111827",
   },
-  accessDescription: {
-    fontSize: 11,
+  modalAccessDescription: {
+    fontSize: 12,
     fontWeight: "600",
     color: "#6B7280",
     marginTop: 2,
     lineHeight: 16,
   },
-  accessEmpty: {
+  modalAccessEmpty: {
     alignItems: "center",
-    gap: 8,
-    paddingVertical: 14,
+    gap: 10,
+    paddingVertical: 30,
   },
-  accessEmptyText: {
-    fontSize: 12,
+  modalAccessEmptyText: {
+    fontSize: 14,
     fontWeight: "700",
     color: "#6B7280",
+  },
+  modalCloseButton: {
+    marginTop: 20,
+    minHeight: 50,
+    borderRadius: 12,
+    backgroundColor: "#0B5C36",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  modalCloseButtonText: {
+    color: "#FFFFFF",
+    fontSize: 15,
+    fontWeight: "800",
   },
   biometricTextBlock: { flex: 1, minWidth: 0, marginRight: 12 },
   toggleContainer: { flexShrink: 0, flexDirection: "row", alignItems: "center", minWidth: 58, justifyContent: "flex-end" },
