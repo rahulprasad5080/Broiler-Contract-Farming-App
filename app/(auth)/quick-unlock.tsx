@@ -101,7 +101,7 @@ export default function QuickUnlockScreen() {
     setIsAuthenticating(true);
 
     try {
-      const result = await authenticateWithBiometrics("Unlock PoultryFlow");
+      const result = await authenticateWithBiometrics("Unlock WingSoft Farms");
       if (result.success) {
         unlockApp();
         return;
@@ -360,7 +360,7 @@ export default function QuickUnlockScreen() {
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
-          <Image source={require("../../assets/logo.jpeg")} style={styles.logo} resizeMode="cover" />
+          <Image source={require("../../assets/logo.png")} style={styles.logo} resizeMode="cover" />
           <Text style={styles.title}>Welcome Back{user?.name ? `, ${user.name.split(' ')[0]}` : ''}</Text>
           <Text style={styles.subtitle}>Continue as {maskMobileNumber(user?.phone ?? undefined)}</Text>
 

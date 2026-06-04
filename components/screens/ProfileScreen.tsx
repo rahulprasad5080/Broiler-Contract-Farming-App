@@ -547,7 +547,7 @@ export default function ProfileScreen() {
           <Text style={styles.sectionTitle}>Support</Text>
           <SurfaceCard padded={false} style={styles.settingsGroup}>
             <SettingItem icon="shield-outline" label="Privacy Policy" />
-            <SettingItem icon="information-circle-outline" label="About PoultryFlow" value="Version 1.0.0" isLast />
+            <SettingItem icon="information-circle-outline" label="About WingSoft Farms" value="Version 1.0.0" isLast />
           </SurfaceCard>
 
           {/* Logout Button */}

@@ -32,7 +32,7 @@ export default function LoginSuccessScreen() {
         </View>
 
         <Text style={styles.title}>Login Successful!</Text>
-        <Text style={styles.subtitle}>Welcome back to PoultryFlow</Text>
+        <Text style={styles.subtitle}>Welcome back to WingSoft Farms</Text>
 
         <View style={styles.quickLoginCard}>
           <View style={styles.lockCircle}>

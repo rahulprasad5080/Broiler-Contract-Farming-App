@@ -212,7 +212,7 @@ export default function FarmerDashboard() {
       {/* Global Top App Bar */}
       <TopAppBar
         leadingMode="menu"
-        title="PoultryFlow"
+        title="WingSoft Farms"
         notificationCount={canViewNotifications ? unreadNotificationsCount : -1}
         onNotificationPress={
           canViewNotifications

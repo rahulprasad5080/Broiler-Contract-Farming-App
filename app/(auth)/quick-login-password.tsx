@@ -79,7 +79,7 @@ export default function QuickLoginPasswordScreen() {
 
         <View style={styles.content}>
           <Image
-            source={require("../../assets/logo.jpeg")}
+            source={require("../../assets/logo.png")}
             style={styles.logo}
             resizeMode="cover"
           />

@@ -181,7 +181,7 @@ export default function BillingScreen() {
   if (loading) {
     return (
       <View style={styles.safeArea}>
-        <TopAppBar title="Billing & Subscriptions" subtitle="Manage PoultryFlow business plans" onBack={() => router.replace('/(owner)/dashboard')} />
+        <TopAppBar title="Billing & Subscriptions" subtitle="Manage WingSoft Farms business plans" onBack={() => router.replace('/(owner)/dashboard')} />
         <View style={styles.centerBox}>
           <ScreenState title="Loading Plans" message="Fetching latest subscription plans and status..." loading />
         </View>

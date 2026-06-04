@@ -100,14 +100,14 @@ export function SplashScreen() {
             style={[styles.logoWrap, { transform: [{ scale: logoScale }] }]}
           >
             <Image
-              source={require("../../assets/logo.jpeg")}
+              source={require("../../assets/logo.png")}
               style={styles.logo}
               resizeMode="cover"
             />
           </Animated.View>
         </View>
 
-        <Text style={styles.title}>Poultry Flow</Text>
+        <Text style={styles.title}>WingSoft Farms</Text>
         <Text style={styles.subtitle}>Smart records for healthier flocks</Text>
 
         <View

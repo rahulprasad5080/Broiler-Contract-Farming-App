@@ -49,7 +49,7 @@ export default function QuickLoginBiometricScreen() {
         return;
       }
 
-      const result = await authenticateWithBiometrics("Login to PoultryFlow");
+      const result = await authenticateWithBiometrics("Login to WingSoft Farms");
       if (result.success) {
         unlockApp();
         return;
@@ -83,7 +83,7 @@ export default function QuickLoginBiometricScreen() {
       <View style={styles.container}>
         <View style={styles.content}>
           <Image
-            source={require("../../assets/logo.jpeg")}
+            source={require("../../assets/logo.png")}
             style={styles.logo}
             resizeMode="cover"
           />

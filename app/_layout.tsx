@@ -1,18 +1,17 @@
-import { Stack } from "expo-router";
-import { StatusBar } from "expo-status-bar";
-import { View, Platform, StyleSheet, Text } from "react-native";
-import { SafeAreaProvider } from "react-native-safe-area-context";
-import Toast from "react-native-toast-message";
-import { Ionicons } from "@expo/vector-icons";
 import { SplashScreen } from "@/components/screens";
 import { NetworkStatus } from "@/components/ui/NetworkStatus";
+import { Ionicons } from "@expo/vector-icons";
+import { Stack } from "expo-router";
+import { StatusBar } from "expo-status-bar";
+import { StyleSheet, Text, View } from "react-native";
+import { SafeAreaProvider } from "react-native-safe-area-context";
+import Toast from "react-native-toast-message";
 import { Colors } from "../constants/Colors";
 import { AuthProvider, useAuth } from "../context/AuthContext";
 import { SidebarProvider } from "../context/SidebarContext";
 
-import { usePushNotifications } from "@/hooks/usePushNotifications";
 import { useOfflineSyncQueue } from "@/hooks/useOfflineSyncQueue";
-import { NetworkInspector } from "@/components/debug/NetworkInspector";
+import { usePushNotifications } from "@/hooks/usePushNotifications";
 
 // Force all toasts to show at the top globally
 const originalToastShow = Toast.show;
@@ -90,7 +89,7 @@ export default function RootLayout() {
           <View style={styles.keyboardRoot}>
             <RootContent />
             <NetworkStatus />
-            <NetworkInspector />
+            {/* <NetworkInspector /> */}
           </View>
         </SidebarProvider>
       </AuthProvider>

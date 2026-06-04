@@ -166,11 +166,11 @@ export default function LoginScreen() {
         <View style={styles.container}>
           <View style={styles.brandBlock}>
             <Image
-              source={require("../../assets/logo.jpeg")}
+              source={require("../../assets/logo.png")}
               style={styles.logoImage}
               resizeMode="cover"
             />
-            <Text style={styles.appTitle}>PoultryFlow</Text>
+            <Text style={styles.appTitle}>WingSoft Farms</Text>
             <Text style={styles.appSubtitle}>Secure farm access with mobile number login</Text>
           </View>
 
@@ -215,7 +215,7 @@ export default function LoginScreen() {
                       <Text style={styles.errorText}>{error.message}</Text>
                     ) : (
                       <Text style={styles.helperText}>
-                        Use the mobile number linked to your PoultryFlow account.
+                        Use the mobile number linked to your WingSoft Farms account.
                       </Text>
                     )}
                   </>
@@ -550,7 +550,7 @@ export default function LoginScreen() {
             </View>
             <Text style={styles.resetHelpTitle}>Password Reset</Text>
             <Text style={styles.resetHelpText}>
-              Contact your admin or owner to reset your password. PoultryFlow does not use OTP-based password reset.
+              Contact your admin or owner to reset your password. WingSoft Farms does not use OTP-based password reset.
             </Text>
             <TouchableOpacity
               style={styles.resetHelpButton}

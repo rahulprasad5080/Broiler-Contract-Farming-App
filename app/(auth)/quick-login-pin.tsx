@@ -161,13 +161,13 @@ export default function QuickLoginPinScreen() {
 
         <View style={styles.content}>
           <Image
-            source={require("../../assets/logo.jpeg")}
+            source={require("../../assets/logo.png")}
             style={styles.logo}
             resizeMode="cover"
           />
 
           <Text style={styles.title}>Welcome Back{user?.name ? `, ${user.name.split(' ')[0]}` : ''}</Text>
-          <Text style={styles.subtitle}>Enter your 4-digit PIN to unlock PoultryFlow</Text>
+          <Text style={styles.subtitle}>Enter your 4-digit PIN to unlock WingSoft Farms</Text>
 
           <PinDots value={pin} hasError={hasError} />
 

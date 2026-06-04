@@ -1,10 +1,10 @@
 {
   "expo": {
-    "name": "Poultry Flow",
+    "name": "WingSoft Farms",
     "slug": "BroilerContractFarming",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/logo.jpeg",
+    "icon": "./assets/logo.png",
     "scheme": "broilercontractfarming",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
@@ -14,7 +14,7 @@
     "android": {
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
-        "foregroundImage": "./assets/logo.jpeg",
+        "foregroundImage": "./assets/logo.png",
         "backgroundImage": "./assets/images/android-icon-background.png",
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
@@ -46,7 +46,7 @@
       [
         "expo-splash-screen",
         {
-          "image": "./assets/logo.jpeg",
+          "image": "./assets/logo.png",
           "imageWidth": 200,
           "resizeMode": "contain",
           "backgroundColor": "#F4F5F7",
@@ -58,13 +58,13 @@
       [
         "expo-local-authentication",
         {
-          "faceIDPermission": "Allow Poultry Flow to use Face ID for quick login."
+          "faceIDPermission": "Allow WingSoft Farms to use Face ID for quick login."
         }
       ],
       [
         "expo-location",
         {
-          "locationWhenInUsePermission": "Allow Poultry Flow to use your location for local weather."
+          "locationWhenInUsePermission": "Allow WingSoft Farms to use your location for local weather."
         }
       ],
       [

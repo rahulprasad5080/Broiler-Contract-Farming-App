@@ -545,7 +545,7 @@ export function DashboardSidebar({
               <View style={styles.headerDecorativeCircle} />
 
               <View style={styles.headerTopRow}>
-                <Text style={styles.brandName}>Broiler Flow</Text>
+                <Text style={styles.brandName}>WingSoft Farms</Text>
                 <TouchableOpacity
                   style={styles.closeButton}
                   onPress={onClose}
@@ -696,7 +696,7 @@ export function DashboardSidebar({
                 <Ionicons name="chevron-forward" size={14} color={Colors.error} style={{ opacity: 0.6 }} />
               </TouchableOpacity>
 
-              <Text style={styles.versionText}>PoultryFlow v1.0</Text>
+              <Text style={styles.versionText}>WingSoft Farms v1.0</Text>
             </View>
           </View>
         </Animated.View>
