@@ -312,7 +312,7 @@ export default function OwnerDashboard() {
             title: "Daily Entry",
             subtitle: "Update today",
             icon: "edit-3",
-            href: "/(owner)/manage/daily-entry" as Href,
+            href: "/(owner)/manage/daily-entry/form" as Href,
             accentColor: "#0F766E",
             backgroundColor: "#ECFDF5",
           },
