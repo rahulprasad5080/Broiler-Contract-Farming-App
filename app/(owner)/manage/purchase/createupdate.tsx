@@ -32,7 +32,6 @@ import { getLocalDateValue } from "@/services/dateUtils";
 import {
   API_TRANSACTION_PAYMENT_STATUS_VALUES,
   createFinancePurchase,
-  listAllBatches,
   listAllVendors,
   listCatalogItems,
   updateFinancePurchase,
@@ -49,7 +48,7 @@ const numberString = (label: string) =>
 
 const purchaseSchema = z.object({
   batchId: z.string().optional(),
-  vendorId: z.string().optional(),
+  vendorId: z.string().min(1, "Vendor is required"),
   purchaseType: z.string().min(1, "Purchase type is required"),
   vendorName: z.string().optional(),
   catalogItemId: z.string().optional(),
@@ -99,7 +98,6 @@ export default function PurchaseCreateUpdateScreen() {
   const router = useRouter();
   const params = useLocalSearchParams<Partial<Record<keyof PurchaseFormData | "purchaseId", string>>>();
   const { accessToken } = useAuth();
-  const [batches, setBatches] = useState<{ id: string; code: string; farmName?: string | null; status?: string }[]>([]);
   const [vendors, setVendors] = useState<ApiVendor[]>([]);
   const [catalogItems, setCatalogItems] = useState<ApiCatalogItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -122,7 +120,6 @@ export default function PurchaseCreateUpdateScreen() {
     defaultValues: DEFAULTS,
   });
 
-  const selectedBatchId = watch("batchId");
   const selectedVendorId = watch("vendorId");
   const selectedCatalogItemId = watch("catalogItemId");
   const paymentStatus = watch("paymentStatus");
@@ -137,17 +134,6 @@ export default function PurchaseCreateUpdateScreen() {
     errorMessage: purchaseTypeError,
   } = useMasterDataTypeOptions("PURCHASE_TYPE");
 
-  const batchOptions = useMemo<SearchableSelectOption[]>(
-    () =>
-      batches.map((batch) => ({
-        label: batch.code,
-        value: batch.id,
-        description: batch.farmName ?? undefined,
-        keywords: batch.status,
-      })),
-    [batches],
-  );
-
   const vendorOptions = useMemo<SearchableSelectOption[]>(
     () =>
       vendors.map((vendor) => ({
@@ -161,13 +147,15 @@ export default function PurchaseCreateUpdateScreen() {
 
   const catalogOptions = useMemo<SearchableSelectOption[]>(
     () =>
-      catalogItems.map((item) => ({
-        label: item.name,
-        value: item.id,
-        description: `${item.type} - ${item.unit}`,
-        keywords: `${item.type} ${item.unit} ${item.sku ?? ""}`,
-      })),
-    [catalogItems],
+      catalogItems
+        .filter((item) => !purchaseType || item.type === purchaseType)
+        .map((item) => ({
+          label: item.name,
+          value: item.id,
+          description: `${item.type} - ${item.unit}`,
+          keywords: `${item.type} ${item.unit} ${item.sku ?? ""}`,
+        })),
+    [catalogItems, purchaseType],
   );
 
   const paymentStatusOptions = useMemo<SearchableSelectOption[]>(
@@ -188,12 +176,10 @@ export default function PurchaseCreateUpdateScreen() {
     if (!accessToken) return;
     setLoading(true);
     try {
-      const [batchRes, vendorRes, catalogRes] = await Promise.all([
-        listAllBatches(accessToken),
+      const [vendorRes, catalogRes] = await Promise.all([
         listAllVendors(accessToken),
         listCatalogItems(accessToken, { limit: 100 }),
       ]);
-      setBatches(batchRes.data);
       setVendors(vendorRes.data);
       setCatalogItems(catalogRes.data);
     } catch (error) {
@@ -371,17 +357,6 @@ export default function PurchaseCreateUpdateScreen() {
             </View>
 
             <SearchableSelectField
-              label="Batch"
-              value={selectedBatchId}
-              options={batchOptions}
-              onSelect={(value) => setValue("batchId", value, { shouldDirty: true, shouldValidate: true })}
-              placeholder="Select Batch"
-              searchPlaceholder="Search batch"
-              emptyMessage="No batches found"
-              error={errors.batchId?.message}
-            />
-
-            <SearchableSelectField
               label="Vendor"
               value={selectedVendorId}
               options={vendorOptions}
@@ -390,13 +365,23 @@ export default function PurchaseCreateUpdateScreen() {
               searchPlaceholder="Search vendor"
               emptyMessage="No vendors found"
               error={errors.vendorId?.message}
+              required
             />
 
             <SearchableSelectField
               label="Purchase Type"
               value={purchaseType}
               options={purchaseTypeOptions}
-              onSelect={(value) => setValue("purchaseType", value, { shouldDirty: true, shouldValidate: true })}
+              onSelect={(value) => {
+                setValue("purchaseType", value, { shouldDirty: true, shouldValidate: true });
+                const currentCatalogItem = catalogItems.find((item) => item.id === selectedCatalogItemId);
+                if (currentCatalogItem && currentCatalogItem.type !== value) {
+                  setValue("catalogItemId", "", { shouldDirty: true, shouldValidate: true });
+                  setValue("itemName", "", { shouldDirty: true, shouldValidate: true });
+                  setValue("unit", "", { shouldDirty: true, shouldValidate: true });
+                  setValue("unitCost", "", { shouldDirty: true, shouldValidate: true });
+                }
+              }}
               placeholder={loadingPurchaseTypes ? "Loading purchase types..." : "Select Purchase Type"}
               searchPlaceholder="Search purchase type"
               emptyMessage="No purchase types found"
