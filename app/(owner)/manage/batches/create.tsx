@@ -1,7 +1,9 @@
 import { Ionicons } from '@expo/vector-icons';
+import { zodResolver } from '@hookform/resolvers/zod';
 import { useFocusEffect } from '@react-navigation/native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useCallback, useState } from 'react';
+import { Controller, useForm } from 'react-hook-form';
 import {
   ActivityIndicator,
   KeyboardAvoidingView,
@@ -13,8 +15,6 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { Controller, useForm } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 
 import { DatePickerField } from '@/components/ui/DatePickerField';
@@ -23,12 +23,12 @@ import { SearchableSelectField } from '@/components/ui/SearchableSelectField';
 import { TopAppBar } from '@/components/ui/TopAppBar';
 import { Colors } from '@/constants/Colors';
 import { useAuth } from '@/context/AuthContext';
-import { getLocalDateValue } from '@/services/dateUtils';
-import { ApiFarm, ApiVendor, createBatch, fetchBatch, listAllFarms, listAllVendors, updateBatch } from '@/services/managementApi';
 import {
   showRequestErrorToast,
   showSuccessToast,
 } from '@/services/apiFeedback';
+import { getLocalDateValue } from '@/services/dateUtils';
+import { ApiFarm, ApiVendor, createBatch, fetchBatch, listAllFarms, listAllVendors, updateBatch } from '@/services/managementApi';
 
 const THEME_GREEN = "#0B5C36";
 
@@ -113,7 +113,6 @@ const batchSchema = z.object({
   chargeableChicks: optionalNumberField('Chargeable chicks'),
   placementMortality: optionalNumberField('Placement mortality'),
   chickCostTotal: optionalNumberField('Chick cost total'),
-  chickRatePerBird: optionalNumberField('Chick rate per bird'),
   ratePerChick: optionalNumberField('Rate per chick'),
   chickTransportCharge: optionalNumberField('Chick transport charge'),
   sourceHatchery: z.string().optional(),
@@ -122,6 +121,13 @@ const batchSchema = z.object({
   targetCloseDate: z.string().optional(),
   actualCloseDate: z.string().optional(),
   notes: z.string().optional(),
+}).refine((data) => {
+  const placed = parseNumberValue(data.placementCount) ?? 0;
+  const free = parseNumberValue(data.freeChicks) ?? 0;
+  return free <= placed;
+}, {
+  message: "Free chicks cannot be greater than placed chicks",
+  path: ["freeChicks"],
 });
 
 type BatchFormData = z.infer<typeof batchSchema>;
@@ -136,7 +142,6 @@ const BATCH_FORM_DEFAULTS: BatchFormData = {
   chargeableChicks: '',
   placementMortality: '',
   chickCostTotal: '',
-  chickRatePerBird: '',
   ratePerChick: '',
   chickTransportCharge: '',
   sourceHatchery: '',
@@ -195,6 +200,32 @@ function InputField({
   );
 }
 
+type ReadOnlyCardProps = {
+  label: string;
+  value?: string;
+  suffix?: string;
+  icon: string;
+  error?: string;
+};
+
+function ReadOnlyCard({ label, value, suffix, icon, error }: ReadOnlyCardProps) {
+  const displayValue = value ? (suffix ? `${value} ${suffix}` : value) : `0 ${suffix || ''}`;
+  return (
+    <View style={styles.inputGroup}>
+      <View style={styles.readOnlyCard}>
+        <View style={styles.readOnlyIconContainer}>
+          <Ionicons name={icon as any} size={18} color="#0B5C36" />
+        </View>
+        <View style={styles.readOnlyContent}>
+          <Text style={styles.readOnlyLabel}>{label.toUpperCase()}</Text>
+          <Text style={styles.readOnlyValue}>{displayValue}</Text>
+        </View>
+      </View>
+      {error ? <Text style={styles.fieldErrorText}>{error}</Text> : null}
+    </View>
+  );
+}
+
 export default function CreateBatchScreen() {
   const router = useRouter();
   const { id: batchId } = useLocalSearchParams<{ id?: string }>();
@@ -212,14 +243,40 @@ export default function CreateBatchScreen() {
     handleSubmit,
     reset,
     setValue,
+    getValues,
     watch,
     formState: { errors: formErrors },
   } = useForm<BatchFormData>({
     resolver: zodResolver(batchSchema),
     defaultValues: BATCH_FORM_DEFAULTS,
+    mode: 'onChange',
   });
 
   const selectedFarmId = watch('farmId');
+
+  const recalculateCostTotal = (chargeableStr: string, rateStr: string, transportStr: string) => {
+    const chargeable = Number(chargeableStr.replace(/,/g, '')) || 0;
+    const rate = Number(rateStr.replace(/,/g, '')) || 0;
+    const transport = Number(transportStr.replace(/,/g, '')) || 0;
+    const total = (chargeable * rate) + transport;
+    setValue('chickCostTotal', String(total), {
+      shouldDirty: true,
+      shouldValidate: true,
+    });
+  };
+
+  const recalculateChargeable = (placedStr: string, freeStr: string) => {
+    const placed = Number(placedStr.replace(/,/g, '')) || 0;
+    const free = Number(freeStr.replace(/,/g, '')) || 0;
+    const chargeable = Math.max(0, placed - free);
+    setValue('chargeableChicks', String(chargeable), {
+      shouldDirty: true,
+      shouldValidate: true,
+    });
+    const rate = getValues('ratePerChick') || '0';
+    const transport = getValues('chickTransportCharge') || '0';
+    recalculateCostTotal(String(chargeable), rate, transport);
+  };
 
   const loadBatchForm = useCallback(async () => {
     if (!accessToken) return;
@@ -248,7 +305,6 @@ export default function CreateBatchScreen() {
           chargeableChicks: toFormNumber(batchResponse.chargeableChicks),
           placementMortality: toFormNumber(batchResponse.placementMortality),
           chickCostTotal: toFormNumber(batchResponse.chickCostTotal),
-          chickRatePerBird: toFormNumber(batchResponse.chickRatePerBird),
           ratePerChick: toFormNumber(batchResponse.ratePerChick),
           chickTransportCharge: toFormNumber(batchResponse.chickTransportCharge),
           sourceHatchery: batchResponse.sourceHatchery ?? '',
@@ -324,7 +380,6 @@ export default function CreateBatchScreen() {
         chargeableChicks: toOptionalNumber(data.chargeableChicks),
         placementMortality: toOptionalNumber(data.placementMortality),
         chickCostTotal: toOptionalNumber(data.chickCostTotal),
-        chickRatePerBird: toOptionalNumber(data.chickRatePerBird),
         ratePerChick: toOptionalNumber(data.ratePerChick),
         chickTransportCharge: toOptionalNumber(data.chickTransportCharge),
         sourceHatchery: toOptionalText(data.sourceHatchery),
@@ -368,6 +423,7 @@ export default function CreateBatchScreen() {
         style={{ flex: 1 }}
       >
       <ScrollView
+        style={styles.container}
         contentContainerStyle={styles.scrollContent}
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
@@ -472,7 +528,15 @@ export default function CreateBatchScreen() {
                 label="No. of Chicks Placed"
                 required
                 value={value}
-                onChangeText={onChange}
+                onChangeText={(text) => {
+                  onChange(text);
+                  setValue('totalChicksPurchased', text, {
+                    shouldDirty: true,
+                    shouldValidate: true,
+                  });
+                  const free = getValues('freeChicks') || '';
+                  recalculateChargeable(text, free);
+                }}
                 placeholder="Enter number of chicks placed"
                 keyboardType="numeric"
                 suffix="birds"
@@ -488,14 +552,12 @@ export default function CreateBatchScreen() {
           <Controller
             control={control}
             name="totalChicksPurchased"
-            render={({ field: { onChange, value } }) => (
-              <InputField
+            render={({ field: { value } }) => (
+              <ReadOnlyCard
                 label="Total Chicks Purchased"
                 value={value}
-                onChangeText={onChange}
-                placeholder="Enter total chicks purchased"
-                keyboardType="numeric"
-                suffix="birds"
+                suffix="Birds"
+                icon="trending-up-outline"
                 error={formErrors.totalChicksPurchased?.message}
               />
             )}
@@ -508,7 +570,11 @@ export default function CreateBatchScreen() {
               <InputField
                 label="Free Chicks"
                 value={value}
-                onChangeText={onChange}
+                onChangeText={(text) => {
+                  onChange(text);
+                  const placed = getValues('placementCount') || '';
+                  recalculateChargeable(placed, text);
+                }}
                 placeholder="Enter number of free chicks"
                 keyboardType="numeric"
                 suffix="birds"
@@ -520,14 +586,12 @@ export default function CreateBatchScreen() {
           <Controller
             control={control}
             name="chargeableChicks"
-            render={({ field: { onChange, value } }) => (
-              <InputField
+            render={({ field: { value } }) => (
+              <ReadOnlyCard
                 label="Chargeable Chicks"
                 value={value}
-                onChangeText={onChange}
-                placeholder="Enter number of chargeable chicks"
-                keyboardType="numeric"
-                suffix="birds"
+                suffix="Birds"
+                icon="stats-chart-outline"
                 error={formErrors.chargeableChicks?.message}
               />
             )}
@@ -555,67 +619,61 @@ export default function CreateBatchScreen() {
           <Text style={styles.cardHeader}>Purchase Cost & Vendor</Text>
           <Controller
             control={control}
-            name="chickCostTotal"
-            render={({ field: { onChange, value } }) => (
-              <InputField
-                label="Chick Cost Total"
-                value={value}
-                onChangeText={onChange}
-                placeholder="Enter chick cost total"
-                keyboardType="decimal-pad"
-                suffix="₹"
-                error={formErrors.chickCostTotal?.message}
-              />
-            )}
-          />
-
-          <Controller
-            control={control}
-            name="chickRatePerBird"
-            render={({ field: { onChange, value } }) => (
-              <InputField
-                label="Chick Rate Per Bird"
-                value={value}
-                onChangeText={onChange}
-                placeholder="Enter chick rate per bird"
-                keyboardType="decimal-pad"
-                suffix="₹"
-                error={formErrors.chickRatePerBird?.message}
-              />
-            )}
-          />
-
-          <Controller
-            control={control}
             name="ratePerChick"
             render={({ field: { onChange, value } }) => (
               <InputField
                 label="Rate Per Chick"
                 value={value}
-                onChangeText={onChange}
+                onChangeText={(text) => {
+                  onChange(text);
+                  const chargeable = getValues('chargeableChicks') || '0';
+                  const transport = getValues('chickTransportCharge') || '0';
+                  recalculateCostTotal(chargeable, text, transport);
+                }}
                 placeholder="Enter rate per chick"
                 keyboardType="decimal-pad"
                 suffix="Rs"
                 error={formErrors.ratePerChick?.message}
               />
             )}
-          />
-
-          <Controller
+            />
+            <Controller
             control={control}
-            name="chickTransportCharge"
+              name="chickTransportCharge"
             render={({ field: { onChange, value } }) => (
               <InputField
                 label="Chick Transport Charge"
                 value={value}
-                onChangeText={onChange}
+                onChangeText={(text) => {
+                  onChange(text);
+                  const chargeable = getValues('chargeableChicks') || '0';
+                  const rate = getValues('ratePerChick') || '0';
+                  recalculateCostTotal(chargeable, rate, text);
+                }}
                 placeholder="Enter chick transport charge"
                 keyboardType="decimal-pad"
                 suffix="₹"
                 error={formErrors.chickTransportCharge?.message}
               />
             )}
+            />
+          <Controller
+            control={control}
+            name="chickCostTotal"
+            render={({ field: { value } }) => (
+              <ReadOnlyCard
+                label="Chick Cost Total"
+                value={value}
+                suffix="₹"
+                icon="cash-outline"
+                error={formErrors.chickCostTotal?.message}
+              />
+            )}
           />
+
+
+
+
 
           <Controller
             control={control}
@@ -808,6 +866,40 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFF',
     minHeight: 48,
     paddingHorizontal: 14,
+  },
+  readOnlyCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#EBF7EE',
+    borderRadius: 14,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: '#D0EED6',
+  },
+  readOnlyIconContainer: {
+    width: 38,
+    height: 38,
+    borderRadius: 10,
+    backgroundColor: '#D0EED6',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  readOnlyContent: {
+    flex: 1,
+    justifyContent: 'center',
+  },
+  readOnlyLabel: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: '#0B5C36',
+    letterSpacing: 0.5,
+    marginBottom: 4,
+  },
+  readOnlyValue: {
+    fontSize: 16,
+    fontWeight: '800',
+    color: '#0B5C36',
   },
   inputError: {
     borderColor: '#EF4444',
