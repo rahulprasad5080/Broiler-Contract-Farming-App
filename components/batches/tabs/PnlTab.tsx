@@ -1,16 +1,7 @@
 import type { ApiBatchPnl } from '@/services/managementApi';
 import { Text, TouchableOpacity, View } from 'react-native';
+import { formatMoney } from '@/utils/format';
 import { styles } from './styles';
-
-function formatNumber(value?: number | null, suffix = '') {
-  if (value === undefined || value === null) return '-';
-  return `${Number(value).toLocaleString('en-IN')}${suffix}`;
-}
-
-function formatMoney(value?: number | null) {
-  if (value === undefined || value === null) return '-';
-  return `Rs. ${formatNumber(value)}`;
-}
 
 function PnlRow({
   label,
@@ -30,17 +21,6 @@ function PnlRow({
       </Text>
       <Text style={[styles.expenseTotalVal, { color: valueColor }, emphasis && { fontSize: 18 }]}>
         {value}
-      </Text>
-    </View>
-  );
-}
-
-function InfoPill({ label, value }: { label: string; value?: string | number | null }) {
-  return (
-    <View style={styles.infoPill}>
-      <Text style={styles.infoPillLabel}>{label}</Text>
-      <Text style={styles.infoPillValue} numberOfLines={2}>
-        {value === undefined || value === null || value === '' ? 'Not set' : String(value)}
       </Text>
     </View>
   );

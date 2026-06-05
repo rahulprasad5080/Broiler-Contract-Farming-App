@@ -1,37 +1,11 @@
 import type { ApiDailyLog } from '@/services/managementApi';
 import { Feather, Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { Text, TouchableOpacity, View } from 'react-native';
+import { InfoPill } from '@/components/ui/InfoPill';
+import { formatDate, formatNumber } from '@/utils/format';
 import { styles } from './styles';
 
 const THEME_GREEN = '#0B5C36';
-
-function formatNumber(value?: number | null, suffix = '') {
-  if (value === undefined || value === null) return `0${suffix}`;
-  return `${Number(value).toLocaleString('en-IN')}${suffix}`;
-}
-
-function formatDate(value?: string | null) {
-  if (!value) return 'Not set';
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return value;
-  return date.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
-}
-
-function formatValue(value?: string | number | null) {
-  if (value === undefined || value === null || value === '') return 'Not set';
-  return String(value);
-}
-
-function InfoPill({ label, value }: { label: string; value?: string | number | null }) {
-  return (
-    <View style={styles.infoPill}>
-      <Text style={styles.infoPillLabel}>{label}</Text>
-      <Text style={styles.infoPillValue} numberOfLines={2}>
-        {formatValue(value)}
-      </Text>
-    </View>
-  );
-}
 
 function getDateParts(value?: string | null) {
   if (!value) return { day: "--", month: "---", year: "----", weekday: "---" };

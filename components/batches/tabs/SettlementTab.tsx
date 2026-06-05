@@ -2,31 +2,8 @@ import { Feather, Ionicons } from '@expo/vector-icons';
 import { Text, TouchableOpacity, View, StyleSheet } from 'react-native';
 
 import type { ApiBatchSettlement } from '@/services/managementApi';
+import { formatDate, formatMoney, formatNumber, labelize } from '@/utils/format';
 import { styles } from './styles';
-
-function formatMoney(value?: number | null) {
-  return `Rs. ${Number(value ?? 0).toLocaleString('en-IN')}`;
-}
-
-function formatNumber(value?: number | null) {
-  if (value === undefined || value === null) return '0';
-  return Number(value).toLocaleString('en-IN');
-}
-
-function formatDate(value?: string | null) {
-  if (!value) return 'Not set';
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return value;
-  return date.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
-}
-
-function labelize(value?: string | null) {
-  if (!value) return 'Not set';
-  return value
-    .split('_')
-    .map((part) => part.charAt(0).toUpperCase() + part.slice(1).toLowerCase())
-    .join(' ');
-}
 
 export function SettlementTab({
   settlement,
