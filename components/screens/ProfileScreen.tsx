@@ -383,7 +383,7 @@ export default function ProfileScreen() {
               <View style={styles.profileDetails}>
                 <Text style={styles.name}>{personalInfo?.name || 'User'}</Text>
                 <Text style={styles.role}>{getRoleLabel(personalInfo?.role)}</Text>
-                <Text style={styles.email}>{personalInfo?.email || personalInfo?.phone || 'Contact not available'}</Text>
+                <Text style={styles.email}>{personalInfo?.phone || 'Phone not available'}</Text>
 
 
               </View>
@@ -403,7 +403,6 @@ export default function ProfileScreen() {
             <PersonalInfoRow label="Name" value={personalInfo?.name} />
             <PersonalInfoRow label="Company Name" value={companyName} />
             <PersonalInfoRow label="Phone" value={personalInfo?.phone} />
-            <PersonalInfoRow label="Email" value={personalInfo?.email} />
             <PersonalInfoRow label="Role" value={getRoleLabel(personalInfo?.role)} />
             <PersonalInfoRow label="Status" value={personalInfo?.status} />
           </SurfaceCard>

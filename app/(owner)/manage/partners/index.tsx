@@ -84,8 +84,7 @@ export default function PartnerManagementScreen() {
     return currentPartners.filter(
       (partner) =>
         partner.name.toLowerCase().includes(query) ||
-        (partner.phone ?? '').includes(query) ||
-        (partner.email ?? '').toLowerCase().includes(query),
+        (partner.phone ?? '').includes(query),
     );
   }, [currentPartners, search]);
 
@@ -175,7 +174,7 @@ export default function PartnerManagementScreen() {
                 style={styles.searchInput}
                 value={search}
                 onChangeText={setSearch}
-                placeholder="Search name, phone, email"
+                placeholder="Search name, phone"
                 placeholderTextColor={Colors.textSecondary}
               />
             </View>
@@ -203,7 +202,7 @@ export default function PartnerManagementScreen() {
               <View style={styles.partnerMain}>
                 <Text style={styles.partnerName}>{partner.name}</Text>
                 <Text style={styles.partnerMeta}>
-                  {[partner.phone, partner.email].filter(Boolean).join(' | ') || 'No contact saved'}
+                  {partner.phone || 'No contact saved'}
                 </Text>
                 {partner.address ? <Text style={styles.partnerMeta}>{partner.address}</Text> : null}
               </View>

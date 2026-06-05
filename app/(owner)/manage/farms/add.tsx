@@ -37,7 +37,6 @@ type PickerRoleFilter = 'all' | 'farmers' | 'supervisors' | 'staff';
 type FarmUserOption = {
   id: string;
   name: string;
-  email: string;
   phone: string;
   role: ApiUser['role'];
   status: ApiUser['status'];
@@ -47,7 +46,6 @@ function normalizeUserOption(user: ApiUser): FarmUserOption {
   return {
     id: user.id,
     name: user.name,
-    email: user.email ?? '',
     phone: user.phone ?? '',
     role: user.role,
     status: user.status,
@@ -342,7 +340,7 @@ export default function AddFarmScreen() {
     const query = assignmentSearch.trim().toLowerCase();
     if (!query) return true;
 
-    return [user.name, user.email, user.phone, user.role, user.status]
+    return [user.name, user.phone, user.role, user.status]
       .filter(Boolean)
       .join(' ')
       .toLowerCase()
@@ -860,7 +858,7 @@ export default function AddFarmScreen() {
                 <Ionicons name="search-outline" size={18} color={Colors.textSecondary} />
                 <TextInput
                   style={styles.searchInput}
-                  placeholder="Search by name, phone, email..."
+                  placeholder="Search by name, phone..."
                   placeholderTextColor={Colors.textSecondary}
                   value={assignmentSearch}
                   onChangeText={setAssignmentSearch}
@@ -904,7 +902,7 @@ export default function AddFarmScreen() {
                           </View>
                         </View>
                         <Text style={styles.userOptionMeta}>
-                          {[user.status, user.phone || user.email].filter(Boolean).join(' • ')}
+                          {[user.status, user.phone].filter(Boolean).join(' • ')}
                         </Text>
                       </View>
                       <View style={[styles.checkbox, selected && styles.checkboxSelected]}>

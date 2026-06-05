@@ -44,7 +44,6 @@ interface UserCard {
   name: string;
   role: Role;
   farm: string;
-  email?: string;
   phone?: string;
   status: Status;
   lastLoginAt?: string | null;
@@ -82,11 +81,10 @@ function toUserCard(user: ApiUser, farms: ApiFarm[]): UserCard {
     name: user.name,
     role: user.role,
     farm: getAssignedFarm(user, farms),
-    email: user.email ?? undefined,
     phone: user.phone ?? undefined,
     status: toStatus(user.status),
     lastLoginAt: user.lastLoginAt ?? null,
-    hasAvatar: Boolean(user.email || user.phone),
+    hasAvatar: Boolean(user.phone),
   };
 }
 
@@ -248,7 +246,6 @@ export default function UserManagementScreen() {
     const isInactive = user.status === 'Inactive';
     const isInvited = user.status === 'Invited';
     const roleDisplay = user.role === 'OWNER' ? 'Admin' : ROLE_LABELS[user.role];
-    const emailDisplay = user.email || 'No email provided';
     const phoneDisplay = user.phone || 'No phone provided';
     
     // Status badge colors
@@ -295,10 +292,7 @@ export default function UserManagementScreen() {
 
         <View style={styles.cardFooter}>
           <View style={styles.cardDetails}>
-            <View style={styles.infoRow}>
-              <MaterialCommunityIcons name="email-outline" size={14} color="#9CA3AF" />
-              <Text style={styles.userEmail} numberOfLines={1}>{emailDisplay}</Text>
-            </View>
+
             <View style={styles.infoRow}>
               <MaterialCommunityIcons name="phone-outline" size={14} color="#9CA3AF" />
               <Text style={styles.userEmail} numberOfLines={1}>{phoneDisplay}</Text>

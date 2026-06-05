@@ -56,7 +56,7 @@ export default function PartnerStatementsTab({
         label: partner.name,
         value: partner.id,
         description: partner.phone ?? undefined,
-        keywords: [partner.phone, partner.email, partner.address].filter(Boolean).join(" "),
+        keywords: [partner.phone, partner.address].filter(Boolean).join(" "),
       })),
     [partnerStatementKind, traders, vendors],
   );

@@ -134,7 +134,7 @@ const permissionSchema = z.object({
 
 const userSchema = z.object({
   name: z.string().min(2, 'Name must be at least 2 characters'),
-  email: z.string().email('Invalid email address'),
+  email: z.string().optional(),
   phone: z.string().regex(/^[0-9]{10}$/, 'Phone must be exactly 10 digits'),
   password: z.string(),
   role: z.enum(ROLE_OPTIONS),
@@ -510,7 +510,7 @@ export default function CreateUserScreen() {
       if (isEditMode && userId) {
         const updatePayload = {
           name: data.name.trim(),
-          email: data.email.trim(),
+          email: data.email?.trim() || undefined,
           phone: data.phone.trim(),
           role: data.role,
           assignedFarmIds: data.assignedFarmIds,
@@ -531,7 +531,7 @@ export default function CreateUserScreen() {
       } else {
         await createUser(accessToken, {
           name: data.name.trim(),
-          email: data.email.trim(),
+          email: data.email?.trim() || undefined,
           phone: data.phone.trim(),
           password: trimmedPassword,
           role: data.role,
@@ -613,28 +613,6 @@ export default function CreateUserScreen() {
                     />
                   </View>
                   {formErrors.name ? <Text style={styles.fieldErrorText}>{formErrors.name.message}</Text> : null}
-                </View>
-              )}
-            />
-
-            <Controller
-              control={control}
-              name="email"
-              render={({ field: { onChange, value } }) => (
-                <View style={styles.inputGroup}>
-                  <Text style={styles.label}>Email</Text>
-                  <View style={[styles.inputBox, formErrors.email && styles.inputError]}>
-                    <TextInput
-                      style={styles.textInput}
-                      placeholder="Enter email"
-                      placeholderTextColor={Colors.textSecondary}
-                      value={value}
-                      autoCapitalize="none"
-                      keyboardType="email-address"
-                      onChangeText={onChange}
-                    />
-                  </View>
-                  {formErrors.email ? <Text style={styles.fieldErrorText}>{formErrors.email.message}</Text> : null}
                 </View>
               )}
             />

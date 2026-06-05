@@ -322,17 +322,7 @@ export default function UserDetailsScreen() {
               </View>
             </View>
 
-            <View style={styles.divider} />
 
-            <View style={styles.infoRow}>
-              <View style={styles.iconCircle}>
-                <Ionicons name="mail-outline" size={20} color={Colors.primary} />
-              </View>
-              <View style={styles.infoTextContainer}>
-                <Text style={styles.infoLabel}>Email Address</Text>
-                <Text style={styles.infoValue}>{user.email || 'No email provided'}</Text>
-              </View>
-            </View>
 
             <View style={styles.divider} />
 

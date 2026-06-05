@@ -145,7 +145,7 @@ export default function CreatePaymentScreen() {
         label: vendor.name,
         value: vendor.id,
         description: vendor.phone ?? undefined,
-        keywords: [vendor.email, vendor.address, vendor.phone].filter(Boolean).join(" "),
+        keywords: [vendor.address, vendor.phone].filter(Boolean).join(" "),
       })),
     [vendors],
   );
@@ -156,7 +156,7 @@ export default function CreatePaymentScreen() {
         label: trader.name,
         value: trader.id,
         description: trader.phone ?? undefined,
-        keywords: [trader.email, trader.address, trader.phone].filter(Boolean).join(" "),
+        keywords: [trader.address, trader.phone].filter(Boolean).join(" "),
       })),
     [traders],
   );

@@ -35,7 +35,6 @@ import {
 const traderSchema = z.object({
     name: z.string().trim().min(1, 'Name is required'),
     phone: z.string().optional(),
-    email: z.string().optional(),
     address: z.string().optional(),
     notes: z.string().optional(),
 });
@@ -45,7 +44,6 @@ type TraderFormData = z.infer<typeof traderSchema>;
 const TRADER_DEFAULTS: TraderFormData = {
     name: '',
     phone: '',
-    email: '',
     address: '',
     notes: '',
 };
@@ -89,7 +87,6 @@ export default function CreateUpdatePartnerScreen() {
                         reset({
                             name: found.name,
                             phone: found.phone || '',
-                            email: found.email || '',
                             address: found.address || '',
                             notes: found.notes || '',
                         });
@@ -103,7 +100,6 @@ export default function CreateUpdatePartnerScreen() {
                         reset({
                             name: found.name,
                             phone: found.phone || '',
-                            email: found.email || '',
                             address: found.address || '',
                             notes: found.notes || '',
                         });
@@ -140,7 +136,6 @@ export default function CreateUpdatePartnerScreen() {
             const payload = {
                 name: data.name.trim(),
                 phone: data.phone?.trim() || undefined,
-                email: data.email?.trim() || undefined,
                 address: data.address?.trim() || undefined,
                 notes: data.notes?.trim() || undefined,
             };
@@ -245,13 +240,7 @@ export default function CreateUpdatePartnerScreen() {
                                     placeholder="Enter Number"
                                     keyboardType="phone-pad"
                                 />
-                                <Field
-                                    control={control}
-                                    name="email"
-                                    label="Email"
-                                    error={errors.email?.message}
-                                    placeholder={partnerKind === 'vendor' ? 'Enter gmail' : 'Enter gmail'}
-                                />
+
                                 <Field
                                     control={control}
                                     name="address"

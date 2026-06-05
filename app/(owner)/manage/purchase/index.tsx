@@ -101,7 +101,7 @@ export default function PurchaseListScreen() {
         label: vendor.name,
         value: vendor.id,
         description: vendor.phone ?? undefined,
-        keywords: [vendor.email, vendor.address, vendor.phone].filter(Boolean).join(" "),
+        keywords: [vendor.address, vendor.phone].filter(Boolean).join(" "),
       })),
     ],
     [vendors],

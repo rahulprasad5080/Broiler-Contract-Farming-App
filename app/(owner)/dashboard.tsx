@@ -173,7 +173,6 @@ export default function OwnerDashboard() {
           id: item.id,
           name: item.name,
           role: item.role,
-          email: item.email,
           phone: item.phone,
           status: item.status,
         }))
@@ -231,7 +230,7 @@ export default function OwnerDashboard() {
   const filteredUsers = users.filter((item) => {
     const query = userSearch.trim().toLowerCase();
     if (!query) return true;
-    return [item.name, item.email, item.phone, item.role, item.status]
+    return [item.name, item.phone, item.role, item.status]
       .filter(Boolean)
       .join(" ")
       .toLowerCase()
@@ -793,7 +792,7 @@ export default function OwnerDashboard() {
                         <View style={styles.userTextWrap}>
                           <Text style={styles.userName}>{item.name}</Text>
                           <Text style={styles.userSub}>
-                            {[item.role, item.email || item.phone]
+                            {[item.role, item.phone]
                               .filter(Boolean)
                               .join(" • ")}
                           </Text>

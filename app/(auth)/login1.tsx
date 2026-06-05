@@ -58,9 +58,7 @@ export default function LoginScreen() {
   const [registerForm, setRegisterForm] = React.useState({
     organizationName: "",
     organizationPhone: "",
-    organizationEmail: "",
     ownerName: "",
-    ownerEmail: "",
     ownerPhone: "",
     password: "",
   });
@@ -138,9 +136,7 @@ export default function LoginScreen() {
     const responseError = await registerOwnerAccount({
       organizationName: registerForm.organizationName.trim(),
       organizationPhone: registerForm.organizationPhone.trim() || undefined,
-      organizationEmail: registerForm.organizationEmail.trim() || undefined,
       ownerName: registerForm.ownerName.trim(),
-      ownerEmail: registerForm.ownerEmail.trim() || undefined,
       ownerPhone: registerForm.ownerPhone.trim(),
       password: registerForm.password,
     });
@@ -387,14 +383,6 @@ export default function LoginScreen() {
                 keyboardType="number-pad"
               />
               <RegisterField
-                label="Organization Email"
-                value={registerForm.organizationEmail}
-                onChangeText={(organizationEmail) =>
-                  setRegisterForm((current) => ({ ...current, organizationEmail }))
-                }
-                keyboardType="email-address"
-              />
-              <RegisterField
                 label="Owner Name"
                 value={registerForm.ownerName}
                 onChangeText={(ownerName) =>
@@ -408,14 +396,6 @@ export default function LoginScreen() {
                   setRegisterForm((current) => ({ ...current, ownerPhone }))
                 }
                 keyboardType="number-pad"
-              />
-              <RegisterField
-                label="Owner Email"
-                value={registerForm.ownerEmail}
-                onChangeText={(ownerEmail) =>
-                  setRegisterForm((current) => ({ ...current, ownerEmail }))
-                }
-                keyboardType="email-address"
               />
               <RegisterField
                 label="Password"

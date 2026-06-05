@@ -140,7 +140,7 @@ export default function InventoryLedgerScreen() {
         label: vendor.name,
         value: vendor.id,
         description: vendor.phone ?? undefined,
-        keywords: [vendor.phone, vendor.email, vendor.address].filter(Boolean).join(" "),
+        keywords: [vendor.phone, vendor.address].filter(Boolean).join(" "),
       })),
     ],
     [vendors],

@@ -569,7 +569,7 @@ export function DashboardSidebar({
                     <View style={[styles.roleBadge, { backgroundColor: roleBadgeColor }]}>
                       <Text style={styles.roleBadgeText}>{user?.role ?? "STAFF"}</Text>
                     </View>
-                    <Text style={styles.userPhone} numberOfLines={1}>{user?.phone || user?.email || ""}</Text>
+                    <Text style={styles.userPhone} numberOfLines={1}>{user?.phone || ""}</Text>
                   </View>
                 </View>
               </View>
