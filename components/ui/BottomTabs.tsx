@@ -33,7 +33,23 @@ export function BottomTabs({ state, descriptors, navigation, hiddenTabs = [] }: 
     };
   }, []);
 
-  if (isKeyboardVisible) return null;
+  // Check if we are inside a sub-screen of a nested stack navigator
+  const getNestedRouteName = (routeState: any): string | null => {
+    if (!routeState || !routeState.routes || routeState.index === undefined) return null;
+    const route = routeState.routes[routeState.index];
+    if (route.state) {
+      return getNestedRouteName(route.state);
+    }
+    return route.name;
+  };
+
+  const activeTabRoute = state.routes[state.index];
+  const activeNestedRouteName = getNestedRouteName(activeTabRoute.state);
+  
+  // If we have a nested stack state and the active screen is not the root "index" screen, hide the tab bar
+  const isSubScreen = activeTabRoute?.state && activeNestedRouteName && activeNestedRouteName !== 'index';
+
+  if (isKeyboardVisible || isSubScreen) return null;
 
   const tabs: { name: string; label: string; activeIcon: keyof typeof Ionicons.glyphMap; inactiveIcon: keyof typeof Ionicons.glyphMap }[] = [
     { name: 'dashboard', label: 'Dashboard', activeIcon: 'grid', inactiveIcon: 'grid-outline' },
