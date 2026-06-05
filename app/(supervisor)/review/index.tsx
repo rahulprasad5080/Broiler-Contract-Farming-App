@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from 'react';
+﻿import React, { useCallback, useState } from 'react';
 import { View, Text, StyleSheet, FlatList, TouchableOpacity, RefreshControl } from 'react-native';
 import { Colors } from '@/constants/Colors';
 import { Layout } from '@/constants/Layout';
@@ -126,7 +126,7 @@ export default function SupervisorReviewScreen() {
 }
 
 const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: '#0B5C36' },
+  safeArea: { flex: 1, backgroundColor: '#F4F6F8' },
   container: { flex: 1, width: '100%', maxWidth: Layout.contentMaxWidth, alignSelf: 'center', backgroundColor: '#F9FAFB' },
   listContent: { padding: Layout.screenPadding, paddingBottom: 100 },
   centerBox: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 20 },

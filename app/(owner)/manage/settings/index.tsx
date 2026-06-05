@@ -1,4 +1,4 @@
-import { Ionicons } from "@expo/vector-icons";
+﻿import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect } from "@react-navigation/native";
 import { useRouter } from "expo-router";
 import React, { useCallback, useState } from "react";
@@ -406,7 +406,7 @@ function ToggleRow({
 }
 
 const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: "#0B5C36" },
+  safeArea: { flex: 1, backgroundColor: "#F4F6F8" },
   headerBtn: { padding: 4 },
   centerBox: { flex: 1, backgroundColor: "#F9FAFB", justifyContent: "center", alignItems: "center", gap: 10 },
   container: { flexGrow: 1, backgroundColor: "#F9FAFB", padding: 16 },

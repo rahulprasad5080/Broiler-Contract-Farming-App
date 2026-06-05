@@ -1,4 +1,4 @@
-import { Ionicons } from '@expo/vector-icons';
+﻿import { Ionicons } from '@expo/vector-icons';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useFocusEffect } from '@react-navigation/native';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
@@ -474,7 +474,7 @@ function AmountRow({ label, value, isTotal, color }: { label: string; value: num
 }
 
 const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: "#0B5C36" },
+  safeArea: { flex: 1, backgroundColor: "#F4F6F8" },
   selectorCard: {
     backgroundColor: '#FFF',
     borderRadius: 8,

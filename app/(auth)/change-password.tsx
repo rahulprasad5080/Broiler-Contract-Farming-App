@@ -1,4 +1,4 @@
-import { Ionicons } from "@expo/vector-icons";
+﻿import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import React, { useState } from "react";
 import {
@@ -154,7 +154,7 @@ function Field({
 }
 
 const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: "#0B5C36" },
+  safeArea: { flex: 1, backgroundColor: "#F4F6F8" },
   container: { flex: 1, backgroundColor: "#F9FAFB", padding: 16 },
   card: {
     backgroundColor: "#FFF",

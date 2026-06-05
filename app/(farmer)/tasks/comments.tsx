@@ -1,4 +1,4 @@
-import { Colors } from '@/constants/Colors';
+﻿import { Colors } from '@/constants/Colors';
 import { Layout } from '@/constants/Layout';
 import { useAuth } from '@/context/AuthContext';
 import { ApiBatch, ApiComment, listAllBatches, listBatchComments } from '@/services/managementApi';
@@ -221,7 +221,7 @@ export default function FarmerCommentsScreen() {
 }
 
 const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: '#0B5C36' },
+  safeArea: { flex: 1, backgroundColor: '#F4F6F8' },
   container: { flex: 1, width: '100%', maxWidth: Layout.contentMaxWidth, alignSelf: 'center', backgroundColor: '#F9FAFB' },
   stateBox: { margin: Layout.screenPadding },
   batchSelectorRow: {

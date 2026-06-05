@@ -1,4 +1,4 @@
-import { Colors } from '@/constants/Colors';
+﻿import { Colors } from '@/constants/Colors';
 import { Layout } from '@/constants/Layout';
 import { useAuth } from '@/context/AuthContext';
 import {
@@ -267,7 +267,7 @@ export default function SupervisorTradersScreen() {
 }
 
 const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: '#0B5C36' },
+  safeArea: { flex: 1, backgroundColor: '#F4F6F8' },
   headerAction: { width: 36, height: 36, borderRadius: 18, backgroundColor: "#FFF", justifyContent: 'center', alignItems: 'center' },
   container: { paddingHorizontal: 20, paddingTop: 10, paddingBottom: 100, maxWidth: Layout.contentMaxWidth, alignSelf: 'center', width: '100%' },
   mainList: { flex: 1, backgroundColor: '#F9FAFB' },

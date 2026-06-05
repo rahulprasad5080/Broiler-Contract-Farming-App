@@ -1,4 +1,4 @@
-import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
+﻿import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import React from "react";
 import {
@@ -282,7 +282,7 @@ export default function EntriesScreen() {
 }
 
 const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: "#0B5C36" },
+  safeArea: { flex: 1, backgroundColor: "#F4F6F8" },
   scrollContainer: { flexGrow: 1, backgroundColor: "#F9FAFB", paddingTop: 16 },
   emptyWrap: { paddingHorizontal: 16 },
   grid: {

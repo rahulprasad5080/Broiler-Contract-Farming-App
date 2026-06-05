@@ -340,13 +340,11 @@ export default function BatchManagementScreen() {
                       {Number(batch.summary?.liveBirds ?? batch.placementCount).toLocaleString('en-IN')}
                     </Text>
                   </View>
-                  <View style={styles.metricColCenter}>
-                    <Text style={styles.metricLabel}>Today Mortality</Text>
-                    <Text style={styles.metricValue}>{batch.summary?.todayMortality ?? 0}%</Text>
-                  </View>
                   <View style={styles.metricColRight}>
-                    <Text style={styles.metricLabel}>Total Mortality</Text>
-                    <Text style={styles.metricValue}>{batch.summary?.mortalityPercent ?? '0'}</Text>
+                    <Text style={styles.metricLabel}>Mortality</Text>
+                    <Text style={styles.metricValue}>
+                      {Number(batch.summary?.mortalityCount ?? 0).toLocaleString('en-IN')}
+                    </Text>
                   </View>
                 </View>
               </TouchableOpacity>

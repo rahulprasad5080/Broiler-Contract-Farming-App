@@ -1,4 +1,4 @@
-import { ScreenState } from "@/components/ui/ScreenState";
+﻿import { ScreenState } from "@/components/ui/ScreenState";
 import { TopAppBar } from "@/components/ui/TopAppBar";
 import { Colors } from "@/constants/Colors";
 import { useAuth } from "@/context/AuthContext";
@@ -611,7 +611,7 @@ function TransactionItem({ item }: { item: ApiFinancialDashboardTransaction }) {
 }
 
 const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: "#0B5C36" },
+  safeArea: { flex: 1, backgroundColor: "#F4F6F8" },
   scrollContainer: {
     flexGrow: 1,
     backgroundColor: "#F9FAFB",

@@ -285,7 +285,7 @@ export default function SupervisorReviewLogsScreen() {
 }
 
 const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: '#0B5C36' },
+  safeArea: { flex: 1, backgroundColor: '#F4F6F8' },
   container: { padding: Layout.screenPadding, paddingBottom: 100, maxWidth: Layout.contentMaxWidth, alignSelf: 'center', width: '100%', backgroundColor: '#F9FAFB' },
   logCard: {
     backgroundColor: '#FFF', borderRadius: Layout.borderRadius.sm, padding: 16, marginBottom: 12,

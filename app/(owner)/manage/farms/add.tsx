@@ -1,4 +1,4 @@
-import { Colors } from '@/constants/Colors';
+﻿import { Colors } from '@/constants/Colors';
 import { Layout } from '@/constants/Layout';
 import { useAuth } from '@/context/AuthContext';
 import { useFormPersistence } from '@/hooks/useFormPersistence';
@@ -937,7 +937,7 @@ export default function AddFarmScreen() {
 }
 
 const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: THEME_GREEN },
+  safeArea: { flex: 1, backgroundColor: '#F4F6F8' },
   contentArea: { flex: 1, backgroundColor: '#FFF' },
   draftBanner: {
     flexDirection: 'row',

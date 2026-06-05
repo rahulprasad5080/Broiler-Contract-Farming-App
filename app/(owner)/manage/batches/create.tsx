@@ -792,7 +792,7 @@ export default function CreateBatchScreen() {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: THEME_GREEN,
+    backgroundColor: '#F4F6F8',
   },
   container: {
     flex: 1,

@@ -1,4 +1,4 @@
-import { NativeBottomSheet } from '@/components/ui/NativeBottomSheet';
+﻿import { NativeBottomSheet } from '@/components/ui/NativeBottomSheet';
 import { TopAppBar } from '@/components/ui/TopAppBar';
 import { Colors } from '@/constants/Colors';
 import { Layout } from '@/constants/Layout';
@@ -893,7 +893,7 @@ export default function FarmListScreen() {
 }
 
 const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: THEME_GREEN },
+  safeArea: { flex: 1, backgroundColor: '#F4F6F8' },
   contentArea: { flex: 1, backgroundColor: '#F9FAF9' },
   headerBtn: {
     padding: 4,
