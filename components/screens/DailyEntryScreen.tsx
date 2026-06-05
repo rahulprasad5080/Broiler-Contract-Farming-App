@@ -1,3 +1,4 @@
+import { Ionicons } from "@expo/vector-icons";
 import { DatePickerField } from "@/components/ui/DatePickerField";
 import { ScreenState } from "@/components/ui/ScreenState";
 import { SearchableSelectField } from "@/components/ui/SearchableSelectField";
@@ -194,10 +195,25 @@ export function DailyEntryScreen({
   );
 
   const selectedBatchId = watch("batchId");
+  const openingBirdCountValue = watch("openingBirdCount");
   const isEditMode = typeof dailyLogId === "string" && dailyLogId.length > 0;
   const submitRedirectPath = typeof returnTo === "string" && returnTo.length > 0 ? returnTo : listPath;
   const lockedBatchId =
     typeof routeBatchId === "string" && routeBatchId.length > 0 ? routeBatchId : null;
+
+  useEffect(() => {
+    if (!isEditMode && selectedBatchId && batches.length > 0) {
+      const selectedBatch = batches.find((b) => b.id === selectedBatchId);
+      if (selectedBatch) {
+        const count = selectedBatch.summary?.liveBirds ?? selectedBatch.placementCount ?? 0;
+        setValue("openingBirdCount", String(count), {
+          shouldDirty: true,
+          shouldValidate: true,
+        });
+      }
+    }
+  }, [selectedBatchId, batches, isEditMode, setValue]);
+
   const activeBatches = useMemo(
     () => batches.filter((batch) => batch.status === "ACTIVE" || batch.id === lockedBatchId),
     [batches, lockedBatchId]
@@ -415,27 +431,19 @@ export function DailyEntryScreen({
             locked={Boolean(lockedBatchId)}
           />
 
-          {/* Opening Bird Count */}
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Opening Bird Count</Text>
-            <Controller
-              control={control}
-              name="openingBirdCount"
-              render={({ field: { value, onChange } }) => (
-                <TextInput
-                  style={styles.input}
-                  value={value}
-                  onChangeText={onChange}
-                  keyboardType="numeric"
-                  placeholder="Enter Bird Count"
-                  placeholderTextColor="#9CA3AF"
-                />
-              )}
-            />
-            {errors.openingBirdCount && (
-              <Text style={styles.errorText}>{errors.openingBirdCount.message}</Text>
-            )}
-          </View>
+          {openingBirdCountValue ? (
+            <View style={styles.birdCountContainer}>
+              <View style={styles.birdIconWrapper}>
+                <Ionicons name="analytics" size={16} color="#0B5C36" />
+              </View>
+              <View style={styles.birdCountContent}>
+                <Text style={styles.birdCountLabel}>Opening Bird Count</Text>
+                <Text style={styles.birdCountValue}>
+                  {Number(openingBirdCountValue).toLocaleString("en-IN")} Birds
+                </Text>
+              </View>
+            </View>
+          ) : null}
 
           {/* Mortality */}
           <View style={styles.inputGroup}>
@@ -620,6 +628,10 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: "#111827",
   },
+  disabledInput: {
+    backgroundColor: "#F3F4F6",
+    color: "#6B7280",
+  },
   textArea: {
     height: 100,
     paddingTop: 16,
@@ -690,5 +702,41 @@ const styles = StyleSheet.create({
     fontSize: 12,
     marginTop: 4,
     marginLeft: 4,
+  },
+  birdCountContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginTop: -8,
+    marginBottom: 20,
+    backgroundColor: "#F0FDF4",
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "#DCFCE7",
+    padding: 12,
+    gap: 12,
+  },
+  birdIconWrapper: {
+    width: 32,
+    height: 32,
+    borderRadius: 8,
+    backgroundColor: "#DCFCE7",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  birdCountContent: {
+    flex: 1,
+  },
+  birdCountLabel: {
+    fontSize: 11,
+    color: "#15803D",
+    fontWeight: "700",
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
+  },
+  birdCountValue: {
+    fontSize: 16,
+    color: "#0B5C36",
+    fontWeight: "900",
+    marginTop: 2,
   },
 });
