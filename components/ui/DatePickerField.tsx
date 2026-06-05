@@ -86,10 +86,20 @@ function getCalendarCells(monthDate: Date) {
   const daysInMonth = new Date(year, month + 1, 0).getDate();
   const leadingEmptyDays = firstDay.getDay();
 
-  return [
+  const cells = [
     ...Array.from({ length: leadingEmptyDays }, () => null),
     ...Array.from({ length: daysInMonth }, (_, index) => new Date(year, month, index + 1)),
   ];
+
+  const remaining = cells.length % 7;
+  if (remaining > 0) {
+    const pad = 7 - remaining;
+    for (let i = 0; i < pad; i++) {
+      cells.push(null);
+    }
+  }
+
+  return cells;
 }
 
 function isFutureDate(value: string) {
@@ -108,6 +118,13 @@ export function DatePickerField({
   const [calendarMonth, setCalendarMonth] = useState(() => monthFromValue(value));
 
   const calendarCells = useMemo(() => getCalendarCells(calendarMonth), [calendarMonth]);
+  const calendarWeeks = useMemo(() => {
+    const weeks: (Date | null)[][] = [];
+    for (let i = 0; i < calendarCells.length; i += 7) {
+      weeks.push(calendarCells.slice(i, i + 7));
+    }
+    return weeks;
+  }, [calendarCells]);
   const calendarTitle = calendarMonth.toLocaleDateString('en-US', {
     month: 'long',
     year: 'numeric',
@@ -177,40 +194,44 @@ export function DatePickerField({
         </View>
 
         <View style={styles.calendarGrid}>
-          {calendarCells.map((date, index) => {
-            const dateValue = date ? formatDateValue(date) : '';
-            const isSelected = Boolean(date && value && dateValue === value);
-            const isToday = Boolean(date && dateValue === todayValue());
-            const disabled = !date || (disableFuture && isFutureDate(dateValue));
+          {calendarWeeks.map((week, weekIndex) => (
+            <View key={weekIndex} style={styles.weekRow}>
+              {week.map((date, index) => {
+                const dateValue = date ? formatDateValue(date) : '';
+                const isSelected = Boolean(date && value && dateValue === value);
+                const isToday = Boolean(date && dateValue === todayValue());
+                const disabled = !date || (disableFuture && isFutureDate(dateValue));
 
-            return (
-              <TouchableOpacity
-                key={`${dateValue || 'empty'}-${index}`}
-                style={[styles.calendarDay, disabled && styles.calendarDayDisabled]}
-                onPress={() => date && !disabled && selectDate(date)}
-                disabled={disabled}
-                activeOpacity={0.78}
-              >
-                <View
-                  style={[
-                    styles.calendarDayInner,
-                    isToday && styles.calendarDayToday,
-                    isSelected && styles.calendarDaySelected,
-                  ]}
-                >
-                  <Text
-                    style={[
-                      styles.calendarDayText,
-                      isSelected && styles.calendarDayTextSelected,
-                      disabled && styles.calendarDayTextDisabled,
-                    ]}
+                return (
+                  <TouchableOpacity
+                    key={`${dateValue || 'empty'}-${weekIndex * 7 + index}`}
+                    style={[styles.calendarDay, disabled && styles.calendarDayDisabled]}
+                    onPress={() => date && !disabled && selectDate(date)}
+                    disabled={disabled}
+                    activeOpacity={0.78}
                   >
-                    {date ? date.getDate() : ''}
-                  </Text>
-                </View>
-              </TouchableOpacity>
-            );
-          })}
+                    <View
+                      style={[
+                        styles.calendarDayInner,
+                        isToday && styles.calendarDayToday,
+                        isSelected && styles.calendarDaySelected,
+                      ]}
+                    >
+                      <Text
+                        style={[
+                          styles.calendarDayText,
+                          isSelected && styles.calendarDayTextSelected,
+                          disabled && styles.calendarDayTextDisabled,
+                        ]}
+                      >
+                        {date ? date.getDate() : ''}
+                      </Text>
+                    </View>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          ))}
         </View>
       </NativeBottomSheet>
     </View>
