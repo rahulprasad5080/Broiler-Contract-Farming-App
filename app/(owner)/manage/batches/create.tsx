@@ -254,28 +254,46 @@ export default function CreateBatchScreen() {
 
   const selectedFarmId = watch('farmId');
 
-  const recalculateCostTotal = (chargeableStr: string, rateStr: string, transportStr: string) => {
-    const chargeable = Number(chargeableStr.replace(/,/g, '')) || 0;
-    const rate = Number(rateStr.replace(/,/g, '')) || 0;
+  const runCalculations = (overrides?: {
+    placementCount?: string;
+    freeChicks?: string;
+    ratePerChick?: string;
+    chickTransportCharge?: string;
+  }) => {
+    const placementCountStr = overrides?.placementCount !== undefined
+      ? overrides.placementCount
+      : (getValues('placementCount') || '');
+    const freeChicksStr = overrides?.freeChicks !== undefined
+      ? overrides.freeChicks
+      : (getValues('freeChicks') || '');
+    const ratePerChickStr = overrides?.ratePerChick !== undefined
+      ? overrides.ratePerChick
+      : (getValues('ratePerChick') || '');
+    const transportStr = overrides?.chickTransportCharge !== undefined
+      ? overrides.chickTransportCharge
+      : (getValues('chickTransportCharge') || '');
+
+    const placed = Number(placementCountStr.replace(/,/g, '')) || 0;
+    const free = Number(freeChicksStr.replace(/,/g, '')) || 0;
+    const rate = Number(ratePerChickStr.replace(/,/g, '')) || 0;
     const transport = Number(transportStr.replace(/,/g, '')) || 0;
-    const total = (chargeable * rate) + transport;
-    setValue('chickCostTotal', String(total), {
+
+    const purchased = placed;
+    const chargeable = Math.max(0, placed - free);
+    const costTotal = (chargeable * rate) + transport;
+
+    setValue('totalChicksPurchased', placementCountStr ? String(purchased) : '', {
       shouldDirty: true,
       shouldValidate: true,
     });
-  };
-
-  const recalculateChargeable = (placedStr: string, freeStr: string) => {
-    const placed = Number(placedStr.replace(/,/g, '')) || 0;
-    const free = Number(freeStr.replace(/,/g, '')) || 0;
-    const chargeable = Math.max(0, placed - free);
     setValue('chargeableChicks', String(chargeable), {
       shouldDirty: true,
       shouldValidate: true,
     });
-    const rate = getValues('ratePerChick') || '0';
-    const transport = getValues('chickTransportCharge') || '0';
-    recalculateCostTotal(String(chargeable), rate, transport);
+    setValue('chickCostTotal', String(costTotal), {
+      shouldDirty: true,
+      shouldValidate: true,
+    });
   };
 
   const loadBatchForm = useCallback(async () => {
@@ -530,12 +548,7 @@ export default function CreateBatchScreen() {
                 value={value}
                 onChangeText={(text) => {
                   onChange(text);
-                  setValue('totalChicksPurchased', text, {
-                    shouldDirty: true,
-                    shouldValidate: true,
-                  });
-                  const free = getValues('freeChicks') || '';
-                  recalculateChargeable(text, free);
+                  runCalculations({ placementCount: text });
                 }}
                 placeholder="Enter number of chicks placed"
                 keyboardType="numeric"
@@ -551,20 +564,6 @@ export default function CreateBatchScreen() {
           <Text style={styles.cardHeader}>Chick Details</Text>
           <Controller
             control={control}
-            name="totalChicksPurchased"
-            render={({ field: { value } }) => (
-              <ReadOnlyCard
-                label="Total Chicks Purchased"
-                value={value}
-                suffix="Birds"
-                icon="trending-up-outline"
-                error={formErrors.totalChicksPurchased?.message}
-              />
-            )}
-          />
-
-          <Controller
-            control={control}
             name="freeChicks"
             render={({ field: { onChange, value } }) => (
               <InputField
@@ -572,27 +571,12 @@ export default function CreateBatchScreen() {
                 value={value}
                 onChangeText={(text) => {
                   onChange(text);
-                  const placed = getValues('placementCount') || '';
-                  recalculateChargeable(placed, text);
+                  runCalculations({ freeChicks: text });
                 }}
                 placeholder="Enter number of free chicks"
                 keyboardType="numeric"
                 suffix="birds"
                 error={formErrors.freeChicks?.message}
-              />
-            )}
-          />
-
-          <Controller
-            control={control}
-            name="chargeableChicks"
-            render={({ field: { value } }) => (
-              <ReadOnlyCard
-                label="Chargeable Chicks"
-                value={value}
-                suffix="Birds"
-                icon="stats-chart-outline"
-                error={formErrors.chargeableChicks?.message}
               />
             )}
           />
@@ -626,9 +610,7 @@ export default function CreateBatchScreen() {
                 value={value}
                 onChangeText={(text) => {
                   onChange(text);
-                  const chargeable = getValues('chargeableChicks') || '0';
-                  const transport = getValues('chickTransportCharge') || '0';
-                  recalculateCostTotal(chargeable, text, transport);
+                  runCalculations({ ratePerChick: text });
                 }}
                 placeholder="Enter rate per chick"
                 keyboardType="decimal-pad"
@@ -646,9 +628,7 @@ export default function CreateBatchScreen() {
                 value={value}
                 onChangeText={(text) => {
                   onChange(text);
-                  const chargeable = getValues('chargeableChicks') || '0';
-                  const rate = getValues('ratePerChick') || '0';
-                  recalculateCostTotal(chargeable, rate, text);
+                  runCalculations({ chickTransportCharge: text });
                 }}
                 placeholder="Enter chick transport charge"
                 keyboardType="decimal-pad"
@@ -657,23 +637,6 @@ export default function CreateBatchScreen() {
               />
             )}
             />
-          <Controller
-            control={control}
-            name="chickCostTotal"
-            render={({ field: { value } }) => (
-              <ReadOnlyCard
-                label="Chick Cost Total"
-                value={value}
-                suffix="₹"
-                icon="cash-outline"
-                error={formErrors.chickCostTotal?.message}
-              />
-            )}
-          />
-
-
-
-
 
           <Controller
             control={control}
@@ -713,7 +676,53 @@ export default function CreateBatchScreen() {
           />
         </View>
 
-        {/* CARD 4: Schedule & Notes */}
+        {/* CARD 4: Calculation Summary */}
+        <View style={styles.card}>
+          <Text style={styles.cardHeader}>Calculation Summary</Text>
+          <Controller
+            control={control}
+            name="totalChicksPurchased"
+            render={({ field: { value } }) => (
+              <ReadOnlyCard
+                label="Total Chicks Purchased"
+                value={value}
+                suffix="Birds"
+                icon="trending-up-outline"
+                error={formErrors.totalChicksPurchased?.message}
+              />
+            )}
+          />
+
+          <Controller
+            control={control}
+            name="chargeableChicks"
+            render={({ field: { value } }) => (
+              <ReadOnlyCard
+                label="Chargeable Chicks"
+                value={value}
+                suffix="Birds"
+                icon="stats-chart-outline"
+                error={formErrors.chargeableChicks?.message}
+              />
+            )}
+          />
+
+          <Controller
+            control={control}
+            name="chickCostTotal"
+            render={({ field: { value } }) => (
+              <ReadOnlyCard
+                label="Chick Cost Total"
+                value={value}
+                suffix="₹"
+                icon="cash-outline"
+                error={formErrors.chickCostTotal?.message}
+              />
+            )}
+          />
+        </View>
+
+        {/* CARD 5: Schedule & Notes */}
         <View style={styles.card}>
           <Text style={styles.cardHeader}>Schedule & Notes</Text>
           <Controller
