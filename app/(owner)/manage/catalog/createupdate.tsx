@@ -329,7 +329,7 @@ export default function CatalogCreateUpdateScreen() {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: "#0B5C36",
+    backgroundColor: "#F4F6F8",
   },
   flex: {
     flex: 1,
