@@ -6,7 +6,7 @@ import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import { format } from 'date-fns';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import React, { useCallback, useState } from 'react';
+import { useCallback, useState } from 'react';
 import {
   ActivityIndicator,
   RefreshControl,
@@ -207,7 +207,7 @@ export default function OwnerFarmDetailScreen() {
           <View style={styles.locationRow}>
             <Ionicons name="location-outline" size={16} color={Colors.textSecondary} />
             <Text style={styles.locationText} numberOfLines={2}>
-              {[farm.location, farm.village, farm.district, farm.state].filter(Boolean).join(', ') || 'No location set'}
+              {farm.location || 'No location set'}
             </Text>
           </View>
 
@@ -275,36 +275,15 @@ export default function OwnerFarmDetailScreen() {
 
                 <View style={styles.specRow}>
                   <View style={styles.specCol}>
-                    <Text style={styles.specLabel}>Village</Text>
-                    <Text style={styles.specVal}>{farm.village || 'N/A'}</Text>
-                  </View>
-                  <View style={styles.specCol}>
-                    <Text style={styles.specLabel}>District</Text>
-                    <Text style={styles.specVal}>{farm.district || 'N/A'}</Text>
-                  </View>
-                </View>
-
-                <View style={styles.specRow}>
-                  <View style={styles.specCol}>
                     <Text style={styles.specLabel}>State</Text>
                     <Text style={styles.specVal}>{farm.state || 'N/A'}</Text>
                   </View>
                   <View style={styles.specCol}>
-                    <Text style={styles.specLabel}>Region Location</Text>
-                    <Text style={styles.specVal}>{farm.location || 'N/A'}</Text>
-                  </View>
-                </View>
-
-                <View style={styles.specRow}>
-                  <View style={styles.specCol}>
                     <Text style={styles.specLabel}>Capacity</Text>
                     <Text style={styles.specVal}>{farm.capacity ? `${farm.capacity.toLocaleString()} Birds` : 'N/A'}</Text>
                   </View>
-                  <View style={styles.specCol}>
-                    <Text style={styles.specLabel}>Status</Text>
-                    <Text style={styles.specVal}>{farm.status === 'ACTIVE' ? 'Active / Operating' : 'Inactive / Closed'}</Text>
-                  </View>
                 </View>
+
 
                 <View style={styles.detailsGrid}>
                   <DetailCell label="Primary Farmer" value={farm.primaryFarmerName || farmerName} />

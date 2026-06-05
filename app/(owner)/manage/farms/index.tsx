@@ -158,9 +158,7 @@ function toFarmCard(farm: ApiFarm): FarmCard {
     farm.supervisorName ||
     farm.assignments.find((assignment) => assignment.role === 'SUPERVISOR')?.name ||
     null;
-  const location =
-    [farm.location, farm.village, farm.district, farm.state].filter(Boolean).join(', ') ||
-    'Location TBD';
+  const location = farm.location || 'Location TBD';
 
   return {
     id: farm.id,

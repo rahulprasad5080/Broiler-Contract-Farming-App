@@ -6,6 +6,7 @@ import { API_FARM_STATUS_VALUES, createFarm, fetchFarm, listAllUsers, updateFarm
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useEffect, useRef, useState } from 'react';
+import * as Location from 'expo-location';
 import {
   ActivityIndicator,
   Animated,
@@ -139,6 +140,80 @@ export default function AddFarmScreen() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showDraftBanner, setShowDraftBanner] = useState(false);
+  const [isLocating, setIsLocating] = useState(false);
+
+  const handleFetchLiveLocation = async () => {
+    setIsLocating(true);
+    try {
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== 'granted') {
+        Toast.show({
+          type: 'error',
+          text1: 'Permission Denied',
+          text2: 'Location permission is required to autofill.',
+          position: 'bottom',
+        });
+        return;
+      }
+
+      const currentLocation = await Location.getCurrentPositionAsync({
+        accuracy: Location.Accuracy.Balanced,
+      });
+
+      const { latitude, longitude } = currentLocation.coords;
+
+      const geocoded = await Location.reverseGeocodeAsync({
+        latitude,
+        longitude,
+      });
+
+      if (geocoded && geocoded.length > 0) {
+        const address = geocoded[0];
+        
+        if (address.region) {
+          setValue('state', address.region, { shouldValidate: true, shouldDirty: true });
+        }
+        
+        const fullAreaValue = [
+          address.name,
+          address.street,
+          address.district,
+          address.subregion,
+          address.city,
+          address.postalCode
+        ]
+          .filter(Boolean)
+          .join(', ');
+
+        setValue('location', fullAreaValue || `${latitude.toFixed(6)}, ${longitude.toFixed(6)}`, { shouldValidate: true, shouldDirty: true });
+
+        Toast.show({
+          type: 'success',
+          text1: 'Location Captured',
+          text2: 'Location details have been autofilled.',
+          position: 'bottom',
+        });
+      } else {
+        setValue('location', `${latitude.toFixed(6)}, ${longitude.toFixed(6)}`, { shouldValidate: true, shouldDirty: true });
+        Toast.show({
+          type: 'success',
+          text1: 'Coordinates Captured',
+          text2: 'Geocoding unavailable; lat/lng coordinates filled.',
+          position: 'bottom',
+        });
+      }
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Could not fetch location.';
+      Toast.show({
+        type: 'error',
+        text1: 'Location Error',
+        text2: msg,
+        position: 'bottom',
+      });
+    } finally {
+      setIsLocating(false);
+    }
+  };
 
   // Animated opacity for the "Draft restored" banner
   const draftBannerOpacity = useRef(new Animated.Value(0)).current;
@@ -424,10 +499,25 @@ export default function AddFarmScreen() {
               <View style={styles.referenceIconBox}>
                 <Ionicons name="home-outline" size={18} color="#FFFFFF" />
               </View>
-              <View>
+              <View style={{ flex: 1 }}>
                 <Text style={styles.referenceTitle}>Farm Details</Text>
                 <Text style={styles.referenceSubtitle}>Basic information about your farm</Text>
               </View>
+              <TouchableOpacity
+                style={styles.locationButton}
+                onPress={handleFetchLiveLocation}
+                disabled={isLocating}
+                activeOpacity={0.8}
+              >
+                {isLocating ? (
+                  <ActivityIndicator size="small" color={THEME_GREEN} />
+                ) : (
+                  <>
+                    <Ionicons name="locate" size={14} color={THEME_GREEN} />
+                    <Text style={styles.locationButtonText}>Locate</Text>
+                  </>
+                )}
+              </TouchableOpacity>
             </View>
 
             <Controller
@@ -533,49 +623,6 @@ export default function AddFarmScreen() {
                       />
                     </View>
                     {formErrors.state && <Text style={styles.fieldErrorText}>{formErrors.state.message}</Text>}
-                  </View>
-                )}
-              />
-            </View>
-
-            <View style={styles.referenceRow}>
-              <Controller
-                control={control}
-                name="village"
-                render={({ field: { onChange, value } }) => (
-                  <View style={styles.referenceHalf}>
-                    <Text style={styles.referenceLabel}>Village</Text>
-                    <View style={[styles.referenceInput, formErrors.village && styles.referenceInputError]}>
-                      <Ionicons name="leaf-outline" size={16} color={THEME_GREEN} />
-                      <TextInput
-                        style={styles.referenceTextInput}
-                        placeholder="Enter village"
-                        placeholderTextColor="#A3AAA6"
-                        value={value}
-                        onChangeText={onChange}
-                      />
-                    </View>
-                    {formErrors.village && <Text style={styles.fieldErrorText}>{formErrors.village.message}</Text>}
-                  </View>
-                )}
-              />
-              <Controller
-                control={control}
-                name="district"
-                render={({ field: { onChange, value } }) => (
-                  <View style={[styles.referenceHalf, !Layout.isSmallDevice && styles.referenceHalfRight]}>
-                    <Text style={styles.referenceLabel}>District</Text>
-                    <View style={[styles.referenceInput, formErrors.district && styles.referenceInputError]}>
-                      <Ionicons name="navigate-outline" size={16} color={THEME_GREEN} />
-                      <TextInput
-                        style={styles.referenceTextInput}
-                        placeholder="Enter district"
-                        placeholderTextColor="#A3AAA6"
-                        value={value}
-                        onChangeText={onChange}
-                      />
-                    </View>
-                    {formErrors.district && <Text style={styles.fieldErrorText}>{formErrors.district.message}</Text>}
                   </View>
                 )}
               />
@@ -960,6 +1007,22 @@ const styles = StyleSheet.create({
     marginBottom: 16,
     paddingBottom: 0,
     borderBottomWidth: 0,
+  },
+  locationButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: '#E7F5ED',
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#B7E0C2',
+  },
+  locationButtonText: {
+    color: THEME_GREEN,
+    fontSize: 12,
+    fontWeight: '700',
   },
   referenceIconBox: {
     width: 34,
