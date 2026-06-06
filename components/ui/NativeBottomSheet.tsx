@@ -39,16 +39,7 @@ export function NativeBottomSheet({
   const { height } = useWindowDimensions();
   const hiddenOffset = Math.max(height, 1);
   const translateY = useRef(new Animated.Value(hiddenOffset)).current;
-
-  // FIX 1: Keep onClose in a ref so `close` never needs it as a useCallback
-  // dependency. Previously, every inline `() => setVisible(false)` passed as
-  // onClose created a new function identity on every parent render, which forced
-  // `close` to be recreated, which in turn forced `panResponder` to be torn
-  // down and rebuilt — causing the gesture glitch and double-fire.
-  const onCloseRef = useRef(onClose);
-  useEffect(() => {
-    onCloseRef.current = onClose;
-  });
+  const [mounted, setMounted] = useState(visible);
 
   const resolvedMaxHeight = useMemo(() => {
     if (!maxHeight) return height * 0.82;
@@ -60,97 +51,69 @@ export function NativeBottomSheet({
     return height * 0.82;
   }, [maxHeight, height]);
 
-  const [mounted, setMounted] = useState(visible);
-
-  // FIX 2: Mirror `mounted` in a ref so the close path inside useEffect can
-  // read it without adding `mounted` to the dependency array. Previously,
-  // `mounted` in deps caused: setMounted(false) → effect re-runs → animation
-  // fires again → sheet flashes/repeats.
-  const mountedRef = useRef(mounted);
-  useEffect(() => {
-    mountedRef.current = mounted;
-  }, [mounted]);
-
-  const closingRef = useRef(false);
-  const animationFrameRef = useRef<number | null>(null);
-
-  const animateTo = useCallback(
-    (toValue: number, after?: () => void) => {
-      Animated.timing(translateY, {
-        toValue,
-        duration: toValue === 0 ? 260 : 220,
-        easing: toValue === 0 ? Easing.out(Easing.cubic) : Easing.in(Easing.cubic),
-        useNativeDriver: true,
-      }).start(({ finished }) => {
-        if (finished) after?.();
-      });
-    },
-    [translateY],
-  );
-
-  // Stable close — only depends on animateTo and hiddenOffset (both stable).
-  // onClose is read from a ref at call time, not captured in the dep array.
-  const close = useCallback(() => {
-    if (closingRef.current) return;
-
-    Keyboard.dismiss();
-    closingRef.current = true;
-    animateTo(hiddenOffset, () => {
-      closingRef.current = false;
-      setMounted(false);
-      onCloseRef.current();
-    });
-  }, [animateTo, hiddenOffset]);
-
+  // Handle animation driven by the `visible` prop
   useEffect(() => {
     if (visible) {
-      closingRef.current = false;
       setMounted(true);
       translateY.setValue(hiddenOffset);
-      animationFrameRef.current = requestAnimationFrame(() => animateTo(0));
-      return () => {
-        if (animationFrameRef.current !== null) {
-          cancelAnimationFrame(animationFrameRef.current);
-          animationFrameRef.current = null;
+      Animated.timing(translateY, {
+        toValue: 0,
+        duration: 260,
+        easing: Easing.out(Easing.cubic),
+        useNativeDriver: true,
+      }).start();
+    } else if (mounted) {
+      Animated.timing(translateY, {
+        toValue: hiddenOffset,
+        duration: 220,
+        easing: Easing.in(Easing.cubic),
+        useNativeDriver: true,
+      }).start(({ finished }) => {
+        if (finished) {
+          setMounted(false);
         }
-      };
-    }
-
-    // Read mountedRef (not mounted state) to avoid adding `mounted` to deps.
-    if (mountedRef.current && !closingRef.current) {
-      closingRef.current = true;
-      animateTo(hiddenOffset, () => {
-        closingRef.current = false;
-        setMounted(false);
       });
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [visible]); // intentionally only [visible] — animateTo/hiddenOffset are stable
+  }, [visible, mounted, translateY, hiddenOffset]);
 
-  // FIX 3: Because `close` is now stable (no changing deps), `panResponder`
-  // is created once and never torn down mid-gesture.
+  const close = useCallback(() => {
+    Keyboard.dismiss();
+    onClose();
+  }, [onClose]);
+
   const panResponder = useMemo(
     () =>
-    PanResponder.create({
-      onMoveShouldSetPanResponder: (_, gestureState) =>
-        Math.abs(gestureState.dy) > Math.abs(gestureState.dx) && gestureState.dy > 6,
-      onPanResponderMove: (_, gestureState) => {
-        if (gestureState.dy > 10) {
-          Keyboard.dismiss();
-        }
-        translateY.setValue(Math.max(gestureState.dy, 0));
-      },
-      onPanResponderRelease: (_, gestureState) => {
-        if (gestureState.dy > 96 || gestureState.vy > 0.85) {
-          close();
-          return;
-        }
-
-        animateTo(0);
-      },
-      onPanResponderTerminate: () => animateTo(0),
-    }),
-    [animateTo, close, translateY],
+      PanResponder.create({
+        onMoveShouldSetPanResponder: (_, gestureState) =>
+          Math.abs(gestureState.dy) > Math.abs(gestureState.dx) && gestureState.dy > 6,
+        onPanResponderMove: (_, gestureState) => {
+          if (gestureState.dy > 10) {
+            Keyboard.dismiss();
+          }
+          translateY.setValue(Math.max(gestureState.dy, 0));
+        },
+        onPanResponderRelease: (_, gestureState) => {
+          if (gestureState.dy > 96 || gestureState.vy > 0.85) {
+            close();
+            return;
+          }
+          Animated.timing(translateY, {
+            toValue: 0,
+            duration: 180,
+            easing: Easing.out(Easing.cubic),
+            useNativeDriver: true,
+          }).start();
+        },
+        onPanResponderTerminate: () => {
+          Animated.timing(translateY, {
+            toValue: 0,
+            duration: 180,
+            easing: Easing.out(Easing.cubic),
+            useNativeDriver: true,
+          }).start();
+        },
+      }),
+    [close, translateY],
   );
 
   if (!mounted) return null;
