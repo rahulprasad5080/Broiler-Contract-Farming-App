@@ -1,26 +1,24 @@
-import {
-  clearStoredSession,
-  getStoredSession,
-  persistStoredSession,
-} from "./authSession";
+import axios, {
+  type AxiosError,
+  type AxiosInstance,
+  type AxiosRequestConfig,
+  type AxiosResponse,
+  type Method,
+} from "axios";
 import {
   assertUserCanKeepSession,
   isRevokedAuthFailure,
   isRevokedUserError,
 } from "./authRevocation";
+import {
+  clearStoredSession,
+  getStoredSession,
+  persistStoredSession,
+} from "./authSession";
 import type { ApiUser, AuthSession } from "./authTypes";
-import axios, {
-  type AxiosInstance,
-  type AxiosError,
-  type AxiosRequestConfig,
-  type AxiosResponse,
-  type Method,
-} from "axios";
 import { debugLogger } from "./debugLogger";
 
-export const API_BASE_URL =
-  process.env.EXPO_PUBLIC_API_BASE_URL ??
-  "https://broiler-dusky.vercel.app/api/v1";
+export const API_BASE_URL = "https://broiler-dusky.vercel.app/api/v1";
 
 export const API_ROOT_URL = API_BASE_URL.replace(/\/api\/v1\/?$/, "");
 const REQUEST_TIMEOUT_MS = Number(process.env.EXPO_PUBLIC_API_TIMEOUT_MS ?? 30000);

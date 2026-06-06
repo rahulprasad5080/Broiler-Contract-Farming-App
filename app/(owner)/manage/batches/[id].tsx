@@ -12,7 +12,6 @@ import { Colors } from '@/constants/Colors';
 import { useAuth } from '@/context/AuthContext';
 import { showRequestErrorToast, showSuccessToast } from '@/services/apiFeedback';
 import {
-  API_COMMENT_TARGET_TYPE_VALUES,
   createBatchComment,
   fetchBatch,
   fetchBatchPnl,
@@ -32,7 +31,7 @@ import {
   type ApiCommentTargetType,
   type ApiDailyLog,
   type ApiSale,
-  type ApiTreatment,
+  type ApiTreatment
 } from '@/services/managementApi';
 import {
   downloadBatchExcelReport,
@@ -204,7 +203,6 @@ function BatchFullDetails({ batch }: { batch: ApiBatch }) {
         <DetailItem label="Actual Close Date" value={formatDate(batch.actualCloseDate)} />
         <DetailItem label="Locked At" value={formatDate(batch.lockedAt)} />
         <DetailItem label="Created At" value={formatDate(batch.createdAt)} />
-        <DetailItem label="Updated At" value={formatDate(batch.updatedAt)} />
       </View>
 
       <Text style={styles.detailGroupTitle}>Chick Purchase</Text>
@@ -219,7 +217,6 @@ function BatchFullDetails({ batch }: { batch: ApiBatch }) {
         <DetailItem label="Rate Per Chick" value={formatCurrency(batch.ratePerChick)} />
         <DetailItem label="Transport Charge" value={formatCurrency(batch.chickTransportCharge)} />
         <DetailItem label="Source Hatchery" value={batch.sourceHatchery} />
-        <DetailItem label="Vendor ID" value={batch.vendorId} />
         <DetailItem label="Vendor Name" value={batch.vendorName} />
       </View>
 
@@ -462,9 +459,9 @@ export default function BatchDetailsScreen() {
         status: editStatus,
         ...(editStatus === 'CLOSED'
           ? {
-              actualCloseDate: getLocalDateValue(),
-              lockedAt: new Date().toISOString(),
-            }
+            actualCloseDate: getLocalDateValue(),
+            lockedAt: new Date().toISOString(),
+          }
           : {}),
       };
 
@@ -628,7 +625,7 @@ export default function BatchDetailsScreen() {
           />
         ) : (
           <>
-            
+
             {activeTab === 'overview' && (
               <>
                 <OverviewTab
@@ -644,7 +641,7 @@ export default function BatchDetailsScreen() {
                 <View style={{ height: 40 }} />
               </>
             )}
-            
+
             {activeTab === 'daily' && (
               <DailyEntriesTab dailyLogs={dailyLogs} openDailyEntry={canUseDailyLogs ? openDailyEntry : undefined} />
             )}
@@ -655,9 +652,9 @@ export default function BatchDetailsScreen() {
                 onAddTreatment={
                   canUseTreatments
                     ? () =>
-                        router.navigate(
-                          `/(owner)/manage/treatments/add?batchId=${encodeURIComponent(id)}` as Href,
-                        )
+                      router.navigate(
+                        `/(owner)/manage/treatments/add?batchId=${encodeURIComponent(id)}` as Href,
+                      )
                     : undefined
                 }
               />
@@ -674,21 +671,20 @@ export default function BatchDetailsScreen() {
                 onAddExpense={
                   canUseExpenses
                     ? () =>
-                        router.navigate(
-                          `/(owner)/manage/batches/expense-create?batchId=${encodeURIComponent(id)}&ledger=${
-                            activeExpenseTab === 'farmer' ? 'FARMER' : 'COMPANY'
-                          }` as Href,
-                        )
+                      router.navigate(
+                        `/(owner)/manage/batches/expense-create?batchId=${encodeURIComponent(id)}&ledger=${activeExpenseTab === 'farmer' ? 'FARMER' : 'COMPANY'
+                        }` as Href,
+                      )
                     : undefined
                 }
                 onEditExpense={
                   canUseExpenses
                     ? (expense) =>
-                        router.navigate(
-                          `/(owner)/manage/batches/expense-create?batchId=${encodeURIComponent(
-                            id,
-                          )}&expenseId=${encodeURIComponent(expense.id)}` as Href,
-                        )
+                      router.navigate(
+                        `/(owner)/manage/batches/expense-create?batchId=${encodeURIComponent(
+                          id,
+                        )}&expenseId=${encodeURIComponent(expense.id)}` as Href,
+                      )
                     : undefined
                 }
               />
@@ -700,9 +696,9 @@ export default function BatchDetailsScreen() {
                 onAddCost={
                   canUseExpenses
                     ? () =>
-                        router.navigate(
-                          `/(owner)/manage/batches/cost-create?batchId=${encodeURIComponent(id)}&ledger=COMPANY&lockBatch=1` as Href,
-                        )
+                      router.navigate(
+                        `/(owner)/manage/batches/cost-create?batchId=${encodeURIComponent(id)}&ledger=COMPANY&lockBatch=1` as Href,
+                      )
                     : undefined
                 }
               />
@@ -723,11 +719,11 @@ export default function BatchDetailsScreen() {
                 onFinalizeSale={
                   canFinalizeSales
                     ? (sale) =>
-                        router.navigate(
-                          `/(owner)/manage/batches/sale-finalize?batchId=${encodeURIComponent(
-                            id,
-                          )}&saleId=${encodeURIComponent(sale.id)}` as Href,
-                        )
+                      router.navigate(
+                        `/(owner)/manage/batches/sale-finalize?batchId=${encodeURIComponent(
+                          id,
+                        )}&saleId=${encodeURIComponent(sale.id)}` as Href,
+                      )
                     : undefined
                 }
               />
@@ -763,36 +759,8 @@ export default function BatchDetailsScreen() {
                 {/* Add Comment Input Form */}
                 <View style={styles.addCommentContainer}>
                   <Text style={styles.addCommentTitle}>Add a Review Comment</Text>
-                  <Text style={styles.commentFieldLabel}>Target Type</Text>
-                  <View style={styles.commentTargetRow}>
-                    {API_COMMENT_TARGET_TYPE_VALUES.map((targetType) => {
-                      const active = commentTargetType === targetType;
-                      return (
-                        <TouchableOpacity
-                          key={targetType}
-                          style={[styles.commentTargetChip, active && styles.commentTargetChipActive]}
-                          onPress={() => {
-                            setCommentTargetType(targetType);
-                            if (targetType === 'BATCH') {
-                              setCommentTargetId(id);
-                            }
-                          }}
-                        >
-                          <Text style={[styles.commentTargetChipText, active && styles.commentTargetChipTextActive]} numberOfLines={1}>
-                            {labelize(targetType)}
-                          </Text>
-                        </TouchableOpacity>
-                      );
-                    })}
-                  </View>
-                  <TextInput
-                    style={[styles.commentInput, { height: 44, marginTop: 8, paddingTop: 10 }]}
-                    placeholder="Target ID"
-                    placeholderTextColor="#9CA3AF"
-                    value={commentTargetId}
-                    onChangeText={setCommentTargetId}
-                    autoCapitalize="none"
-                  />
+
+
                   <TextInput
                     style={styles.commentInput}
                     placeholder="Write your comment..."

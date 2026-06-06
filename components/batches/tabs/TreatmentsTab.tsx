@@ -24,12 +24,8 @@ function TreatmentCard({ treatment }: { treatment: ApiTreatment }) {
       </View>
 
       <View style={styles.expenseInfoGrid}>
-        <InfoPill label="Treatment Date" value={formatDate(treatment.treatmentDate)} />
-        <InfoPill label="Kind" value={labelize(treatment.kind)} />
-        <InfoPill label="Treatment Name" value={treatment.treatmentName} />
         <InfoPill label="Dosage" value={treatment.dosage} />
         <InfoPill label="Bird Count" value={formatNumber(treatment.birdCount)} />
-        <InfoPill label="Created At" value={formatDate(treatment.createdAt)} />
       </View>
 
       {treatment.notes ? (

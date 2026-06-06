@@ -44,7 +44,6 @@ const OWNER_MANAGE_ROUTE_PERMISSIONS: Record<string, PermissionRequirement> = {
   purchase: "create:purchase",
   ledger: "manage:inventory",
   entries: "view:financial-dashboard",
-  "finance-entry": "view:financial-dashboard",
   payments: "manage:settlements",
   expenses: "create:expenses",
   costs: "view:inventory-cost",

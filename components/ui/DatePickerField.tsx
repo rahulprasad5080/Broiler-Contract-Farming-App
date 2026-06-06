@@ -135,6 +135,10 @@ export function DatePickerField({
     setVisible(true);
   }, [value]);
 
+  // Stable close callback — prevents NativeBottomSheet from seeing a new
+  // onClose reference on every render of a parent form.
+  const closeSheet = useCallback(() => setVisible(false), []);
+
   const selectDate = useCallback(
     (date: Date) => {
       onChange(formatDateValue(date));
@@ -165,7 +169,7 @@ export function DatePickerField({
 
       <NativeBottomSheet
         visible={visible}
-        onClose={() => setVisible(false)}
+        onClose={closeSheet}
         maxHeight="72%"
         contentStyle={styles.calendarSheet}
       >

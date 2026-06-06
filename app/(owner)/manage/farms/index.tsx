@@ -1,4 +1,4 @@
-﻿import { NativeBottomSheet } from '@/components/ui/NativeBottomSheet';
+import { NativeBottomSheet } from '@/components/ui/NativeBottomSheet';
 import { TopAppBar } from '@/components/ui/TopAppBar';
 import { Colors } from '@/constants/Colors';
 import { Layout } from '@/constants/Layout';
@@ -14,7 +14,11 @@ import {
   type ApiFarmAssignment,
   type ApiUser,
 } from '@/services/managementApi';
+import { formatDate } from '@/utils/format';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { useForm } from 'react-hook-form';
+import { z } from 'zod';
 import { useFocusEffect } from '@react-navigation/native';
 import { useRouter } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
@@ -31,10 +35,6 @@ import {
   View,
 } from 'react-native';
 import Toast from 'react-native-toast-message';
-
-import { zodResolver } from '@hookform/resolvers/zod';
-import { useForm } from 'react-hook-form';
-import { z } from 'zod';
 
 const THEME_GREEN = '#0B5C36';
 const PAGE_LIMIT = 20;
@@ -127,16 +127,6 @@ function getRoleAccent(role: ApiUser['role']) {
   return Colors.primary;
 }
 
-function formatDate(value?: string | null) {
-  if (!value) return '-';
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return value;
-  return date.toLocaleDateString('en-IN', {
-    day: '2-digit',
-    month: 'short',
-    year: 'numeric',
-  });
-}
 
 function DetailCell({ label, value }: { label: string; value: string }) {
   return (
@@ -886,7 +876,6 @@ export default function FarmListScreen() {
                 <Text style={styles.doneButtonText}>Done</Text>
               </TouchableOpacity>
             ) : null}
-        <Toast position="bottom" bottomOffset={100} />
       </NativeBottomSheet>
     </View>
   );

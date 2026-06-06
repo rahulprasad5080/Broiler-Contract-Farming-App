@@ -10,6 +10,7 @@ import { Colors } from "../constants/Colors";
 import { AuthProvider, useAuth } from "../context/AuthContext";
 import { SidebarProvider } from "../context/SidebarContext";
 
+import { NetworkInspector } from "@/components/debug/NetworkInspector";
 import { useOfflineSyncQueue } from "@/hooks/useOfflineSyncQueue";
 import { usePushNotifications } from "@/hooks/usePushNotifications";
 
@@ -24,7 +25,7 @@ const originalToastShow = Toast.show;
 
 function RootContent() {
   const { accessToken, isReady } = useAuth();
-  
+
   // Initialize Push Notifications
   usePushNotifications();
   useOfflineSyncQueue(accessToken);
@@ -89,7 +90,7 @@ export default function RootLayout() {
           <View style={styles.keyboardRoot}>
             <RootContent />
             <NetworkStatus />
-            {/* <NetworkInspector /> */}
+            <NetworkInspector />
           </View>
         </SidebarProvider>
       </AuthProvider>

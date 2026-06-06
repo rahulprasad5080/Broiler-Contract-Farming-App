@@ -1,4 +1,4 @@
-﻿import { Colors } from '@/constants/Colors';
+import { Colors } from '@/constants/Colors';
 import { Layout } from '@/constants/Layout';
 import { useAuth } from '@/context/AuthContext';
 import { ApiBatch, ApiComment, listAllBatches, listBatchComments } from '@/services/managementApi';
@@ -12,6 +12,7 @@ import { FlatList, RefreshControl, ScrollView, StyleSheet, Text, TouchableOpacit
 import { ScreenState } from '@/components/ui/ScreenState';
 import { TopAppBar } from '@/components/ui/TopAppBar';
 import { showRequestErrorToast } from '@/services/apiFeedback';
+import { SearchableSelectField } from '@/components/ui/SearchableSelectField';
 
 export default function FarmerCommentsScreen() {
   const { accessToken, user } = useAuth();
@@ -29,6 +30,11 @@ export default function FarmerCommentsScreen() {
   const activeBatches = batches.filter(
     (b) => b.status !== 'CLOSED' && b.status !== 'CANCELLED',
   );
+
+  const batchOptions = activeBatches.map(batch => ({
+    label: `${batch.code} ${batch.farmName ? `(${batch.farmName})` : ''}`,
+    value: batch.id,
+  }));
 
   const fetchBatches = useCallback(async () => {
     if (!accessToken) return;
@@ -145,19 +151,15 @@ export default function FarmerCommentsScreen() {
         ) : (
           <>
             <View style={styles.batchSelectorRow}>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipRow}>
-                {activeBatches.map(batch => (
-                  <TouchableOpacity
-                    key={batch.id}
-                    style={[styles.batchChip, selectedBatchId === batch.id && styles.batchChipActive]}
-                    onPress={() => setSelectedBatchId(batch.id)}
-                  >
-                    <Text style={[styles.batchChipText, selectedBatchId === batch.id && styles.batchChipTextActive]}>
-                      {batch.code} {batch.farmName ? `(${batch.farmName})` : ''}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </ScrollView>
+              <SearchableSelectField
+                label="Batch"
+                value={selectedBatchId}
+                options={batchOptions}
+                onSelect={(val) => setSelectedBatchId(val)}
+                placeholder="Select batch..."
+                searchPlaceholder="Search batches"
+                variant="filter"
+              />
             </View>
 
             <FlatList
@@ -171,25 +173,38 @@ export default function FarmerCommentsScreen() {
               showsVerticalScrollIndicator={false}
               renderItem={({ item: comment }) => (
                 <View style={styles.commentCard}>
-                    <View style={styles.commentHeader}>
-                      <View style={styles.targetBadge}>
-                        <Ionicons name={getTargetIcon(comment.targetType)} size={12} color={Colors.primary} />
-                        <Text style={styles.targetText}>{comment.targetType.replace('_', ' ')}</Text>
-                      </View>
-                      <Text style={styles.dateText}>
-                        {format(new Date(comment.createdAt), 'dd MMM, hh:mm a')}
-                      </Text>
+                  <View style={styles.commentHeaderRow}>
+                    <View style={styles.commentAvatar}>
+                      <Ionicons name={getTargetIcon(comment.targetType)} size={18} color="#0B5C36" />
                     </View>
+                    <View style={styles.commentHeaderMeta}>
+                      <Text style={styles.commentAuthor}>Supervisor Feedback</Text>
+                      <View style={styles.badgeRow}>
+                        <View style={styles.targetBadge}>
+                          <Text style={styles.targetText}>{comment.targetType.replace('_', ' ')}</Text>
+                        </View>
+                        <Text style={styles.bulletDivider}>•</Text>
+                        <Text style={styles.dateText}>
+                          {format(new Date(comment.createdAt), 'dd MMM, hh:mm a')}
+                        </Text>
+                      </View>
+                    </View>
+                  </View>
 
+                  <View style={styles.commentContent}>
                     <Text style={styles.commentBody}>{comment.comment}</Text>
+                  </View>
 
-                    {comment.correctionNote ? (
-                      <View style={styles.correctionBox}>
-                        <Ionicons name="alert-circle-outline" size={14} color="#E65100" />
+                  {comment.correctionNote ? (
+                    <View style={styles.correctionBox}>
+                      <Ionicons name="warning-outline" size={16} color="#D97706" style={{ marginTop: 1 }} />
+                      <View style={{ flex: 1 }}>
+                        <Text style={styles.correctionTitle}>Correction Required</Text>
                         <Text style={styles.correctionText}>{comment.correctionNote}</Text>
                       </View>
-                    ) : null}
-                  </View>
+                    </View>
+                  ) : null}
+                </View>
               )}
               ListEmptyComponent={
                 loadingComments && !refreshing ? (
@@ -230,32 +245,104 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: Colors.border,
   },
-  chipRow: { gap: 8 },
-  batchChip: {
-    paddingHorizontal: 14, paddingVertical: 8, borderRadius: 999, borderWidth: 1,
-    borderColor: Colors.border, backgroundColor: '#F9FAFB',
-  },
-  batchChipActive: { borderColor: Colors.primary, backgroundColor: Colors.primary },
-  batchChipText: { fontSize: 13, fontWeight: '600', color: Colors.text },
-  batchChipTextActive: { color: '#FFF' },
   listContent: { padding: Layout.screenPadding, paddingBottom: 100 },
   listContentCentered: { flexGrow: 1, justifyContent: 'center', alignItems: 'center' },
-  emptyListBox: { alignItems: 'center', padding: 20 },
   commentCard: {
-    backgroundColor: '#FFF', borderRadius: Layout.borderRadius.sm, padding: 14, marginBottom: 12,
-    borderWidth: 1, borderColor: Colors.border, ...Layout.cardShadow,
+    backgroundColor: '#FFF',
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 14,
+    borderWidth: 1,
+    borderColor: '#EAEAEA',
+    shadowColor: '#0F172A',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.03,
+    shadowRadius: 8,
+    elevation: 2,
   },
-  commentHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 },
+  commentHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 12,
+    gap: 10,
+  },
+  commentAvatar: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: '#E7F5ED',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: '#CBE6D5',
+  },
+  commentHeaderMeta: {
+    flex: 1,
+  },
+  commentAuthor: {
+    fontSize: 13,
+    fontWeight: '800',
+    color: '#1E293B',
+    marginBottom: 2,
+  },
+  badgeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
   targetBadge: {
-    flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: '#F1F8F4',
-    paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6, borderWidth: 1, borderColor: '#B7E0C2',
+    backgroundColor: '#F1F5F9',
+    borderColor: '#E2E8F0',
+    borderWidth: 1,
+    borderRadius: 4,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
   },
-  targetText: { fontSize: 10, fontWeight: 'bold', color: Colors.primary },
-  dateText: { fontSize: 11, color: Colors.textSecondary },
-  commentBody: { fontSize: 14, color: Colors.text, lineHeight: 20 },
+  targetText: {
+    fontSize: 9,
+    fontWeight: '700',
+    color: '#64748B',
+    textTransform: 'uppercase',
+  },
+  bulletDivider: {
+    color: '#CBD5E1',
+    marginHorizontal: 6,
+    fontSize: 10,
+  },
+  dateText: {
+    fontSize: 11,
+    color: '#64748B',
+    fontWeight: '600',
+  },
+  commentContent: {
+    marginTop: 4,
+  },
+  commentBody: {
+    fontSize: 14,
+    color: '#334155',
+    lineHeight: 22,
+    fontWeight: '600',
+  },
   correctionBox: {
-    flexDirection: 'row', gap: 6, marginTop: 10, padding: 10, backgroundColor: '#FFF3E0',
-    borderRadius: 8, borderWidth: 1, borderColor: '#FFE0B2',
+    flexDirection: 'row',
+    gap: 8,
+    marginTop: 14,
+    padding: 12,
+    backgroundColor: '#FFFBEB',
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#FDE68A',
   },
-  correctionText: { flex: 1, fontSize: 12, color: '#E65100', lineHeight: 18 },
+  correctionTitle: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: '#B45309',
+    textTransform: 'uppercase',
+    marginBottom: 2,
+  },
+  correctionText: {
+    fontSize: 12,
+    color: '#92400E',
+    lineHeight: 18,
+    fontWeight: '700',
+  },
 });

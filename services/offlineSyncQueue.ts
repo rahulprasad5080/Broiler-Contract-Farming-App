@@ -88,6 +88,9 @@ type SyncResult = {
 
 let syncInFlight = false;
 
+/** Items that fail more than this many times are permanently dropped from the queue. */
+const MAX_RETRY_ATTEMPTS = 5;
+
 function createQueueId(type: OfflineSubmission["type"]) {
   return `${type}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 }
@@ -201,11 +204,21 @@ export async function processOfflineQueue(token: string): Promise<SyncResult> {
         synced += 1;
       } catch (error) {
         failed += 1;
-        remainingQueue.push({
-          ...item,
-          attempts: item.attempts + 1,
-          lastError: getErrorMessage(error),
-        });
+        const nextAttempts = item.attempts + 1;
+
+        if (nextAttempts >= MAX_RETRY_ATTEMPTS) {
+          // Permanently drop items that have exceeded the retry limit to prevent
+          // an infinite queue of bad requests from blocking future valid syncs.
+          useSyncStore.getState().setSyncProgress(
+            `Item dropped after ${MAX_RETRY_ATTEMPTS} failed attempts: ${item.type}`,
+          );
+        } else {
+          remainingQueue.push({
+            ...item,
+            attempts: nextAttempts,
+            lastError: getErrorMessage(error),
+          });
+        }
 
         if (isRetryableSyncError(error)) {
           const index = queue.indexOf(item);

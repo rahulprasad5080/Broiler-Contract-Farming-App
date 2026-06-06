@@ -209,30 +209,12 @@ export function CommentCard({ comment }: { comment: ApiComment }) {
 
       <Text style={styles.commentText}>{comment.comment}</Text>
 
-      <View style={styles.expenseInfoGrid}>
-        <InfoPill label="ID" value={comment.id} />
-        <InfoPill label="Organization ID" value={comment.organizationId} />
-        <InfoPill label="Farm ID" value={comment.farmId} />
-        <InfoPill label="Batch ID" value={comment.batchId} />
-        <InfoPill label="Target Type" value={labelize(comment.targetType)} />
-        <InfoPill label="Target ID" value={comment.targetId} />
-        <InfoPill label="Created By ID" value={comment.createdById} />
-        <InfoPill label="Created At" value={formatDate(comment.createdAt)} />
-      </View>
-
       {comment.correctionNote ? (
         <View style={styles.correctionBox}>
           <Text style={styles.correctionLabel}>Correction Note</Text>
           <Text style={styles.correctionText}>{comment.correctionNote}</Text>
         </View>
       ) : null}
-
-      <View style={styles.commentMetaRow}>
-        <Text style={styles.commentMetaText}>Target ID: {comment.targetId}</Text>
-        {comment.createdById ? (
-          <Text style={styles.commentMetaText}>By: {comment.createdById}</Text>
-        ) : null}
-      </View>
     </View>
   );
 }

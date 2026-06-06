@@ -1,4 +1,4 @@
-﻿import { ScreenState } from "@/components/ui/ScreenState";
+import { ScreenState } from "@/components/ui/ScreenState";
 import { TopAppBar } from "@/components/ui/TopAppBar";
 import { Colors } from "@/constants/Colors";
 import { useAuth } from "@/context/AuthContext";
@@ -148,12 +148,12 @@ export default function FinancialDashboardScreen() {
   const quickActions = useMemo<FinanceQuickAction[]>(
     () => [
       {
-        label: "Investment Entry",
-        subtitle: "Add capital or funding",
+        label: "Create Finance Entry",
+        subtitle: "Add investment or other transactions",
         icon: "briefcase-outline",
         tone: "#7C3AED",
         backgroundColor: "#F3E8FF",
-        onPress: () => router.navigate("/(owner)/manage/finance-entry" as any),
+        onPress: () => router.navigate("/(owner)/manage/entries/create" as any),
       },
       ...(hasPermission("create:purchase")
         ? [

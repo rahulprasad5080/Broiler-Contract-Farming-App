@@ -10,6 +10,12 @@ const THEME_GREEN = '#0B5C36';
 
 function CostCard({ cost }: { cost: ApiBatchExpense }) {
   const hasBill = Boolean(cost.billPhotoUrl);
+  const quantityText =
+    cost.quantity === undefined || cost.quantity === null
+      ? null
+      : `${formatNumber(cost.quantity)}${cost.unit ? ` ${cost.unit}` : ''}`;
+  const rateText =
+    cost.rate === undefined || cost.rate === null ? null : `${formatMoney(cost.rate)} rate`;
 
   return (
     <View style={styles.expenseHistoryCard}>
@@ -27,24 +33,32 @@ function CostCard({ cost }: { cost: ApiBatchExpense }) {
 
       <View style={styles.expenseInfoGrid}>
         <InfoPill label="Ledger" value={labelize(cost.ledger)} />
-        <InfoPill label="Category" value={cost.category} />
-        <InfoPill label="Expense Date" value={formatDate(cost.expenseDate)} />
-        <InfoPill label="Description" value={cost.description} />
-        <InfoPill label="Quantity" value={formatNumber(cost.quantity)} />
-        <InfoPill label="Unit" value={cost.unit} />
-        <InfoPill label="Rate" value={formatMoney(cost.rate)} />
-        <InfoPill label="Total Amount" value={formatMoney(cost.totalAmount)} />
-        <InfoPill label="Vendor Name" value={cost.vendorName} />
-        <InfoPill label="Invoice No." value={cost.invoiceNumber} />
-        <InfoPill label="Bill Photo URL" value={cost.billPhotoUrl} />
         <InfoPill label="Payment" value={labelize(cost.paymentStatus)} />
         <InfoPill label="Paid Amount" value={formatMoney(cost.paidAmount)} />
         <InfoPill label="Approval" value={labelize(cost.approvalStatus)} />
-        <InfoPill label="Approved At" value={formatDate(cost.approvedAt)} />
-        <InfoPill label="Rejected Reason" value={cost.rejectedReason} />
-        <InfoPill label="Created At" value={formatDate(cost.createdAt)} />
-        <InfoPill label="Updated At" value={formatDate(cost.updatedAt)} />
+        {cost.rejectedReason ? (
+          <InfoPill label="Rejected Reason" value={cost.rejectedReason} />
+        ) : null}
+        {quantityText ? <InfoPill label="Qty" value={quantityText} /> : null}
+        {rateText ? <InfoPill label="Rate" value={rateText} /> : null}
       </View>
+
+      {cost.vendorName || cost.invoiceNumber ? (
+        <View style={styles.auditRow}>
+          {cost.vendorName ? (
+            <View style={styles.auditItem}>
+              <Feather name="briefcase" size={13} color="#6B7280" />
+              <Text style={styles.auditText} numberOfLines={1}>{cost.vendorName}</Text>
+            </View>
+          ) : null}
+          {cost.invoiceNumber ? (
+            <View style={styles.auditItem}>
+              <Feather name="hash" size={13} color="#6B7280" />
+              <Text style={styles.auditText} numberOfLines={1}>{cost.invoiceNumber}</Text>
+            </View>
+          ) : null}
+        </View>
+      ) : null}
 
       {cost.notes ? <Text style={styles.expenseNotes} numberOfLines={2}>{cost.notes}</Text> : null}
 

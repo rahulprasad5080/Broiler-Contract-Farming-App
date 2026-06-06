@@ -1,4 +1,4 @@
-﻿import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
+import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import React from "react";
 import {
@@ -174,21 +174,12 @@ const ENTRY_ITEMS: EntryItem[] = [
     requiredPermission: "manage:users",
   },
   {
-    title: "Finance Entries List",
-    desc: "Investment, income, expense",
+    title: "Finance Entries",
+    desc: "Investment, income, expense list and entry",
     icon: "document-text-outline",
     iconType: "Ionicons",
     color: "#4338CA",
     route: "/(owner)/manage/entries",
-    requiredPermission: "view:financial-dashboard",
-  },
-  {
-    title: "Investment Entry",
-    desc: "Add investments",
-    icon: "document-text-outline",
-    iconType: "Ionicons",
-    color: "#6366F1",
-    route: "/(owner)/manage/finance-entry",
     requiredPermission: "view:financial-dashboard",
   },
   {

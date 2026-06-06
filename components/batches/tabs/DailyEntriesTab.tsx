@@ -1,8 +1,7 @@
 import type { ApiDailyLog } from '@/services/managementApi';
+import { formatNumber } from '@/utils/format';
 import { Feather, Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { Text, TouchableOpacity, View } from 'react-native';
-import { InfoPill } from '@/components/ui/InfoPill';
-import { formatDate, formatNumber } from '@/utils/format';
 import { styles } from './styles';
 
 const THEME_GREEN = '#0B5C36';
@@ -185,10 +184,7 @@ export function DailyEntriesTab({ dailyLogs, openDailyEntry }: DailyEntriesTabPr
                   </View>
                 ) : null}
 
-                <View style={styles.expenseInfoGrid}>
-                  <InfoPill label="Log Date" value={formatDate(log.logDate)} />
-                  <InfoPill label="Created At" value={formatDate(log.createdAt)} />
-                </View>
+
               </View>
             </TouchableOpacity>
           );

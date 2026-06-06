@@ -36,24 +36,16 @@ function SaleHistoryCard({
       </View>
 
       <View style={styles.expenseInfoGrid}>
-        <InfoPill label="Trader Name" value={sale.traderName} />
-        <InfoPill label="Sale Date" value={formatDate(sale.saleDate)} />
-        <InfoPill label="Vehicle No." value={sale.vehicleNumber} />
         <InfoPill label="Status" value={labelize(sale.status)} />
         <InfoPill label="Payment" value={labelize(sale.paymentStatus)} />
         <InfoPill label="Birds" value={formatNumber(sale.birdCount)} />
         <InfoPill label="Weight" value={formatNumber(sale.totalWeightKg, ' kg')} />
         <InfoPill label="Avg Weight" value={formatNumber(avgWeight, ' kg')} />
         <InfoPill label="Rate" value={formatMoney(sale.ratePerKg)} />
-        <InfoPill label="Gross Amount" value={formatMoney(sale.grossAmount)} />
-        <InfoPill label="Transport" value={formatMoney(sale.transportCharge)} />
-        <InfoPill label="Commission" value={formatMoney(sale.commissionCharge)} />
-        <InfoPill label="Other Deduction" value={formatMoney(sale.otherDeduction)} />
-        <InfoPill label="Net Amount" value={formatMoney(sale.netAmount)} />
-        <InfoPill label="Received" value={formatMoney(sale.paymentReceivedAmount)} />
-        <InfoPill label="Loading Mortality" value={formatNumber(sale.loadingMortalityCount)} />
-        <InfoPill label="Finalized At" value={formatDate(sale.finalizedAt)} />
-        <InfoPill label="Created At" value={formatDate(sale.createdAt)} />
+        {sale.transportCharge ? <InfoPill label="Transport" value={formatMoney(sale.transportCharge)} /> : null}
+        {sale.commissionCharge ? <InfoPill label="Commission" value={formatMoney(sale.commissionCharge)} /> : null}
+        {sale.otherDeduction ? <InfoPill label="Other Deduction" value={formatMoney(sale.otherDeduction)} /> : null}
+        {sale.loadingMortalityCount ? <InfoPill label="Loading Mortality" value={formatNumber(sale.loadingMortalityCount)} /> : null}
       </View>
       <View style={styles.expenseDivider} />
 

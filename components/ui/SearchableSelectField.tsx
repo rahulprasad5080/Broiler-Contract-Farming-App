@@ -1,5 +1,5 @@
 import { Ionicons } from "@expo/vector-icons";
-import React, { useMemo, useState } from "react";
+import React, { useCallback, useMemo, useState } from "react";
 import {
   FlatList,
   StyleSheet,
@@ -77,13 +77,13 @@ export function SearchableSelectField({
     });
   }, [options, query]);
 
-  const openPicker = () => {
+  const openPicker = useCallback(() => {
     if (disabled || locked) return;
     setQuery("");
     setVisible(true);
-  };
+  }, [disabled, locked]);
 
-  const closePicker = () => setVisible(false);
+  const closePicker = useCallback(() => setVisible(false), []);
 
   return (
     <View style={[styles.inputGroup, variant === "filter" && styles.filterInputGroup]}>

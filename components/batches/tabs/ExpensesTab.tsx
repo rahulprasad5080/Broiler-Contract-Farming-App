@@ -32,25 +32,14 @@ function ExpenseHistoryCard({ expense, onPress }: { expense: ApiBatchExpense; on
 
       <View style={styles.expenseInfoGrid}>
         <InfoPill label="Ledger" value={labelize(expense.ledger)} />
-        <InfoPill label="Category" value={expense.category} />
-        <InfoPill label="Expense Date" value={formatDate(expense.expenseDate)} />
-        <InfoPill label="Description" value={expense.description} />
-        <InfoPill label="Quantity" value={formatNumber(expense.quantity)} />
-        <InfoPill label="Unit" value={expense.unit} />
-        <InfoPill label="Rate" value={formatMoney(expense.rate)} />
-        <InfoPill label="Total Amount" value={formatMoney(expense.totalAmount)} />
-        <InfoPill label="Vendor Name" value={expense.vendorName} />
-        <InfoPill label="Invoice No." value={expense.invoiceNumber} />
-        <InfoPill label="Bill Photo URL" value={expense.billPhotoUrl} />
         <InfoPill label="Payment" value={labelize(expense.paymentStatus)} />
         <InfoPill label="Paid Amount" value={formatMoney(expense.paidAmount)} />
         <InfoPill label="Approval" value={labelize(expense.approvalStatus)} />
-        <InfoPill label="Approved At" value={formatDate(expense.approvedAt)} />
-        <InfoPill label="Rejected Reason" value={expense.rejectedReason} />
-        <InfoPill label="Created At" value={formatDate(expense.createdAt)} />
-        <InfoPill label="Updated At" value={formatDate(expense.updatedAt)} />
-        {quantityText ? <InfoPill label="Qty Display" value={quantityText} /> : null}
-        {rateText ? <InfoPill label="Rate Display" value={rateText} /> : null}
+        {expense.rejectedReason ? (
+          <InfoPill label="Rejected Reason" value={expense.rejectedReason} />
+        ) : null}
+        {quantityText ? <InfoPill label="Qty" value={quantityText} /> : null}
+        {rateText ? <InfoPill label="Rate" value={rateText} /> : null}
       </View>
 
       {expense.vendorName || expense.invoiceNumber ? (

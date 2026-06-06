@@ -1,73 +1,116 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Platform, Keyboard } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { BottomTabBarProps } from '@react-navigation/bottom-tabs';
 import { CommonActions } from '@react-navigation/native';
+import type { PartialState, NavigationState } from '@react-navigation/native';
 import { Colors } from '../../constants/Colors';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../../context/AuthContext';
 import { BOTTOM_TAB_PERMISSIONS, canShowForPermissions } from '../../services/permissionRules';
 
+// Defined outside the component so it's never recreated on every render.
+const TAB_DEFINITIONS: {
+  name: string;
+  label: string;
+  activeIcon: keyof typeof Ionicons.glyphMap;
+  inactiveIcon: keyof typeof Ionicons.glyphMap;
+}[] = [
+  { name: 'dashboard', label: 'Dashboard', activeIcon: 'grid', inactiveIcon: 'grid-outline' },
+  { name: 'farms', label: 'Farms', activeIcon: 'business', inactiveIcon: 'business-outline' },
+  { name: 'tasks', label: 'Tasks', activeIcon: 'checkmark-circle', inactiveIcon: 'checkmark-circle-outline' },
+  { name: 'review', label: 'Review', activeIcon: 'shield-checkmark', inactiveIcon: 'shield-checkmark-outline' },
+  { name: 'manage', label: 'Entries', activeIcon: 'briefcase', inactiveIcon: 'briefcase-outline' },
+  { name: 'financials', label: 'Finance', activeIcon: 'wallet', inactiveIcon: 'wallet-outline' },
+  { name: 'reports', label: 'Reports', activeIcon: 'stats-chart', inactiveIcon: 'stats-chart-outline' },
+  { name: 'profile', label: 'More', activeIcon: 'person', inactiveIcon: 'person-outline' },
+];
+
 type BottomTabsProps = BottomTabBarProps & {
   hiddenTabs?: string[];
 };
 
-export function BottomTabs({ state, descriptors, navigation, hiddenTabs = [] }: BottomTabsProps) {
+// Stable empty array so the hiddenTabs default value never creates a new
+// reference on every render — avoids unnecessary re-renders in consumers.
+const EMPTY_ARRAY: string[] = [];
+
+// Check if we are inside a sub-screen of a nested stack navigator.
+// Defined outside the component so it is stable across renders.
+function getNestedRouteName(
+  routeState: PartialState<NavigationState> | NavigationState | undefined,
+): string | null {
+  if (!routeState || !routeState.routes || routeState.index === undefined) return null;
+  const route = routeState.routes[routeState.index];
+  if (route.state) return getNestedRouteName(route.state);
+  return route.name ?? null;
+}
+
+export function BottomTabs({ state, descriptors, navigation, hiddenTabs = EMPTY_ARRAY }: BottomTabsProps) {
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
   const [isKeyboardVisible, setIsKeyboardVisible] = useState(false);
-  
+
   useEffect(() => {
+    let showTimer: ReturnType<typeof setTimeout> | null = null;
+
     const showSubscription = Keyboard.addListener(
       Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow',
-      () => setIsKeyboardVisible(true)
+      () => {
+        if (Platform.OS === 'android') {
+          // Debounce on Android: KeyboardAvoidingView inside Modals can fire
+          // spurious keyboardDidShow events during layout, causing the tab bar
+          // to flash. A short delay filters out those transient events.
+          showTimer = setTimeout(() => setIsKeyboardVisible(true), 200);
+        } else {
+          setIsKeyboardVisible(true);
+        }
+      }
     );
     const hideSubscription = Keyboard.addListener(
       Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide',
-      () => setIsKeyboardVisible(false)
+      () => {
+        if (showTimer !== null) {
+          clearTimeout(showTimer);
+          showTimer = null;
+        }
+        setIsKeyboardVisible(false);
+      }
     );
 
     return () => {
+      if (showTimer !== null) clearTimeout(showTimer);
       showSubscription.remove();
       hideSubscription.remove();
     };
   }, []);
 
-  // Check if we are inside a sub-screen of a nested stack navigator
-  const getNestedRouteName = (routeState: any): string | null => {
-    if (!routeState || !routeState.routes || routeState.index === undefined) return null;
-    const route = routeState.routes[routeState.index];
-    if (route.state) {
-      return getNestedRouteName(route.state);
-    }
-    return route.name;
-  };
-
   const activeTabRoute = state.routes[state.index];
   const activeNestedRouteName = getNestedRouteName(activeTabRoute.state);
-  
-  // If we have a nested stack state and the active screen is not the root "index" screen, hide the tab bar
-  const isSubScreen = activeTabRoute?.state && activeNestedRouteName && activeNestedRouteName !== 'index';
 
-  if (isKeyboardVisible || isSubScreen) return null;
+  // If we have a nested stack state and the active screen is not the root "index" screen, hide the tab bar.
+  const isSubScreen = Boolean(
+    activeTabRoute?.state && activeNestedRouteName && activeNestedRouteName !== 'index'
+  );
 
-  const tabs: { name: string; label: string; activeIcon: keyof typeof Ionicons.glyphMap; inactiveIcon: keyof typeof Ionicons.glyphMap }[] = [
-    { name: 'dashboard', label: 'Dashboard', activeIcon: 'grid', inactiveIcon: 'grid-outline' },
-    { name: 'farms', label: 'Farms', activeIcon: 'business', inactiveIcon: 'business-outline' },
-    { name: 'tasks', label: 'Tasks', activeIcon: 'checkmark-circle', inactiveIcon: 'checkmark-circle-outline' },
-    { name: 'review', label: 'Review', activeIcon: 'shield-checkmark', inactiveIcon: 'shield-checkmark-outline' },
-    { name: 'manage', label: 'Entries', activeIcon: 'briefcase', inactiveIcon: 'briefcase-outline' },
-    { name: 'financials', label: 'Finance', activeIcon: 'wallet', inactiveIcon: 'wallet-outline' },
-    { name: 'reports', label: 'Reports', activeIcon: 'stats-chart', inactiveIcon: 'stats-chart-outline' },
-    { name: 'profile', label: 'More', activeIcon: 'person', inactiveIcon: 'person-outline' },
-  ];
+  const shouldHide = isKeyboardVisible || isSubScreen;
 
   const bottomPadding = insets.bottom > 0 ? insets.bottom : 6;
   const tabHeight = 52 + bottomPadding;
 
+  // FIX: Use `display: 'none'` / pointer-events instead of `return null`.
+  // Returning null fully unmounts the tab bar on every keyboard show/hide and
+  // every sub-screen navigation, causing a visible flash/pop as it remounts.
+  // Using display:'none' keeps the component mounted while hiding it visually.
   return (
-    <View style={[styles.tabBar, { paddingBottom: bottomPadding, height: tabHeight }]}>
-      {tabs.map((tab) => {
+    <View
+      style={[
+        styles.tabBar,
+        { paddingBottom: bottomPadding, height: tabHeight },
+        shouldHide && styles.hidden,
+      ]}
+      pointerEvents={shouldHide ? 'none' : 'auto'}
+    >
+      {TAB_DEFINITIONS.map((tab) => {
         if (hiddenTabs.includes(tab.name)) return null;
 
         const requiredPermission = BOTTOM_TAB_PERMISSIONS[tab.name];
@@ -129,7 +172,6 @@ const styles = StyleSheet.create({
     borderTopWidth: 0.5,
     borderTopColor: '#E5E5EA',
     paddingTop: 8,
-    // Modern shadow
     ...Platform.select({
       ios: {
         shadowColor: '#000',
@@ -141,6 +183,10 @@ const styles = StyleSheet.create({
         elevation: 10,
       },
     }),
+  },
+  // Visually hides without unmounting — avoids the flash/pop of return null.
+  hidden: {
+    display: 'none',
   },
   tabItem: {
     flex: 1,
@@ -167,4 +213,3 @@ const styles = StyleSheet.create({
     letterSpacing: 0,
   },
 });
-

@@ -40,6 +40,16 @@ export function NativeBottomSheet({
   const hiddenOffset = Math.max(height, 1);
   const translateY = useRef(new Animated.Value(hiddenOffset)).current;
 
+  // FIX 1: Keep onClose in a ref so `close` never needs it as a useCallback
+  // dependency. Previously, every inline `() => setVisible(false)` passed as
+  // onClose created a new function identity on every parent render, which forced
+  // `close` to be recreated, which in turn forced `panResponder` to be torn
+  // down and rebuilt — causing the gesture glitch and double-fire.
+  const onCloseRef = useRef(onClose);
+  useEffect(() => {
+    onCloseRef.current = onClose;
+  });
+
   const resolvedMaxHeight = useMemo(() => {
     if (!maxHeight) return height * 0.82;
     if (typeof maxHeight === 'number') return maxHeight;
@@ -49,7 +59,18 @@ export function NativeBottomSheet({
     }
     return height * 0.82;
   }, [maxHeight, height]);
+
   const [mounted, setMounted] = useState(visible);
+
+  // FIX 2: Mirror `mounted` in a ref so the close path inside useEffect can
+  // read it without adding `mounted` to the dependency array. Previously,
+  // `mounted` in deps caused: setMounted(false) → effect re-runs → animation
+  // fires again → sheet flashes/repeats.
+  const mountedRef = useRef(mounted);
+  useEffect(() => {
+    mountedRef.current = mounted;
+  }, [mounted]);
+
   const closingRef = useRef(false);
   const animationFrameRef = useRef<number | null>(null);
 
@@ -67,6 +88,8 @@ export function NativeBottomSheet({
     [translateY],
   );
 
+  // Stable close — only depends on animateTo and hiddenOffset (both stable).
+  // onClose is read from a ref at call time, not captured in the dep array.
   const close = useCallback(() => {
     if (closingRef.current) return;
 
@@ -75,9 +98,9 @@ export function NativeBottomSheet({
     animateTo(hiddenOffset, () => {
       closingRef.current = false;
       setMounted(false);
-      onClose();
+      onCloseRef.current();
     });
-  }, [animateTo, hiddenOffset, onClose]);
+  }, [animateTo, hiddenOffset]);
 
   useEffect(() => {
     if (visible) {
@@ -93,15 +116,19 @@ export function NativeBottomSheet({
       };
     }
 
-    if (mounted && !closingRef.current) {
+    // Read mountedRef (not mounted state) to avoid adding `mounted` to deps.
+    if (mountedRef.current && !closingRef.current) {
       closingRef.current = true;
       animateTo(hiddenOffset, () => {
         closingRef.current = false;
         setMounted(false);
       });
     }
-  }, [animateTo, hiddenOffset, mounted, translateY, visible]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [visible]); // intentionally only [visible] — animateTo/hiddenOffset are stable
 
+  // FIX 3: Because `close` is now stable (no changing deps), `panResponder`
+  // is created once and never torn down mid-gesture.
   const panResponder = useMemo(
     () =>
     PanResponder.create({
@@ -186,7 +213,18 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
     overflow: 'hidden',
-    boxShadow: '0 -8px 30px rgba(15, 23, 42, 0.16)',
+    // Cross-platform shadow (boxShadow is web-only and silently no-ops on iOS/Android)
+    ...Platform.select({
+      ios: {
+        shadowColor: '#0F172A',
+        shadowOffset: { width: 0, height: -8 },
+        shadowOpacity: 0.16,
+        shadowRadius: 30,
+      },
+      android: {
+        elevation: 16,
+      },
+    }),
     flexShrink: 1,
   },
   dragArea: {

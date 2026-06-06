@@ -3,11 +3,15 @@ import { View, Text } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { styles } from './styles';
 
-function GridCard({ icon, iconColor, bgColor, value, label, isWarning }: any) {
+function GridCard({ icon, iconColor, bgColor, value, label, isWarning, fullWidth }: any) {
   return (
-    <View style={[styles.gridCard, isWarning && { borderColor: '#FECACA', backgroundColor: '#FFF5F5' }]}>
+    <View style={[
+      styles.gridCard,
+      isWarning && { borderColor: '#FECACA', backgroundColor: '#FFF5F5' },
+      fullWidth && { width: '100%', marginBottom: 14 }
+    ]}>
       <View style={[styles.gridCardIconWrap, { backgroundColor: bgColor }]}>
-        <MaterialCommunityIcons name={icon} size={13} color={iconColor} />
+        <MaterialCommunityIcons name={icon} size={16} color={iconColor} />
       </View>
       <View style={styles.gridCardTextWrap}>
         <Text style={styles.gridLabel} numberOfLines={1}>{label}</Text>
@@ -92,6 +96,7 @@ export function OverviewTab({
             bgColor="#E8F0FE"
             value={ageDays.toString()}
             label="Age (Days)"
+            fullWidth
           />
         </View>
       </View>
