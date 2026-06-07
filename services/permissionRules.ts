@@ -20,8 +20,7 @@ export type AppPermission =
   | "create:treatments"
   | "view:comments"
   | "review:entries"
-  | "manage:catalog"
-  | "manage:traders";
+  | "manage:catalog";
 
 export type PermissionRequirement = AppPermission | AppPermission[];
 
@@ -46,7 +45,6 @@ export const OWNER_MANAGE_PERMISSION_REQUIREMENTS: AppPermission[] = [
   "manage:settlements",
   "manage:users",
   "manage:catalog",
-  "manage:traders",
   "view:financial-dashboard",
 ];
 

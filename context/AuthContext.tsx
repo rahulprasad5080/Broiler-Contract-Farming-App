@@ -3,26 +3,33 @@ import React from "react";
 import { AppState, AppStateStatus } from "react-native";
 import Toast from "react-native-toast-message";
 
+import { ApiError, subscribeToApiAuthFailures } from "../services/api";
+import { showRequestErrorToast } from "../services/apiFeedback";
 import {
+  changePassword as changeAccountPassword,
   fetchMe,
   login,
   loginWithPin,
   logout,
-  registerOwner,
   refreshAuth,
-  changePassword as changeAccountPassword,
+  registerOwner,
   setServerPin,
   updateFcmToken,
   updateServerBiometric,
   type ApiRole,
   type RegisterOwnerRequest,
 } from "../services/authApi";
-import { ApiError, subscribeToApiAuthFailures } from "../services/api";
-import { showRequestErrorToast } from "../services/apiFeedback";
 import {
   assertUserCanKeepSession,
   isRevokedUserError,
 } from "../services/authRevocation";
+import {
+  clearQuickAuth,
+  getPreferredQuickLoginRoute,
+  hasAnyQuickAuth,
+  saveQuickPin,
+  setBiometricEnabled,
+} from "../services/authSecurity";
 import {
   clearStoredSession,
   loadStoredSession,
@@ -35,24 +42,17 @@ import type {
   AuthSession,
   AuthTokens,
 } from "../services/authTypes";
-import {
-  clearQuickAuth,
-  getPreferredQuickLoginRoute,
-  hasAnyQuickAuth,
-  saveQuickPin,
-  setBiometricEnabled,
-} from "../services/authSecurity";
 import { normalizeMobileNumber } from "../services/authValidation";
+import type { AppPermission } from "../services/permissionRules";
+import {
+  clearSyncedFcmTokenCache,
+  syncFcmTokenWithServer,
+} from "../services/pushNotifications";
 import {
   getDashboardRoute,
   getRouteRequiredPermission,
   isRouteAllowedForRole,
 } from "../services/routeGuards";
-import {
-  clearSyncedFcmTokenCache,
-  syncFcmTokenWithServer,
-} from "../services/pushNotifications";
-import type { AppPermission } from "../services/permissionRules";
 
 export type UserRole = ApiRole | null;
 export type Permission = AppPermission;
@@ -178,7 +178,6 @@ function getPermissionsForRole(role: UserRole): Permission[] {
       "view:comments",
       "review:entries",
       "manage:catalog",
-      "manage:traders",
     ];
   }
 
@@ -212,7 +211,6 @@ function getPermissionsForRole(role: UserRole): Permission[] {
       "manage:partners",
       "manage:inventory",
       "manage:catalog",
-      "manage:traders",
       "manage:users",
     ];
   }
@@ -265,7 +263,7 @@ function hasCompleteApiPermissionMatrix(
 ): permissions is ApiPermissionMatrix {
   return Boolean(
     permissions &&
-      API_PERMISSION_KEYS.every((key) => typeof permissions[key] === "boolean"),
+    API_PERMISSION_KEYS.every((key) => typeof permissions[key] === "boolean"),
   );
 }
 
@@ -277,7 +275,7 @@ function getPermissionsFromApi(permissions?: ApiPermissionMatrix): Permission[] 
   if (permissions.dailyEntry) {
     mapped.push("create:daily-entry", "create:treatments", "view:comments");
   }
-  if (permissions.salesEntry) mapped.push("create:sales", "finalize:sales", "manage:traders");
+  if (permissions.salesEntry) mapped.push("create:sales", "finalize:sales");
   if (permissions.expenseEntry) mapped.push("create:expenses");
   if (permissions.inventoryView) mapped.push("manage:inventory", "manage:catalog");
   if (permissions.costVisibility) mapped.push("view:inventory-cost");
@@ -294,9 +292,9 @@ function getPermissionsFromApi(permissions?: ApiPermissionMatrix): Permission[] 
 function normalizeUser(user: UserLike): User {
   const role =
     user.role === "OWNER" ||
-    user.role === "ACCOUNTS" ||
-    user.role === "SUPERVISOR" ||
-    user.role === "FARMER"
+      user.role === "ACCOUNTS" ||
+      user.role === "SUPERVISOR" ||
+      user.role === "FARMER"
       ? user.role
       : null;
   const configurablePermissions = hasCompleteApiPermissionMatrix(user.permissions)
@@ -533,8 +531,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const requiredPermission = getRouteRequiredPermission(segmentList);
         const hasRoutePermission = Array.isArray(requiredPermission)
           ? requiredPermission.some((permission) =>
-              user.permissions.includes(permission as Permission),
-            )
+            user.permissions.includes(permission as Permission),
+          )
           : requiredPermission
             ? user.permissions.includes(requiredPermission as Permission)
             : true;
@@ -622,8 +620,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           (mustChangePassword
             ? CHANGE_PASSWORD_ROUTE
             : quickAuthEnabled
-            ? "/(auth)/quick-unlock"
-            : "/(auth)/login-success2"),
+              ? "/(auth)/quick-unlock"
+              : "/(auth)/login-success2"),
         );
 
         return null;

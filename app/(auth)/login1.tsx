@@ -75,9 +75,11 @@ export default function LoginScreen() {
     const errorMessage = await signIn(data.phone, data.password);
 
     if (errorMessage) {
-      Toast.show({type: "error",
+      Toast.show({
+        type: "error",
         text1: "Login failed",
-        text2: errorMessage, position: 'bottom'});
+        text2: errorMessage, position: 'bottom'
+      });
     }
   };
 
@@ -158,135 +160,135 @@ export default function LoginScreen() {
         behavior={Platform.OS === "ios" ? "padding" : "height"}
         style={{ flex: 1 }}
       >
-      <ScrollView contentContainerStyle={styles.scrollContent}>
-        <View style={styles.container}>
-          <View style={styles.brandBlock}>
-            <Image
-              source={require("../../assets/logo.png")}
-              style={styles.logoImage}
-              resizeMode="cover"
-            />
-            <Text style={styles.appTitle}>WingSoft Farms</Text>
-            <Text style={styles.appSubtitle}>Secure farm access with mobile number login</Text>
-          </View>
-
-          <View style={styles.formBlock}>
-            <View style={styles.fieldGroup}>
-              <Text style={styles.label}>Mobile Number</Text>
-              <Controller
-                control={control}
-                name="phone"
-                render={({ field: { onChange, onBlur, value }, fieldState: { error } }) => (
-                  <>
-                    <View
-                      style={[
-                        styles.mobileInputWrap,
-                        error && styles.inputWrapError,
-                      ]}
-                    >
-                      <View style={styles.countryCode}>
-                        <Text style={styles.countryCodeText}>+91</Text>
-                      </View>
-                      <TextInput
-                        style={styles.input}
-                        value={value}
-                        onChangeText={(nextValue) => onChange(normalizeMobileNumber(nextValue))}
-                        onBlur={onBlur}
-                        placeholder="Enter 10-digit mobile number"
-                        placeholderTextColor="#99A2AD"
-                        keyboardType="number-pad"
-                        maxLength={10}
-                        autoCapitalize="none"
-                        autoComplete="tel"
-                        textContentType="telephoneNumber"
-                        returnKeyType="next"
-                      />
-                      <Ionicons
-                        name="call-outline"
-                        size={22}
-                        color={Colors.primary}
-                      />
-                    </View>
-                    {error?.message ? (
-                      <Text style={styles.errorText}>{error.message}</Text>
-                    ) : (
-                      <Text style={styles.helperText}>
-                        Use the mobile number linked to your WingSoft Farms account.
-                      </Text>
-                    )}
-                  </>
-                )}
+        <ScrollView contentContainerStyle={styles.scrollContent}>
+          <View style={styles.container}>
+            <View style={styles.brandBlock}>
+              <Image
+                source={require("../../assets/logo.png")}
+                style={styles.logoImage}
+                resizeMode="cover"
               />
+              <Text style={styles.appTitle}>WingSoft Farms</Text>
+              <Text style={styles.appSubtitle}>Secure farm access with mobile number login</Text>
             </View>
 
-            <View style={styles.fieldGroup}>
-              <Text style={styles.label}>Password</Text>
-              <Controller
-                control={control}
-                name="password"
-                render={({ field: { onChange, onBlur, value }, fieldState: { error } }) => (
-                  <>
-                    <View style={[styles.inputWrap, error && styles.inputWrapError]}>
-                      <Ionicons
-                        name="lock-closed-outline"
-                        size={20}
-                        color={Colors.textSecondary}
-                      />
-                      <TextInput
-                        style={styles.input}
-                        value={value}
-                        onChangeText={onChange}
-                        onBlur={onBlur}
-                        placeholder="Enter your password"
-                        placeholderTextColor="#99A2AD"
-                        secureTextEntry={!showPassword}
-                        autoCapitalize="none"
-                        autoComplete="password"
-                        textContentType="password"
-                      />
-                      <TouchableOpacity
-                        onPress={() => setShowPassword((current) => !current)}
-                        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            <View style={styles.formBlock}>
+              <View style={styles.fieldGroup}>
+                <Text style={styles.label}>Mobile Number</Text>
+                <Controller
+                  control={control}
+                  name="phone"
+                  render={({ field: { onChange, onBlur, value }, fieldState: { error } }) => (
+                    <>
+                      <View
+                        style={[
+                          styles.mobileInputWrap,
+                          error && styles.inputWrapError,
+                        ]}
                       >
+                        <View style={styles.countryCode}>
+                          <Text style={styles.countryCodeText}>+91</Text>
+                        </View>
+                        <TextInput
+                          style={styles.input}
+                          value={value}
+                          onChangeText={(nextValue) => onChange(normalizeMobileNumber(nextValue))}
+                          onBlur={onBlur}
+                          placeholder="Enter 10-digit mobile number"
+                          placeholderTextColor="#99A2AD"
+                          keyboardType="number-pad"
+                          maxLength={10}
+                          autoCapitalize="none"
+                          autoComplete="tel"
+                          textContentType="telephoneNumber"
+                          returnKeyType="next"
+                        />
                         <Ionicons
-                          name={showPassword ? "eye-off-outline" : "eye-outline"}
+                          name="call-outline"
                           size={22}
+                          color={Colors.primary}
+                        />
+                      </View>
+                      {error?.message ? (
+                        <Text style={styles.errorText}>{error.message}</Text>
+                      ) : (
+                        <Text style={styles.helperText}>
+                          Use the mobile number linked to WingSoft Farms account.
+                        </Text>
+                      )}
+                    </>
+                  )}
+                />
+              </View>
+
+              <View style={styles.fieldGroup}>
+                <Text style={styles.label}>Password</Text>
+                <Controller
+                  control={control}
+                  name="password"
+                  render={({ field: { onChange, onBlur, value }, fieldState: { error } }) => (
+                    <>
+                      <View style={[styles.inputWrap, error && styles.inputWrapError]}>
+                        <Ionicons
+                          name="lock-closed-outline"
+                          size={20}
                           color={Colors.textSecondary}
                         />
-                      </TouchableOpacity>
-                    </View>
-                    {error?.message ? (
-                      <Text style={styles.errorText}>{error.message}</Text>
-                    ) : (
-                      <Text style={styles.helperText}>
-                        Use the same password you use for your farm account.
-                      </Text>
-                    )}
-                  </>
-                )}
-              />
-            </View>
-
-            <TouchableOpacity
-              style={[styles.loginButton, isLoading && styles.buttonDisabled]}
-              onPress={handleSubmit(onSubmit)}
-              disabled={isLoading}
-              activeOpacity={0.85}
-            >
-              <Text style={styles.loginButtonText}>
-                {isLoading ? "LOGGING IN..." : "LOGIN"}
-              </Text>
-              {!isLoading ? (
-                <Ionicons
-                  name="arrow-forward"
-                  size={26}
-                  color="#FFFFFF"
-                  style={styles.loginIcon}
+                        <TextInput
+                          style={styles.input}
+                          value={value}
+                          onChangeText={onChange}
+                          onBlur={onBlur}
+                          placeholder="Enter your password"
+                          placeholderTextColor="#99A2AD"
+                          secureTextEntry={!showPassword}
+                          autoCapitalize="none"
+                          autoComplete="password"
+                          textContentType="password"
+                        />
+                        <TouchableOpacity
+                          onPress={() => setShowPassword((current) => !current)}
+                          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                        >
+                          <Ionicons
+                            name={showPassword ? "eye-off-outline" : "eye-outline"}
+                            size={22}
+                            color={Colors.textSecondary}
+                          />
+                        </TouchableOpacity>
+                      </View>
+                      {error?.message ? (
+                        <Text style={styles.errorText}>{error.message}</Text>
+                      ) : (
+                        <Text style={styles.helperText}>
+                          Use the same password you use for your farm account.
+                        </Text>
+                      )}
+                    </>
+                  )}
                 />
-              ) : null}
-            </TouchableOpacity>
+              </View>
 
-            {/* <View style={styles.quickLoginRow}>
+              <TouchableOpacity
+                style={[styles.loginButton, isLoading && styles.buttonDisabled]}
+                onPress={handleSubmit(onSubmit)}
+                disabled={isLoading}
+                activeOpacity={0.85}
+              >
+                <Text style={styles.loginButtonText}>
+                  {isLoading ? "LOGGING IN..." : "LOGIN"}
+                </Text>
+                {!isLoading ? (
+                  <Ionicons
+                    name="arrow-forward"
+                    size={26}
+                    color="#FFFFFF"
+                    style={styles.loginIcon}
+                  />
+                ) : null}
+              </TouchableOpacity>
+
+              {/* <View style={styles.quickLoginRow}>
               <TouchableOpacity
                 style={styles.quickLoginButton}
                 onPress={openPinLogin}
@@ -308,7 +310,7 @@ export default function LoginScreen() {
               </TouchableOpacity>
             </View> */}
 
-            {/* <TouchableOpacity
+              {/* <TouchableOpacity
               style={styles.forgotPasswordButton}
               onPress={() => setShowResetHelp(true)}
               disabled={isLoading}
@@ -317,7 +319,7 @@ export default function LoginScreen() {
               <Text style={styles.forgotPasswordText}>Forgot Password?</Text>
             </TouchableOpacity> */}
 
-            {/* <View style={styles.helpContainer}>
+              {/* <View style={styles.helpContainer}>
               <Ionicons
                 name="shield-checkmark-outline"
                 size={19}
@@ -328,7 +330,7 @@ export default function LoginScreen() {
               </Text>
             </View> */}
 
-            {/* <TouchableOpacity
+              {/* <TouchableOpacity
               style={styles.registerButton}
               onPress={() => setShowRegister(true)}
               disabled={isLoading}
@@ -337,9 +339,9 @@ export default function LoginScreen() {
               <Ionicons name="business-outline" size={18} color={Colors.primary} />
               <Text style={styles.registerButtonText}>Register Organization</Text>
             </TouchableOpacity> */}
+            </View>
           </View>
-        </View>
-      </ScrollView>
+        </ScrollView>
       </KeyboardAvoidingView>
 
       <Modal

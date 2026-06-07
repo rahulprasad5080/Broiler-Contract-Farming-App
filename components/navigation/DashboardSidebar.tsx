@@ -316,13 +316,7 @@ const supervisorRoutes: DashboardSidebarRoute[] = [
     section: "Entries",
     requiredPermission: "view:comments",
   },
-  {
-    title: "Traders",
-    icon: "people-outline",
-    route: "/(supervisor)/manage/traders",
-    section: "Management",
-    requiredPermission: "manage:traders",
-  },
+
   {
     title: "Notifications",
     icon: "notifications-outline",

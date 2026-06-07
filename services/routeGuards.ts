@@ -78,12 +78,10 @@ const TASK_ROUTE_PERMISSIONS: Record<string, AppPermission> = {
 
 const SUPERVISOR_MANAGE_INDEX_PERMISSIONS: AppPermission[] = [
   "manage:catalog",
-  "manage:traders",
 ];
 
 const SUPERVISOR_MANAGE_ROUTE_PERMISSIONS: Record<string, AppPermission> = {
   catalog: "manage:catalog",
-  traders: "manage:traders",
 };
 
 export function getRoleRouteGroup(role: AppRole) {
