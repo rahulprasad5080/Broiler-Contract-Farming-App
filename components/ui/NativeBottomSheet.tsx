@@ -54,7 +54,7 @@ export function NativeBottomSheet({
       return stableHeight * pct;
     }
     return stableHeight * 0.82;
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [maxHeight]);
   const translateY = useRef(new Animated.Value(hiddenOffset)).current;
   const [mounted, setMounted] = useState(visible);
@@ -84,7 +84,7 @@ export function NativeBottomSheet({
         }
       });
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [visible]);
 
   const close = useCallback(() => {
