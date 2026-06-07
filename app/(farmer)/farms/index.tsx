@@ -50,42 +50,77 @@ export default function FarmerFarmsScreen() {
     fetchFarms();
   };
 
-  const renderFarmCard = ({ item }: { item: ApiFarm }) => (
-    <TouchableOpacity
-      style={styles.farmCard}
-      onPress={() => router.navigate(`/(farmer)/farms/${item.id}`)}
-      activeOpacity={0.8}
-    >
-      <View style={styles.cardHeader}>
-        <View style={styles.farmInfo}>
-          <Text style={styles.farmName}>{item.name}</Text>
-          <Text style={styles.farmCode}>{item.code}</Text>
+  const renderFarmCard = ({ item }: { item: ApiFarm }) => {
+    const isActive = item.status === 'ACTIVE';
+    const statusBg = isActive ? '#EAF7EF' : '#FDF2F2';
+    const statusTextColor = isActive ? '#00875A' : '#EF4444';
+    const statusLabel = isActive ? 'Active' : 'Inactive';
+
+    return (
+      <TouchableOpacity
+        style={styles.farmCard}
+        onPress={() => router.navigate(`/(farmer)/farms/${item.id}`)}
+        activeOpacity={0.85}
+      >
+        {/* Card Header */}
+        <View style={styles.cardHeader}>
+          <View style={styles.headerLeft}>
+            <View style={styles.iconBox}>
+              <Ionicons name="business" size={20} color={Colors.primary} />
+            </View>
+            <View style={styles.farmInfo}>
+              <Text style={styles.farmName} numberOfLines={1}>{item.name}</Text>
+              <Text style={styles.farmCode}>{item.code}</Text>
+            </View>
+          </View>
+          <View style={[styles.statusBadge, { backgroundColor: statusBg }]}>
+            <Text style={[styles.statusBadgeText, { color: statusTextColor }]}>{statusLabel}</Text>
+          </View>
         </View>
-        <View style={styles.iconBox}>
-          <Ionicons name="business" size={24} color={Colors.primary} />
+
+        {/* Metrics Row */}
+        <View style={styles.metricsRow}>
+          <View style={styles.metricCol}>
+            <Text style={styles.metricLabel}>Capacity</Text>
+            <Text style={styles.metricValue} numberOfLines={1}>
+              {item.capacity ? item.capacity.toLocaleString() : 'N/A'}
+            </Text>
+          </View>
+          <View style={styles.metricDivider} />
+          <View style={styles.metricCol}>
+            <Text style={styles.metricLabel}>Supervisor</Text>
+            <Text style={styles.metricValue} numberOfLines={1}>
+              {item.supervisorName || 'None'}
+            </Text>
+          </View>
+          <View style={styles.metricDivider} />
+          <View style={styles.metricCol}>
+            <Text style={styles.metricLabel}>Active Batches</Text>
+            <Text style={styles.metricValue} numberOfLines={1}>
+              {item.activeBatchCount}
+            </Text>
+          </View>
         </View>
-      </View>
-      
-      <View style={styles.cardDivider} />
-      
-      <View style={styles.cardFooter}>
-        <View style={styles.locationRow}>
-          <Ionicons name="location-outline" size={14} color={Colors.textSecondary} />
-          <Text style={styles.locationText} numberOfLines={1}>
-            {[item.village, item.district].filter(Boolean).join(', ') || 'Location not specified'}
-          </Text>
+
+        <View style={styles.cardDivider} />
+
+        {/* Card Footer */}
+        <View style={styles.cardFooter}>
+          <View style={styles.locationRow}>
+            <Ionicons name="location-outline" size={14} color={Colors.textSecondary} />
+            <Text style={styles.locationText} numberOfLines={1}>
+              {item.location || 'Location not specified'}
+            </Text>
+          </View>
+          <Ionicons name="chevron-forward" size={16} color="#9CA3AF" />
         </View>
-        
-        <View style={styles.badgeWrap}>
-          <Text style={styles.badgeText}>{item.activeBatchCount} Active Batches</Text>
-        </View>
-      </View>
-    </TouchableOpacity>
-  );
+      </TouchableOpacity>
+    );
+  };
 
   return (
     <View style={styles.safeArea}>
-      <TopAppBar title="My Assigned Farms" subtitle="Assigned farms and active batches" leadingMode="back" />
+      <TopAppBar title="My Assigned Farms" subtitle="Assigned farms and active batches" />
 
       <View style={styles.container}>
         {loading && !refreshing ? (
@@ -152,44 +187,90 @@ const styles = StyleSheet.create({
   },
   farmCard: {
     backgroundColor: '#FFF',
-    borderRadius: 8,
+    borderRadius: 16,
     padding: 16,
     marginBottom: 16,
     borderWidth: 1,
-    borderColor: Colors.border,
+    borderColor: '#ECEEF0',
     ...Layout.cardShadow,
   },
   cardHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'flex-start',
+    alignItems: 'center',
+  },
+  headerLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+    marginRight: 8,
+  },
+  iconBox: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: '#F1F8F4',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 10,
   },
   farmInfo: {
     flex: 1,
   },
   farmName: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: Colors.text,
-    marginBottom: 4,
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#1F2937',
+    marginBottom: 2,
   },
   farmCode: {
-    fontSize: 12,
-    color: Colors.textSecondary,
+    fontSize: 11,
+    color: '#6B7280',
     fontWeight: '600',
   },
-  iconBox: {
-    width: 44,
-    height: 44,
-    borderRadius: 8,
-    backgroundColor: '#F1F8F4',
-    justifyContent: 'center',
+  statusBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+  },
+  statusBadgeText: {
+    fontSize: 10,
+    fontWeight: '700',
+  },
+  metricsRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'center',
+    marginTop: 14,
+  },
+  metricCol: {
+    flex: 1,
+    alignItems: 'center',
+  },
+  metricLabel: {
+    fontSize: 9,
+    color: '#9CA3AF',
+    marginBottom: 4,
+    textTransform: 'uppercase',
+    fontWeight: '600',
+    letterSpacing: 0.5,
+    textAlign: 'center',
+  },
+  metricValue: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#374151',
+    textAlign: 'center',
+  },
+  metricDivider: {
+    width: 1,
+    height: 20,
+    backgroundColor: '#E5E7EB',
   },
   cardDivider: {
     height: 1,
-    backgroundColor: Colors.border,
-    marginVertical: 14,
+    backgroundColor: '#F3F4F6',
+    marginVertical: 12,
   },
   cardFooter: {
     flexDirection: 'row',
@@ -200,24 +281,12 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     flex: 1,
-    marginRight: 10,
+    marginRight: 8,
   },
   locationText: {
-    fontSize: 13,
-    color: Colors.textSecondary,
+    fontSize: 12,
+    color: '#6B7280',
     marginLeft: 4,
-  },
-  badgeWrap: {
-    backgroundColor: '#FFF',
-    borderWidth: 1,
-    borderColor: Colors.primary,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 6,
-  },
-  badgeText: {
-    fontSize: 11,
-    fontWeight: 'bold',
-    color: Colors.primary,
+    flex: 1,
   },
 });

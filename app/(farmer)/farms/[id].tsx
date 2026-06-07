@@ -106,7 +106,7 @@ export default function FarmerFarmDetailScreen() {
     <View style={styles.safeArea}>
       <TopAppBar
         title={farm.name}
-        subtitle={[farm.location, farm.village, farm.district].filter(Boolean).join(', ')}
+        subtitle={farm.location || 'Location not specified'}
       />
 
       <FlatList
@@ -120,10 +120,10 @@ export default function FarmerFarmDetailScreen() {
           <>
             <View style={styles.summaryCard}>
               <View style={styles.summaryTop}>
-                <View>
+                <View style={{ flex: 1, marginRight: 12 }}>
                   <Text style={styles.farmCode}>{farm.code}</Text>
                   <Text style={styles.locationText}>
-                    {[farm.location, farm.village, farm.district].filter(Boolean).join(', ')}
+                    {farm.location || 'Location not specified'}
                   </Text>
                 </View>
                 <View style={styles.badge}>
@@ -352,13 +352,16 @@ const styles = StyleSheet.create({
   },
   batchActions: {
     flexDirection: 'row',
-    gap: 10,
+    flexWrap: 'wrap',
+    gap: 8,
     borderTopWidth: 1,
     borderTopColor: Colors.border,
     paddingTop: 12,
   },
   actionBtn: {
-    flex: 1,
+    flexGrow: 1,
+    flexShrink: 1,
+    minWidth: 90,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
@@ -366,7 +369,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#FAFAFA',
     borderWidth: 1,
     borderColor: Colors.border,
-    paddingVertical: 10,
+    paddingVertical: 8,
     borderRadius: 8,
   },
   actionBtnText: {
