@@ -1610,11 +1610,13 @@ const styles = StyleSheet.create({
     minHeight: 28,
     marginTop: 10,
     paddingHorizontal: 10,
+    paddingVertical: 6,
     borderRadius: 14,
     backgroundColor: '#F3F4F6',
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
+    maxWidth: '100%',
   },
   passwordPolicyStatusActive: {
     backgroundColor: '#EEF8F0',
@@ -1623,6 +1625,7 @@ const styles = StyleSheet.create({
     color: Colors.textSecondary,
     fontSize: 11,
     fontWeight: '800',
+    flexShrink: 1,
   },
   passwordPolicyStatusTextActive: {
     color: Colors.primary,
