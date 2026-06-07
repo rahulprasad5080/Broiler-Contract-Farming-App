@@ -9,6 +9,8 @@ import Toast from "react-native-toast-message";
 import { Colors } from "../constants/Colors";
 import { AuthProvider, useAuth } from "../context/AuthContext";
 import { SidebarProvider } from "../context/SidebarContext";
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import { BottomSheetModalProvider } from '@gorhom/bottom-sheet';
 
 import { NetworkInspector } from "@/components/debug/NetworkInspector";
 import { useOfflineSyncQueue } from "@/hooks/useOfflineSyncQueue";
@@ -84,18 +86,22 @@ const toastConfig = {
 
 export default function RootLayout() {
   return (
-    <SafeAreaProvider>
-      <AuthProvider>
-        <SidebarProvider>
-          <View style={styles.keyboardRoot}>
-            <RootContent />
-            <NetworkStatus />
-            <NetworkInspector />
-          </View>
-        </SidebarProvider>
-      </AuthProvider>
-      <Toast topOffset={60} bottomOffset={100} config={toastConfig} />
-    </SafeAreaProvider>
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <BottomSheetModalProvider>
+        <SafeAreaProvider>
+          <AuthProvider>
+            <SidebarProvider>
+              <View style={styles.keyboardRoot}>
+                <RootContent />
+                <NetworkStatus />
+                <NetworkInspector />
+              </View>
+            </SidebarProvider>
+          </AuthProvider>
+          <Toast topOffset={60} bottomOffset={100} config={toastConfig} />
+        </SafeAreaProvider>
+      </BottomSheetModalProvider>
+    </GestureHandlerRootView>
   );
 }
 
