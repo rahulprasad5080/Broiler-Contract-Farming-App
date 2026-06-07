@@ -1,7 +1,7 @@
-import { Feather, Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import { useRouter, type Href } from 'expo-router';
-import React, { useCallback, useMemo, useState } from 'react';
+import { useCallback, useState } from 'react';
 import {
   ActivityIndicator,
   Image,
@@ -11,7 +11,6 @@ import {
   StatusBar,
   StyleSheet,
   Text,
-  TextInput,
   TouchableOpacity,
   View
 } from 'react-native';
@@ -40,7 +39,6 @@ export default function SupervisorDashboard() {
   const router = useRouter();
   const [dashboard, setDashboard] = useState<ApiDashboardSummary | null>(null);
   const [unreadNotificationsCount, setUnreadNotificationsCount] = useState(0);
-  const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState<string | null>(null);
 
@@ -78,19 +76,8 @@ export default function SupervisorDashboard() {
     }, [loadDashboard]),
   );
 
-  const visibleBatches = useMemo(() => {
-    const query = search.trim().toLowerCase();
-    const rows = dashboard?.activeBatches ?? [];
-    if (!query) return rows;
+  const visibleBatches = dashboard?.activeBatches ?? [];
 
-    return rows.filter(
-      (batch) =>
-        batch.batchCode.toLowerCase().includes(query) ||
-        (batch.farmName ?? '').toLowerCase().includes(query),
-    );
-  }, [dashboard?.activeBatches, search]);
-
-  const alertCount = dashboard?.alerts?.length ?? 0;
   const canCreateDailyEntry = hasPermission('create:daily-entry');
   const canViewNotifications = hasPermission('view:notifications');
   const canReviewEntries = hasPermission('review:entries');
@@ -118,176 +105,189 @@ export default function SupervisorDashboard() {
         style={{ flex: 1 }}
       >
 
-      {/* Global Top App Bar */}
-      <TopAppBar
-        leadingMode="menu"
-        title="WingSoft Farms"
-        notificationCount={canViewNotifications ? unreadNotificationsCount : -1}
-        onNotificationPress={
-          canViewNotifications
-            ? () => router.navigate('/(supervisor)/notifications' as Href)
-            : undefined
-        }
-      />
+        {/* Global Top App Bar */}
+        <TopAppBar
+          leadingMode="menu"
+          title="WingSoft Farms"
+          notificationCount={canViewNotifications ? unreadNotificationsCount : -1}
+          onNotificationPress={
+            canViewNotifications
+              ? () => router.navigate('/(supervisor)/notifications' as Href)
+              : undefined
+          }
+        />
 
-      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
-        {/* Profile Section */}
-        <View style={styles.profileSection}>
-          <View style={styles.profileLeft}>
-            <Image
-              source={{ uri: 'https://i.pravatar.cc/100?img=11' }}
-              style={styles.avatar}
-            />
-            <View>
-              <Text style={styles.greetingText}>Hello, {user?.name ?? 'Supervisor'}</Text>
-              <View style={styles.farmSelector}>
-                <Text style={styles.farmName}>Supervisor Dashboard</Text>
-              </View>
-            </View>
-          </View>
-          <View style={styles.dateBtn}>
-            <Text style={styles.dateBtnText}>
-              {new Date().toLocaleDateString('en-GB', {
-                day: '2-digit',
-                month: 'short',
-                year: 'numeric',
-              })}
-            </Text>
-          </View>
-        </View>
-
-        {message ? (
-          <View style={styles.messageBox}>
-            <Ionicons name="information-circle-outline" size={18} color={Colors.primary} />
-            <Text style={styles.messageText}>{message}</Text>
-          </View>
-        ) : null}
-
-        {/* Today at a Glance - Grid Style from Admin */}
-        {hasGlanceCards ? (
-          <>
-            <Text style={styles.sectionTitle}>Today at a Glance</Text>
-            <View style={styles.glanceGrid}>
-          {canReviewEntries ? (
-            <TouchableOpacity style={styles.glanceCard} onPress={() => router.navigate('/(supervisor)/review' as Href)} activeOpacity={0.82}>
-              <Text style={styles.glanceValue}>{formatNumber(dashboard?.today?.activeBatches)}</Text>
-              <Text style={styles.glanceLabel}>Active Batches</Text>
-            </TouchableOpacity>
-          ) : null}
-          {canViewReports ? (
-            <TouchableOpacity style={styles.glanceCard} onPress={() => router.navigate('/(supervisor)/reports' as Href)} activeOpacity={0.82}>
-              <Text style={styles.glanceValue}>{formatNumber(dashboard?.today?.liveBirds)}</Text>
-              <Text style={styles.glanceLabel}>Total Live Birds</Text>
-            </TouchableOpacity>
-          ) : null}
-          {canCreateDailyEntry ? (
-            <TouchableOpacity style={styles.glanceCard} onPress={() => router.navigate('/(supervisor)/tasks/daily' as Href)} activeOpacity={0.82}>
-              <View style={styles.glanceRow}>
-                <Text style={styles.glanceValueSmall}>{formatNumber(dashboard?.today?.mortalityToday)}</Text>
-                <Text style={styles.glancePercentBold}>{mortalityTodayPercent.toFixed(2)}%</Text>
-              </View>
-              <Text style={styles.glanceLabel}>Mortality (Today)</Text>
-            </TouchableOpacity>
-          ) : null}
-          {canViewReports ? (
-            <TouchableOpacity style={styles.glanceCard} onPress={() => router.navigate('/(supervisor)/reports' as Href)} activeOpacity={0.82}>
-              <View style={styles.glanceRow}>
-                <Text style={styles.glanceValueSmall}>{formatNumber(dashboard?.today?.mortalityTotal)}</Text>
-                <Text style={styles.glancePercentBold}>{mortalityTotalPercent.toFixed(2)}%</Text>
-              </View>
-              <Text style={styles.glanceLabel}>Mortality (Total)</Text>
-            </TouchableOpacity>
-          ) : null}
-            </View>
-          </>
-        ) : null}
-
-        {/* Alert Pills - Horizontal Scroll from Admin */}
-        {hasAlertPills ? (
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.alertPillsContainer}
-          >
-          {canCreateSales ? (
-            <TouchableOpacity style={styles.alertPill} onPress={() => router.navigate('/(supervisor)/tasks/sales' as Href)} activeOpacity={0.82}>
-              <Text style={[styles.alertPillValue, { color: THEME_GREEN }]}>
-                {formatNumber(dashboard?.today?.salesReady)}
-              </Text>
-              <Text style={styles.alertPillLabel}>Sales Ready</Text>
-            </TouchableOpacity>
-          ) : null}
-          {canCreateDailyEntry ? (
-            <TouchableOpacity style={styles.alertPill} onPress={() => router.navigate('/(supervisor)/tasks/daily' as Href)} activeOpacity={0.82}>
-              <Text style={[styles.alertPillValue, { color: "#1976D2" }]}>
-                {formatNumber(dashboard?.today?.pendingEntries)}
-              </Text>
-              <Text style={styles.alertPillLabel}>Pending{"\n"}Entries</Text>
-            </TouchableOpacity>
-          ) : null}
-          {canReviewEntries ? (
-            <TouchableOpacity style={styles.alertPill} onPress={() => router.navigate('/(supervisor)/review' as Href)} activeOpacity={0.82}>
-              <Text style={[styles.alertPillValue, { color: "#F57C00" }]}>
-                {formatNumber(dashboard?.today?.feedAlert)}
-              </Text>
-              <Text style={styles.alertPillLabel}>Feed Alert</Text>
-            </TouchableOpacity>
-          ) : null}
-          {canViewReports ? (
-            <TouchableOpacity style={styles.alertPill} onPress={() => router.navigate('/(supervisor)/reports' as Href)} activeOpacity={0.82}>
-              <Text style={[styles.alertPillValue, { color: "#D32F2F" }]}>
-                {formatNumber(dashboard?.today?.fcrAlert)}
-              </Text>
-              <Text style={styles.alertPillLabel}>FCR Alert</Text>
-            </TouchableOpacity>
-          ) : null}
-          </ScrollView>
-        ) : null}
-
-        <View style={styles.searchRow}>
-          <View style={styles.searchWrapper}>
-            <Ionicons name="search-outline" size={20} color={Colors.textSecondary} style={styles.searchIcon} />
-            <TextInput
-              placeholder="Search batches or farms..."
-              style={styles.searchInput}
-              placeholderTextColor={Colors.textSecondary}
-              value={search}
-              onChangeText={setSearch}
-            />
-          </View>
-          <TouchableOpacity style={styles.filterBtn} onPress={() => void loadDashboard()}>
-            {loading ? (
-              <ActivityIndicator color={Colors.primary} />
-            ) : (
-              <MaterialCommunityIcons name="refresh" size={23} color={Colors.text} />
-            )}
-          </TouchableOpacity>
-        </View>
-
-        <View style={styles.farmList}>
-          <Text style={styles.sectionTitle}>My Farms & Batches</Text>
-          {loading && !dashboard ? (
-            <View style={styles.loadingBox}>
-              <ActivityIndicator color={Colors.primary} />
-              <Text style={styles.loadingText}>Loading dashboard...</Text>
-            </View>
-          ) : visibleBatches.length ? (
-            visibleBatches.map((batch) => (
-              <BatchCard
-                key={batch.batchId}
-                batch={batch}
-                canOpenDailyEntry={canCreateDailyEntry}
-                canOpenReview={canReviewEntries}
+        <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+          {/* Profile Section */}
+          <View style={styles.profileSection}>
+            <View style={styles.profileLeft}>
+              <Image
+                source={{ uri: 'https://i.pravatar.cc/100?img=11' }}
+                style={styles.avatar}
               />
-            ))
-          ) : (
-            <Text style={styles.emptyText}>No active batches found.</Text>
-          )}
-        </View>
+              <View>
+                <Text style={styles.greetingText}>Hello, {user?.name ?? 'Supervisor'}</Text>
+                <View style={styles.farmSelector}>
+                  <Text style={styles.farmName}>Supervisor Dashboard</Text>
+                </View>
+              </View>
+            </View>
+            <View style={styles.dateBtn}>
+              <Text style={styles.dateBtnText}>
+                {new Date().toLocaleDateString('en-GB', {
+                  day: '2-digit',
+                  month: 'short',
+                  year: 'numeric',
+                })}
+              </Text>
+            </View>
+          </View>
 
-        {/* Bottom spacing for FAB */}
-        <View style={{ height: 40 }} />
-      </ScrollView>
+          {message ? (
+            <View style={styles.messageBox}>
+              <Ionicons name="information-circle-outline" size={18} color={Colors.primary} />
+              <Text style={styles.messageText}>{message}</Text>
+            </View>
+          ) : null}
+
+          {/* Today at a Glance - Grid Style from Admin */}
+          {hasGlanceCards ? (
+            <>
+              <Text style={styles.sectionTitle}>Today at a Glance</Text>
+              <View style={styles.glanceGrid}>
+                {canReviewEntries ? (
+                  <TouchableOpacity style={styles.glanceCard} onPress={() => router.navigate('/(supervisor)/review' as Href)} activeOpacity={0.82}>
+                    <Text style={styles.glanceValue}>{formatNumber(dashboard?.today?.activeBatches)}</Text>
+                    <Text style={styles.glanceLabel}>Active Batches</Text>
+                  </TouchableOpacity>
+                ) : null}
+                {canViewReports ? (
+                  <TouchableOpacity style={styles.glanceCard} onPress={() => router.navigate('/(supervisor)/reports' as Href)} activeOpacity={0.82}>
+                    <Text style={styles.glanceValue}>{formatNumber(dashboard?.today?.liveBirds)}</Text>
+                    <Text style={styles.glanceLabel}>Total Live Birds</Text>
+                  </TouchableOpacity>
+                ) : null}
+                {canCreateDailyEntry ? (
+                  <TouchableOpacity style={styles.glanceCard} onPress={() => router.navigate('/(supervisor)/tasks/daily' as Href)} activeOpacity={0.82}>
+                    <View style={styles.glanceRow}>
+                      <Text style={styles.glanceValueSmall}>{formatNumber(dashboard?.today?.mortalityToday)}</Text>
+                      <Text style={styles.glancePercentBold}>{mortalityTodayPercent.toFixed(2)}%</Text>
+                    </View>
+                    <Text style={styles.glanceLabel}>Mortality (Today)</Text>
+                  </TouchableOpacity>
+                ) : null}
+                {canViewReports ? (
+                  <TouchableOpacity style={styles.glanceCard} onPress={() => router.navigate('/(supervisor)/reports' as Href)} activeOpacity={0.82}>
+                    <View style={styles.glanceRow}>
+                      <Text style={styles.glanceValueSmall}>{formatNumber(dashboard?.today?.mortalityTotal)}</Text>
+                      <Text style={styles.glancePercentBold}>{mortalityTotalPercent.toFixed(2)}%</Text>
+                    </View>
+                    <Text style={styles.glanceLabel}>Mortality (Total)</Text>
+                  </TouchableOpacity>
+                ) : null}
+              </View>
+            </>
+          ) : null}
+
+          {/* Alert Pills - 2-Column Grid */}
+          {hasAlertPills ? (
+            <View style={styles.alertPillsGrid}>
+              {canCreateSales ? (
+                <TouchableOpacity
+                  style={[styles.alertPill, { backgroundColor: '#EAF7EF', borderColor: '#D0ECD9' }]}
+                  onPress={() => router.navigate('/(supervisor)/tasks/sales' as Href)}
+                  activeOpacity={0.82}
+                >
+                  <View style={[styles.alertIconWrapper, { backgroundColor: '#D0ECD9' }]}>
+                    <MaterialCommunityIcons name="clipboard-check-outline" size={18} color={THEME_GREEN} />
+                  </View>
+                  <View style={styles.alertTextWrapper}>
+                    <Text style={[styles.alertPillValue, { color: THEME_GREEN }]}>
+                      {formatNumber(dashboard?.today?.salesReady)}
+                    </Text>
+                    <Text style={styles.alertPillLabel}>Sales Ready</Text>
+                  </View>
+                </TouchableOpacity>
+              ) : null}
+              {canCreateDailyEntry ? (
+                <TouchableOpacity
+                  style={[styles.alertPill, { backgroundColor: '#EFF6FF', borderColor: '#DCEBFE' }]}
+                  onPress={() => router.navigate('/(supervisor)/tasks/daily' as Href)}
+                  activeOpacity={0.82}
+                >
+                  <View style={[styles.alertIconWrapper, { backgroundColor: '#DCEBFE' }]}>
+                    <MaterialCommunityIcons name="clock-outline" size={18} color="#1976D2" />
+                  </View>
+                  <View style={styles.alertTextWrapper}>
+                    <Text style={[styles.alertPillValue, { color: "#1976D2" }]}>
+                      {formatNumber(dashboard?.today?.pendingEntries)}
+                    </Text>
+                    <Text style={styles.alertPillLabel}>Pending Entries</Text>
+                  </View>
+                </TouchableOpacity>
+              ) : null}
+              {canReviewEntries ? (
+                <TouchableOpacity
+                  style={[styles.alertPill, { backgroundColor: '#FFF7ED', borderColor: '#FFE3C9' }]}
+                  onPress={() => router.navigate('/(supervisor)/review' as Href)}
+                  activeOpacity={0.82}
+                >
+                  <View style={[styles.alertIconWrapper, { backgroundColor: '#FFE3C9' }]}>
+                    <MaterialCommunityIcons name="alert-circle-outline" size={18} color="#F57C00" />
+                  </View>
+                  <View style={styles.alertTextWrapper}>
+                    <Text style={[styles.alertPillValue, { color: "#F57C00" }]}>
+                      {formatNumber(dashboard?.today?.feedAlert)}
+                    </Text>
+                    <Text style={styles.alertPillLabel}>Feed Alert</Text>
+                  </View>
+                </TouchableOpacity>
+              ) : null}
+              {canViewReports ? (
+                <TouchableOpacity
+                  style={[styles.alertPill, { backgroundColor: '#FFF4F4', borderColor: '#FFD2D2' }]}
+                  onPress={() => router.navigate('/(supervisor)/reports' as Href)}
+                  activeOpacity={0.82}
+                >
+                  <View style={[styles.alertIconWrapper, { backgroundColor: '#FFD2D2' }]}>
+                    <MaterialCommunityIcons name="trending-up" size={18} color="#D32F2F" />
+                  </View>
+                  <View style={styles.alertTextWrapper}>
+                    <Text style={[styles.alertPillValue, { color: "#D32F2F" }]}>
+                      {formatNumber(dashboard?.today?.fcrAlert)}
+                    </Text>
+                    <Text style={styles.alertPillLabel}>FCR Alert</Text>
+                  </View>
+                </TouchableOpacity>
+              ) : null}
+            </View>
+          ) : null}
+
+
+          <View style={styles.farmList}>
+            <Text style={styles.sectionTitle}>My Farms & Batches</Text>
+            {loading && !dashboard ? (
+              <View style={styles.loadingBox}>
+                <ActivityIndicator color={Colors.primary} />
+                <Text style={styles.loadingText}>Loading dashboard...</Text>
+              </View>
+            ) : visibleBatches.length ? (
+              visibleBatches.map((batch) => (
+                <BatchCard
+                  key={batch.batchId}
+                  batch={batch}
+                  canOpenDailyEntry={canCreateDailyEntry}
+                  canOpenReview={canReviewEntries}
+                />
+              ))
+            ) : (
+              <Text style={styles.emptyText}>No active batches found.</Text>
+            )}
+          </View>
+
+          {/* Bottom spacing for FAB */}
+          <View style={{ height: 40 }} />
+        </ScrollView>
       </KeyboardAvoidingView>
     </View>
   );
@@ -309,9 +309,9 @@ function BatchCard({
       onPress={() =>
         canOpenReview
           ? router.navigate({
-              pathname: '/(supervisor)/review/[batchId]',
-              params: { batchId: batch.batchId },
-            } as any)
+            pathname: '/(supervisor)/review/[batchId]',
+            params: { batchId: batch.batchId },
+          } as any)
           : undefined
       }
       disabled={!canOpenReview}
@@ -351,7 +351,7 @@ function BatchCard({
           style={styles.cardAction}
           onPress={() =>
             router.navigate({
-              pathname: '/(supervisor)/tasks/daily',
+              pathname: '/(supervisor)/tasks/daily/form',
               params: { batchId: batch.batchId, farmName: batch.farmName },
             } as any)
           }
@@ -488,70 +488,47 @@ const styles = StyleSheet.create({
     color: Colors.textSecondary,
     fontWeight: "500",
   },
-  alertPillsContainer: {
+  alertPillsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
     paddingHorizontal: 20,
-    paddingBottom: 20,
-    gap: 12,
+    justifyContent: 'space-between',
+    marginBottom: 8,
   },
   alertPill: {
-    backgroundColor: "#FFF",
+    width: '48%',
     borderRadius: 12,
-    padding: 12,
-    minWidth: 100,
+    padding: 10,
+    marginBottom: 12,
     borderWidth: 1,
-    borderColor: Colors.border,
     flexDirection: "row",
     alignItems: "center",
-    gap: 10,
+    gap: 8,
     ...Layout.cardShadow,
+  },
+  alertIconWrapper: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  alertTextWrapper: {
+    flex: 1,
   },
   alertPillValue: {
     fontSize: 16,
     fontWeight: "bold",
+    lineHeight: 18,
   },
   alertPillLabel: {
     fontSize: 10,
     fontWeight: "600",
     color: Colors.textSecondary,
     lineHeight: 12,
+    marginTop: 1,
   },
-  searchRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 20,
-    marginBottom: Layout.spacing.lg,
-  },
-  searchWrapper: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#FFF',
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: Colors.border,
-    paddingHorizontal: 12,
-    marginRight: 10,
-    height: 48,
-  },
-  searchIcon: {
-    marginRight: 10,
-  },
-  searchInput: {
-    flex: 1,
-    fontSize: 15,
-    color: Colors.text,
-    padding: 0,
-  },
-  filterBtn: {
-    width: 48,
-    height: 48,
-    backgroundColor: '#FFF',
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: Colors.border,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
+
   farmList: {
     marginBottom: 20,
   },

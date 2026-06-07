@@ -7,16 +7,21 @@ import {
   Text,
   TouchableOpacity,
   View,
+  Dimensions,
 } from "react-native";
 
 import { ScreenState } from "@/components/ui/ScreenState";
 import { TopAppBar } from "@/components/ui/TopAppBar";
 import { useAuth, type Permission } from "@/context/AuthContext";
 
+const { width } = Dimensions.get("window");
+const CARD_WIDTH = (width - 48) / 2;
+
 type MenuItem = {
   title: string;
   desc: string;
   icon: React.ComponentProps<typeof Ionicons>["name"];
+  color: string;
   route: string;
   requiredPermission: Permission;
 };
@@ -25,7 +30,8 @@ const menuItemsByPermission: MenuItem[] = [
   {
     title: "Daily Entry",
     desc: "Log mortality, feed, and weight for farms",
-    icon: "clipboard-outline",
+    icon: "calendar-outline",
+    color: "#3B82F6",
     route: "/(supervisor)/tasks/daily",
     requiredPermission: "create:daily-entry",
   },
@@ -33,6 +39,7 @@ const menuItemsByPermission: MenuItem[] = [
     title: "Treatments",
     desc: "View and log vaccines or medicines",
     icon: "medical-outline",
+    color: "#0EA5E9",
     route: "/(supervisor)/tasks/treatments",
     requiredPermission: "create:treatments",
   },
@@ -40,6 +47,7 @@ const menuItemsByPermission: MenuItem[] = [
     title: "Expense Entry",
     desc: "Add permitted farmer or company expenses",
     icon: "receipt-outline",
+    color: "#10B981",
     route: "/(supervisor)/tasks/expenses",
     requiredPermission: "create:expenses",
   },
@@ -47,13 +55,15 @@ const menuItemsByPermission: MenuItem[] = [
     title: "Comments & Notes",
     desc: "View batch feedback and notes",
     icon: "chatbubbles-outline",
+    color: "#F59E0B",
     route: "/(supervisor)/tasks/comments",
     requiredPermission: "view:comments",
   },
   {
     title: "Sales Entry",
     desc: "Record sales without rate entry",
-    icon: "cash-outline",
+    icon: "cart-outline",
+    color: "#EF4444",
     route: "/(supervisor)/tasks/sales",
     requiredPermission: "create:sales",
   },
@@ -75,13 +85,14 @@ export default function SupervisorTasksIndexScreen() {
         contentContainerStyle={styles.scrollContainer}
         showsVerticalScrollIndicator={false}
       >
-
         {menuItems.length === 0 ? (
-          <ScreenState
-            title="No actions available"
-            message="Your current role does not have task permissions."
-            icon="lock-closed-outline"
-          />
+          <View style={styles.emptyWrap}>
+            <ScreenState
+              title="No actions available"
+              message="Your current role does not have task permissions."
+              icon="lock-closed-outline"
+            />
+          </View>
         ) : (
           <View style={styles.grid}>
             {menuItems.map((item, index) => (
@@ -89,9 +100,10 @@ export default function SupervisorTasksIndexScreen() {
                 key={index}
                 style={styles.card}
                 onPress={() => router.navigate(item.route as any)}
+                activeOpacity={0.7}
               >
-                <View style={styles.iconBox}>
-                  <Ionicons name={item.icon} size={28} color="#0B5C36" />
+                <View style={[styles.iconContainer, { backgroundColor: item.color + '15' }]}>
+                  <Ionicons name={item.icon} size={28} color={item.color} />
                 </View>
                 <Text style={styles.cardTitle}>{item.title}</Text>
                 <Text style={styles.cardDesc}>{item.desc}</Text>
@@ -99,6 +111,7 @@ export default function SupervisorTasksIndexScreen() {
             ))}
           </View>
         )}
+        <View style={{ height: 40 }} />
       </ScrollView>
     </View>
   );
@@ -107,71 +120,59 @@ export default function SupervisorTasksIndexScreen() {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: "#0B5C36", // Header color background
+    backgroundColor: "#0B5C36", // Keep supervisor theme green header background
   },
   scrollContainer: {
     flexGrow: 1,
     backgroundColor: "#F9FAFB", // Body color
-    paddingHorizontal: 20,
-    paddingTop: 24,
-    paddingBottom: 40,
+    paddingTop: 16,
   },
-  infoBanner: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "#E3F2FD",
-    padding: 16,
-    borderRadius: 12,
-    marginBottom: 24,
-    borderWidth: 1,
-    borderColor: "#BBDEFB",
-  },
-  infoText: {
-    marginLeft: 12,
-    fontSize: 14,
-    fontWeight: "600",
-    color: "#1565C0",
+  emptyWrap: {
+    paddingHorizontal: 16,
   },
   grid: {
     flexDirection: "row",
     flexWrap: "wrap",
+    paddingHorizontal: 16,
     justifyContent: "space-between",
   },
   card: {
-    width: "48%",
+    width: CARD_WIDTH,
     backgroundColor: "#FFF",
-    borderRadius: 8,
-    padding: 16,
+    borderRadius: 12,
+    padding: 14,
     marginBottom: 16,
-    borderWidth: 1,
-    borderColor: "#F3F4F6",
     alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1,
+    borderColor: "#EAEAEA",
+    // Shadow for iOS
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.05,
-    shadowRadius: 4,
+    shadowRadius: 8,
+    // Elevation for Android
     elevation: 2,
   },
-  iconBox: {
-    width: 56,
-    height: 56,
-    borderRadius: 8,
-    backgroundColor: "#E7F5ED",
-    justifyContent: "center",
+  iconContainer: {
+    width: 48,
+    height: 48,
+    borderRadius: 10,
     alignItems: "center",
+    justifyContent: "center",
     marginBottom: 12,
   },
   cardTitle: {
-    fontSize: 15,
+    fontSize: 13,
     fontWeight: "700",
     color: "#111827",
-    marginBottom: 6,
     textAlign: "center",
+    marginBottom: 4,
   },
   cardDesc: {
     fontSize: 11,
     color: "#6B7280",
     textAlign: "center",
-    lineHeight: 16,
+    lineHeight: 15,
   },
 });
