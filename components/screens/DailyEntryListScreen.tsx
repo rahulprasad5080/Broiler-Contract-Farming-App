@@ -16,6 +16,7 @@ import { ScreenState } from "@/components/ui/ScreenState";
 import { TopAppBar } from "@/components/ui/TopAppBar";
 import { useAuth } from "@/context/AuthContext";
 import { showRequestErrorToast } from "@/services/apiFeedback";
+import { formatDate, formatNumber } from "@/utils/format";
 import {
   ApiBatch,
   ApiDailyLog,
@@ -38,21 +39,7 @@ type DailyEntryListScreenProps = {
   onBack?: () => void;
 };
 
-function formatNumber(value?: number | null, suffix = "") {
-  if (value === undefined || value === null) return `0${suffix}`;
-  return `${Number(value).toLocaleString("en-IN")}${suffix}`;
-}
 
-function formatDate(value?: string | null) {
-  if (!value) return "Not set";
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return value;
-  return date.toLocaleDateString("en-IN", {
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-  });
-}
 
 function getDateParts(value?: string | null) {
   if (!value) return { day: "--", month: "---", year: "----", weekday: "---" };
@@ -281,74 +268,68 @@ export function DailyEntryListScreen({
 
                   <View style={styles.divider} />
 
-                  {/* Metrics 3x2 Grid */}
+                  {/* Metrics 2-Column Responsive Grid */}
                   <View style={styles.metricsContainer}>
-                    {/* Row 1: Flock Status */}
-                    <View style={styles.metricsRow}>
-                      <View style={styles.metricItem}>
-                        <MaterialCommunityIcons name="bird" size={12} color="#0B5C36" style={styles.metricIcon} />
-                        <Text style={styles.metricText} numberOfLines={1}>
-                          <Text style={styles.metricLabelCompact}>Op: </Text>
-                          {formatNumber(item.log.openingBirdCount)}
-                        </Text>
-                      </View>
-
-                      <View style={styles.metricItem}>
-                        <MaterialCommunityIcons
-                          name="heart-broken"
-                          size={12}
-                          color={hasMortality ? "#D32F2F" : "#757575"}
-                          style={styles.metricIcon}
-                        />
-                        <Text style={styles.metricText} numberOfLines={1}>
-                          <Text style={styles.metricLabelCompact}>Mort: </Text>
-                          <Text style={hasMortality ? styles.warningTextRed : null}>
-                            {formatNumber(item.log.mortalityCount)}
-                          </Text>
-                        </Text>
-                      </View>
-
-                      <View style={styles.metricItem}>
-                        <MaterialCommunityIcons
-                          name="close-circle-outline"
-                          size={12}
-                          color={hasCull ? "#E65100" : "#757575"}
-                          style={styles.metricIcon}
-                        />
-                        <Text style={styles.metricText} numberOfLines={1}>
-                          <Text style={styles.metricLabelCompact}>Cull: </Text>
-                          <Text style={hasCull ? styles.warningTextOrange : null}>
-                            {formatNumber(item.log.cullCount)}
-                          </Text>
-                        </Text>
-                      </View>
+                    <View style={styles.metricItem}>
+                      <MaterialCommunityIcons name="bird" size={12} color="#0B5C36" style={styles.metricIcon} />
+                      <Text style={styles.metricText} numberOfLines={1}>
+                        <Text style={styles.metricLabelCompact}>Opening: </Text>
+                        {formatNumber(item.log.openingBirdCount)}
+                      </Text>
                     </View>
 
-                    {/* Row 2: Inputs */}
-                    <View style={styles.metricsRow}>
-                      <View style={styles.metricItem}>
-                        <MaterialCommunityIcons name="corn" size={12} color="#1A73E8" style={styles.metricIcon} />
-                        <Text style={styles.metricText} numberOfLines={1}>
-                          <Text style={styles.metricLabelCompact}>Feed: </Text>
-                          {formatNumber(item.log.feedConsumedKg, "kg")}
-                        </Text>
-                      </View>
+                    <View style={styles.metricItem}>
+                      <MaterialCommunityIcons name="scale" size={12} color="#4A148C" style={styles.metricIcon} />
+                      <Text style={styles.metricText} numberOfLines={1}>
+                        <Text style={styles.metricLabelCompact}>Weight: </Text>
+                        {formatNumber(item.log.avgWeightGrams, "g")}
+                      </Text>
+                    </View>
 
-                      <View style={styles.metricItem}>
-                        <Ionicons name="water" size={12} color="#00796B" style={styles.metricIcon} />
-                        <Text style={styles.metricText} numberOfLines={1}>
-                          <Text style={styles.metricLabelCompact}>Water: </Text>
-                          {formatNumber(item.log.waterConsumedLtr, "L")}
+                    <View style={styles.metricItem}>
+                      <MaterialCommunityIcons
+                        name="heart-broken"
+                        size={12}
+                        color={hasMortality ? "#D32F2F" : "#757575"}
+                        style={styles.metricIcon}
+                      />
+                      <Text style={styles.metricText} numberOfLines={1}>
+                        <Text style={styles.metricLabelCompact}>Mortality: </Text>
+                        <Text style={hasMortality ? styles.warningTextRed : null}>
+                          {formatNumber(item.log.mortalityCount)}
                         </Text>
-                      </View>
+                      </Text>
+                    </View>
 
-                      <View style={styles.metricItem}>
-                        <MaterialCommunityIcons name="scale" size={12} color="#4A148C" style={styles.metricIcon} />
-                        <Text style={styles.metricText} numberOfLines={1}>
-                          <Text style={styles.metricLabelCompact}>Wt: </Text>
-                          {formatNumber(item.log.avgWeightGrams, "g")}
+                    <View style={styles.metricItem}>
+                      <MaterialCommunityIcons name="corn" size={12} color="#1A73E8" style={styles.metricIcon} />
+                      <Text style={styles.metricText} numberOfLines={1}>
+                        <Text style={styles.metricLabelCompact}>Feed: </Text>
+                        {formatNumber(item.log.feedConsumedKg, " kg")}
+                      </Text>
+                    </View>
+
+                    <View style={styles.metricItem}>
+                      <MaterialCommunityIcons
+                        name="close-circle-outline"
+                        size={12}
+                        color={hasCull ? "#E65100" : "#757575"}
+                        style={styles.metricIcon}
+                      />
+                      <Text style={styles.metricText} numberOfLines={1}>
+                        <Text style={styles.metricLabelCompact}>Cull: </Text>
+                        <Text style={hasCull ? styles.warningTextOrange : null}>
+                          {formatNumber(item.log.cullCount)}
                         </Text>
-                      </View>
+                      </Text>
+                    </View>
+
+                    <View style={styles.metricItem}>
+                      <Ionicons name="water" size={12} color="#00796B" style={styles.metricIcon} />
+                      <Text style={styles.metricText} numberOfLines={1}>
+                        <Text style={styles.metricLabelCompact}>Water: </Text>
+                        {formatNumber(item.log.waterConsumedLtr, " L")}
+                      </Text>
                     </View>
                   </View>
 
@@ -489,22 +470,19 @@ const styles = StyleSheet.create({
     marginVertical: 5,
   },
   metricsContainer: {
-    gap: 4,
-  },
-  metricsRow: {
     flexDirection: "row",
+    flexWrap: "wrap",
     justifyContent: "space-between",
-    alignItems: "center",
-    gap: 6,
+    rowGap: 6,
   },
   metricItem: {
+    width: "48%",
     flexDirection: "row",
     alignItems: "center",
-    flex: 1,
     minWidth: 0,
   },
   metricIcon: {
-    marginRight: 3,
+    marginRight: 4,
   },
   metricText: {
     fontSize: 11,
