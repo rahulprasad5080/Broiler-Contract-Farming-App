@@ -2,7 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useFocusEffect } from '@react-navigation/native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import {
   ActivityIndicator,
@@ -16,7 +16,6 @@ import {
   View,
 } from 'react-native';
 import { z } from 'zod';
-
 import { DatePickerField } from '@/components/ui/DatePickerField';
 import { ScreenState } from '@/components/ui/ScreenState';
 import { SearchableSelectField } from '@/components/ui/SearchableSelectField';
