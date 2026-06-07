@@ -3,7 +3,6 @@ import {
   Animated,
   Easing,
   Keyboard,
-  KeyboardAvoidingView,
   Modal,
   PanResponder,
   Platform,
@@ -37,21 +36,32 @@ export function NativeBottomSheet({
 }: NativeBottomSheetProps) {
   const insets = useSafeAreaInsets();
   const { height } = useWindowDimensions();
-  const hiddenOffset = Math.max(height, 1);
-  const translateY = useRef(new Animated.Value(hiddenOffset)).current;
-  const [mounted, setMounted] = useState(visible);
-
+  // Capture the initial screen height once — we must NOT let keyboard-triggered
+  // height changes re-fire the open/close animation effect (that causes the
+  // open→close→open glitch loop on Android when a TextInput inside the sheet
+  // gets focused).
+  const hiddenOffsetRef = useRef(Math.max(height, 1));
+  const hiddenOffset = hiddenOffsetRef.current;
+  // resolvedMaxHeight must also use the stable ref height — NOT the live
+  // useWindowDimensions() height — so the sheet size doesn't jump when the
+  // Android keyboard changes the reported window height.
   const resolvedMaxHeight = useMemo(() => {
-    if (!maxHeight) return height * 0.82;
+    const stableHeight = hiddenOffsetRef.current;
+    if (!maxHeight) return stableHeight * 0.82;
     if (typeof maxHeight === 'number') return maxHeight;
     if (maxHeight.endsWith('%')) {
       const pct = parseFloat(maxHeight) / 100;
-      return height * pct;
+      return stableHeight * pct;
     }
-    return height * 0.82;
-  }, [maxHeight, height]);
+    return stableHeight * 0.82;
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [maxHeight]);
+  const translateY = useRef(new Animated.Value(hiddenOffset)).current;
+  const [mounted, setMounted] = useState(visible);
 
-  // Handle animation driven by the `visible` prop
+  // Handle animation driven by the `visible` prop.
+  // Intentionally NOT including hiddenOffset in deps — it is captured once via
+  // ref so keyboard resizes don't accidentally re-trigger this effect.
   useEffect(() => {
     if (visible) {
       setMounted(true);
@@ -74,7 +84,8 @@ export function NativeBottomSheet({
         }
       });
     }
-  }, [visible, mounted, translateY, hiddenOffset]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [visible]);
 
   const close = useCallback(() => {
     Keyboard.dismiss();
@@ -132,10 +143,13 @@ export function NativeBottomSheet({
       onRequestClose={close}
       statusBarTranslucent
     >
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        style={styles.root}
-      >
+      {/* Plain View — no KeyboardAvoidingView.
+          KeyboardAvoidingView inside a Modal causes the modal's reported
+          window height to change when the keyboard opens, which re-fires
+          the animation useEffect and produces the open→close→open glitch.
+          On Android the OS handles keyboard avoidance via windowSoftInputMode;
+          on iOS the sheet sits above the keyboard naturally via insets. */}
+      <View style={styles.root}>
         <Animated.View style={[styles.backdrop, { opacity: backdropOpacity }]}>
           <Pressable style={StyleSheet.absoluteFill} onPress={close} />
         </Animated.View>
@@ -156,7 +170,7 @@ export function NativeBottomSheet({
           </View>
           <View style={[styles.content, contentStyle]}>{children}</View>
         </Animated.View>
-      </KeyboardAvoidingView>
+      </View>
     </Modal>
   );
 }
