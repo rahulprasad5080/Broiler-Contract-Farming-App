@@ -458,7 +458,13 @@ export default function ProfileScreen() {
                   icon="settings-outline"
                   label="App Settings"
                   onPress={() => router.navigate('/(owner)/manage/settings' as any)}
-                  isLast
+                  isLast={false}
+                />
+                <SettingItem
+                  icon="list-outline"
+                  label="Category Master"
+                  onPress={() => router.navigate('/(owner)/manage/dropdowns' as any)}
+                  isLast={true}
                 />
               </SurfaceCard>
             </>

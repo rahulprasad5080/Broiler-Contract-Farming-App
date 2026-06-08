@@ -214,6 +214,7 @@ export default function OrganizationSettingsScreen() {
             />
           </View>
 
+
           <View style={styles.card}>
             <Text style={styles.sectionTitle}>Expense Categories</Text>
             <Text style={styles.sectionHint}>Add categories as chips for cleaner expense entry options.</Text>
@@ -605,4 +606,5 @@ const styles = StyleSheet.create({
   },
   saveBtnDisabled: { opacity: 0.72 },
   saveBtnText: { color: "#FFF", fontSize: 16, fontWeight: "800" },
+
 });

@@ -108,7 +108,7 @@ export default function DropdownCreateScreen() {
       <View style={styles.pageContent}>
         <TopAppBar
           title={isEditMode ? "Edit Option" : "Add Option"}
-          subtitle={isEditMode ? "Update custom dropdown entry" : "Create new custom dropdown entry"}
+          subtitle={isEditMode ? "Update custom category option" : "Create new custom category option"}
           leadingMode="back"
         />
 
@@ -125,12 +125,12 @@ export default function DropdownCreateScreen() {
                 <Ionicons name="sparkles" size={16} color={Colors.primary} />
                 <Text style={styles.infoBannerText}>
                   {isEditMode
-                    ? "Update this custom option value and status across dropdown choices."
-                    : "Add custom option values to structure dropdown choices across the app."}
+                    ? "Update this custom option value and status across category choices."
+                    : "Add custom option values to structure category choices across the app."}
                 </Text>
               </View>
 
-              <Text style={styles.label}>Dropdown Category</Text>
+              <Text style={styles.label}>Category Type</Text>
               <View style={styles.chipRow}>
                 {CATEGORIES.map((cat) => {
                   const active = cat.value === category;

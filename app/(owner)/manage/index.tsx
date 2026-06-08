@@ -165,8 +165,8 @@ const ENTRY_ITEMS: EntryItem[] = [
     requiredPermission: "manage:users",
   },
   {
-    title: "Dropdown List",
-    desc: "Master dropdown values",
+    title: "Category Master",
+    desc: "Master category values",
     icon: "list-outline",
     iconType: "Ionicons",
     color: "#64748B",

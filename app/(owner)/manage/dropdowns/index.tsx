@@ -302,16 +302,16 @@ export default function DropdownsListScreen() {
     <View style={styles.safeArea}>
       <View style={styles.pageContent}>
         <TopAppBar
-          title="Dropdown Master"
-          subtitle="Configure dynamic dropdown values"
+          title="Category Master"
+          subtitle="Configure dynamic category values"
           leadingMode="back"
-          onBack={() => router.replace('/(owner)/dashboard')}
+          onBack={() => router.replace('/(owner)/profile')}
           right={
             <TouchableOpacity
               onPress={() => router.navigate("/(owner)/manage/dropdowns/create")}
               style={styles.addBtn}
               accessibilityRole="button"
-              accessibilityLabel="Add Dropdown Option"
+              accessibilityLabel="Add Category Option"
             >
               <Ionicons name="add" size={28} color="#FFF" />
             </TouchableOpacity>

@@ -155,14 +155,7 @@ const ownerRoutes: DashboardSidebarRoute[] = [
     section: "Management",
     requiredPermission: "manage:users",
   },
-  {
-    title: "Dropdown Master",
-    subtitle: "Custom dropdown options",
-    icon: "list-outline",
-    route: "/(owner)/manage/dropdowns" as Href,
-    section: "Management",
-    requiredPermission: "manage:users",
-  },
+
   {
     title: "Catalog",
     subtitle: "Catalog items list",
