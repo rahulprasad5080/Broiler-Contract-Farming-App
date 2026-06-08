@@ -4,9 +4,7 @@ import { useRouter } from "expo-router";
 import React, { useCallback, useState } from "react";
 import {
   ActivityIndicator,
-  KeyboardAvoidingView,
   Platform,
-  ScrollView,
   StyleSheet,
   Switch,
   Text,
@@ -14,6 +12,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import { KeyboardAwareScrollView } from "react-native-keyboard-aware-scroll-view";
 
 import { Colors } from "@/constants/Colors";
 import { useAuth } from "@/context/AuthContext";
@@ -191,17 +190,19 @@ export default function OrganizationSettingsScreen() {
           </TouchableOpacity>
         }
       />
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        style={{ flex: 1 }}
-      >
-
       {loading || !form ? (
         <View style={styles.centerBox}>
           <ScreenState title="Loading settings" message="Fetching organization configuration." loading />
         </View>
       ) : (
-        <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+        <KeyboardAwareScrollView
+          style={{ flex: 1 }}
+          contentContainerStyle={styles.container}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+          enableOnAndroid={true}
+          extraScrollHeight={Platform.OS === 'ios' ? 20 : 100}
+        >
           <View style={styles.card}>
             <Text style={styles.sectionTitle}>General</Text>
             <Field label="Currency" value={form.currency} onChangeText={(value) => setField("currency", value)} />
@@ -297,9 +298,8 @@ export default function OrganizationSettingsScreen() {
           <TouchableOpacity style={[styles.saveBtn, saving && styles.saveBtnDisabled]} onPress={saveSettings} disabled={saving}>
             {saving ? <ActivityIndicator color="#FFF" /> : <Text style={styles.saveBtnText}>Save Settings</Text>}
           </TouchableOpacity>
-        </ScrollView>
+        </KeyboardAwareScrollView>
       )}
-      </KeyboardAvoidingView>
     </View>
   );
 }

@@ -1,21 +1,3 @@
-import { Ionicons } from '@expo/vector-icons';
-import { zodResolver } from '@hookform/resolvers/zod';
-import { useFocusEffect } from '@react-navigation/native';
-import { useLocalSearchParams, useRouter } from 'expo-router';
-import React, { useCallback, useState } from 'react';
-import { Controller, useForm } from 'react-hook-form';
-import {
-  ActivityIndicator,
-  KeyboardAvoidingView,
-  Platform,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
-} from 'react-native';
-import { z } from 'zod';
 import { DatePickerField } from '@/components/ui/DatePickerField';
 import { ScreenState } from '@/components/ui/ScreenState';
 import { SearchableSelectField } from '@/components/ui/SearchableSelectField';
@@ -28,6 +10,23 @@ import {
 } from '@/services/apiFeedback';
 import { getLocalDateValue } from '@/services/dateUtils';
 import { ApiFarm, ApiVendor, createBatch, fetchBatch, listAllFarms, listAllVendors, updateBatch } from '@/services/managementApi';
+import { Ionicons } from '@expo/vector-icons';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { useFocusEffect } from '@react-navigation/native';
+import { useLocalSearchParams, useRouter } from 'expo-router';
+import React, { useCallback, useState } from 'react';
+import { Controller, useForm } from 'react-hook-form';
+import {
+  ActivityIndicator,
+  Platform,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
+} from 'react-native';
+import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
+import { z } from 'zod';
 
 const THEME_GREEN = "#0B5C36";
 
@@ -436,15 +435,13 @@ export default function CreateBatchScreen() {
         title={isEditMode ? "Edit Batch" : "Create New Batch"}
         subtitle={isEditMode ? "Update batch master details" : "Configure batch settings and starting inventory"}
       />
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        style={{ flex: 1 }}
-      >
-      <ScrollView
+      <KeyboardAwareScrollView
         style={styles.container}
         contentContainerStyle={styles.scrollContent}
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
+        enableOnAndroid={true}
+        extraScrollHeight={Platform.OS === 'ios' ? 20 : 100}
       >
         {loadError ? (
           <ScreenState
@@ -782,8 +779,7 @@ export default function CreateBatchScreen() {
             )}
           </TouchableOpacity>
         </View>
-      </ScrollView>
-      </KeyboardAvoidingView>
+      </KeyboardAwareScrollView>
     </View>
   );
 }

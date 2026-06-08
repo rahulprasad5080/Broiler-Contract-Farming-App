@@ -16,15 +16,14 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   ActivityIndicator,
   Animated,
-  KeyboardAvoidingView,
   Platform,
-  ScrollView,
   StyleSheet,
   Text,
   TextInput,
   TouchableOpacity,
   View,
 } from 'react-native';
+import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
 
 import { DatePickerField } from '@/components/ui/DatePickerField';
 import { SearchableSelectField } from '@/components/ui/SearchableSelectField';
@@ -275,15 +274,13 @@ export function TreatmentEntryScreen({
   return (
     <View style={styles.safeArea}>
       <TopAppBar title={title} subtitle={subtitle} />
-      <KeyboardAvoidingView
-        behavior={Platform.OS === "ios" ? "padding" : undefined}
+      <KeyboardAwareScrollView
         style={styles.keyboardAvoidingWrapper}
-      >
-
-      <ScrollView
         contentContainerStyle={styles.container}
-        showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+        enableOnAndroid={true}
+        extraScrollHeight={Platform.OS === 'ios' ? 20 : 100}
       >
         {/* Draft restored banner */}
         {showBanner && (
@@ -495,8 +492,7 @@ export function TreatmentEntryScreen({
             </>
           )}
         </TouchableOpacity>
-      </ScrollView>
-      </KeyboardAvoidingView>
+      </KeyboardAwareScrollView>
     </View>
   );
 }

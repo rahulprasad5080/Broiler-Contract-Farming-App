@@ -32,7 +32,6 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Controller, useForm } from 'react-hook-form';
 import {
   ActivityIndicator,
-  KeyboardAvoidingView,
   Platform,
   ScrollView,
   StyleSheet,
@@ -42,6 +41,7 @@ import {
   useWindowDimensions,
   View,
 } from 'react-native';
+import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
 import Toast from 'react-native-toast-message';
 import { z } from 'zod';
 
@@ -579,16 +579,14 @@ export default function CreateUserScreen() {
         title={isEditMode ? 'Edit User' : 'Create User'}
         subtitle="Role, permissions, farms, and security"
       />
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        style={{ flex: 1 }}
+      <KeyboardAwareScrollView
+        style={styles.pageContent}
+        contentContainerStyle={styles.container}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+        enableOnAndroid={true}
+        extraScrollHeight={Platform.OS === 'ios' ? 20 : 100}
       >
-        <ScrollView
-          style={styles.pageContent}
-          contentContainerStyle={styles.container}
-          keyboardShouldPersistTaps="handled"
-          showsVerticalScrollIndicator={false}
-        >
           {error ? <Text style={styles.errorText}>{error}</Text> : null}
           {isLoadingUser ? (
             <ScreenState title="Loading user details" message="Fetching selected user profile." loading compact />
@@ -1187,8 +1185,7 @@ export default function CreateUserScreen() {
               <Text style={styles.submitButtonText}>{isEditMode ? 'Update User' : 'Create User'}</Text>
             )}
           </TouchableOpacity>
-        </ScrollView>
-      </KeyboardAvoidingView>
+        </KeyboardAwareScrollView>
       <Toast position="bottom" bottomOffset={90} />
     </View>
   );

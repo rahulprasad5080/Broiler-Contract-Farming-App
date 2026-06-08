@@ -17,15 +17,14 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
-  KeyboardAvoidingView,
   Platform,
-  ScrollView,
   StyleSheet,
   Text,
   TextInput,
   TouchableOpacity,
   View,
 } from 'react-native';
+import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
 
 const THEME_GREEN = '#0B5C36';
 
@@ -195,8 +194,13 @@ export default function FinalizeSaleScreen() {
           />
         </View>
       ) : (
-        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.keyboard}>
-          <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+        <KeyboardAwareScrollView
+          style={styles.keyboard}
+          contentContainerStyle={styles.content}
+          keyboardShouldPersistTaps="handled"
+          enableOnAndroid={true}
+          extraScrollHeight={Platform.OS === 'ios' ? 20 : 100}
+        >
             <View style={styles.saleCard}>
               <View>
                 <Text style={styles.saleLabel}>Sale</Text>
@@ -257,8 +261,7 @@ export default function FinalizeSaleScreen() {
             >
               {submitting ? <ActivityIndicator color="#FFF" /> : <Text style={styles.submitText}>Finalize Sale</Text>}
             </TouchableOpacity>
-          </ScrollView>
-        </KeyboardAvoidingView>
+        </KeyboardAwareScrollView>
       )}
     </View>
   );
