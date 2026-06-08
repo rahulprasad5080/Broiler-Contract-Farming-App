@@ -11,6 +11,7 @@ import {
   ActivityIndicator,
   Animated,
   FlatList,
+  Linking,
   Platform,
   ScrollView,
   StyleSheet,
@@ -303,6 +304,7 @@ export default function AddFarmScreen() {
   const primaryFarmerId = watch('primaryFarmerId');
   const supervisorId = watch('supervisorId');
   const assignmentUserIds = watch('assignmentUserIds') || [];
+  const locationValue = watch('location') || '';
 
   const loadUsers = async () => {
     if (!accessToken) {
@@ -394,6 +396,54 @@ export default function AddFarmScreen() {
     }
 
     closeAssignmentPicker();
+  };
+
+  const getShareableLocation = () => locationValue.trim();
+
+  const handleOpenMap = async () => {
+    const location = getShareableLocation();
+    if (!location) {
+      Toast.show({
+        type: 'error',
+        text1: 'Location required',
+        text2: 'Type or capture farm location first.',
+        position: 'bottom',
+      });
+      return;
+    }
+
+    const encodedLocation = encodeURIComponent(location);
+    const mapUrl =
+      Platform.OS === 'ios'
+        ? `http://maps.apple.com/?q=${encodedLocation}`
+        : Platform.OS === 'android'
+          ? `geo:0,0?q=${encodedLocation}`
+          : `https://www.google.com/maps/search/?api=1&query=${encodedLocation}`;
+
+    await Linking.openURL(mapUrl);
+  };
+
+  const handleShareLocationOnWhatsApp = async () => {
+    const location = getShareableLocation();
+    if (!location) {
+      Toast.show({
+        type: 'error',
+        text1: 'Location required',
+        text2: 'Type or capture farm location first.',
+        position: 'bottom',
+      });
+      return;
+    }
+
+    const message = `Farm Location: ${location}`;
+    const appUrl = `whatsapp://send?text=${encodeURIComponent(message)}`;
+    const webUrl = `https://wa.me/?text=${encodeURIComponent(message)}`;
+
+    try {
+      await Linking.openURL(appUrl);
+    } catch {
+      await Linking.openURL(webUrl);
+    }
   };
 
   const handleSaveFarm = async (data: FarmFormData) => {
@@ -499,21 +549,6 @@ export default function AddFarmScreen() {
                 <Text style={styles.referenceTitle}>Farm Details</Text>
                 <Text style={styles.referenceSubtitle}>Basic information about your farm</Text>
               </View>
-              <TouchableOpacity
-                style={styles.locationButton}
-                onPress={handleFetchLiveLocation}
-                disabled={isLocating}
-                activeOpacity={0.8}
-              >
-                {isLocating ? (
-                  <ActivityIndicator size="small" color={THEME_GREEN} />
-                ) : (
-                  <>
-                    <Ionicons name="locate" size={14} color={THEME_GREEN} />
-                    <Text style={styles.locationButtonText}>Locate</Text>
-                  </>
-                )}
-              </TouchableOpacity>
             </View>
 
             <Controller
@@ -581,48 +616,60 @@ export default function AddFarmScreen() {
               />
             </View>
 
-            <View style={styles.referenceRow}>
-              <Controller
-                control={control}
-                name="location"
-                render={({ field: { onChange, value } }) => (
-                  <View style={styles.referenceHalf}>
-                    <Text style={styles.referenceLabel}>Location *</Text>
-                    <View style={[styles.referenceInput, formErrors.location && styles.referenceInputError]}>
-                      <Ionicons name="location-outline" size={16} color={THEME_GREEN} />
-                      <TextInput
-                        style={styles.referenceTextInput}
-                        placeholder="Enter farm location"
-                        placeholderTextColor="#A3AAA6"
-                        value={value}
-                        onChangeText={onChange}
-                      />
-                    </View>
-                    {formErrors.location && <Text style={styles.fieldErrorText}>{formErrors.location.message}</Text>}
+            <Controller
+              control={control}
+              name="location"
+              render={({ field: { onChange, value } }) => (
+                <View style={styles.referenceField}>
+                  <Text style={styles.referenceLabel}>Location *</Text>
+                  <View style={[styles.referenceInput, formErrors.location && styles.referenceInputError]}>
+                    <Ionicons name="location-outline" size={16} color={THEME_GREEN} />
+                    <TextInput
+                      style={styles.referenceTextInput}
+                      placeholder="Type farm location"
+                      placeholderTextColor="#A3AAA6"
+                      value={value}
+                      onChangeText={onChange}
+                    />
                   </View>
-                )}
-              />
-              <Controller
-                control={control}
-                name="state"
-                render={({ field: { onChange, value } }) => (
-                  <View style={[styles.referenceHalf, !Layout.isSmallDevice && styles.referenceHalfRight]}>
-                    <Text style={styles.referenceLabel}>State</Text>
-                    <View style={[styles.referenceInput, formErrors.state && styles.referenceInputError]}>
-                      <Ionicons name="map-outline" size={16} color={THEME_GREEN} />
-                      <TextInput
-                        style={styles.referenceTextInput}
-                        placeholder="Enter state"
-                        placeholderTextColor="#A3AAA6"
-                        value={value}
-                        onChangeText={onChange}
-                      />
-                    </View>
-                    {formErrors.state && <Text style={styles.fieldErrorText}>{formErrors.state.message}</Text>}
+                  {formErrors.location && <Text style={styles.fieldErrorText}>{formErrors.location.message}</Text>}
+
+                  <View style={styles.locationActionRow}>
+                    <TouchableOpacity
+                      style={styles.locationActionButton}
+                      onPress={handleFetchLiveLocation}
+                      disabled={isLocating}
+                      activeOpacity={0.82}
+                    >
+                      {isLocating ? (
+                        <ActivityIndicator size="small" color={THEME_GREEN} />
+                      ) : (
+                        <Ionicons name="navigate-outline" size={17} color={THEME_GREEN} />
+                      )}
+                      <Text style={styles.locationActionText}>GPS Capture</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={styles.locationIconButton}
+                      onPress={handleOpenMap}
+                      activeOpacity={0.82}
+                      accessibilityRole="button"
+                      accessibilityLabel="Open location in map"
+                    >
+                      <Ionicons name="map-outline" size={19} color={THEME_GREEN} />
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={[styles.locationIconButton, styles.whatsappButton]}
+                      onPress={handleShareLocationOnWhatsApp}
+                      activeOpacity={0.82}
+                      accessibilityRole="button"
+                      accessibilityLabel="Share location on WhatsApp"
+                    >
+                      <MaterialCommunityIcons name="whatsapp" size={19} color="#FFFFFF" />
+                    </TouchableOpacity>
                   </View>
-                )}
-              />
-            </View>
+                </View>
+              )}
+            />
 
             <Controller
               control={control}
@@ -721,7 +768,7 @@ export default function AddFarmScreen() {
 
             <View style={styles.assignmentTwoCol}>
               <View style={styles.assignmentPickerBlock}>
-                <Text style={styles.referenceLabel}>Farmer*</Text>
+                <Text style={styles.referenceLabel}>Farmer *</Text>
                 <TouchableOpacity
                   style={styles.referenceSelectCard}
                   onPress={() => openAssignmentPicker('primaryFarmerId')}
@@ -732,10 +779,10 @@ export default function AddFarmScreen() {
                   </View>
                   <View style={styles.referenceSelectCopy}>
                     <Text style={styles.referenceSelectTitle}>
-                      {primaryFarmerId ? getUserLabel(primaryFarmerId) : 'Select Manager'}
+                      {primaryFarmerId ? getUserLabel(primaryFarmerId) : 'Select Farmer'}
                     </Text>
                     <Text style={styles.referenceSelectSubtitle}>
-                      {primaryFarmerOption ? getRoleLabel(primaryFarmerOption.role) : 'Choose farm manager'}
+                      {primaryFarmerOption ? getRoleLabel(primaryFarmerOption.role) : 'Choose farmer'}
                     </Text>
                   </View>
                   <Ionicons name="chevron-forward" size={16} color={Colors.textSecondary} />
@@ -1019,6 +1066,44 @@ const styles = StyleSheet.create({
     color: THEME_GREEN,
     fontSize: 12,
     fontWeight: '700',
+  },
+  locationActionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginTop: 10,
+  },
+  locationActionButton: {
+    flex: 1,
+    minHeight: 42,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 7,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#B7E0C2',
+    backgroundColor: '#E7F5ED',
+    paddingHorizontal: 10,
+  },
+  locationActionText: {
+    color: THEME_GREEN,
+    fontSize: 12,
+    fontWeight: '800',
+  },
+  locationIconButton: {
+    width: 42,
+    height: 42,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: '#B7E0C2',
+    backgroundColor: '#FFFFFF',
+  },
+  whatsappButton: {
+    backgroundColor: '#25D366',
+    borderColor: '#25D366',
   },
   referenceIconBox: {
     width: 34,
