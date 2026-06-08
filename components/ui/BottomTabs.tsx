@@ -23,7 +23,7 @@ const TAB_DEFINITIONS: {
   { name: 'manage', label: 'Entries', activeIcon: 'briefcase', inactiveIcon: 'briefcase-outline' },
   { name: 'financials', label: 'Finance', activeIcon: 'wallet', inactiveIcon: 'wallet-outline' },
   { name: 'reports', label: 'Reports', activeIcon: 'stats-chart', inactiveIcon: 'stats-chart-outline' },
-  { name: 'profile', label: 'More', activeIcon: 'person', inactiveIcon: 'person-outline' },
+  { name: 'profile', label: 'Settings', activeIcon: 'settings', inactiveIcon: 'settings-outline' },
 ];
 
 type BottomTabsProps = BottomTabBarProps & {
