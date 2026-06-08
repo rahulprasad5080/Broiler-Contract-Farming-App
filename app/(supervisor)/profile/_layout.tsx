@@ -8,6 +8,7 @@ export default function ProfileLayout() {
       <Stack.Screen name="personal-info" />
       <Stack.Screen name="permissions" />
       <Stack.Screen name="bank" />
+      <Stack.Screen name="privacy-policy" />
     </Stack>
   );
 }

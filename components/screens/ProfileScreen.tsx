@@ -33,13 +33,14 @@ type SettingItemProps = {
   color?: string;
 };
 
-type BiometricToggleItemProps = {
-  label: string;
-  description?: string;
-  isEnabled: boolean;
-  isLoading: boolean;
-  onToggle: () => void;
-  isLast?: boolean;
+type AppSettingsPanelProps = {
+  biometricAvailable: boolean;
+  biometricEnabled: boolean;
+  isTogglingBiometric: boolean;
+  onBiometricToggle: () => void;
+  onChangePassword: () => void;
+  onChangePin: () => void;
+  onOpenOrganizationSettings: () => void;
 };
 
 
@@ -154,48 +155,148 @@ const SettingItem = ({ icon, label, value, description, onPress, isLast, color =
   </TouchableOpacity>
 );
 
-const BiometricToggleItem = ({
-  label,
-  description,
-  isEnabled,
-  isLoading,
-  onToggle,
-  isLast,
-}: BiometricToggleItemProps) => (
-  <View style={[styles.settingItem, isLast && { borderBottomWidth: 0 }]}>
-    <View style={styles.settingItemLeft}>
-      <View style={styles.iconBox}>
-        <Ionicons name="finger-print" size={20} color="#4B5563" />
+const AppSettingsPanel = ({
+  biometricAvailable,
+  biometricEnabled,
+  isTogglingBiometric,
+  onBiometricToggle,
+  onChangePassword,
+  onChangePin,
+  onOpenOrganizationSettings,
+}: AppSettingsPanelProps) => (
+  <View style={styles.appSettingsPanel}>
+    <View style={styles.appSettingsHero}>
+      <View style={styles.appSettingsHeroIcon}>
+        <Ionicons name="settings-outline" size={23} color="#FFFFFF" />
       </View>
-      <View style={styles.biometricTextBlock}>
-        <Text style={styles.settingLabel}>{label}</Text>
-        {description && <Text style={styles.settingDescription}>{description}</Text>}
+      <View style={styles.appSettingsHeroCopy}>
+        <Text style={styles.appSettingsHeroTitle}>App Settings</Text>
+        <Text style={styles.appSettingsHeroText}>
+          Security, payout rules, alerts, and finance 
+        </Text>
       </View>
     </View>
-    <View style={styles.toggleContainer}>
-      {isLoading && <ActivityIndicator size="small" color="#0B5C36" style={{ marginRight: 8 }} />}
-      <TouchableOpacity
-        style={[
-          styles.biometricSwitch,
-          isEnabled && styles.biometricSwitchOn,
-          isLoading && styles.biometricSwitchDisabled,
-        ]}
-        onPress={onToggle}
-        disabled={isLoading}
-        activeOpacity={0.82}
-        accessibilityRole="switch"
-        accessibilityState={{ checked: isEnabled, disabled: isLoading }}
-      >
-        <View style={[styles.biometricSwitchThumb, isEnabled && styles.biometricSwitchThumbOn]}>
-          <Ionicons
-            name={isEnabled ? "checkmark" : "close"}
-            size={13}
-            color={isEnabled ? "#0B5C36" : "#94A3B8"}
-          />
+
+    <View style={styles.appSettingsSection}>
+      <View style={styles.appSettingsSectionHeader}>
+        <View style={[styles.appSettingsSectionIcon, { backgroundColor: "#E8F5E9" }]}>
+          <Ionicons name="shield-checkmark-outline" size={18} color="#00875A" />
         </View>
-      </TouchableOpacity>
+        <View style={styles.appSettingsSectionCopy}>
+          <Text style={styles.appSettingsSectionTitle}>Security</Text>
+          <Text style={styles.appSettingsSectionText}>Password, PIN and biometric unlock</Text>
+        </View>
+      </View>
+
+      <AppSettingsAction
+        icon="lock-closed-outline"
+        title="Change Password"
+        subtitle="Update login password"
+        onPress={onChangePassword}
+      />
+      <AppSettingsAction
+        icon="key-outline"
+        title="Change Pin"
+        subtitle="Change quick unlock PIN"
+        onPress={onChangePin}
+      />
+      {biometricAvailable ? (
+        <View style={styles.appSettingsToggleRow}>
+          <View style={styles.appSettingsActionIcon}>
+            <Ionicons name="finger-print" size={18} color="#0B5C36" />
+          </View>
+          <View style={styles.appSettingsActionCopy}>
+            <Text style={styles.appSettingsActionTitle}>BioMetric</Text>
+            <Text style={styles.appSettingsActionSubtitle}>Fingerprint or face unlock</Text>
+          </View>
+          <View style={styles.toggleContainer}>
+            {isTogglingBiometric && <ActivityIndicator size="small" color="#0B5C36" style={{ marginRight: 8 }} />}
+            <TouchableOpacity
+              style={[
+                styles.biometricSwitch,
+                biometricEnabled && styles.biometricSwitchOn,
+                isTogglingBiometric && styles.biometricSwitchDisabled,
+              ]}
+              onPress={onBiometricToggle}
+              disabled={isTogglingBiometric}
+              activeOpacity={0.82}
+              accessibilityRole="switch"
+              accessibilityState={{ checked: biometricEnabled, disabled: isTogglingBiometric }}
+            >
+              <View style={[styles.biometricSwitchThumb, biometricEnabled && styles.biometricSwitchThumbOn]}>
+                <Ionicons
+                  name={biometricEnabled ? "checkmark" : "close"}
+                  size={13}
+                  color={biometricEnabled ? "#0B5C36" : "#94A3B8"}
+                />
+              </View>
+            </TouchableOpacity>
+          </View>
+        </View>
+      ) : null}
+    </View>
+
+    <View style={styles.appSettingsSection}>
+      <View style={styles.appSettingsSectionHeader}>
+        <View style={[styles.appSettingsSectionIcon, { backgroundColor: "#EFF6FF" }]}>
+          <Ionicons name="calculator-outline" size={18} color="#2563EB" />
+        </View>
+        <View style={styles.appSettingsSectionCopy}>
+          <Text style={styles.appSettingsSectionTitle}>Business Rules</Text>
+          <Text style={styles.appSettingsSectionText}>Payout, alerts and expense approvals</Text>
+        </View>
+      </View>
+
+      <AppSettingsAction
+        icon="scale-outline"
+        title="Payout Rules"
+        subtitle="Based on KG sold or production cost"
+        onPress={onOpenOrganizationSettings}
+      />
+      <AppSettingsAction
+        icon="notifications-outline"
+        title="Alerts"
+        subtitle="Pending entry, FCR, mortality"
+        onPress={onOpenOrganizationSettings}
+      />
+      <AppSettingsAction
+        icon="cash-outline"
+        title="Financial Control"
+        subtitle="Supervisor expenses and farmer approval"
+        onPress={onOpenOrganizationSettings}
+        isLast
+      />
     </View>
   </View>
+);
+
+const AppSettingsAction = ({
+  icon,
+  title,
+  subtitle,
+  onPress,
+  isLast,
+}: {
+  icon: keyof typeof Ionicons.glyphMap;
+  title: string;
+  subtitle: string;
+  onPress: () => void;
+  isLast?: boolean;
+}) => (
+  <TouchableOpacity
+    style={[styles.appSettingsAction, isLast && styles.appSettingsActionLast]}
+    onPress={onPress}
+    activeOpacity={0.76}
+  >
+    <View style={styles.appSettingsActionIcon}>
+      <Ionicons name={icon} size={18} color="#0B5C36" />
+    </View>
+    <View style={styles.appSettingsActionCopy}>
+      <Text style={styles.appSettingsActionTitle}>{title}</Text>
+      <Text style={styles.appSettingsActionSubtitle}>{subtitle}</Text>
+    </View>
+    <Ionicons name="chevron-forward" size={18} color="#94A3B8" />
+  </TouchableOpacity>
 );
 
 
@@ -307,6 +408,11 @@ export default function ProfileScreen() {
       { text: 'Cancel', style: 'cancel' },
       { text: 'Sign Out', style: 'destructive', onPress: signOut },
     ]);
+  };
+
+  const openPrivacyPolicy = () => {
+    const roleGroup = user?.role === 'OWNER' ? '(owner)' : user?.role === 'SUPERVISOR' ? '(supervisor)' : '(farmer)';
+    router.navigate(`/${roleGroup}/profile/privacy-policy` as any);
   };
 
   const handleBiometricToggle = async () => {
@@ -503,58 +609,27 @@ export default function ProfileScreen() {
         ) : null} */}
 
           {/* Security */}
-          <Text style={styles.sectionTitle}>App Settings</Text>
-          <SurfaceCard padded={false} style={styles.settingsGroup}>
-            <SettingItem
-              icon="lock-closed-outline"
-              label="Change Password"
-              onPress={() => router.navigate('/(auth)/change-password' as any)}
-              isLast={false}
-            />
-            <SettingItem
-              icon="key-outline"
-              label="Change Pin"
-              onPress={() => router.navigate('/(auth)/set-pin' as any)}
-              isLast={false}
-            />
-            {biometricAvailable && (
-              <BiometricToggleItem
-                label="BioMetric"
-                isEnabled={biometricEnabled}
-                isLoading={isTogglingBiometric}
-                onToggle={handleBiometricToggle}
-                isLast={false}
-              />
-            )}
-            <SettingItem
-              icon="calculator-outline"
-              label="Payout rules"
-              description="Based in KG sold or Production Cost"
-              onPress={() => router.navigate('/(owner)/manage/settings' as any)}
-              isLast={false}
-            />
-            <SettingItem
-              icon="notifications-outline"
-              label="Alerts"
-              description="Pending entry, FCR, Mortality"
-              onPress={() => router.navigate('/(owner)/manage/settings' as any)}
-              isLast={false}
-            />
-            <SettingItem
-              icon="cash-outline"
-              label="Financial Control"
-              description="Supervisor can add Farmer Expense, Farmer Expense requires approval"
-              onPress={() => router.navigate('/(owner)/manage/settings' as any)}
-              isLast={true}
-            />
-          </SurfaceCard>
+          <AppSettingsPanel
+            biometricAvailable={biometricAvailable}
+            biometricEnabled={biometricEnabled}
+            isTogglingBiometric={isTogglingBiometric}
+            onBiometricToggle={handleBiometricToggle}
+            onChangePassword={() => router.navigate('/(auth)/change-password' as any)}
+            onChangePin={() => router.navigate('/(auth)/set-pin' as any)}
+            onOpenOrganizationSettings={() => router.navigate('/(owner)/manage/settings' as any)}
+          />
 
 
 
           {/* Support */}
-          <Text style={styles.sectionTitle}>Support</Text>
+          <Text style={styles.sectionTitle}>About</Text>
           <SurfaceCard padded={false} style={styles.settingsGroup}>
-            <SettingItem icon="shield-outline" label="Privacy Policy" />
+            <SettingItem
+              icon="shield-outline"
+              label="Privacy Policy"
+              description="How your farm and account data is used"
+              onPress={openPrivacyPolicy}
+            />
             <SettingItem icon="information-circle-outline" label="About WingSoft Farms" value="Version 1.0.0" isLast />
           </SurfaceCard>
 
@@ -656,6 +731,133 @@ const styles = StyleSheet.create({
   sectionTitle: { fontSize: 14, fontWeight: "700", color: "#0B5C36", marginBottom: 12, marginLeft: 4 },
   settingsGroup: {
     marginBottom: 24, overflow: "hidden",
+  },
+  appSettingsPanel: {
+    marginBottom: 24,
+    gap: 12,
+  },
+  appSettingsHero: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    borderRadius: 16,
+    backgroundColor: "#0B5C36",
+    padding: 16,
+    borderWidth: 1,
+    borderColor: "#064E2E",
+  },
+  appSettingsHeroIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: 12,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "rgba(255,255,255,0.14)",
+  },
+  appSettingsHeroCopy: {
+    flex: 1,
+    minWidth: 0,
+  },
+  appSettingsHeroTitle: {
+    color: "#FFFFFF",
+    fontSize: 18,
+    fontWeight: "900",
+  },
+  appSettingsHeroText: {
+    marginTop: 4,
+    color: "rgba(255,255,255,0.78)",
+    fontSize: 12,
+    lineHeight: 17,
+    fontWeight: "600",
+  },
+  appSettingsSection: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: "#E5E8EB",
+    overflow: "hidden",
+    shadowColor: "#000000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  appSettingsSectionHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    padding: 14,
+    borderBottomWidth: 1,
+    borderBottomColor: "#F1F5F9",
+    backgroundColor: "#FBFCFD",
+  },
+  appSettingsSectionIcon: {
+    width: 38,
+    height: 38,
+    borderRadius: 10,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  appSettingsSectionCopy: {
+    flex: 1,
+    minWidth: 0,
+  },
+  appSettingsSectionTitle: {
+    color: "#212B36",
+    fontSize: 15,
+    fontWeight: "900",
+  },
+  appSettingsSectionText: {
+    marginTop: 2,
+    color: "#637381",
+    fontSize: 12,
+    lineHeight: 16,
+    fontWeight: "600",
+  },
+  appSettingsAction: {
+    minHeight: 64,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: "#F1F5F9",
+  },
+  appSettingsActionLast: {
+    borderBottomWidth: 0,
+  },
+  appSettingsActionIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#F0FDF4",
+  },
+  appSettingsActionCopy: {
+    flex: 1,
+    minWidth: 0,
+  },
+  appSettingsActionTitle: {
+    color: "#374151",
+    fontSize: 14,
+    fontWeight: "800",
+  },
+  appSettingsActionSubtitle: {
+    marginTop: 3,
+    color: "#7C8794",
+    fontSize: 12,
+    lineHeight: 16,
+    fontWeight: "600",
+  },
+  appSettingsToggleRow: {
+    minHeight: 64,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
   },
   settingItem: {
     flexDirection: "row", alignItems: "center", justifyContent: "space-between",

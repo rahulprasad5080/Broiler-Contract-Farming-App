@@ -81,6 +81,8 @@ export default function OrganizationSettingsScreen() {
   const [form, setForm] = useState<SettingsForm | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [farmerCategoryDraft, setFarmerCategoryDraft] = useState("");
+  const [companyCategoryDraft, setCompanyCategoryDraft] = useState("");
 
   const loadSettings = useCallback(async () => {
     if (!accessToken) return;
@@ -129,6 +131,27 @@ export default function OrganizationSettingsScreen() {
       key,
       getCategoryList(key).filter((item) => item !== value),
     );
+  };
+
+  const addCategory = (
+    key: "farmerExpenseCategories" | "companyExpenseCategories",
+    value: string,
+    reset: () => void,
+  ) => {
+    const nextValue = value.trim();
+    if (!nextValue) return;
+
+    const currentValues = getCategoryList(key);
+    const alreadyAdded = currentValues.some(
+      (item) => item.toLowerCase() === nextValue.toLowerCase(),
+    );
+    if (alreadyAdded) {
+      reset();
+      return;
+    }
+
+    setCategoryList(key, [...currentValues, nextValue]);
+    reset();
   };
 
   const saveSettings = async () => {
@@ -203,37 +226,83 @@ export default function OrganizationSettingsScreen() {
           enableOnAndroid={true}
           extraScrollHeight={Platform.OS === 'ios' ? 20 : 100}
         >
-          <View style={styles.card}>
-            <Text style={styles.sectionTitle}>General</Text>
+          <View style={styles.heroPanel}>
+            <View style={styles.heroIcon}>
+              <Ionicons name="settings-outline" size={24} color="#FFFFFF" />
+            </View>
+            <View style={styles.heroCopy}>
+              <Text style={styles.heroTitle}>App Settings</Text>
+              <Text style={styles.heroSubtitle}>
+                Security, payout rules, alerts, and finance permissions in one place.
+              </Text>
+            </View>
+          </View>
+
+          <View style={styles.summaryGrid}>
+            <SummaryTile icon="cash-outline" label="Currency" value={form.currency || "INR"} color="#0F766E" />
+            <SummaryTile icon="scale-outline" label="Payout Unit" value={labelize(form.defaultPayoutUnit)} color="#2563EB" />
+            <SummaryTile icon="warning-outline" label="Pending Alert" value={`${form.pendingEntryDays || 0} days`} color="#B45309" />
+            <SummaryTile
+              icon="shield-checkmark-outline"
+              label="Approvals"
+              value={form.farmerExpenseRequiresApproval ? "Required" : "Optional"}
+              color="#7C3AED"
+            />
+          </View>
+
+          <SectionCard
+            title="Security"
+            subtitle="Login preferences and mobile-first behavior"
+            icon="lock-closed-outline"
+            accent="#0B5C36"
+          >
             <Field label="Currency" value={form.currency} onChangeText={(value) => setField("currency", value)} />
             <ToggleRow
               label="Mobile First"
+              description="Optimize screens for field users on mobile devices."
               value={form.mobileFirst}
               onValueChange={(value) => setField("mobileFirst", value)}
               isLast
             />
-          </View>
+          </SectionCard>
 
 
-          <View style={styles.card}>
-            <Text style={styles.sectionTitle}>Expense Categories</Text>
-            <Text style={styles.sectionHint}>Add categories as chips for cleaner expense entry options.</Text>
+          <SectionCard
+            title="Expense Categories"
+            subtitle="Keep farmer and company expense options tidy"
+            icon="pricetags-outline"
+            accent="#0891B2"
+          >
             <CategoryEditor
               title="Farmer Categories"
               icon="leaf-outline"
               values={getCategoryList("farmerExpenseCategories")}
+              draft={farmerCategoryDraft}
+              onDraftChange={setFarmerCategoryDraft}
+              onAdd={() =>
+                addCategory("farmerExpenseCategories", farmerCategoryDraft, () => setFarmerCategoryDraft(""))
+              }
               onRemove={(value) => removeCategory("farmerExpenseCategories", value)}
             />
             <CategoryEditor
               title="Company Categories"
               icon="business-outline"
               values={getCategoryList("companyExpenseCategories")}
+              draft={companyCategoryDraft}
+              onDraftChange={setCompanyCategoryDraft}
+              onAdd={() =>
+                addCategory("companyExpenseCategories", companyCategoryDraft, () => setCompanyCategoryDraft(""))
+              }
               onRemove={(value) => removeCategory("companyExpenseCategories", value)}
             />
-          </View>
+          </SectionCard>
 
-          <View style={styles.card}>
-            <Text style={styles.sectionTitle}>Payout Rules</Text>
+          <SectionCard
+            title="Payout Rules"
+            subtitle="Decide how farmer settlement amount is calculated"
+            icon="cash-outline"
+            accent="#2563EB"
+          >
             <Field
               label="Default Payout Rate"
               value={form.defaultPayoutRate}
@@ -241,24 +310,29 @@ export default function OrganizationSettingsScreen() {
               keyboardType="decimal-pad"
             />
             <Text style={styles.fieldLabel}>Default Payout Unit</Text>
-            <View style={styles.chipRow}>
+            <View style={styles.segmentedGroup}>
               {PAYOUT_UNITS.map((unit) => {
                 const active = form.defaultPayoutUnit === unit;
                 return (
                   <TouchableOpacity
                     key={unit}
-                    style={[styles.chip, active && styles.chipActive]}
+                    style={[styles.segmentButton, active && styles.segmentButtonActive]}
                     onPress={() => setField("defaultPayoutUnit", unit)}
+                    activeOpacity={0.8}
                   >
-                    <Text style={[styles.chipText, active && styles.chipTextActive]}>{labelize(unit)}</Text>
+                    <Text style={[styles.segmentText, active && styles.segmentTextActive]}>{labelize(unit)}</Text>
                   </TouchableOpacity>
                 );
               })}
             </View>
-          </View>
+          </SectionCard>
 
-          <View style={styles.card}>
-            <Text style={styles.sectionTitle}>Alert Thresholds</Text>
+          <SectionCard
+            title="Alerts"
+            subtitle="Trigger attention for pending entry, FCR, and mortality"
+            icon="notifications-outline"
+            accent="#B45309"
+          >
             <Field
               label="Pending Entry Days"
               value={form.pendingEntryDays}
@@ -272,35 +346,100 @@ export default function OrganizationSettingsScreen() {
               onChangeText={(value) => setField("mortalityPercent", value)}
               keyboardType="decimal-pad"
             />
-          </View>
+          </SectionCard>
 
-          <View style={styles.card}>
-            <Text style={styles.sectionTitle}>Financial Controls</Text>
+          <SectionCard
+            title="Financial Control"
+            subtitle="Supervisor expense permissions and approval checks"
+            icon="shield-checkmark-outline"
+            accent="#7C3AED"
+          >
             <ToggleRow
               label="Supervisor can add farmer expense"
+              description="Allow supervisors to create farmer-side expenses."
               value={form.supervisorCanAddFarmerExpense}
               onValueChange={(value) => setField("supervisorCanAddFarmerExpense", value)}
             />
             <ToggleRow
               label="Supervisor can add company expense"
+              description="Allow supervisors to record company-side expenses."
               value={form.supervisorCanAddCompanyExpense}
               onValueChange={(value) => setField("supervisorCanAddCompanyExpense", value)}
             />
             <ToggleRow
               label="Farmer expense requires approval"
+              description="Approved farmer expense will be included during batch settlement."
               value={form.farmerExpenseRequiresApproval}
               onValueChange={(value) => setField("farmerExpenseRequiresApproval", value)}
               isLast
             />
-          </View>
+          </SectionCard>
 
 
 
           <TouchableOpacity style={[styles.saveBtn, saving && styles.saveBtnDisabled]} onPress={saveSettings} disabled={saving}>
-            {saving ? <ActivityIndicator color="#FFF" /> : <Text style={styles.saveBtnText}>Save Settings</Text>}
+            {saving ? (
+              <ActivityIndicator color="#FFF" />
+            ) : (
+              <>
+                <Ionicons name="save-outline" size={18} color="#FFF" />
+                <Text style={styles.saveBtnText}>Save Settings</Text>
+              </>
+            )}
           </TouchableOpacity>
         </KeyboardAwareScrollView>
       )}
+    </View>
+  );
+}
+
+function SummaryTile({
+  icon,
+  label,
+  value,
+  color,
+}: {
+  icon: keyof typeof Ionicons.glyphMap;
+  label: string;
+  value: string;
+  color: string;
+}) {
+  return (
+    <View style={styles.summaryTile}>
+      <View style={[styles.summaryIcon, { backgroundColor: `${color}16` }]}>
+        <Ionicons name={icon} size={18} color={color} />
+      </View>
+      <Text style={styles.summaryLabel} numberOfLines={1}>{label}</Text>
+      <Text style={styles.summaryValue} numberOfLines={2}>{value}</Text>
+    </View>
+  );
+}
+
+function SectionCard({
+  title,
+  subtitle,
+  icon,
+  accent,
+  children,
+}: {
+  title: string;
+  subtitle: string;
+  icon: keyof typeof Ionicons.glyphMap;
+  accent: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <View style={styles.card}>
+      <View style={styles.sectionHeader}>
+        <View style={[styles.sectionIcon, { backgroundColor: `${accent}14` }]}>
+          <Ionicons name={icon} size={20} color={accent} />
+        </View>
+        <View style={styles.sectionCopy}>
+          <Text style={styles.sectionTitle}>{title}</Text>
+          <Text style={styles.sectionHint}>{subtitle}</Text>
+        </View>
+      </View>
+      {children}
     </View>
   );
 }
@@ -340,11 +479,17 @@ function CategoryEditor({
   title,
   icon,
   values,
+  draft,
+  onDraftChange,
+  onAdd,
   onRemove,
 }: {
   title: string;
   icon: keyof typeof Ionicons.glyphMap;
   values: string[];
+  draft: string;
+  onDraftChange: (value: string) => void;
+  onAdd: () => void;
   onRemove: (value: string) => void;
 }) {
   return (
@@ -377,24 +522,44 @@ function CategoryEditor({
       ) : (
         <Text style={styles.categoryEmptyText}>No categories added yet.</Text>
       )}
+
+      <View style={styles.categoryAddRow}>
+        <TextInput
+          style={styles.categoryInput}
+          value={draft}
+          onChangeText={onDraftChange}
+          placeholder="Add category"
+          placeholderTextColor={Colors.textSecondary}
+          returnKeyType="done"
+          onSubmitEditing={onAdd}
+        />
+        <TouchableOpacity style={styles.categoryAddButton} onPress={onAdd} activeOpacity={0.8}>
+          <Ionicons name="add" size={20} color="#FFF" />
+        </TouchableOpacity>
+      </View>
     </View>
   );
 }
 
 function ToggleRow({
   label,
+  description,
   value,
   onValueChange,
   isLast,
 }: {
   label: string;
+  description?: string;
   value: boolean;
   onValueChange: (value: boolean) => void;
   isLast?: boolean;
 }) {
   return (
     <View style={[styles.toggleRow, isLast && styles.toggleRowLast]}>
-      <Text style={styles.toggleLabel}>{label}</Text>
+      <View style={styles.toggleCopy}>
+        <Text style={styles.toggleLabel}>{label}</Text>
+        {description ? <Text style={styles.toggleDescription}>{description}</Text> : null}
+      </View>
       <Switch
         value={value}
         onValueChange={onValueChange}
@@ -406,32 +571,119 @@ function ToggleRow({
 }
 
 const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: "#F9FAFB" },
+  safeArea: { flex: 1, backgroundColor: Colors.background },
   headerBtn: { padding: 4 },
-  centerBox: { flex: 1, backgroundColor: "#F9FAFB", justifyContent: "center", alignItems: "center", gap: 10 },
-  container: { flexGrow: 1, backgroundColor: "#F9FAFB", padding: 16, paddingBottom: 80 },
+  centerBox: { flex: 1, backgroundColor: Colors.background, justifyContent: "center", alignItems: "center", gap: 10 },
+  container: { flexGrow: 1, backgroundColor: Colors.background, padding: 16, paddingBottom: 88 },
+  heroPanel: {
+    borderRadius: 8,
+    backgroundColor: Colors.secondary,
+    padding: 16,
+    marginBottom: 14,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+  },
+  heroIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: 8,
+    backgroundColor: "rgba(255,255,255,0.14)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  heroCopy: {
+    flex: 1,
+    minWidth: 0,
+  },
+  heroTitle: {
+    color: "#FFFFFF",
+    fontSize: 20,
+    fontWeight: "900",
+  },
+  heroSubtitle: {
+    marginTop: 4,
+    color: "rgba(255,255,255,0.78)",
+    fontSize: 12,
+    lineHeight: 17,
+    fontWeight: "600",
+  },
+  summaryGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    justifyContent: "space-between",
+    marginBottom: 2,
+  },
+  summaryTile: {
+    width: "48.5%",
+    minHeight: 112,
+    backgroundColor: Colors.surface,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    padding: 12,
+    marginBottom: 12,
+  },
+  summaryIcon: {
+    width: 34,
+    height: 34,
+    borderRadius: 8,
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 10,
+  },
+  summaryLabel: {
+    color: Colors.textSecondary,
+    fontSize: 11,
+    fontWeight: "800",
+    textTransform: "uppercase",
+  },
+  summaryValue: {
+    marginTop: 4,
+    color: Colors.text,
+    fontSize: 14,
+    lineHeight: 18,
+    fontWeight: "900",
+  },
   card: {
-    backgroundColor: "#FFF",
+    backgroundColor: Colors.surface,
     borderRadius: 8,
     borderWidth: 1,
     borderColor: Colors.border,
     padding: 16,
     marginBottom: 14,
   },
-  sectionTitle: { fontSize: 16, fontWeight: "800", color: Colors.text, marginBottom: 8 },
+  sectionHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    marginBottom: 6,
+  },
+  sectionIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 8,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  sectionCopy: {
+    flex: 1,
+    minWidth: 0,
+  },
+  sectionTitle: { fontSize: 16, fontWeight: "900", color: Colors.text },
   sectionHint: {
     fontSize: 12,
     lineHeight: 16,
     color: Colors.textSecondary,
     fontWeight: "600",
-    marginBottom: 2,
+    marginTop: 2,
   },
   fieldLabel: { fontSize: 12, fontWeight: "800", color: Colors.text, marginBottom: 7, marginTop: 12 },
   inputBox: {
     minHeight: 48,
     borderWidth: 1,
     borderColor: Colors.border,
-    borderRadius: 10,
+    borderRadius: 8,
     paddingHorizontal: 12,
     justifyContent: "center",
     backgroundColor: "#F9FAFB",
@@ -450,7 +702,7 @@ const styles = StyleSheet.create({
     marginTop: 12,
     borderWidth: 1,
     borderColor: Colors.border,
-    borderRadius: 10,
+    borderRadius: 8,
     backgroundColor: "#F9FAFB",
     padding: 12,
   },
@@ -463,7 +715,7 @@ const styles = StyleSheet.create({
   categoryIcon: {
     width: 34,
     height: 34,
-    borderRadius: 9,
+    borderRadius: 8,
     alignItems: "center",
     justifyContent: "center",
     backgroundColor: "#EEF8F0",
@@ -524,26 +776,56 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: "700",
   },
-  chipRow: {
+  categoryAddRow: {
+    marginTop: 10,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  categoryInput: {
+    flex: 1,
+    minHeight: 42,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    color: Colors.text,
+    fontSize: 13,
+    fontWeight: "700",
+    backgroundColor: "#FFFFFF",
+  },
+  categoryAddButton: {
+    width: 42,
+    height: 42,
+    borderRadius: 8,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: Colors.primary,
+  },
+  segmentedGroup: {
     flexDirection: "row",
     flexWrap: "wrap",
     gap: 8,
-    rowGap: 6,
   },
-  chip: {
+  segmentButton: {
+    flexGrow: 1,
+    minWidth: "30%",
+    minHeight: 42,
     borderWidth: 1,
     borderColor: Colors.border,
-    borderRadius: 999,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 9,
+    alignItems: "center",
+    justifyContent: "center",
     backgroundColor: "#F9FAFB",
     marginBottom: 6,
   },
-  chipActive: { backgroundColor: Colors.primary, borderColor: Colors.primary },
-  chipText: { fontSize: 12, fontWeight: "800", color: Colors.textSecondary },
-  chipTextActive: { color: "#FFF" },
+  segmentButtonActive: { backgroundColor: Colors.primary, borderColor: Colors.primary },
+  segmentText: { fontSize: 12, fontWeight: "900", color: Colors.textSecondary, textAlign: "center" },
+  segmentTextActive: { color: "#FFF" },
   toggleRow: {
-    minHeight: 54,
+    minHeight: 62,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
@@ -553,55 +835,26 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   toggleRowLast: { borderBottomWidth: 0 },
-  toggleLabel: { flex: 1, fontSize: 14, fontWeight: "700", color: Colors.text },
-  typeHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    gap: 10,
+  toggleCopy: {
+    flex: 1,
+    minWidth: 0,
   },
-  typeAddBtn: {
-    height: 48,
-    borderRadius: 10,
-    backgroundColor: Colors.primary,
-    alignItems: "center",
-    justifyContent: "center",
-    marginTop: 12,
+  toggleLabel: { fontSize: 14, fontWeight: "800", color: Colors.text },
+  toggleDescription: {
+    marginTop: 3,
+    fontSize: 11,
+    lineHeight: 15,
+    fontWeight: "600",
+    color: Colors.textSecondary,
   },
-  typeAddText: { color: "#FFF", fontSize: 14, fontWeight: "800" },
-  typeList: { marginTop: 14, gap: 8 },
-  typeRow: {
-    minHeight: 54,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: Colors.border,
-    backgroundColor: "#F9FAFB",
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    gap: 12,
-  },
-  typeTextBlock: { flex: 1 },
-  typeValue: { fontSize: 13, fontWeight: "900", color: Colors.text },
-  typeDescription: { marginTop: 3, fontSize: 11, fontWeight: "600", color: Colors.textSecondary },
-  typeStatusBtn: {
-    borderRadius: 999,
-    backgroundColor: "#E7F5ED",
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-  },
-  typeStatusBtnInactive: { backgroundColor: "#FEE2E2" },
-  typeStatusText: { fontSize: 11, fontWeight: "900", color: Colors.primary },
-  typeStatusTextInactive: { color: "#991B1B" },
-  emptyTypeText: { fontSize: 12, fontWeight: "700", color: Colors.textSecondary },
   saveBtn: {
     height: 52,
-    borderRadius: 12,
+    borderRadius: 8,
     backgroundColor: Colors.primary,
     alignItems: "center",
     justifyContent: "center",
+    flexDirection: "row",
+    gap: 8,
     marginTop: 4,
   },
   saveBtnDisabled: { opacity: 0.72 },

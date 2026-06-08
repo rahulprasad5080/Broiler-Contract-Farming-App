@@ -6,6 +6,7 @@ export { NotificationsScreen } from "./NotificationsScreen";
 export { default as ProfileScreen } from "./ProfileScreen";
 export { default as PersonalInfoScreen } from "./PersonalInfoScreen";
 export { default as PermissionsScreen } from "./PermissionsScreen";
+export { default as PrivacyPolicyScreen } from "./PrivacyPolicyScreen";
 export { default as BankDetailsScreen } from "./BankDetailsScreen";
 export { default as ReportsScreen } from "./ReportsScreen";
 export { SalesEntryScreen } from "./SalesEntryScreen";
