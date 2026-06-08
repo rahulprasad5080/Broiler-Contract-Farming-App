@@ -225,8 +225,8 @@ export function NotificationsScreen() {
       />
 
       <KeyboardAvoidingView
-        behavior={Platform.OS === "ios" ? "padding" : "height"}
-        style={{ flex: 1 }}
+        behavior={Platform.OS === "ios" ? "padding" : undefined}
+        style={styles.keyboardAvoidingWrapper}
       >
       <View style={styles.container}>
         {/* Filter Tabs */}
@@ -358,7 +358,8 @@ export function NotificationsScreen() {
 }
 
 const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: "#0B5C36" },
+  safeArea: { flex: 1, backgroundColor: "#F9FAFB" },
+  keyboardAvoidingWrapper: { flex: 1, backgroundColor: "#F9FAFB" },
   container: { flex: 1, backgroundColor: "#F9FAFB" },
   tabsRow: {
     flexDirection: "row",

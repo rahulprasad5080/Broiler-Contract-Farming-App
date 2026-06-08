@@ -558,7 +558,7 @@ export default function FarmListScreen() {
         }
       />
       <KeyboardAvoidingView
-        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         style={{ flex: 1 }}
       >
       <FlatList
@@ -882,7 +882,7 @@ export default function FarmListScreen() {
 }
 
 const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: '#F4F6F8' },
+  safeArea: { flex: 1, backgroundColor: '#F9FAF9' },
   contentArea: { flex: 1, backgroundColor: '#F9FAF9' },
   headerBtn: {
     padding: 4,
@@ -890,7 +890,7 @@ const styles = StyleSheet.create({
   container: {
     paddingHorizontal: 16,
     paddingTop: 16,
-    paddingBottom: 24,
+    paddingBottom: 80,
     alignSelf: 'center',
     width: '100%',
     maxWidth: Layout.contentMaxWidth,

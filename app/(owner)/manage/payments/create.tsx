@@ -279,7 +279,7 @@ export default function CreatePaymentScreen() {
         onBack={() => router.back()}
       />
       <KeyboardAvoidingView
-        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         style={{ flex: 1 }}
       >
         <ScrollView
@@ -469,7 +469,6 @@ export default function CreatePaymentScreen() {
               )}
             </TouchableOpacity>
           </View>
-          <View style={{ height: 36 }} />
         </ScrollView>
       </KeyboardAvoidingView>
     </View>
@@ -517,6 +516,7 @@ function ControlledInput({
             keyboardType={keyboardType}
             autoCapitalize={autoCapitalize}
             multiline={multiline}
+            scrollEnabled={multiline ? false : undefined}
           />
         )}
       />
@@ -528,12 +528,13 @@ function ControlledInput({
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: "#0B5C36",
+    backgroundColor: "#F4F6F8",
   },
   scrollContainer: {
     flexGrow: 1,
     backgroundColor: "#F4F6F8",
     padding: 14,
+    paddingBottom: 80,
   },
   stateSpacing: {
     marginBottom: 12,

@@ -194,7 +194,7 @@ export default function SupervisorReviewLogsScreen() {
       <Modal visible={!!selectedLog} transparent animationType="slide">
         <TouchableOpacity style={styles.modalOverlay} activeOpacity={1} onPress={() => setSelectedLog(null)}>
           <KeyboardAvoidingView
-            behavior={Platform.OS === "ios" ? "padding" : "height"}
+            behavior={Platform.OS === 'ios' ? 'padding' : undefined}
             style={{ width: '100%' }}
           >
           <View style={styles.modalSheet} onStartShouldSetResponder={() => true}>
@@ -285,7 +285,7 @@ export default function SupervisorReviewLogsScreen() {
 }
 
 const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: '#F4F6F8' },
+  safeArea: { flex: 1, backgroundColor: '#F9FAFB' },
   container: { padding: Layout.screenPadding, paddingBottom: 100, maxWidth: Layout.contentMaxWidth, alignSelf: 'center', width: '100%', backgroundColor: '#F9FAFB' },
   logCard: {
     backgroundColor: '#FFF', borderRadius: Layout.borderRadius.sm, padding: 16, marginBottom: 12,

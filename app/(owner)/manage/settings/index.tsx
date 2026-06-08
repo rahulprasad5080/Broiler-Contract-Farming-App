@@ -192,7 +192,7 @@ export default function OrganizationSettingsScreen() {
         }
       />
       <KeyboardAvoidingView
-        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         style={{ flex: 1 }}
       >
 
@@ -297,7 +297,6 @@ export default function OrganizationSettingsScreen() {
           <TouchableOpacity style={[styles.saveBtn, saving && styles.saveBtnDisabled]} onPress={saveSettings} disabled={saving}>
             {saving ? <ActivityIndicator color="#FFF" /> : <Text style={styles.saveBtnText}>Save Settings</Text>}
           </TouchableOpacity>
-          <View style={{ height: 40 }} />
         </ScrollView>
       )}
       </KeyboardAvoidingView>
@@ -406,10 +405,10 @@ function ToggleRow({
 }
 
 const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: "#F4F6F8" },
+  safeArea: { flex: 1, backgroundColor: "#F9FAFB" },
   headerBtn: { padding: 4 },
   centerBox: { flex: 1, backgroundColor: "#F9FAFB", justifyContent: "center", alignItems: "center", gap: 10 },
-  container: { flexGrow: 1, backgroundColor: "#F9FAFB", padding: 16 },
+  container: { flexGrow: 1, backgroundColor: "#F9FAFB", padding: 16, paddingBottom: 80 },
   card: {
     backgroundColor: "#FFF",
     borderRadius: 8,

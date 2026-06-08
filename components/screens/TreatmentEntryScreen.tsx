@@ -276,8 +276,8 @@ export function TreatmentEntryScreen({
     <View style={styles.safeArea}>
       <TopAppBar title={title} subtitle={subtitle} />
       <KeyboardAvoidingView
-        behavior={Platform.OS === "ios" ? "padding" : "height"}
-        style={{ flex: 1 }}
+        behavior={Platform.OS === "ios" ? "padding" : undefined}
+        style={styles.keyboardAvoidingWrapper}
       >
 
       <ScrollView
@@ -470,6 +470,7 @@ export function TreatmentEntryScreen({
                     placeholder="Notes"
                     placeholderTextColor={Colors.textSecondary}
                     multiline
+                    scrollEnabled={false}
                   />
                 </View>
                 {formErrors.notes && <Text style={styles.fieldErrorText}>{formErrors.notes.message}</Text>}
@@ -501,7 +502,8 @@ export function TreatmentEntryScreen({
 }
 
 const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: '#0B5C36' },
+  safeArea: { flex: 1, backgroundColor: '#F9FAFB' },
+  keyboardAvoidingWrapper: { flex: 1, backgroundColor: '#F9FAFB' },
   draftBanner: {
     flexDirection: 'row',
     alignItems: 'center',

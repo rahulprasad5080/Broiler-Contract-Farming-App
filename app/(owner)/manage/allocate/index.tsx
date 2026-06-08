@@ -166,7 +166,7 @@ export default function AllocateInventoryScreen() {
       />
 
       <KeyboardAvoidingView
-        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         style={styles.keyboardView}
       >
         <ScrollView
@@ -270,6 +270,7 @@ export default function AllocateInventoryScreen() {
                     placeholder="Optional remarks"
                     placeholderTextColor="#9CA3AF"
                     multiline
+                    scrollEnabled={false}
                   />
                 )}
               />
@@ -291,8 +292,6 @@ export default function AllocateInventoryScreen() {
               )}
             </TouchableOpacity>
           </View>
-
-          <View style={{ height: 40 }} />
         </ScrollView>
       </KeyboardAvoidingView>
     </View>
@@ -302,7 +301,7 @@ export default function AllocateInventoryScreen() {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: "#0B5C36",
+    backgroundColor: "#F4F6F8",
   },
   keyboardView: {
     flex: 1,
@@ -311,7 +310,7 @@ const styles = StyleSheet.create({
   scrollContainer: {
     flexGrow: 1,
     padding: 14,
-    paddingBottom: 56,
+    paddingBottom: 80,
   },
   stateSpacing: {
     marginBottom: 12,

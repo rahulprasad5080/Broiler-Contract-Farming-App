@@ -147,7 +147,7 @@ export default function CreateFinanceEntryScreen() {
       />
 
       <KeyboardAvoidingView
-        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         style={styles.keyboardView}
       >
         <ScrollView
@@ -287,6 +287,7 @@ export default function CreateFinanceEntryScreen() {
                     placeholder="Optional notes"
                     placeholderTextColor="#9CA3AF"
                     multiline
+                    scrollEnabled={false}
                   />
                 )}
               />
@@ -308,8 +309,6 @@ export default function CreateFinanceEntryScreen() {
               )}
             </TouchableOpacity>
           </View>
-
-          <View style={{ height: 40 }} />
         </ScrollView>
       </KeyboardAvoidingView>
     </View>
@@ -319,7 +318,7 @@ export default function CreateFinanceEntryScreen() {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: "#0B5C36",
+    backgroundColor: "#F4F6F8",
   },
   keyboardView: {
     flex: 1,
@@ -329,7 +328,7 @@ const styles = StyleSheet.create({
     flexGrow: 1,
     paddingHorizontal: 12,
     paddingTop: 12,
-    paddingBottom: 56,
+    paddingBottom: 80,
   },
   messageText: {
     borderRadius: 10,

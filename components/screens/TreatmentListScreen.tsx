@@ -357,7 +357,7 @@ export function TreatmentListScreen({
 }
 
 const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: '#0B5C36' },
+  safeArea: { flex: 1, backgroundColor: '#F9FAFB' },
   headerBtn: {
     width: 40,
     height: 40,

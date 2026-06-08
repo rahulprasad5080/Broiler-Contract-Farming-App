@@ -191,6 +191,7 @@ function InputField({
           keyboardType={keyboardType}
           multiline={multiline}
           editable={editable}
+          scrollEnabled={multiline ? false : undefined}
         />
         {suffix ? <Text style={styles.suffix}>{suffix}</Text> : null}
       </View>
@@ -436,7 +437,7 @@ export default function CreateBatchScreen() {
         subtitle={isEditMode ? "Update batch master details" : "Configure batch settings and starting inventory"}
       />
       <KeyboardAvoidingView
-        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         style={{ flex: 1 }}
       >
       <ScrollView
@@ -781,7 +782,6 @@ export default function CreateBatchScreen() {
             )}
           </TouchableOpacity>
         </View>
-        <View style={{ height: 40 }} />
       </ScrollView>
       </KeyboardAvoidingView>
     </View>
@@ -801,7 +801,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#F4F6F8',
     paddingHorizontal: 16,
     paddingTop: 16,
-    paddingBottom: 24,
+    paddingBottom: 80,
   },
   card: {
     backgroundColor: '#FFF',

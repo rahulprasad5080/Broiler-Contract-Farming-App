@@ -195,7 +195,7 @@ export default function FinalizeSaleScreen() {
           />
         </View>
       ) : (
-        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={styles.keyboard}>
+        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.keyboard}>
           <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
             <View style={styles.saleCard}>
               <View>
@@ -286,6 +286,7 @@ function InputField({
         placeholderTextColor={Colors.textSecondary}
         keyboardType={multiline ? 'default' : 'decimal-pad'}
         multiline={multiline}
+        scrollEnabled={multiline ? false : undefined}
       />
     </View>
   );

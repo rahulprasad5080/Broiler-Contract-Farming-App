@@ -1,4 +1,4 @@
-﻿import { Colors } from '@/constants/Colors';
+import { Colors } from '@/constants/Colors';
 import { Layout } from '@/constants/Layout';
 import { useAuth } from '@/context/AuthContext';
 import { useFormPersistence } from '@/hooks/useFormPersistence';
@@ -476,7 +476,7 @@ export default function AddFarmScreen() {
       />
 
       <KeyboardAvoidingView
-        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         style={{ flex: 1 }}
       >
         <ScrollView
@@ -641,6 +641,7 @@ export default function AddFarmScreen() {
                       value={value}
                       onChangeText={onChange}
                       multiline
+                      scrollEnabled={false}
                     />
                   </View>
                   <Text style={styles.referenceCounter}>{value?.length ?? 0}/500</Text>
@@ -937,7 +938,7 @@ export default function AddFarmScreen() {
 }
 
 const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: '#F4F6F8' },
+  safeArea: { flex: 1, backgroundColor: '#FFF' },
   contentArea: { flex: 1, backgroundColor: '#FFF' },
   draftBanner: {
     flexDirection: 'row',

@@ -370,8 +370,8 @@ export default function ProfileScreen() {
       <TopAppBar title="Profile & Settings" subtitle={`${getRoleLabel(user?.role)} account`} />
 
       <KeyboardAvoidingView
-        behavior={Platform.OS === "ios" ? "padding" : "height"}
-        style={{ flex: 1 }}
+        behavior={Platform.OS === "ios" ? "padding" : undefined}
+        style={styles.keyboardAvoidingWrapper}
       >
         <ScrollView contentContainerStyle={styles.scrollContainer} showsVerticalScrollIndicator={false}>
           {/* Profile Card */}
@@ -555,7 +555,6 @@ export default function ProfileScreen() {
             <Text style={styles.logoutText}>Logout</Text>
           </TouchableOpacity>
 
-          <View style={{ height: 40 }} />
         </ScrollView>
       </KeyboardAvoidingView>
     </View>
@@ -563,8 +562,9 @@ export default function ProfileScreen() {
 }
 
 const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: "#0B5C36" },
-  scrollContainer: { flexGrow: 1, backgroundColor: "#F9FAFB", paddingHorizontal: 20, paddingTop: 24 },
+  safeArea: { flex: 1, backgroundColor: "#F9FAFB" },
+  keyboardAvoidingWrapper: { flex: 1, backgroundColor: "#F9FAFB" },
+  scrollContainer: { flexGrow: 1, backgroundColor: "#F9FAFB", paddingHorizontal: 20, paddingTop: 24, paddingBottom: 80 },
   profileCard: {
     marginBottom: 24,
   },

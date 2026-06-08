@@ -1,4 +1,4 @@
-﻿import { ScreenState } from '@/components/ui/ScreenState';
+import { ScreenState } from '@/components/ui/ScreenState';
 import { TopAppBar } from '@/components/ui/TopAppBar';
 import { Colors } from '@/constants/Colors';
 import { useAuth } from '@/context/AuthContext';
@@ -357,7 +357,7 @@ export default function UserManagementScreen() {
           }
         />
         <KeyboardAvoidingView
-          behavior={Platform.OS === "ios" ? "padding" : "height"}
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
           style={{ flex: 1 }}
         >
 
@@ -432,7 +432,7 @@ export default function UserManagementScreen() {
 }
 
 const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: '#F4F6F8' },
+  safeArea: { flex: 1, backgroundColor: '#F9FAFB' },
   pageContent: { flex: 1, backgroundColor: '#F9FAFB' },
   container: { paddingHorizontal: 16, paddingTop: 16, paddingBottom: 40 },
   searchFilterRow: {

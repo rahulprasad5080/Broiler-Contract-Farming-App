@@ -1,4 +1,4 @@
-﻿import { Ionicons } from "@expo/vector-icons";
+import { Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useState } from "react";
 import {
@@ -114,7 +114,7 @@ export default function DropdownCreateScreen() {
         />
 
         <KeyboardAvoidingView
-          behavior={Platform.OS === "ios" ? "padding" : "height"}
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
           style={{ flex: 1 }}
         >
           <ScrollView
@@ -194,6 +194,7 @@ export default function DropdownCreateScreen() {
                   numberOfLines={3}
                   onFocus={() => setDescFocused(true)}
                   onBlur={() => setDescFocused(false)}
+                  scrollEnabled={false}
                 />
               </View>
 
@@ -250,7 +251,7 @@ export default function DropdownCreateScreen() {
 }
 
 const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: "#F4F6F8" },
+  safeArea: { flex: 1, backgroundColor: "#F9FAFB" },
   pageContent: { flex: 1, backgroundColor: "#F9FAFB" },
   container: { padding: 16, paddingBottom: 40 },
   card: {

@@ -206,7 +206,7 @@ export default function CreateUpdatePartnerScreen() {
                 onBack={() => router.back()}
             />
             <KeyboardAvoidingView
-                behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+                behavior={Platform.OS === 'ios' ? 'padding' : undefined}
                 style={styles.keyboardAvoid}
             >
                 <ScrollView
@@ -318,6 +318,7 @@ function Field({
                             onChangeText={onChange}
                             keyboardType={keyboardType}
                             multiline={multiline}
+                            scrollEnabled={multiline ? false : undefined}
                         />
                     </View>
                     {error ? <Text style={styles.fieldErrorText}>{error}</Text> : null}
@@ -347,7 +348,7 @@ const styles = StyleSheet.create({
     scrollContent: {
         paddingHorizontal: 20,
         paddingTop: 16,
-        paddingBottom: Platform.OS === 'ios' ? 40 : 20,
+        paddingBottom: 80,
     },
     cardContainer: {
         backgroundColor: Colors.surface,

@@ -375,8 +375,8 @@ export function DailyEntryScreen({
         subtitle={subtitle}
       />
       <KeyboardAvoidingView
-        behavior={Platform.OS === "ios" ? "padding" : "height"}
-        style={{ flex: 1 }}
+        behavior={Platform.OS === "ios" ? "padding" : undefined}
+        style={styles.keyboardAvoidingWrapper}
       >
 
       <ScrollView
@@ -567,6 +567,7 @@ export function DailyEntryScreen({
                   placeholder="Birds healthy and active"
                   placeholderTextColor="#9CA3AF"
                   multiline
+                  scrollEnabled={false}
                 />
               )}
             />
@@ -585,7 +586,6 @@ export function DailyEntryScreen({
             )}
           </TouchableOpacity>
         </View>
-        <View style={{ height: 40 }} />
       </ScrollView>
       </KeyboardAvoidingView>
     </View>
@@ -595,13 +595,18 @@ export function DailyEntryScreen({
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: "#0B5C36"
+    backgroundColor: "#FFF",
+  },
+  keyboardAvoidingWrapper: {
+    flex: 1,
+    backgroundColor: "#FFF",
   },
   scrollContainer: {
     flexGrow: 1,
     backgroundColor: "#FFF",
     paddingHorizontal: 20,
     paddingTop: 24,
+    paddingBottom: 80,
   },
   form: {
     flex: 1,

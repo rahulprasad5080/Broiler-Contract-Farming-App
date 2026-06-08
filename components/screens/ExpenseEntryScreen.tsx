@@ -299,8 +299,8 @@ export function ExpenseEntryScreen({ title = "Expense Entry", subtitle, onBack }
     <View style={styles.safeArea}>
       <TopAppBar title={title} subtitle={subtitle} onBack={onBack} />
       <KeyboardAvoidingView
-        behavior={Platform.OS === "ios" ? "padding" : "height"}
-        style={{ flex: 1 }}
+        behavior={Platform.OS === "ios" ? "padding" : undefined}
+        style={styles.keyboardAvoidingWrapper}
       >
 
         <ScrollView contentContainerStyle={styles.scrollContainer} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
@@ -595,6 +595,7 @@ export function ExpenseEntryScreen({ title = "Expense Entry", subtitle, onBack }
                         placeholder="May electricity bill"
                         placeholderTextColor="#9CA3AF"
                         multiline
+                        scrollEnabled={false}
                       />
                     </View>
                   )}
@@ -607,7 +608,7 @@ export function ExpenseEntryScreen({ title = "Expense Entry", subtitle, onBack }
                 name="totalAmount"
                 render={({ field: { value } }) => (
                   <View style={styles.totalCard}>
-                    <View style={styles.totalCardHeader}>
+                     <View style={styles.totalCardHeader}>
                       <Text style={styles.totalLabel}>Total Expense Amount</Text>
                       <View style={styles.totalIconBox}>
                         <Ionicons name="cash" size={16} color="#0B5C36" />
@@ -635,7 +636,6 @@ export function ExpenseEntryScreen({ title = "Expense Entry", subtitle, onBack }
               </TouchableOpacity>
             </View>
           </View>
-          <View style={{ height: 40 }} />
         </ScrollView>
       </KeyboardAvoidingView>
     </View>
@@ -645,13 +645,18 @@ export function ExpenseEntryScreen({ title = "Expense Entry", subtitle, onBack }
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: "#0B5C36",
+    backgroundColor: "#F4F6F8",
+  },
+  keyboardAvoidingWrapper: {
+    flex: 1,
+    backgroundColor: "#F4F6F8",
   },
   scrollContainer: {
     flexGrow: 1,
     backgroundColor: "#F4F6F8",
     paddingHorizontal: 14,
     paddingTop: 16,
+    paddingBottom: 80,
   },
   form: {
     flex: 1,

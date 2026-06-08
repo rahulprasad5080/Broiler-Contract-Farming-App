@@ -166,7 +166,7 @@ export default function CatalogCreateUpdateScreen() {
         leadingMode="back"
       />
       <KeyboardAvoidingView
-        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         style={styles.flex}
       >
         <ScrollView
@@ -336,7 +336,7 @@ const styles = StyleSheet.create({
   },
   container: {
     padding: 16,
-    paddingBottom: 40,
+    paddingBottom: 80,
     backgroundColor: "#F4F6F8",
   },
   card: {

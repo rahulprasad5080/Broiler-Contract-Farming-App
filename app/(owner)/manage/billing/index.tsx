@@ -1,4 +1,4 @@
-﻿import React, { useCallback, useState } from "react";
+import React, { useCallback, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -202,7 +202,7 @@ export default function BillingScreen() {
         }
       />
 
-      <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} style={{ flex: 1 }}>
+      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
         <ScrollView contentContainerStyle={styles.scrollContainer} showsVerticalScrollIndicator={false}>
           
           {/* Active/Current Subscription Card */}
@@ -425,8 +425,6 @@ export default function BillingScreen() {
               </SurfaceCard>
             );
           })}
-
-          <View style={{ height: 40 }} />
         </ScrollView>
       </KeyboardAvoidingView>
     </View>
@@ -434,10 +432,10 @@ export default function BillingScreen() {
 }
 
 const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: "#F4F6F8" },
+  safeArea: { flex: 1, backgroundColor: "#F9FAFB" },
   headerBtn: { padding: 4 },
   centerBox: { flex: 1, backgroundColor: "#F9FAFB", justifyContent: "center", alignItems: "center" },
-  scrollContainer: { flexGrow: 1, backgroundColor: "#F9FAFB", paddingHorizontal: 16, paddingTop: 16 },
+  scrollContainer: { flexGrow: 1, backgroundColor: "#F9FAFB", paddingHorizontal: 16, paddingTop: 16, paddingBottom: 80 },
   
   // Active Sub Styles
   activeSubCard: {

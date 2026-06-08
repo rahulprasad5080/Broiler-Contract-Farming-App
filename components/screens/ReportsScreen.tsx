@@ -451,7 +451,7 @@ export default function ReportsScreen() {
         }
       />
 
-      <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} style={{ flex: 1 }}>
+      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.keyboardAvoidingWrapper}>
         <View style={styles.mainContainer}>
           
           {/* Navigation Category Tabs */}
@@ -1471,7 +1471,6 @@ export default function ReportsScreen() {
               />
             )}
 
-            <View style={{ height: 40 }} />
           </ScrollView>
 
         </View>
@@ -1540,7 +1539,8 @@ function DataSummaryRow({
 }
 
 const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: "#0B5C36" },
+  safeArea: { flex: 1, backgroundColor: "#F9FAFB" },
+  keyboardAvoidingWrapper: { flex: 1, backgroundColor: "#F9FAFB" },
   headerBtn: { padding: 4 },
   centerBox: { flex: 1, backgroundColor: "#F9FAFB", justifyContent: "center", alignItems: "center" },
   mainContainer: { flex: 1, backgroundColor: "#F9FAFB" },
@@ -1621,7 +1621,7 @@ const styles = StyleSheet.create({
     color: "#FFFFFF",
   },
 
-  scrollContainer: { flexGrow: 1, paddingHorizontal: 16, paddingTop: 16 },
+  scrollContainer: { flexGrow: 1, paddingHorizontal: 16, paddingTop: 16, paddingBottom: 80 },
   summaryDetailsContainer: {
     marginTop: 16,
     width: "100%",

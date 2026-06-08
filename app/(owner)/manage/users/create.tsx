@@ -580,7 +580,7 @@ export default function CreateUserScreen() {
         subtitle="Role, permissions, farms, and security"
       />
       <KeyboardAvoidingView
-        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         style={{ flex: 1 }}
       >
         <ScrollView
@@ -1197,7 +1197,7 @@ export default function CreateUserScreen() {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#0B5C36',
+    backgroundColor: '#F9FAFB',
   },
   pageContent: {
     flex: 1,
@@ -1205,7 +1205,7 @@ const styles = StyleSheet.create({
   },
   container: {
     padding: 16,
-    paddingBottom: 36,
+    paddingBottom: 80,
     gap: 14,
   },
   section: {

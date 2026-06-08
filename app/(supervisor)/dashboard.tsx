@@ -101,7 +101,7 @@ export default function SupervisorDashboard() {
     <View style={styles.safeArea}>
       <StatusBar barStyle="light-content" backgroundColor={THEME_GREEN} />
       <KeyboardAvoidingView
-        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         style={{ flex: 1 }}
       >
 
@@ -285,8 +285,6 @@ export default function SupervisorDashboard() {
             )}
           </View>
 
-          {/* Bottom spacing for FAB */}
-          <View style={{ height: 40 }} />
         </ScrollView>
       </KeyboardAvoidingView>
     </View>
@@ -371,7 +369,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#F9FAF9',
   },
   scrollContent: {
-    paddingBottom: 40,
+    paddingBottom: 80,
   },
   profileSection: {
     flexDirection: 'row',
