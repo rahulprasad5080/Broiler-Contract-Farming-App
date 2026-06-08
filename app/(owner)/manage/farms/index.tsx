@@ -14,7 +14,6 @@ import {
   type ApiFarmAssignment,
   type ApiUser,
 } from '@/services/managementApi';
-import { formatDate } from '@/utils/format';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
@@ -128,15 +127,6 @@ function getRoleAccent(role: ApiUser['role']) {
 }
 
 
-function DetailCell({ label, value }: { label: string; value: string }) {
-  return (
-    <View style={styles.detailCell}>
-      <Text style={styles.detailLabel}>{label}</Text>
-      <Text style={styles.detailValue} numberOfLines={2}>{value || '-'}</Text>
-    </View>
-  );
-}
-
 function toFarmCard(farm: ApiFarm): FarmCard {
   const farmerName =
     farm.primaryFarmerName ||
@@ -174,6 +164,10 @@ function toFarmCard(farm: ApiFarm): FarmCard {
   };
 }
 
+function formatCompactNumber(value: number) {
+  return value.toLocaleString('en-IN');
+}
+
 export default function FarmListScreen() {
   const router = useRouter();
   const { accessToken, hasPermission } = useAuth();
@@ -197,7 +191,7 @@ export default function FarmListScreen() {
   const [assignmentSearch, setAssignmentSearch] = useState('');
   const [assignmentRoleFilter, setAssignmentRoleFilter] = useState<PickerRoleFilter>('all');
   const [isLoading, setIsLoading] = useState(true);
-  const [isSavingEdit, setIsSavingEdit] = useState(false);
+  const [, setIsSavingEdit] = useState(false);
   const [isSavingAssignment, setIsSavingAssignment] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const requestedPageRef = useRef(1);
@@ -288,10 +282,6 @@ export default function FarmListScreen() {
 
     return () => clearTimeout(delayDebounce);
   }, [searchQuery, accessToken, loadFarms]);
-
-  const openEditFarm = (farmId: string) => {
-    router.push({ pathname: '/(owner)/manage/farms/add', params: { id: farmId } });
-  };
 
   const openQuickAssignment = async (farmId: string, field: Exclude<AssignmentField, 'assignmentUserIds'>) => {
     if (!accessToken) {
@@ -541,21 +531,8 @@ export default function FarmListScreen() {
   return (
     <View style={styles.safeArea}>
       <TopAppBar
-        title="Farm Management"
-        subtitle="Operational status and assignments"
+        title="Farm List"
         onBack={() => router.replace('/(owner)/dashboard')}
-        right={
-          canManageFarms ? (
-            <TouchableOpacity
-              style={styles.headerBtn}
-              onPress={() => router.navigate('/(owner)/manage/farms/add')}
-              accessibilityRole="button"
-              accessibilityLabel="Add farm"
-            >
-              <Ionicons name="add" size={28} color="#FFF" />
-            </TouchableOpacity>
-          ) : null
-        }
       />
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
@@ -632,100 +609,46 @@ export default function FarmListScreen() {
 
             <View style={styles.listHeader}>
               <Text style={styles.listTitle}>Farm List</Text>
-              <Text style={styles.listCount}>{filtered.length}/{totalFarms} loaded</Text>
+              <Text style={styles.listCount}>{filtered.length}/{totalFarms}</Text>
             </View>
           </>
         }
         renderItem={({ item: farm }) => {
           const sc = statusColor(farm.status);
           return (
-            <View style={styles.farmCard}>
-              <TouchableOpacity
-                onPress={() => router.push({ pathname: '/(owner)/manage/farms/[id]', params: { id: farm.id } })}
-                activeOpacity={0.88}
-              >
-                <View style={styles.cardTop}>
-                  <View style={styles.farmTitleRow}>
-                    <View style={styles.farmIcon}>
-                      <Ionicons name="business-outline" size={20} color={THEME_GREEN} />
-                    </View>
-                    <View style={styles.farmTitleWrap}>
-                      <Text style={styles.farmName} numberOfLines={1}>{farm.name}</Text>
-                      <Text style={styles.farmCode}>{farm.code}</Text>
-                    </View>
-                  </View>
-                  <View style={styles.cardActions}>
-                    <View style={[styles.statusBadge, { backgroundColor: sc.bg }]}>
-                      <Text style={[styles.statusText, { color: sc.text }]}>{farm.status}</Text>
-                    </View>
-                    {canManageFarms && (
-                      <TouchableOpacity
-                        style={styles.actionButton}
-                        onPress={() => openEditFarm(farm.id)}
-                        disabled={isSavingEdit}
-                      >
-                        <Ionicons name="pencil-outline" size={16} color={Colors.primary} />
-                      </TouchableOpacity>
-                    )}
-                  </View>
-                </View>
-
-                <View style={styles.locationRow}>
-                  <Ionicons name="location-outline" size={13} color={Colors.textSecondary} />
-                  <Text style={styles.locationText} numberOfLines={1}>{farm.location}</Text>
-                </View>
-
-                <View style={styles.metricsGrid}>
-                  <View style={styles.metricTile}>
-                    <Text style={styles.metricLabel}>Capacity</Text>
-                    <Text style={styles.metricValue}>{farm.capacity.toLocaleString()}</Text>
-                  </View>
-                  <View style={styles.metricTile}>
-                    <Text style={styles.metricLabel}>Staff</Text>
-                    <Text style={styles.metricValue}>{farm.staffCount}</Text>
-                  </View>
-                  <View style={styles.metricTile}>
-                    <Text style={styles.metricLabel}>Batches</Text>
-                    <Text style={styles.metricValue}>{farm.activeBatchCount}</Text>
-                  </View>
-                </View>
-
-                <View style={styles.detailsGrid}>
-                  <DetailCell label="Created" value={formatDate(farm.createdAt)} />
-                  <DetailCell label="Updated" value={formatDate(farm.updatedAt)} />
-                </View>
-
-
-
-
-              </TouchableOpacity>
-
-
-
-
-
-                <View style={styles.cardFooter}>
-                  {farm.needsSupervisor ? (
-                    <View style={styles.alertRow}>
-                      <Ionicons name="warning-outline" size={14} color={Colors.tertiary} />
-                      <Text style={styles.alertText}>Needs Supervisor</Text>
-                    </View>
-                  ) : (
-                    <View style={styles.staffRow}>
-                      <MaterialCommunityIcons name="account-group-outline" size={14} color={Colors.textSecondary} />
-                      <Text style={styles.staffText}>{farm.staffCount} Staff Members</Text>
-                    </View>
-                  )}
-                  <Text
-                    style={[
-                      styles.cardHint,
-                      (!farm.farmer || !farm.supervisor) && styles.cardHintAlert,
-                    ]}
-                  >
-                    {farm.farmer && farm.supervisor ? 'Assigned' : 'Setup pending'}
+            <TouchableOpacity
+              style={styles.farmCard}
+              onPress={() => router.push({ pathname: '/(owner)/manage/farms/[id]', params: { id: farm.id } })}
+              activeOpacity={0.86}
+            >
+              <View style={styles.farmListContent}>
+                <Text style={styles.farmName} numberOfLines={1}>{farm.name}</Text>
+                <Text style={styles.farmCode} numberOfLines={1}>{farm.code}</Text>
+                <View style={styles.compactMetricsRow}>
+                  <Text style={styles.capText}>
+                    Capacity: <Text style={styles.compactMetricValue}>{formatCompactNumber(farm.capacity)}</Text>
+                  </Text>
+                  <View style={styles.metricSeparator} />
+                  <Text style={styles.capText} numberOfLines={1}>
+                    Batches: <Text style={styles.compactMetricValue}>{farm.activeBatchCount}</Text>
                   </Text>
                 </View>
               </View>
+              <View style={styles.farmListActions}>
+                <View style={[styles.statusBadge, { backgroundColor: sc.bg }]}>
+                  <Text style={[styles.statusText, { color: sc.text }]}>{farm.status}</Text>
+                </View>
+                <TouchableOpacity
+                  style={styles.eyeButton}
+                  onPress={() => router.push({ pathname: '/(owner)/manage/farms/[id]', params: { id: farm.id } })}
+                  activeOpacity={0.76}
+                  accessibilityRole="button"
+                  accessibilityLabel={`View ${farm.name}`}
+                >
+                  <Ionicons name="eye" size={21} color={Colors.primary} />
+                </TouchableOpacity>
+              </View>
+            </TouchableOpacity>
           );
         }}
         ListEmptyComponent={
@@ -751,8 +674,20 @@ export default function FarmListScreen() {
               <View style={styles.footerSpacer} />
             )
           }
-      />
+        />
       </KeyboardAvoidingView>
+
+      {canManageFarms ? (
+        <TouchableOpacity
+          style={styles.fab}
+          onPress={() => router.navigate('/(owner)/manage/farms/add')}
+          activeOpacity={0.86}
+          accessibilityRole="button"
+          accessibilityLabel="Add farm"
+        >
+          <Ionicons name="add" size={28} color="#FFFFFF" />
+        </TouchableOpacity>
+      ) : null}
 
 
       <NativeBottomSheet
@@ -884,13 +819,10 @@ export default function FarmListScreen() {
 const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: '#F9FAF9' },
   contentArea: { flex: 1, backgroundColor: '#F9FAF9' },
-  headerBtn: {
-    padding: 4,
-  },
   container: {
-    paddingHorizontal: 16,
-    paddingTop: 16,
-    paddingBottom: 80,
+    paddingHorizontal: 8,
+    paddingTop: 8,
+    paddingBottom: 112,
     alignSelf: 'center',
     width: '100%',
     maxWidth: Layout.contentMaxWidth,
@@ -937,17 +869,17 @@ const styles = StyleSheet.create({
   },
   statsChipLabel: { fontSize: 12, color: Colors.textSecondary, marginBottom: 2 },
   statsChipValue: { fontSize: 20, fontWeight: 'bold', color: Colors.text },
-  searchRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 12, gap: 10 },
+  searchRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 8, gap: 8 },
   searchBox: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#FFF',
-    borderRadius: 12,
+    borderRadius: 8,
     borderWidth: 1,
     borderColor: '#E7EFEA',
     paddingHorizontal: 12,
-    height: 48,
+    height: 40,
     gap: 8,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
@@ -955,12 +887,12 @@ const styles = StyleSheet.create({
     shadowRadius: 3,
     elevation: 1,
   },
-  searchInput: { flex: 1, fontSize: 14, color: Colors.text, padding: 0 },
+  searchInput: { flex: 1, fontSize: 13, color: Colors.text, padding: 0 },
   filterBtn: {
-    width: 48,
-    height: 48,
+    width: 40,
+    height: 40,
     backgroundColor: '#FFF',
-    borderRadius: 12,
+    borderRadius: 8,
     borderWidth: 1,
     borderColor: '#D7E7DE',
     justifyContent: 'center',
@@ -974,18 +906,18 @@ const styles = StyleSheet.create({
   statusFilterPanel: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
-    padding: 5,
-    marginBottom: 16,
-    borderRadius: 14,
+    gap: 5,
+    padding: 4,
+    marginBottom: 8,
+    borderRadius: 10,
     backgroundColor: '#EAF3ED',
     borderWidth: 1,
     borderColor: '#D8E8DE',
   },
   statusFilterChip: {
     flex: 1,
-    minHeight: 40,
-    borderRadius: 10,
+    minHeight: 34,
+    borderRadius: 8,
     borderWidth: 1,
     borderColor: 'transparent',
     paddingHorizontal: 10,
@@ -1006,7 +938,7 @@ const styles = StyleSheet.create({
   },
   statusFilterText: {
     color: '#406354',
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: '900',
   },
   statusFilterTextActive: {
@@ -1014,8 +946,8 @@ const styles = StyleSheet.create({
   },
   statusFilterCount: {
     minWidth: 22,
-    height: 22,
-    borderRadius: 11,
+    height: 20,
+    borderRadius: 10,
     paddingHorizontal: 6,
     alignItems: 'center',
     justifyContent: 'center',
@@ -1029,7 +961,7 @@ const styles = StyleSheet.create({
   },
   statusFilterCountText: {
     color: THEME_GREEN,
-    fontSize: 11,
+    fontSize: 10,
     fontWeight: '900',
   },
   statusFilterCountTextActive: {
@@ -1039,35 +971,47 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 10,
+    marginBottom: 6,
+    paddingHorizontal: 2,
   },
   listTitle: {
     color: Colors.text,
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: '900',
   },
   listCount: {
     color: Colors.textSecondary,
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: '700',
   },
   loadingState: { alignItems: 'center', paddingVertical: 40, gap: 10 },
   loadingText: { color: Colors.textSecondary, fontSize: 13 },
   farmCard: {
-    position: 'relative',
+    minHeight: 72,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
     backgroundColor: '#FFF',
-    borderRadius: 16,
-    padding: 16,
-    paddingLeft: 18,
-    marginBottom: 16,
+    borderRadius: 0,
+    paddingVertical: 10,
+    paddingLeft: 10,
+    paddingRight: 8,
+    marginBottom: 0,
     borderWidth: 1,
-    borderColor: '#E8EFEA',
-    overflow: 'hidden',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.06,
-    shadowRadius: 5,
-    elevation: 2,
+    borderColor: '#E5E8EB',
+    borderBottomWidth: 1,
+  },
+  farmListContent: {
+    flex: 1,
+    minWidth: 0,
+    paddingRight: 10,
+  },
+  farmListActions: {
+    width: 84,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'flex-end',
+    gap: 12,
   },
   cardTop: {
     flexDirection: 'row',
@@ -1093,19 +1037,39 @@ const styles = StyleSheet.create({
   },
   farmTitleWrap: { flex: 1, minWidth: 0 },
   cardActions: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  farmName: { fontSize: 16, fontWeight: '900', color: Colors.text },
-  farmCode: { fontSize: 11, color: Colors.textSecondary, marginTop: 3, fontWeight: '700' },
-  statusBadge: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 999 },
-  statusText: { fontSize: 11, fontWeight: '800' },
-  actionButton: {
-    width: 34,
-    height: 34,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: '#D7E7DE',
+  farmName: { fontSize: 13, fontWeight: '900', color: Colors.text },
+  farmCode: { fontSize: 10, color: Colors.textSecondary, marginTop: 4, fontWeight: '800' },
+  statusBadge: {
+    minWidth: 58,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 9,
+    paddingVertical: 6,
+    borderRadius: 8,
+  },
+  statusText: { fontSize: 10, fontWeight: '900' },
+  eyeButton: {
+    width: 26,
+    height: 26,
+    borderRadius: 13,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#F6FBF7',
+    backgroundColor: 'transparent',
+  },
+  compactMetricsRow: {
+    marginTop: 7,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  compactMetricValue: {
+    color: Colors.primary,
+    fontWeight: '900',
+  },
+  metricSeparator: {
+    width: 1,
+    height: 11,
+    backgroundColor: '#C9D2D8',
   },
   locationRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginBottom: 12 },
   locationText: { flex: 1, fontSize: 12, color: Colors.textSecondary, fontWeight: '600' },
@@ -1271,7 +1235,7 @@ const styles = StyleSheet.create({
   staffText: { fontSize: 12, color: Colors.textSecondary, fontWeight: '700' },
   cardHint: { fontSize: 11, color: Colors.textSecondary, fontWeight: '700' },
   cardHintAlert: { color: Colors.tertiary },
-  capText: { fontSize: 12, color: Colors.textSecondary },
+  capText: { flexShrink: 1, fontSize: 10, color: Colors.textSecondary, fontWeight: '700' },
   footerMetrics: { alignItems: 'flex-end', gap: 2 },
   batchCountText: { fontSize: 11, color: Colors.primary, fontWeight: '800' },
   emptyState: { alignItems: 'center', paddingVertical: 40, gap: 8 },
@@ -1287,7 +1251,25 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   footerSpacer: {
-    height: 100,
+    height: 92,
+  },
+  fab: {
+    position: 'absolute',
+    right: 18,
+    bottom: 24,
+    width: 58,
+    height: 58,
+    borderRadius: 29,
+    backgroundColor: THEME_GREEN,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#003E2B',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.24,
+    shadowRadius: 10,
+    elevation: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.18)',
   },
   modalTitle: { fontSize: 18, fontWeight: 'bold', color: Colors.text, marginBottom: 16 },
   formLabel: {
