@@ -1,4 +1,6 @@
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useFocusEffect } from '@react-navigation/native';
 import { useRouter } from 'expo-router';
 import React from 'react';
 import {
@@ -13,8 +15,6 @@ import {
   View,
 } from 'react-native';
 import Toast from 'react-native-toast-message';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { useFocusEffect } from '@react-navigation/native';
 
 import { SurfaceCard } from '@/components/ui/SurfaceCard';
 import { TopAppBar } from '@/components/ui/TopAppBar';
@@ -27,6 +27,7 @@ type SettingItemProps = {
   icon: any;
   label: string;
   value?: string;
+  description?: string;
   onPress?: () => void;
   isLast?: boolean;
   color?: string;
@@ -131,7 +132,7 @@ const ACCESS_ITEMS: { permission: AppPermission; label: string; description: str
   },
 ];
 
-const SettingItem = ({ icon, label, value, onPress, isLast, color = "#4B5563" }: SettingItemProps) => (
+const SettingItem = ({ icon, label, value, description, onPress, isLast, color = "#4B5563" }: SettingItemProps) => (
   <TouchableOpacity
     style={[styles.settingItem, isLast && { borderBottomWidth: 0 }]}
     onPress={onPress}
@@ -141,7 +142,10 @@ const SettingItem = ({ icon, label, value, onPress, isLast, color = "#4B5563" }:
       <View style={styles.iconBox}>
         <Ionicons name={icon} size={20} color={color} />
       </View>
-      <Text style={[styles.settingLabel, color !== "#4B5563" && { color }]}>{label}</Text>
+      <View style={{ flex: 1, marginLeft: 4 }}>
+        <Text style={[styles.settingLabel, color !== "#4B5563" && { color }, { marginLeft: 0 }]}>{label}</Text>
+        {description ? <Text style={{ fontSize: 12, color: "#9CA3AF", marginTop: 2 }}>{description}</Text> : null}
+      </View>
     </View>
     <View style={styles.settingItemRight}>
       {value && <Text style={styles.settingValue}>{value}</Text>}
@@ -454,12 +458,7 @@ export default function ProfileScreen() {
             <>
               <Text style={styles.sectionTitle}>Account Settings</Text>
               <SurfaceCard padded={false} style={styles.settingsGroup}>
-                <SettingItem
-                  icon="settings-outline"
-                  label="App Settings"
-                  onPress={() => router.navigate('/(owner)/manage/settings' as any)}
-                  isLast={false}
-                />
+
                  <SettingItem
                   icon="list-outline"
                   label="Category Master"
@@ -516,7 +515,7 @@ export default function ProfileScreen() {
               icon="key-outline"
               label="Change Pin"
               onPress={() => router.navigate('/(auth)/set-pin' as any)}
-              isLast={!biometricAvailable}
+              isLast={false}
             />
             {biometricAvailable && (
               <BiometricToggleItem
@@ -524,9 +523,15 @@ export default function ProfileScreen() {
                 isEnabled={biometricEnabled}
                 isLoading={isTogglingBiometric}
                 onToggle={handleBiometricToggle}
-                isLast
+                isLast={false}
               />
             )}
+            <SettingItem
+              icon="calculator-outline"
+              label="Payout rules"
+              onPress={() => router.navigate('/(owner)/manage/settings' as any)}
+              isLast={true}
+            />
           </SurfaceCard>
 
 
