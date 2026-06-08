@@ -529,6 +529,21 @@ export default function ProfileScreen() {
             <SettingItem
               icon="calculator-outline"
               label="Payout rules"
+              description="Based in KG sold or Production Cost"
+              onPress={() => router.navigate('/(owner)/manage/settings' as any)}
+              isLast={false}
+            />
+            <SettingItem
+              icon="notifications-outline"
+              label="Alerts"
+              description="Pending entry, FCR, Mortality"
+              onPress={() => router.navigate('/(owner)/manage/settings' as any)}
+              isLast={false}
+            />
+            <SettingItem
+              icon="cash-outline"
+              label="Financial Control"
+              description="Supervisor can add Farmer Expense, Farmer Expense requires approval"
               onPress={() => router.navigate('/(owner)/manage/settings' as any)}
               isLast={true}
             />
