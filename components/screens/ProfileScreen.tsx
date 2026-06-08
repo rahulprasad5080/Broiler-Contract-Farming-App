@@ -5,7 +5,6 @@ import {
   ActivityIndicator,
   Alert,
   KeyboardAvoidingView,
-  Modal,
   Platform,
   ScrollView,
   StyleSheet,
@@ -14,11 +13,12 @@ import {
   View,
 } from 'react-native';
 import Toast from 'react-native-toast-message';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useFocusEffect } from '@react-navigation/native';
 
 import { SurfaceCard } from '@/components/ui/SurfaceCard';
 import { TopAppBar } from '@/components/ui/TopAppBar';
 import { useAuth } from '@/context/AuthContext';
-import { getRequestErrorMessage } from '@/services/apiFeedback';
 import { fetchMe, type ApiUser } from '@/services/authApi';
 import { authenticateWithBiometrics, getBiometricAvailability } from '@/services/authSecurity';
 import type { AppPermission } from '@/services/permissionRules';
@@ -41,11 +41,7 @@ type BiometricToggleItemProps = {
   isLast?: boolean;
 };
 
-type PersonalInfoRowProps = {
-  label: string;
-  value?: string | null;
-  isLast?: boolean;
-};
+
 
 const ACCESS_ITEMS: { permission: AppPermission; label: string; description: string }[] = [
   {
@@ -198,12 +194,7 @@ const BiometricToggleItem = ({
   </View>
 );
 
-const PersonalInfoRow = ({ label, value, isLast }: PersonalInfoRowProps) => (
-  <View style={[styles.infoRow, isLast && { borderBottomWidth: 0 }]}>
-    <Text style={styles.infoLabel}>{label}</Text>
-    <Text style={styles.infoValue}>{value?.trim() || 'Not available'}</Text>
-  </View>
-);
+
 
 function getRoleLabel(role?: string | null) {
   if (role === 'OWNER') return 'Owner';
@@ -219,12 +210,17 @@ export default function ProfileScreen() {
   const canManageUsers = hasPermission('manage:users');
 
   const [profileUser, setProfileUser] = React.useState<ApiUser | null>(null);
-  const [isLoadingProfile, setIsLoadingProfile] = React.useState(false);
-  const [profileError, setProfileError] = React.useState<string | null>(null);
+  const [bankDetails, setBankDetails] = React.useState<{
+    accountHolderName: string;
+    bankName: string;
+    accountNumber: string;
+    ifscCode: string;
+    branchName: string;
+  } | null>(null);
+
   const [biometricEnabled, setBiometricEnabled] = React.useState(user?.biometricEnabled ?? false);
   const [isTogglingBiometric, setIsTogglingBiometric] = React.useState(false);
   const [biometricAvailable, setBiometricAvailable] = React.useState(true);
-  const [permissionsModalVisible, setPermissionsModalVisible] = React.useState(false);
 
   React.useEffect(() => {
     // Check if biometric is available on the device
@@ -236,6 +232,25 @@ export default function ProfileScreen() {
     checkBiometric();
   }, []);
 
+  useFocusEffect(
+    React.useCallback(() => {
+      const loadBankDetails = async () => {
+        if (!user?.id) return;
+        try {
+          const value = await AsyncStorage.getItem(`@bank_details_${user.id}`);
+          if (value) {
+            setBankDetails(JSON.parse(value));
+          } else {
+            setBankDetails(null);
+          }
+        } catch {
+          // silent
+        }
+      };
+      void loadBankDetails();
+    }, [user?.id])
+  );
+
   React.useEffect(() => {
     if (!accessToken) {
       setProfileUser(null);
@@ -245,9 +260,6 @@ export default function ProfileScreen() {
     let cancelled = false;
 
     const loadProfile = async () => {
-      setIsLoadingProfile(true);
-      setProfileError(null);
-
       try {
         const apiUser = await fetchMe(accessToken);
         if (!cancelled) {
@@ -255,13 +267,7 @@ export default function ProfileScreen() {
           setBiometricEnabled(Boolean(apiUser.biometricEnabled));
         }
       } catch (error) {
-        if (!cancelled) {
-          setProfileError(getRequestErrorMessage(error, 'Unable to refresh profile details.'));
-        }
-      } finally {
-        if (!cancelled) {
-          setIsLoadingProfile(false);
-        }
+        console.warn('Failed to load profile details:', error);
       }
     };
 
@@ -409,97 +415,40 @@ export default function ProfileScreen() {
             </View>
           </View>
 
-          {/* Personal Information */}
-          <Text style={styles.sectionTitle}>Personal Information</Text>
-          <SurfaceCard padded={false} style={styles.settingsGroup}>
-            {isLoadingProfile ? (
-              <View style={styles.infoLoadingRow}>
-                <ActivityIndicator size="small" color="#0B5C36" />
-                <Text style={styles.infoLoadingText}>Loading profile details...</Text>
-              </View>
-            ) : null}
-            {profileError ? <Text style={styles.infoErrorText}>{profileError}</Text> : null}
-            <PersonalInfoRow label="Name" value={personalInfo?.name} />
-            <PersonalInfoRow label="Company Name" value={companyName} />
-            <PersonalInfoRow label="Phone" value={personalInfo?.phone} />
-            <PersonalInfoRow label="Role" value={getRoleLabel(personalInfo?.role)} />
-            <PersonalInfoRow label="Status" value={personalInfo?.status} />
-          </SurfaceCard>
-
-          <Text style={styles.sectionTitle}>Your Access</Text>
+          {/* Profile Settings */}
+          <Text style={styles.sectionTitle}>Profile Settings</Text>
           <SurfaceCard padded={false} style={styles.settingsGroup}>
             <SettingItem
+              icon="person-outline"
+              label="Personal Information"
+              value={personalInfo?.name || "Edit"}
+              onPress={() => {
+                const roleGroup = user?.role === 'OWNER' ? '(owner)' : user?.role === 'SUPERVISOR' ? '(supervisor)' : '(farmer)';
+                router.navigate(`/${roleGroup}/profile/personal-info` as any);
+              }}
+              isLast={false}
+            />
+            <SettingItem
               icon="shield-checkmark-outline"
-              label="View Permissions"
+              label="Permissions"
               value={`${visibleAccessItems.length} active`}
-              onPress={() => setPermissionsModalVisible(true)}
-              isLast
+              onPress={() => {
+                const roleGroup = user?.role === 'OWNER' ? '(owner)' : user?.role === 'SUPERVISOR' ? '(supervisor)' : '(farmer)';
+                router.navigate(`/${roleGroup}/profile/permissions` as any);
+              }}
+              isLast={false}
+            />
+            <SettingItem
+              icon="wallet-outline"
+              label="Bank Details"
+              value={bankDetails ? `${bankDetails.bankName}` : "Not Set"}
+              onPress={() => {
+                const roleGroup = user?.role === 'OWNER' ? '(owner)' : user?.role === 'SUPERVISOR' ? '(supervisor)' : '(farmer)';
+                router.navigate(`/${roleGroup}/profile/bank` as any);
+              }}
+              isLast={true}
             />
           </SurfaceCard>
-
-          {/* Permissions Modal */}
-          <Modal
-            visible={permissionsModalVisible}
-            transparent
-            animationType="slide"
-            onRequestClose={() => setPermissionsModalVisible(false)}
-          >
-            <View style={styles.modalOverlay}>
-              <View style={styles.modalContainer}>
-                <View style={styles.modalHeader}>
-                  <View>
-                    <Text style={styles.modalTitle}>Your Permissions</Text>
-                    <Text style={styles.modalSubtitle}>
-                      Active access for {getRoleLabel(user?.role)}
-                    </Text>
-                  </View>
-                  <TouchableOpacity
-                    style={styles.modalCloseIcon}
-                    onPress={() => setPermissionsModalVisible(false)}
-                  >
-                    <Ionicons name="close" size={22} color="#4B5563" />
-                  </TouchableOpacity>
-                </View>
-
-                <ScrollView
-                  style={styles.modalScrollView}
-                  showsVerticalScrollIndicator={false}
-                >
-                  {visibleAccessItems.length > 0 ? (
-                    <View style={styles.modalAccessGrid}>
-                      {visibleAccessItems.map((item) => (
-                        <View key={item.permission} style={styles.modalAccessItem}>
-                          <View style={styles.modalAccessIcon}>
-                            <Ionicons name="checkmark-circle" size={18} color="#0B5C36" />
-                          </View>
-                          <View style={styles.modalAccessTextBlock}>
-                            <Text style={styles.modalAccessLabel}>{item.label}</Text>
-                            <Text style={styles.modalAccessDescription}>
-                              {item.description}
-                            </Text>
-                          </View>
-                        </View>
-                      ))}
-                    </View>
-                  ) : (
-                    <View style={styles.modalAccessEmpty}>
-                      <Ionicons name="lock-closed-outline" size={32} color="#9CA3AF" />
-                      <Text style={styles.modalAccessEmptyText}>
-                        No specific module permissions assigned.
-                      </Text>
-                    </View>
-                  )}
-                </ScrollView>
-
-                <TouchableOpacity
-                  style={styles.modalCloseButton}
-                  onPress={() => setPermissionsModalVisible(false)}
-                >
-                  <Text style={styles.modalCloseButtonText}>Close</Text>
-                </TouchableOpacity>
-              </View>
-            </View>
-          </Modal>
 
           {canManageUsers ? (
             <>
