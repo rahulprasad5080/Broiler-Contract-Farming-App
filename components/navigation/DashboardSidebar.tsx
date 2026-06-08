@@ -156,14 +156,7 @@ const ownerRoutes: DashboardSidebarRoute[] = [
     requiredPermission: "manage:users",
   },
 
-  {
-    title: "Catalog",
-    subtitle: "Catalog items list",
-    icon: "cube-outline",
-    route: "/(owner)/manage/catalog" as Href,
-    section: "Management",
-    requiredPermission: "manage:catalog",
-  },
+
   {
     title: "Inventory",
     subtitle: "Current stock list",

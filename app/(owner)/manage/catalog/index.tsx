@@ -182,10 +182,10 @@ export default function CatalogListScreen() {
   return (
     <View style={styles.safeArea}>
       <TopAppBar
-        title="Catalog"
+        title="Item Master"
         subtitle="Catalog items list"
         leadingMode="back"
-        onBack={() => router.replace('/(owner)/dashboard')}
+        onBack={() => router.replace('/(owner)/profile')}
         right={
           <TouchableOpacity
             style={styles.addButton}

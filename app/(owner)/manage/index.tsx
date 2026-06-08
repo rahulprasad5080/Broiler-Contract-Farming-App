@@ -147,8 +147,8 @@ const ENTRY_ITEMS: EntryItem[] = [
     requiredPermission: ["manage:partners", "create:sales"],
   },
   {
-    title: "Catalog List",
-    desc: "Catalog items",
+    title: "Item Master",
+    desc: "Catalog items list",
     icon: "cube-outline",
     iconType: "Ionicons",
     color: "#0891B2",
