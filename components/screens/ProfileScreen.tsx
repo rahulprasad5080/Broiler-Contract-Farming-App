@@ -504,26 +504,23 @@ export default function ProfileScreen() {
         ) : null} */}
 
           {/* Security */}
-          <Text style={styles.sectionTitle}>Security</Text>
+          <Text style={styles.sectionTitle}>App Settings</Text>
           <SurfaceCard padded={false} style={styles.settingsGroup}>
             <SettingItem
               icon="lock-closed-outline"
-              label="Password"
-              value="Change"
+              label="Change Password"
               onPress={() => router.navigate('/(auth)/change-password' as any)}
               isLast={false}
             />
             <SettingItem
               icon="key-outline"
-              label="Set PIN"
-              value="Manage"
+              label="Change Pin"
               onPress={() => router.navigate('/(auth)/set-pin' as any)}
               isLast={!biometricAvailable}
             />
             {biometricAvailable && (
               <BiometricToggleItem
-                label="Biometric Unlock"
-                description={biometricEnabled ? 'Enabled' : 'Disabled'}
+                label="BioMetric"
                 isEnabled={biometricEnabled}
                 isLoading={isTogglingBiometric}
                 onToggle={handleBiometricToggle}
