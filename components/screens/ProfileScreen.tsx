@@ -466,10 +466,16 @@ export default function ProfileScreen() {
                   onPress={() => router.navigate('/(owner)/manage/dropdowns' as any)}
                   isLast={false}
                 />
-                <SettingItem
+                 <SettingItem
                   icon="cube-outline"
                   label="Item Master"
                   onPress={() => router.navigate('/(owner)/manage/catalog' as any)}
+                  isLast={false}
+                />
+                <SettingItem
+                  icon="person-add-outline"
+                  label="User Master"
+                  onPress={() => router.navigate('/(owner)/manage/users' as any)}
                   isLast={true}
                 />
               </SurfaceCard>

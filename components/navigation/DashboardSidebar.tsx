@@ -147,14 +147,7 @@ const ownerRoutes: DashboardSidebarRoute[] = [
     section: "Management",
     requiredPermission: ["manage:partners", "create:sales"],
   },
-  {
-    title: "Users",
-    subtitle: "User list",
-    icon: "person-add-outline",
-    route: "/(owner)/manage/users",
-    section: "Management",
-    requiredPermission: "manage:users",
-  },
+
 
 
   {

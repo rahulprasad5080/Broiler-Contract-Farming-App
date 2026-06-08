@@ -156,8 +156,8 @@ const ENTRY_ITEMS: EntryItem[] = [
     requiredPermission: "manage:catalog",
   },
   {
-    title: "Users List",
-    desc: "Manage users",
+    title: "User Master",
+    desc: "User management",
     icon: "person-add-outline",
     iconType: "Ionicons",
     color: "#4F46E5",
