@@ -5,13 +5,13 @@ import {
   ActivityIndicator,
   Alert,
   KeyboardAvoidingView,
+  Modal,
   Platform,
   ScrollView,
   StyleSheet,
   Text,
   TouchableOpacity,
   View,
-  Modal,
 } from 'react-native';
 import Toast from 'react-native-toast-message';
 
@@ -375,20 +375,39 @@ export default function ProfileScreen() {
       >
         <ScrollView contentContainerStyle={styles.scrollContainer} showsVerticalScrollIndicator={false}>
           {/* Profile Card */}
-          <SurfaceCard style={styles.profileCard}>
+          <View style={styles.profileCard}>
             <View style={styles.profileInfoRow}>
-              <View style={styles.avatar}>
-                <Text style={styles.avatarText}>{initials}</Text>
+              <View style={styles.avatarContainer}>
+                <View style={styles.avatarRing}>
+                  <View style={styles.avatar}>
+                    <Text style={styles.avatarText}>{initials}</Text>
+                  </View>
+                </View>
               </View>
+              
               <View style={styles.profileDetails}>
-                <Text style={styles.name}>{personalInfo?.name || 'User'}</Text>
-                <Text style={styles.role}>{getRoleLabel(personalInfo?.role)}</Text>
-                <Text style={styles.email}>{personalInfo?.phone || 'Phone not available'}</Text>
-
-
+                <View style={styles.nameRow}>
+                  <Text style={styles.name} numberOfLines={1}>{personalInfo?.name || 'User'}</Text>
+                  <View style={styles.roleBadge}>
+                    <Ionicons name="shield-checkmark" size={10} color="#00875A" style={{ marginRight: 2 }} />
+                    <Text style={styles.roleText}>{getRoleLabel(personalInfo?.role)}</Text>
+                  </View>
+                </View>
+                
+                {companyName ? (
+                  <View style={styles.detailRow}>
+                    <Ionicons name="business" size={13} color="#637381" style={styles.detailIcon} />
+                    <Text style={styles.detailText} numberOfLines={1}>{companyName}</Text>
+                  </View>
+                ) : null}
+                
+                <View style={styles.detailRow}>
+                  <Ionicons name="call" size={13} color="#637381" style={styles.detailIcon} />
+                  <Text style={styles.detailText}>{personalInfo?.phone || 'Phone not available'}</Text>
+                </View>
               </View>
             </View>
-          </SurfaceCard>
+          </View>
 
           {/* Personal Information */}
           <Text style={styles.sectionTitle}>Personal Information</Text>
@@ -566,23 +585,79 @@ const styles = StyleSheet.create({
   keyboardAvoidingWrapper: { flex: 1, backgroundColor: "#F9FAFB" },
   scrollContainer: { flexGrow: 1, backgroundColor: "#F9FAFB", paddingHorizontal: 20, paddingTop: 24, paddingBottom: 80 },
   profileCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    padding: 16,
     marginBottom: 24,
+    borderWidth: 1,
+    borderColor: '#E5E8EB',
+    // Soft premium shadow
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.04,
+    shadowRadius: 12,
+    elevation: 3,
   },
   profileInfoRow: { flexDirection: "row", alignItems: "center" },
-  avatar: {
-    width: 70,
-    height: 70,
-    borderRadius: 35,
+  avatarContainer: {
     marginRight: 16,
-    backgroundColor: '#E8F5E9',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  avatarText: { fontSize: 22, fontWeight: '900', color: '#0B5C36' },
-  profileDetails: { flex: 1 },
-  name: { fontSize: 18, fontWeight: "700", color: "#111827", marginBottom: 2 },
-  role: { fontSize: 13, color: "#6B7280", marginBottom: 1 },
-  email: { fontSize: 12, color: "#9CA3AF", marginBottom: 10 },
+  avatarRing: {
+    padding: 3,
+    borderRadius: 999,
+    borderWidth: 1.5,
+    borderColor: '#E8F5E9',
+    backgroundColor: '#FFFFFF',
+  },
+  avatar: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: '#00875A',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  avatarText: { fontSize: 18, fontWeight: '800', color: '#FFFFFF', letterSpacing: 0.5 },
+  profileDetails: { flex: 1, justifyContent: 'center' },
+  nameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginBottom: 6,
+  },
+  name: { fontSize: 16, fontWeight: "800", color: "#212B36" },
+  roleBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#E8F5E9',
+    paddingHorizontal: 8,
+    paddingVertical: 2.5,
+    borderRadius: 999,
+  },
+  roleText: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: '#00875A',
+    textTransform: 'uppercase',
+    letterSpacing: 0.3,
+  },
+  detailRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 4,
+  },
+  detailIcon: {
+    marginRight: 6,
+    opacity: 0.8,
+  },
+  detailText: {
+    fontSize: 13,
+    color: '#637381',
+    fontWeight: '500',
+  },
   viewProfileBtn: {
     alignSelf: "flex-start", paddingVertical: 6, paddingHorizontal: 14,
     borderRadius: 8, borderWidth: 1, borderColor: "#E5E7EB", backgroundColor: "#F9FAFB",
