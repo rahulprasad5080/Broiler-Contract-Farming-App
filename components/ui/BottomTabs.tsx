@@ -2,6 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { BottomTabBarProps } from '@react-navigation/bottom-tabs';
 import type { NavigationState, PartialState } from '@react-navigation/native';
 import { CommonActions } from '@react-navigation/native';
+import { usePathname } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { Keyboard, Platform, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -48,6 +49,7 @@ function getNestedRouteName(
 export function BottomTabs({ state, descriptors, navigation, hiddenTabs = EMPTY_ARRAY }: BottomTabsProps) {
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
+  const pathname = usePathname();
   const [isKeyboardVisible, setIsKeyboardVisible] = useState(false);
 
   const activeTabRoute = state.routes[state.index];
@@ -97,7 +99,13 @@ export function BottomTabs({ state, descriptors, navigation, hiddenTabs = EMPTY_
     };
   }, [isSubScreen]);
 
-  const shouldHide = isKeyboardVisible || isSubScreen;
+  const shouldHideForRoute =
+    pathname.startsWith('/manage/farms') ||
+    pathname.startsWith('/manage/batches') ||
+    pathname.startsWith('/manage/users') ||
+    pathname.startsWith('/manage/settings');
+
+  const shouldHide = isKeyboardVisible || isSubScreen || shouldHideForRoute;
 
   const bottomPadding = insets.bottom > 0 ? insets.bottom : 6;
   const tabHeight = 52 + bottomPadding;
@@ -191,8 +199,8 @@ const styles = StyleSheet.create({
   },
   // Using display:'none' keeps the component mounted while hiding it visually.
   hidden: {
-    position: 'absolute',
-    bottom: -120,
+    display: 'none',
+    height: 0,
     opacity: 0,
   },
   tabItem: {
