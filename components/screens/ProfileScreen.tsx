@@ -476,6 +476,12 @@ export default function ProfileScreen() {
                   icon="person-add-outline"
                   label="User Master"
                   onPress={() => router.navigate('/(owner)/manage/users' as any)}
+                  isLast={false}
+                />
+                <SettingItem
+                  icon="people-outline"
+                  label="Partner Master"
+                  onPress={() => router.navigate('/(owner)/manage/partners' as any)}
                   isLast={true}
                 />
               </SurfaceCard>

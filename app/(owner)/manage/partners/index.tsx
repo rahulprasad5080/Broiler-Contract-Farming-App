@@ -108,7 +108,7 @@ export default function PartnerManagementScreen() {
   if (!canManagePartners) {
     return (
       <View style={styles.safeArea}>
-        <TopAppBar title="Partners" subtitle="Permission required" onBack={() => router.replace('/(owner)/dashboard')} />
+        <TopAppBar title="Partners" subtitle="Permission required" onBack={() => router.replace('/(owner)/profile')} />
         <View style={styles.lockedState}>
           <ScreenState
             title="Permission required"
@@ -126,7 +126,7 @@ export default function PartnerManagementScreen() {
       <TopAppBar
         title="Partner Master"
         subtitle="Vendors for purchases, traders for sales"
-        onBack={() => router.replace('/(owner)/dashboard')}
+        onBack={() => router.replace('/(owner)/profile')}
         right={
           <TouchableOpacity style={styles.headerAction} onPress={handleOpenAdd}>
             <Ionicons name="add" size={24} color="#FFF" />

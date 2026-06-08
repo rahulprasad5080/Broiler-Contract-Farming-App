@@ -138,8 +138,8 @@ const ENTRY_ITEMS: EntryItem[] = [
     requiredPermission: "view:comments",
   },
   {
-    title: "Partners List",
-    desc: "Vendors and traders",
+    title: "Partner Master",
+    desc: "Vendors & traders directory",
     icon: "people-outline",
     iconType: "Ionicons",
     color: "#0F766E",
