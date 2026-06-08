@@ -4,11 +4,11 @@ import {
   API_TRANSACTION_PAYMENT_STATUS_VALUES,
   ApiBatch,
   ApiTrader,
-  type ApiSaleStatus,
-  type ApiTransactionPaymentStatus,
   createSale,
   listAllBatches,
   listAllTraders,
+  type ApiSaleStatus,
+  type ApiTransactionPaymentStatus,
 } from "@/services/managementApi";
 import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect } from "@react-navigation/native";
@@ -373,15 +373,19 @@ export function SalesEntryScreen({ title = "Sales Entry", subtitle, onBack, onSa
 
   return (
     <View style={styles.safeArea}>
-      <TopAppBar title={title} subtitle={subtitle} onBack={onBack} />
+      <TopAppBar
+        title={title}
+        subtitle={subtitle}
+        onBack={onBack}
+      />
       <KeyboardAvoidingView
-        behavior={Platform.OS === "ios" ? "padding" : "height"}
-        style={{ flex: 1 }}
+        behavior={Platform.OS === "ios" ? "padding" : undefined}
+        style={styles.contentContainer}
       >
         <ScrollView
           contentContainerStyle={styles.scrollContainer}
-          showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
         >
           <View style={styles.form}>
             {showRestoredMessage ? (
@@ -801,6 +805,7 @@ export function SalesEntryScreen({ title = "Sales Entry", subtitle, onBack, onSa
                       placeholder="Morning sale completed"
                       placeholderTextColor="#9CA3AF"
                       multiline
+                      scrollEnabled={false}
                     />
                   )}
                 />
@@ -837,7 +842,6 @@ export function SalesEntryScreen({ title = "Sales Entry", subtitle, onBack, onSa
               </TouchableOpacity>
             </View>
           </View>
-          <View style={{ height: 40 }} />
         </ScrollView>
       </KeyboardAvoidingView>
     </View>
@@ -847,13 +851,18 @@ export function SalesEntryScreen({ title = "Sales Entry", subtitle, onBack, onSa
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: "#0B5C36",
+    backgroundColor: "#F4F6F8",
+  },
+  contentContainer: {
+    flex: 1,
+    backgroundColor: "#F4F6F8",
   },
   scrollContainer: {
     flexGrow: 1,
     backgroundColor: "#F4F6F8",
     paddingHorizontal: 14,
     paddingTop: 16,
+    paddingBottom: 80,
   },
   form: {
     flex: 1,

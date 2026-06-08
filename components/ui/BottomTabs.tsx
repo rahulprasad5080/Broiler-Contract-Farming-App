@@ -1,11 +1,11 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Platform, Keyboard } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { BottomTabBarProps } from '@react-navigation/bottom-tabs';
+import type { NavigationState, PartialState } from '@react-navigation/native';
 import { CommonActions } from '@react-navigation/native';
-import type { PartialState, NavigationState } from '@react-navigation/native';
-import { Colors } from '../../constants/Colors';
+import { useEffect, useState } from 'react';
+import { Keyboard, Platform, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Colors } from '../../constants/Colors';
 import { useAuth } from '../../context/AuthContext';
 import { BOTTOM_TAB_PERMISSIONS, canShowForPermissions } from '../../services/permissionRules';
 
@@ -50,7 +50,20 @@ export function BottomTabs({ state, descriptors, navigation, hiddenTabs = EMPTY_
   const { user } = useAuth();
   const [isKeyboardVisible, setIsKeyboardVisible] = useState(false);
 
+  const activeTabRoute = state.routes[state.index];
+  const activeNestedRouteName = getNestedRouteName(activeTabRoute.state);
+
+  // If we have a nested stack state and the active screen is not the root "index" screen, hide the tab bar.
+  const isSubScreen = Boolean(
+    activeTabRoute?.state && activeNestedRouteName && activeNestedRouteName !== 'index'
+  );
+
   useEffect(() => {
+    if (isSubScreen) {
+      setIsKeyboardVisible(false);
+      return;
+    }
+
     let showTimer: ReturnType<typeof setTimeout> | null = null;
 
     const showSubscription = Keyboard.addListener(
@@ -82,15 +95,7 @@ export function BottomTabs({ state, descriptors, navigation, hiddenTabs = EMPTY_
       showSubscription.remove();
       hideSubscription.remove();
     };
-  }, []);
-
-  const activeTabRoute = state.routes[state.index];
-  const activeNestedRouteName = getNestedRouteName(activeTabRoute.state);
-
-  // If we have a nested stack state and the active screen is not the root "index" screen, hide the tab bar.
-  const isSubScreen = Boolean(
-    activeTabRoute?.state && activeNestedRouteName && activeNestedRouteName !== 'index'
-  );
+  }, [isSubScreen]);
 
   const shouldHide = isKeyboardVisible || isSubScreen;
 
@@ -184,9 +189,11 @@ const styles = StyleSheet.create({
       },
     }),
   },
-  // Visually hides without unmounting — avoids the flash/pop of return null.
+  // Using display:'none' keeps the component mounted while hiding it visually.
   hidden: {
-    display: 'none',
+    position: 'absolute',
+    bottom: -120,
+    opacity: 0,
   },
   tabItem: {
     flex: 1,
