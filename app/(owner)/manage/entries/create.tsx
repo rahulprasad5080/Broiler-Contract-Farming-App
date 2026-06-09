@@ -1,6 +1,6 @@
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useRouter } from "expo-router";
+import { useLocalSearchParams, useRouter } from "expo-router";
 import { useState, type ComponentProps } from "react";
 import { Controller, useForm } from "react-hook-form";
 import {
@@ -84,11 +84,15 @@ function labelize(value?: string | null) {
 
 export default function CreateFinanceEntryScreen() {
   const router = useRouter();
+  const { type: routeType } = useLocalSearchParams<{ type?: string }>();
   const { accessToken } = useAuth();
   const { width } = useWindowDimensions();
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const compact = width < 360;
+  const defaultType = API_FINANCE_ENTRY_TYPE_VALUES.includes(routeType as ApiFinanceEntryType)
+    ? (routeType as ApiFinanceEntryType)
+    : DEFAULTS.type;
 
   const {
     control,
@@ -99,7 +103,10 @@ export default function CreateFinanceEntryScreen() {
     formState: { errors },
   } = useForm<EntryFormData>({
     resolver: zodResolver(entrySchema),
-    defaultValues: DEFAULTS,
+    defaultValues: {
+      ...DEFAULTS,
+      type: defaultType,
+    },
   });
 
   const type = watch("type");
