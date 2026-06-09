@@ -1,37 +1,546 @@
-import { TopAppBar } from '@/components/ui/TopAppBar';
-import { useRouter } from 'expo-router';
-import { StyleSheet, View, Text } from 'react-native';
+import { Ionicons } from "@expo/vector-icons";
+import { useFocusEffect } from "@react-navigation/native";
+import { useRouter } from "expo-router";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import {
+  ActivityIndicator,
+  FlatList,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
+} from "react-native";
+
+import { PaymentDetailModal } from "@/components/ui/PaymentDetailModal";
+import { ScreenState } from "@/components/ui/ScreenState";
+import { SearchableSelectField, type SearchableSelectOption } from "@/components/ui/SearchableSelectField";
+import { TopAppBar } from "@/components/ui/TopAppBar";
+import { Colors } from "@/constants/Colors";
+import { useAuth } from "@/context/AuthContext";
+import { showRequestErrorToast } from "@/services/apiFeedback";
+import {
+  API_PAYMENT_ENTRY_TYPE_VALUES,
+  listAllTraders,
+  listFinancePayments,
+  type ApiFinancePayment,
+  type ApiTrader,
+} from "@/services/managementApi";
+
+const THEME_GREEN = "#0B5C36";
+const PAGE_LIMIT = 20;
+
+function formatDay(value?: string | null) {
+  if (!value) return "--";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "--";
+  return date.toLocaleDateString("en-IN", { day: "2-digit" });
+}
+
+function formatMonthYear(value?: string | null) {
+  if (!value) return "";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+  return date.toLocaleDateString("en-IN", { month: "short", year: "numeric" });
+}
+
+function formatAmount(value?: number | null) {
+  return `₹ ${Number(value ?? 0).toLocaleString("en-IN")}`;
+}
+
+function labelize(value?: string | null) {
+  if (!value) return "-";
+  return value
+    .replace(/_/g, " ")
+    .toLowerCase()
+    .replace(/\b\w/g, (char) => char.toUpperCase());
+}
+
+function getPaymentMode(item: ApiFinancePayment) {
+  const haystack = `${item.referenceType ?? ""} ${item.notes ?? ""} ${item.paymentType ?? ""}`.toLowerCase();
+  if (haystack.includes("bank") || haystack.includes("upi") || haystack.includes("neft")) {
+    return { label: "Bank", bg: "#EFF6FF", color: "#2563EB" };
+  }
+  return { label: "Cash", bg: "#E8F5E9", color: THEME_GREEN };
+}
 
 export default function ReceiptsScreen() {
   const router = useRouter();
+  const { accessToken } = useAuth();
+  const [rows, setRows] = useState<ApiFinancePayment[]>([]);
+  const [traders, setTraders] = useState<ApiTrader[]>([]);
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [search, setSearch] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+  const [traderId, setTraderId] = useState("");
+  const [referenceType, setReferenceType] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [loadingOptions, setLoadingOptions] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+  const [filtersOpen, setFiltersOpen] = useState(false);
+  const [message, setMessage] = useState<string | null>(null);
+  const [selectedItem, setSelectedItem] = useState<ApiFinancePayment | null>(null);
+
+  const traderOptions = useMemo<SearchableSelectOption[]>(
+    () => [
+      { label: "All Traders", value: "" },
+      ...traders.map((trader) => ({
+        label: trader.name,
+        value: trader.id,
+        description: trader.phone ?? undefined,
+        keywords: [trader.address, trader.phone].filter(Boolean).join(" "),
+      })),
+    ],
+    [traders],
+  );
+
+  const referenceTypeOptions = useMemo<SearchableSelectOption[]>(
+    () => [
+      { label: "All References", value: "" },
+      ...API_PAYMENT_ENTRY_TYPE_VALUES.map((type) => ({
+        label: labelize(type),
+        value: type,
+      })),
+    ],
+    [],
+  );
+
+  const hasActiveFilters = Boolean(search.trim() || traderId || referenceType);
+
+  const loadOptions = useCallback(async () => {
+    if (!accessToken) return;
+    setLoadingOptions(true);
+    try {
+      const traderRes = await listAllTraders(accessToken);
+      setTraders(traderRes.data ?? []);
+    } catch (error) {
+      setMessage(
+        showRequestErrorToast(error, {
+          title: "Unable to load filters",
+          fallbackMessage: "Failed to fetch trader options.",
+        }),
+      );
+    } finally {
+      setLoadingOptions(false);
+    }
+  }, [accessToken]);
+
+  const loadReceipts = useCallback(
+    async (targetPage = 1, append = false, refresh = false) => {
+      if (!accessToken) return;
+      if (refresh) {
+        setRefreshing(true);
+      } else if (append) {
+        setLoadingMore(true);
+      } else {
+        setLoading(true);
+      }
+      setMessage(null);
+
+      try {
+        const response = await listFinancePayments(accessToken, {
+          page: targetPage,
+          limit: PAGE_LIMIT,
+          search: debouncedSearch.trim() || undefined,
+          partyType: "Trader",
+          traderId: traderId || undefined,
+          referenceType: referenceType || undefined,
+        });
+        setRows((current) => (append ? [...current, ...(response.data ?? [])] : response.data ?? []));
+        setPage(response.meta?.page ?? targetPage);
+        setTotalPages(response.meta?.totalPages ?? 1);
+      } catch (error) {
+        setMessage(
+          showRequestErrorToast(error, {
+            title: "Unable to load receipts",
+            fallbackMessage: "Failed to fetch receipt list.",
+          }),
+        );
+      } finally {
+        setLoading(false);
+        setLoadingMore(false);
+        setRefreshing(false);
+      }
+    },
+    [accessToken, debouncedSearch, referenceType, traderId],
+  );
+
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      setDebouncedSearch(search);
+    }, 350);
+
+    return () => clearTimeout(timeoutId);
+  }, [search]);
+
+  useFocusEffect(
+    useCallback(() => {
+      void loadOptions();
+    }, [loadOptions]),
+  );
+
+  useEffect(() => {
+    void loadReceipts(1, false);
+  }, [debouncedSearch, loadReceipts, referenceType, traderId]);
+
+  const clearFilters = () => {
+    setSearch("");
+    setDebouncedSearch("");
+    setTraderId("");
+    setReferenceType("");
+  };
+
+  const loadNextPage = () => {
+    if (loading || loadingMore || page >= totalPages) return;
+    void loadReceipts(page + 1, true);
+  };
+
+  const renderItem = ({ item }: { item: ApiFinancePayment }) => {
+    const partyName = item.partyName || item.traderName || item.vendorName || "Unknown Party";
+    const mode = getPaymentMode(item);
+
+    return (
+      <View style={styles.paymentRow}>
+        <View style={styles.dateCol}>
+          <Ionicons name="calendar-outline" size={12} color={Colors.textSecondary} />
+          <Text style={styles.dateDay}>{formatDay(item.paymentDate)}</Text>
+          <Text style={styles.dateMonth}>{formatMonthYear(item.paymentDate)}</Text>
+        </View>
+        <View style={styles.nameCol}>
+          <Text style={styles.partyName} numberOfLines={1}>
+            {partyName}
+          </Text>
+          <Text style={styles.paymentMeta} numberOfLines={1}>
+            {labelize(item.paymentType)}
+          </Text>
+        </View>
+        <View style={styles.amountCol}>
+          <Text style={styles.amountText}>{formatAmount(item.amount)}</Text>
+          <View style={[styles.modePill, { backgroundColor: mode.bg }]}>
+            <Text style={[styles.modeText, { color: mode.color }]}>{mode.label}</Text>
+          </View>
+        </View>
+        <TouchableOpacity
+          style={styles.viewBtn}
+          onPress={() => setSelectedItem(item)}
+          activeOpacity={0.78}
+          accessibilityRole="button"
+          accessibilityLabel="View details"
+        >
+          <Ionicons name="eye-outline" size={16} color={THEME_GREEN} />
+        </TouchableOpacity>
+      </View>
+    );
+  };
 
   return (
-    <View style={styles.container}>
+    <View style={styles.safeArea}>
       <TopAppBar
         title="Receipts"
         subtitle="All incoming receipts"
-        onBack={() => router.replace('/(owner)/dashboard')}
+        leadingMode="back"
+        onBack={() => router.replace("/(owner)/dashboard")}
       />
-      <View style={styles.content}>
-        <Text style={styles.helloText}>Hello</Text>
+      <View style={styles.page}>
+        <FlatList
+          data={loading ? [] : rows}
+          keyExtractor={(item) => item.id}
+          renderItem={renderItem}
+          contentContainerStyle={[styles.listContent, !loading && rows.length === 0 && styles.listEmpty]}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+          onEndReached={loadNextPage}
+          onEndReachedThreshold={0.35}
+          refreshing={refreshing}
+          onRefresh={() => void loadReceipts(1, false, true)}
+          ListHeaderComponent={
+            <View style={styles.headerFilters}>
+              <View style={styles.searchBox}>
+                <Ionicons name="search-outline" size={17} color={Colors.textSecondary} />
+                <TextInput
+                  style={styles.searchInput}
+                  value={search}
+                  onChangeText={setSearch}
+                  placeholder="Search receipts"
+                  placeholderTextColor={Colors.textSecondary}
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                />
+                <TouchableOpacity
+                  style={[styles.filterButton, filtersOpen && styles.filterButtonActive]}
+                  onPress={() => setFiltersOpen((current) => !current)}
+                  activeOpacity={0.78}
+                >
+                  <Ionicons
+                    name="options-outline"
+                    size={17}
+                    color={filtersOpen ? "#FFF" : THEME_GREEN}
+                  />
+                </TouchableOpacity>
+              </View>
+
+              {message ? <Text style={styles.messageText}>{message}</Text> : null}
+
+              {filtersOpen ? (
+                <View style={styles.filterFields}>
+                  <SearchableSelectField
+                    variant="filter"
+                    label="Trader"
+                    value={traderId}
+                    options={traderOptions}
+                    onSelect={setTraderId}
+                    placeholder={loadingOptions ? "Loading traders..." : "All Traders"}
+                    searchPlaceholder="Search trader"
+                    emptyMessage="No traders found"
+                    disabled={loadingOptions}
+                  />
+                  <SearchableSelectField
+                    variant="filter"
+                    label="Reference Type"
+                    value={referenceType}
+                    options={referenceTypeOptions}
+                    onSelect={setReferenceType}
+                    placeholder="All References"
+                    searchPlaceholder="Search reference type"
+                    emptyMessage="No reference types found"
+                  />
+                  {hasActiveFilters ? (
+                    <TouchableOpacity style={styles.clearButton} onPress={clearFilters}>
+                      <Text style={styles.clearButtonText}>Clear Filters</Text>
+                    </TouchableOpacity>
+                  ) : null}
+                </View>
+              ) : null}
+            </View>
+          }
+          ListEmptyComponent={
+            loading ? (
+              <ScreenState title="Loading receipts" message="Fetching receipt records..." loading />
+            ) : (
+              <ScreenState
+                title="No receipts found"
+                message="Receipts will appear here after they are created."
+                icon="receipt-outline"
+              />
+            )
+          }
+          ListFooterComponent={
+            loadingMore ? (
+              <View style={styles.footerLoader}>
+                <ActivityIndicator color={Colors.primary} />
+                <Text style={styles.footerText}>Loading more receipts...</Text>
+              </View>
+            ) : (
+              <View style={{ height: 86 }} />
+            )
+          }
+        />
       </View>
+
+      <TouchableOpacity
+        style={styles.fab}
+        onPress={() => router.push({ pathname: "/(owner)/manage/payments/create" })}
+        activeOpacity={0.86}
+        accessibilityRole="button"
+        accessibilityLabel="Add receipt"
+      >
+        <Ionicons name="add" size={28} color="#FFFFFF" />
+      </TouchableOpacity>
+
+      <PaymentDetailModal
+        visible={selectedItem !== null}
+        item={selectedItem}
+        onClose={() => setSelectedItem(null)}
+        title="Receipt Details"
+      />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
+  safeArea: {
     flex: 1,
-    backgroundColor: '#F8FAFC',
+    backgroundColor: THEME_GREEN,
   },
-  content: {
+  page: {
     flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
+    backgroundColor: "#F8FAFC",
   },
-  helloText: {
-    fontSize: 24,
-    fontWeight: '900',
-    color: '#0B5C36',
+  listContent: {
+    paddingHorizontal: 8,
+    paddingTop: 8,
+    paddingBottom: 32,
+  },
+  listEmpty: {
+    flexGrow: 1,
+  },
+  headerFilters: {
+    gap: 8,
+    marginBottom: 6,
+  },
+  searchBox: {
+    minHeight: 40,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: "#DFE7EF",
+    backgroundColor: "#FFF",
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    paddingHorizontal: 10,
+  },
+  searchInput: {
+    flex: 1,
+    color: Colors.text,
+    fontSize: 12,
+    fontWeight: "700",
+    paddingVertical: 8,
+  },
+  filterButton: {
+    width: 30,
+    height: 30,
+    borderRadius: 7,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#E8F5E9",
+  },
+  filterButtonActive: {
+    backgroundColor: THEME_GREEN,
+  },
+  filterFields: {
+    gap: 9,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: "#E7ECF2",
+    backgroundColor: "#FFF",
+    padding: 10,
+  },
+  clearButton: {
+    minHeight: 38,
+    borderRadius: 8,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#FEF2F2",
+  },
+  clearButtonText: {
+    color: Colors.error,
+    fontSize: 12,
+    fontWeight: "900",
+  },
+  messageText: {
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: "#FFCDD2",
+    backgroundColor: "#FFEBEE",
+    color: Colors.error,
+    padding: 9,
+    fontSize: 12,
+    fontWeight: "700",
+  },
+  paymentRow: {
+    minHeight: 58,
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#FFF",
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: "#E7ECF2",
+    marginBottom: 6,
+    paddingVertical: 8,
+    paddingLeft: 8,
+    paddingRight: 9,
+    gap: 8,
+  },
+  dateCol: {
+    width: 42,
+    alignItems: "center",
+    gap: 1,
+  },
+  dateDay: {
+    color: Colors.text,
+    fontSize: 12,
+    fontWeight: "900",
+  },
+  dateMonth: {
+    color: Colors.textSecondary,
+    fontSize: 7,
+    fontWeight: "800",
+  },
+  nameCol: {
+    flex: 1,
+    minWidth: 0,
+  },
+  partyName: {
+    color: Colors.text,
+    fontSize: 11,
+    fontWeight: "900",
+  },
+  paymentMeta: {
+    marginTop: 4,
+    color: Colors.textSecondary,
+    fontSize: 9,
+    fontWeight: "700",
+  },
+  viewBtn: {
+    width: 30,
+    height: 30,
+    borderRadius: 7,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#F0FDF4",
+    borderWidth: 1,
+    borderColor: "#CFE8D6",
+  },
+  amountCol: {
+    minWidth: 78,
+    alignItems: "flex-end",
+    gap: 5,
+  },
+  amountText: {
+    color: THEME_GREEN,
+    fontSize: 11,
+    fontWeight: "900",
+  },
+  modePill: {
+    minWidth: 38,
+    minHeight: 20,
+    borderRadius: 5,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 7,
+  },
+  modeText: {
+    fontSize: 8,
+    fontWeight: "900",
+  },
+  footerLoader: {
+    paddingVertical: 16,
+    alignItems: "center",
+    gap: 8,
+  },
+  footerText: {
+    color: Colors.textSecondary,
+    fontSize: 12,
+    fontWeight: "700",
+  },
+  fab: {
+    position: "absolute",
+    right: 18,
+    bottom: 24,
+    width: 58,
+    height: 58,
+    borderRadius: 29,
+    backgroundColor: THEME_GREEN,
+    alignItems: "center",
+    justifyContent: "center",
+    shadowColor: "#003E2B",
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.24,
+    shadowRadius: 10,
+    elevation: 8,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.18)",
   },
 });

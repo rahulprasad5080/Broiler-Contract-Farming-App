@@ -1,7 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect } from "@react-navigation/native";
 import { useRouter } from "expo-router";
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   FlatList,
@@ -12,6 +12,7 @@ import {
   View,
 } from "react-native";
 
+import { PaymentDetailModal } from "@/components/ui/PaymentDetailModal";
 import { ScreenState } from "@/components/ui/ScreenState";
 import { SearchableSelectField, type SearchableSelectOption } from "@/components/ui/SearchableSelectField";
 import { TopAppBar } from "@/components/ui/TopAppBar";
@@ -20,11 +21,9 @@ import { useAuth } from "@/context/AuthContext";
 import { showRequestErrorToast } from "@/services/apiFeedback";
 import {
   API_PAYMENT_ENTRY_TYPE_VALUES,
-  listAllTraders,
   listAllVendors,
   listFinancePayments,
   type ApiFinancePayment,
-  type ApiTrader,
   type ApiVendor,
 } from "@/services/managementApi";
 
@@ -70,13 +69,11 @@ export default function PaymentsScreen() {
   const { accessToken } = useAuth();
   const [rows, setRows] = useState<ApiFinancePayment[]>([]);
   const [vendors, setVendors] = useState<ApiVendor[]>([]);
-  const [traders, setTraders] = useState<ApiTrader[]>([]);
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [vendorId, setVendorId] = useState("");
-  const [traderId, setTraderId] = useState("");
   const [referenceType, setReferenceType] = useState("");
   const [loading, setLoading] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -84,6 +81,7 @@ export default function PaymentsScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
+  const [selectedItem, setSelectedItem] = useState<ApiFinancePayment | null>(null);
 
   const vendorOptions = useMemo<SearchableSelectOption[]>(
     () => [
@@ -98,19 +96,6 @@ export default function PaymentsScreen() {
     [vendors],
   );
 
-  const traderOptions = useMemo<SearchableSelectOption[]>(
-    () => [
-      { label: "All Traders", value: "" },
-      ...traders.map((trader) => ({
-        label: trader.name,
-        value: trader.id,
-        description: trader.phone ?? undefined,
-        keywords: [trader.address, trader.phone].filter(Boolean).join(" "),
-      })),
-    ],
-    [traders],
-  );
-
   const referenceTypeOptions = useMemo<SearchableSelectOption[]>(
     () => [
       { label: "All References", value: "" },
@@ -122,23 +107,19 @@ export default function PaymentsScreen() {
     [],
   );
 
-  const hasActiveFilters = Boolean(search.trim() || vendorId || traderId || referenceType);
+  const hasActiveFilters = Boolean(search.trim() || vendorId || referenceType);
 
   const loadOptions = useCallback(async () => {
     if (!accessToken) return;
     setLoadingOptions(true);
     try {
-      const [vendorRes, traderRes] = await Promise.all([
-        listAllVendors(accessToken),
-        listAllTraders(accessToken),
-      ]);
+      const vendorRes = await listAllVendors(accessToken);
       setVendors(vendorRes.data ?? []);
-      setTraders(traderRes.data ?? []);
     } catch (error) {
       setMessage(
         showRequestErrorToast(error, {
           title: "Unable to load filters",
-          fallbackMessage: "Failed to fetch vendor and trader options.",
+          fallbackMessage: "Failed to fetch vendor options.",
         }),
       );
     } finally {
@@ -163,8 +144,8 @@ export default function PaymentsScreen() {
           page: targetPage,
           limit: PAGE_LIMIT,
           search: debouncedSearch.trim() || undefined,
+          partyType: "Vendor",
           vendorId: vendorId || undefined,
-          traderId: traderId || undefined,
           referenceType: referenceType || undefined,
         });
         setRows((current) => (append ? [...current, ...(response.data ?? [])] : response.data ?? []));
@@ -183,7 +164,7 @@ export default function PaymentsScreen() {
         setRefreshing(false);
       }
     },
-    [accessToken, debouncedSearch, referenceType, traderId, vendorId],
+    [accessToken, debouncedSearch, referenceType, vendorId],
   );
 
   useEffect(() => {
@@ -202,13 +183,12 @@ export default function PaymentsScreen() {
 
   useEffect(() => {
     void loadPayments(1, false);
-  }, [debouncedSearch, loadPayments, referenceType, traderId, vendorId]);
+  }, [debouncedSearch, loadPayments, referenceType, vendorId]);
 
   const clearFilters = () => {
     setSearch("");
     setDebouncedSearch("");
     setVendorId("");
-    setTraderId("");
     setReferenceType("");
   };
 
@@ -242,6 +222,15 @@ export default function PaymentsScreen() {
             <Text style={[styles.modeText, { color: mode.color }]}>{mode.label}</Text>
           </View>
         </View>
+        <TouchableOpacity
+          style={styles.viewBtn}
+          onPress={() => setSelectedItem(item)}
+          activeOpacity={0.78}
+          accessibilityRole="button"
+          accessibilityLabel="View details"
+        >
+          <Ionicons name="eye-outline" size={16} color={THEME_GREEN} />
+        </TouchableOpacity>
       </View>
     );
   };
@@ -309,17 +298,6 @@ export default function PaymentsScreen() {
                   />
                   <SearchableSelectField
                     variant="filter"
-                    label="Trader"
-                    value={traderId}
-                    options={traderOptions}
-                    onSelect={setTraderId}
-                    placeholder={loadingOptions ? "Loading traders..." : "All Traders"}
-                    searchPlaceholder="Search trader"
-                    emptyMessage="No traders found"
-                    disabled={loadingOptions}
-                  />
-                  <SearchableSelectField
-                    variant="filter"
                     label="Reference Type"
                     value={referenceType}
                     options={referenceTypeOptions}
@@ -370,6 +348,13 @@ export default function PaymentsScreen() {
       >
         <Ionicons name="add" size={28} color="#FFFFFF" />
       </TouchableOpacity>
+
+      <PaymentDetailModal
+        visible={selectedItem !== null}
+        item={selectedItem}
+        onClose={() => setSelectedItem(null)}
+        title="Payment Details"
+      />
     </View>
   );
 }
@@ -506,6 +491,16 @@ const styles = StyleSheet.create({
     color: Colors.textSecondary,
     fontSize: 9,
     fontWeight: "700",
+  },
+  viewBtn: {
+    width: 30,
+    height: 30,
+    borderRadius: 7,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#F0FDF4",
+    borderWidth: 1,
+    borderColor: "#CFE8D6",
   },
   amountCol: {
     minWidth: 78,

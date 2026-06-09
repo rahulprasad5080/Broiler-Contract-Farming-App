@@ -73,6 +73,7 @@ export async function listFinancePayments(
   params: ListParams & {
     vendorId?: string;
     traderId?: string;
+    partyType?: string;
     referenceType?: ApiPaymentEntryType | string;
   } = {},
 ) {
