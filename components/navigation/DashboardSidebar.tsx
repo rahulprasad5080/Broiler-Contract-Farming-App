@@ -98,9 +98,9 @@ const ownerRoutes: DashboardSidebarRoute[] = [
     title: "Settlements and Profit",
     subtitle: "Batch settlement and P&L",
     icon: "trending-up-outline",
-    route: "/(owner)/manage/settlement",
+    route: "/(owner)/manage/profitability" as Href,
     section: "Finance",
-    requiredPermission: "manage:settlements",
+    requiredPermission: "view:inventory-cost",
   },
   {
     title: "Purchases",
@@ -117,14 +117,6 @@ const ownerRoutes: DashboardSidebarRoute[] = [
     route: "/(owner)/manage/entries" as Href,
     section: "Finance",
     requiredPermission: "view:financial-dashboard",
-  },
-  {
-    title: "Profitability",
-    subtitle: "Batch P&L list",
-    icon: "analytics-outline",
-    route: "/(owner)/manage/profitability" as Href,
-    section: "Finance",
-    requiredPermission: "view:inventory-cost",
   },
 //   {
 //     title: "Billing",
