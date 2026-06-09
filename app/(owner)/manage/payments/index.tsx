@@ -28,21 +28,25 @@ import {
   type ApiVendor,
 } from "@/services/managementApi";
 
+const THEME_GREEN = "#0B5C36";
 const PAGE_LIMIT = 20;
 
-function formatDate(value?: string | null) {
-  if (!value) return "-";
+function formatDay(value?: string | null) {
+  if (!value) return "--";
   const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return value;
-  return date.toLocaleDateString("en-IN", {
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-  });
+  if (Number.isNaN(date.getTime())) return "--";
+  return date.toLocaleDateString("en-IN", { day: "2-digit" });
+}
+
+function formatMonthYear(value?: string | null) {
+  if (!value) return "";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+  return date.toLocaleDateString("en-IN", { month: "short", year: "numeric" });
 }
 
 function formatAmount(value?: number | null) {
-  return `Rs ${Number(value ?? 0).toLocaleString("en-IN")}`;
+  return `₹ ${Number(value ?? 0).toLocaleString("en-IN")}`;
 }
 
 function labelize(value?: string | null) {
@@ -53,19 +57,12 @@ function labelize(value?: string | null) {
     .replace(/\b\w/g, (char) => char.toUpperCase());
 }
 
-function getDirectionTone(direction?: string | null) {
-  return direction === "INBOUND"
-    ? { color: Colors.primary, bg: "#E7F5ED", icon: "arrow-down-circle-outline" as const, label: "Inflow" }
-    : { color: Colors.error, bg: "#FEF2F2", icon: "arrow-up-circle-outline" as const, label: "Outflow" };
-}
-
-function InfoCell({ label, value }: { label: string; value: string }) {
-  return (
-    <View style={styles.infoCell}>
-      <Text style={styles.infoLabel}>{label}</Text>
-      <Text style={styles.infoValue} numberOfLines={2}>{value}</Text>
-    </View>
-  );
+function getPaymentMode(item: ApiFinancePayment) {
+  const haystack = `${item.referenceType ?? ""} ${item.notes ?? ""} ${item.paymentType ?? ""}`.toLowerCase();
+  if (haystack.includes("bank") || haystack.includes("upi") || haystack.includes("neft")) {
+    return { label: "Bank", bg: "#EFF6FF", color: "#2563EB" };
+  }
+  return { label: "Cash", bg: "#E8F5E9", color: THEME_GREEN };
 }
 
 export default function PaymentsScreen() {
@@ -76,7 +73,6 @@ export default function PaymentsScreen() {
   const [traders, setTraders] = useState<ApiTrader[]>([]);
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
-  const [total, setTotal] = useState(0);
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [vendorId, setVendorId] = useState("");
@@ -173,7 +169,6 @@ export default function PaymentsScreen() {
         });
         setRows((current) => (append ? [...current, ...(response.data ?? [])] : response.data ?? []));
         setPage(response.meta?.page ?? targetPage);
-        setTotal(response.meta?.total ?? 0);
         setTotalPages(response.meta?.totalPages ?? 1);
       } catch (error) {
         setMessage(
@@ -222,43 +217,35 @@ export default function PaymentsScreen() {
     void loadPayments(page + 1, true);
   };
 
-  const renderItem = ({ item }: { item: ApiFinancePayment }) => {
-    const tone = getDirectionTone(item.direction);
+  const renderItem = ({ item, index }: { item: ApiFinancePayment; index: number }) => {
     const partyName = item.partyName || item.vendorName || item.traderName || "Unknown Party";
+    const mode = getPaymentMode(item);
+    const serial = String(index + 1).padStart(2, "0");
 
     return (
-      <View style={styles.card}>
-        <View style={styles.cardHeader}>
-          <View style={[styles.avatarBox, { backgroundColor: tone.bg }]}>
-            <Ionicons name={tone.icon} size={22} color={tone.color} />
-          </View>
-          <View style={styles.titleBlock}>
-            <Text style={styles.title} numberOfLines={1}>{partyName}</Text>
-            <Text style={styles.subtitle}>
-              {[labelize(item.paymentType), formatDate(item.paymentDate), item.referenceType]
-                .filter(Boolean)
-                .join(" | ")}
-            </Text>
-          </View>
-          <View style={styles.amountBlock}>
-            <Text style={[styles.amountText, { color: tone.color }]}>
-              {item.direction === "OUTBOUND" ? "-" : "+"}{formatAmount(item.amount)}
-            </Text>
-            <Text style={styles.directionText}>{tone.label}</Text>
+      <View style={styles.paymentRow}>
+        <View style={styles.serialCol}>
+          <Text style={styles.serialText}>{serial}</Text>
+        </View>
+        <View style={styles.dateCol}>
+          <Ionicons name="calendar-outline" size={12} color={Colors.textSecondary} />
+          <Text style={styles.dateDay}>{formatDay(item.paymentDate)}</Text>
+          <Text style={styles.dateMonth}>{formatMonthYear(item.paymentDate)}</Text>
+        </View>
+        <View style={styles.nameCol}>
+          <Text style={styles.partyName} numberOfLines={1}>
+            {partyName}
+          </Text>
+          <Text style={styles.paymentMeta} numberOfLines={1}>
+            {labelize(item.paymentType)}
+          </Text>
+        </View>
+        <View style={styles.amountCol}>
+          <Text style={styles.amountText}>{formatAmount(item.amount)}</Text>
+          <View style={[styles.modePill, { backgroundColor: mode.bg }]}>
+            <Text style={[styles.modeText, { color: mode.color }]}>{mode.label}</Text>
           </View>
         </View>
-
-        <View style={styles.detailsGrid}>
-          <InfoCell label="Direction" value={item.direction || "-"} />
-          <InfoCell label="Payment Date" value={formatDate(item.paymentDate)} />
-        </View>
-
-        {item.notes ? (
-          <View style={styles.noteBox}>
-            <Text style={styles.noteLabel}>Notes</Text>
-            <Text style={styles.noteText}>{item.notes}</Text>
-          </View>
-        ) : null}
       </View>
     );
   };
@@ -266,30 +253,17 @@ export default function PaymentsScreen() {
   return (
     <View style={styles.safeArea}>
       <TopAppBar
-        title="Payments"
-        subtitle="Payment history"
+        title="Payments Made"
+        subtitle="All payments you have made"
         leadingMode="back"
-        onBack={() => router.replace('/(owner)/dashboard')}
-        right={
-          <TouchableOpacity
-            style={styles.addButton}
-            onPress={() => router.push({ pathname: "/(owner)/manage/payments/create" })}
-            activeOpacity={0.82}
-          >
-            <Ionicons name="add" size={18} color="#FFF" />
-            <Text style={styles.addButtonText}>Add</Text>
-          </TouchableOpacity>
-        }
+        onBack={() => router.replace("/(owner)/dashboard")}
       />
       <View style={styles.page}>
         <FlatList
           data={loading ? [] : rows}
           keyExtractor={(item) => item.id}
           renderItem={renderItem}
-          contentContainerStyle={[
-            styles.listContent,
-            !loading && rows.length === 0 && styles.listEmpty,
-          ]}
+          contentContainerStyle={[styles.listContent, !loading && rows.length === 0 && styles.listEmpty]}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
           onEndReached={loadNextPage}
@@ -297,53 +271,35 @@ export default function PaymentsScreen() {
           refreshing={refreshing}
           onRefresh={() => void loadPayments(1, false, true)}
           ListHeaderComponent={
-            <View style={styles.filtersCard}>
-              <View style={styles.filterHeader}>
+            <View style={styles.headerFilters}>
+              <View style={styles.searchBox}>
+                <Ionicons name="search-outline" size={17} color={Colors.textSecondary} />
+                <TextInput
+                  style={styles.searchInput}
+                  value={search}
+                  onChangeText={setSearch}
+                  placeholder="Search payments"
+                  placeholderTextColor={Colors.textSecondary}
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                />
                 <TouchableOpacity
-                  style={styles.filterHeaderToggle}
+                  style={[styles.filterButton, filtersOpen && styles.filterButtonActive]}
                   onPress={() => setFiltersOpen((current) => !current)}
                   activeOpacity={0.78}
                 >
-                  <View style={styles.filterTitleWrap}>
-                    <Ionicons name="funnel-outline" size={16} color={Colors.primary} />
-                    <Text style={styles.filterTitle}>Filters</Text>
-                    <Text style={styles.summaryText}>
-                      {loading ? "Loading..." : `${rows.length}/${total} payments`}
-                    </Text>
-                  </View>
+                  <Ionicons
+                    name="options-outline"
+                    size={17}
+                    color={filtersOpen ? "#FFF" : THEME_GREEN}
+                  />
                 </TouchableOpacity>
-                <View style={styles.filterHeaderActions}>
-                  {hasActiveFilters ? (
-                    <TouchableOpacity style={styles.clearButton} onPress={clearFilters}>
-                      <Text style={styles.clearButtonText}>Clear</Text>
-                    </TouchableOpacity>
-                  ) : null}
-                  <TouchableOpacity
-                    style={styles.chevronButton}
-                    onPress={() => setFiltersOpen((current) => !current)}
-                    activeOpacity={0.78}
-                  >
-                    <Ionicons name={filtersOpen ? "chevron-up" : "chevron-down"} size={18} color={Colors.text} />
-                  </TouchableOpacity>
-                </View>
               </View>
 
               {message ? <Text style={styles.messageText}>{message}</Text> : null}
 
               {filtersOpen ? (
                 <View style={styles.filterFields}>
-                  <View style={styles.searchBox}>
-                    <Ionicons name="search-outline" size={18} color={Colors.textSecondary} />
-                    <TextInput
-                      style={styles.searchInput}
-                      value={search}
-                      onChangeText={setSearch}
-                      placeholder="Search payments"
-                      placeholderTextColor={Colors.textSecondary}
-                      autoCapitalize="none"
-                      autoCorrect={false}
-                    />
-                  </View>
                   <SearchableSelectField
                     variant="filter"
                     label="Vendor"
@@ -376,6 +332,11 @@ export default function PaymentsScreen() {
                     searchPlaceholder="Search reference type"
                     emptyMessage="No reference types found"
                   />
+                  {hasActiveFilters ? (
+                    <TouchableOpacity style={styles.clearButton} onPress={clearFilters}>
+                      <Text style={styles.clearButtonText}>Clear Filters</Text>
+                    </TouchableOpacity>
+                  ) : null}
                 </View>
               ) : null}
             </View>
@@ -398,11 +359,21 @@ export default function PaymentsScreen() {
                 <Text style={styles.footerText}>Loading more payments...</Text>
               </View>
             ) : (
-              <View style={{ height: 28 }} />
+              <View style={{ height: 86 }} />
             )
           }
         />
       </View>
+
+      <TouchableOpacity
+        style={styles.fab}
+        onPress={() => router.push({ pathname: "/(owner)/manage/payments/create" })}
+        activeOpacity={0.86}
+        accessibilityRole="button"
+        accessibilityLabel="Add payment"
+      >
+        <Ionicons name="add" size={28} color="#FFFFFF" />
+      </TouchableOpacity>
     </View>
   );
 }
@@ -410,240 +381,157 @@ export default function PaymentsScreen() {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: "#0B5C36",
+    backgroundColor: THEME_GREEN,
   },
   page: {
     flex: 1,
-    backgroundColor: "#F4F6F8",
-  },
-  addButton: {
-    minHeight: 38,
-    borderRadius: 12,
-    backgroundColor: "rgba(255,255,255,0.16)",
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.24)",
-    paddingHorizontal: 14,
-    alignItems: "center",
-    justifyContent: "center",
-    flexDirection: "row",
-    gap: 6,
-  },
-  addButtonText: {
-    color: "#FFF",
-    fontSize: 13,
-    fontWeight: "900",
+    backgroundColor: "#F8FAFC",
   },
   listContent: {
-    padding: 14,
-    paddingBottom: 56,
+    paddingHorizontal: 8,
+    paddingTop: 8,
+    paddingBottom: 32,
   },
   listEmpty: {
     flexGrow: 1,
   },
-  filtersCard: {
-    backgroundColor: "#FFF",
-    borderRadius: 12,
+  headerFilters: {
+    gap: 8,
+    marginBottom: 6,
+  },
+  searchBox: {
+    minHeight: 40,
+    borderRadius: 8,
     borderWidth: 1,
-    borderColor: "#E5E7EB",
-    padding: 12,
-    marginBottom: 12,
-    gap: 10,
-  },
-  filterHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    gap: 10,
-  },
-  filterHeaderToggle: {
-    flex: 1,
-    minWidth: 0,
-    minHeight: 34,
-    justifyContent: "center",
-  },
-  filterTitleWrap: {
-    flex: 1,
-    minWidth: 0,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 7,
-  },
-  filterTitle: {
-    color: Colors.text,
-    fontSize: 14,
-    fontWeight: "900",
-  },
-  filterHeaderActions: {
+    borderColor: "#DFE7EF",
+    backgroundColor: "#FFF",
     flexDirection: "row",
     alignItems: "center",
     gap: 8,
+    paddingHorizontal: 10,
   },
-  clearButton: {
-    minHeight: 30,
-    borderRadius: 9,
-    backgroundColor: "#FEF2F2",
-    paddingHorizontal: 11,
+  searchInput: {
+    flex: 1,
+    color: Colors.text,
+    fontSize: 12,
+    fontWeight: "700",
+    paddingVertical: 8,
+  },
+  filterButton: {
+    width: 30,
+    height: 30,
+    borderRadius: 7,
     alignItems: "center",
     justifyContent: "center",
+    backgroundColor: "#E8F5E9",
+  },
+  filterButtonActive: {
+    backgroundColor: THEME_GREEN,
+  },
+  filterFields: {
+    gap: 9,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: "#E7ECF2",
+    backgroundColor: "#FFF",
+    padding: 10,
+  },
+  clearButton: {
+    minHeight: 38,
+    borderRadius: 8,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#FEF2F2",
   },
   clearButtonText: {
     color: Colors.error,
     fontSize: 12,
     fontWeight: "900",
   },
-  chevronButton: {
-    width: 32,
-    height: 32,
-    borderRadius: 9,
-    backgroundColor: "#F1F5F9",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  summaryText: {
-    color: Colors.textSecondary,
-    fontSize: 11,
-    fontWeight: "700",
-    flex: 1,
-    minWidth: 0,
-  },
   messageText: {
-    borderRadius: 10,
+    borderRadius: 8,
     borderWidth: 1,
     borderColor: "#FFCDD2",
     backgroundColor: "#FFEBEE",
     color: Colors.error,
-    padding: 10,
+    padding: 9,
     fontSize: 12,
     fontWeight: "700",
   },
-  filterFields: {
-    gap: 10,
-  },
-  searchBox: {
-    minHeight: 42,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: "#D9E2EC",
-    backgroundColor: "#FFF",
+  paymentRow: {
+    minHeight: 58,
     flexDirection: "row",
     alignItems: "center",
-    gap: 8,
-    paddingHorizontal: 12,
-  },
-  searchInput: {
-    flex: 1,
-    color: Colors.text,
-    fontSize: 13,
-    fontWeight: "700",
+    backgroundColor: "#FFF",
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: "#E7ECF2",
+    marginBottom: 6,
     paddingVertical: 8,
+    paddingLeft: 8,
+    paddingRight: 9,
+    gap: 8,
   },
-  card: {
-    backgroundColor: "#FFF",
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: "#E5E7EB",
-    padding: 14,
-    marginBottom: 10,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.06,
-    shadowRadius: 4,
-    elevation: 2,
-  },
-  cardHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
-  },
-  avatarBox: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    justifyContent: "center",
+  serialCol: {
+    width: 20,
     alignItems: "center",
   },
-  titleBlock: {
+  serialText: {
+    color: Colors.textSecondary,
+    fontSize: 11,
+    fontWeight: "900",
+  },
+  dateCol: {
+    width: 42,
+    alignItems: "center",
+    gap: 1,
+  },
+  dateDay: {
+    color: Colors.text,
+    fontSize: 12,
+    fontWeight: "900",
+  },
+  dateMonth: {
+    color: Colors.textSecondary,
+    fontSize: 7,
+    fontWeight: "800",
+  },
+  nameCol: {
     flex: 1,
     minWidth: 0,
   },
-  title: {
+  partyName: {
     color: Colors.text,
-    fontSize: 15,
+    fontSize: 11,
     fontWeight: "900",
   },
-  subtitle: {
+  paymentMeta: {
+    marginTop: 4,
     color: Colors.textSecondary,
-    fontSize: 12,
-    lineHeight: 17,
-    marginTop: 3,
+    fontSize: 9,
+    fontWeight: "700",
   },
-  amountBlock: {
+  amountCol: {
+    minWidth: 78,
     alignItems: "flex-end",
-    justifyContent: "center",
-    maxWidth: 110,
+    gap: 5,
   },
   amountText: {
-    fontSize: 14,
+    color: THEME_GREEN,
+    fontSize: 11,
     fontWeight: "900",
   },
-  directionText: {
-    color: Colors.textSecondary,
-    fontSize: 10,
+  modePill: {
+    minWidth: 38,
+    minHeight: 20,
+    borderRadius: 5,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 7,
+  },
+  modeText: {
+    fontSize: 8,
     fontWeight: "900",
-    marginTop: 2,
-    textTransform: "uppercase",
-  },
-  detailsGrid: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 8,
-    marginTop: 12,
-    paddingTop: 10,
-    borderTopWidth: 1,
-    borderTopColor: "#F1F5F9",
-  },
-  infoCell: {
-    flexGrow: 1,
-    flexBasis: 136,
-    borderRadius: 10,
-    backgroundColor: "#F8FAFC",
-    borderWidth: 1,
-    borderColor: "#EEF2F7",
-    paddingHorizontal: 10,
-    paddingVertical: 8,
-  },
-  infoLabel: {
-    color: Colors.textSecondary,
-    fontSize: 10,
-    fontWeight: "900",
-    textTransform: "uppercase",
-  },
-  infoValue: {
-    color: Colors.text,
-    fontSize: 12,
-    fontWeight: "800",
-    lineHeight: 16,
-    marginTop: 3,
-  },
-  noteBox: {
-    marginTop: 10,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: "#E5E7EB",
-    backgroundColor: "#FFF",
-    padding: 10,
-  },
-  noteLabel: {
-    color: Colors.textSecondary,
-    fontSize: 10,
-    fontWeight: "900",
-    textTransform: "uppercase",
-  },
-  noteText: {
-    color: Colors.text,
-    fontSize: 12,
-    lineHeight: 17,
-    marginTop: 4,
   },
   footerLoader: {
     paddingVertical: 16,
@@ -654,5 +542,23 @@ const styles = StyleSheet.create({
     color: Colors.textSecondary,
     fontSize: 12,
     fontWeight: "700",
+  },
+  fab: {
+    position: "absolute",
+    right: 18,
+    bottom: 24,
+    width: 58,
+    height: 58,
+    borderRadius: 29,
+    backgroundColor: THEME_GREEN,
+    alignItems: "center",
+    justifyContent: "center",
+    shadowColor: "#003E2B",
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.24,
+    shadowRadius: 10,
+    elevation: 8,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.18)",
   },
 });
