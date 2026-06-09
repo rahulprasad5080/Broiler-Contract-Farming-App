@@ -9,6 +9,7 @@ export { default as PermissionsScreen } from "./PermissionsScreen";
 export { default as PrivacyPolicyScreen } from "./PrivacyPolicyScreen";
 export { default as SecuritySettingsScreen } from "./SecuritySettingsScreen";
 export { default as BankDetailsScreen } from "./BankDetailsScreen";
+export { default as AlertsSettingsScreen } from "./AlertsSettingsScreen";
 export { default as ReportsScreen } from "./ReportsScreen";
 export { SalesEntryScreen } from "./SalesEntryScreen";
 export { SplashScreen } from "./SplashScreen";

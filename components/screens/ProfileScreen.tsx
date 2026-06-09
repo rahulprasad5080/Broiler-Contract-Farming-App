@@ -32,6 +32,8 @@ type SettingItemProps = {
 
 type AppSettingsPanelProps = {
   onOpenSecurity: () => void;
+  onOpenPayoutRules: () => void;
+  onOpenAlerts: () => void;
 };
 
 
@@ -148,6 +150,8 @@ const SettingItem = ({ icon, label, value, description, onPress, isLast, color =
 
 const AppSettingsPanel = ({
   onOpenSecurity,
+  onOpenPayoutRules,
+  onOpenAlerts,
 }: AppSettingsPanelProps) => {
   return (
     <>
@@ -158,6 +162,20 @@ const AppSettingsPanel = ({
           label="Security"
           description="Password, PIN and biometric unlock"
           onPress={onOpenSecurity}
+          isLast={false}
+        />
+        <SettingItem
+          icon="scale-outline"
+          label="Payout Rules"
+          description="Based on KG sold or Production Cost"
+          onPress={onOpenPayoutRules}
+          isLast={false}
+        />
+        <SettingItem
+          icon="notifications-outline"
+          label="Alerts"
+          description="Pending Entry, FCR, Mortality"
+          onPress={onOpenAlerts}
           isLast
         />
       </SurfaceCard>
@@ -397,6 +415,11 @@ export default function ProfileScreen() {
           {/* Security */}
           <AppSettingsPanel
             onOpenSecurity={openSecurity}
+            onOpenPayoutRules={() => router.navigate('/(owner)/manage/settings' as any)}
+            onOpenAlerts={() => {
+              const roleGroup = user?.role === 'OWNER' ? '(owner)' : user?.role === 'SUPERVISOR' ? '(supervisor)' : '(farmer)';
+              router.navigate(`/${roleGroup}/profile/alerts` as any);
+            }}
           />
 
 
