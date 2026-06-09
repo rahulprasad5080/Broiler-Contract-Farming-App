@@ -1,6 +1,4 @@
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { useFocusEffect } from '@react-navigation/native';
 import { useRouter } from 'expo-router';
 import React from 'react';
 import {
@@ -208,33 +206,6 @@ export default function ProfileScreen() {
   const canManageUsers = hasPermission('manage:users');
 
   const [profileUser, setProfileUser] = React.useState<ApiUser | null>(null);
-  const [bankDetails, setBankDetails] = React.useState<{
-    accountHolderName: string;
-    bankName: string;
-    accountNumber: string;
-    ifscCode: string;
-    branchName: string;
-  } | null>(null);
-
-  useFocusEffect(
-    React.useCallback(() => {
-      const loadBankDetails = async () => {
-        if (!user?.id) return;
-        try {
-          const value = await AsyncStorage.getItem(`@bank_details_${user.id}`);
-          if (value) {
-            setBankDetails(JSON.parse(value));
-          } else {
-            setBankDetails(null);
-          }
-        } catch {
-          // silent
-        }
-      };
-      void loadBankDetails();
-    }, [user?.id])
-  );
-
   React.useEffect(() => {
     if (!accessToken) {
       setProfileUser(null);
@@ -362,11 +333,11 @@ export default function ProfileScreen() {
               isLast={false}
             />
             <SettingItem
-              icon="wallet-outline"
-              label="Bank Details"
-              value={bankDetails ? `${bankDetails.bankName}` : "Not Set"}
-              onPress={() => {
-                const roleGroup = user?.role === 'OWNER' ? '(owner)' : user?.role === 'SUPERVISOR' ? '(supervisor)' : '(farmer)';
+                icon="wallet-outline"
+                label="Bank Details"
+                value="Open"
+                onPress={() => {
+                  const roleGroup = user?.role === 'OWNER' ? '(owner)' : user?.role === 'SUPERVISOR' ? '(supervisor)' : '(farmer)';
                 router.navigate(`/${roleGroup}/profile/bank` as any);
               }}
               isLast={true}

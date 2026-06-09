@@ -1,6 +1,5 @@
 import React from 'react';
 import {
-  ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
@@ -11,14 +10,10 @@ import {
   View,
 } from 'react-native';
 import { useRouter } from 'expo-router';
-import Toast from 'react-native-toast-message';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import { TopAppBar } from '@/components/ui/TopAppBar';
-import { useAuth } from '@/context/AuthContext';
 
 export default function BankDetailsScreen() {
-  const { user } = useAuth();
   const router = useRouter();
 
   const [holderName, setHolderName] = React.useState('');
@@ -26,79 +21,6 @@ export default function BankDetailsScreen() {
   const [accountNumber, setAccountNumber] = React.useState('');
   const [ifscCode, setIfscCode] = React.useState('');
   const [branchName, setBranchName] = React.useState('');
-  const [isLoading, setIsLoading] = React.useState(true);
-  const [isSaving, setIsSaving] = React.useState(false);
-
-  React.useEffect(() => {
-    const loadBankDetails = async () => {
-      if (!user?.id) return;
-      try {
-        const value = await AsyncStorage.getItem(`@bank_details_${user.id}`);
-        if (value) {
-          const parsed = JSON.parse(value);
-          setHolderName(parsed.accountHolderName || '');
-          setBankName(parsed.bankName || '');
-          setAccountNumber(parsed.accountNumber || '');
-          setIfscCode(parsed.ifscCode || '');
-          setBranchName(parsed.branchName || '');
-        } else {
-          setHolderName(user.name || '');
-        }
-      } catch {
-        console.warn('Failed to load bank details');
-      } finally {
-        setIsLoading(false);
-      }
-    };
-    loadBankDetails();
-  }, [user?.id, user?.name]);
-
-  const handleSave = async () => {
-    if (!holderName.trim() || !bankName.trim() || !accountNumber.trim() || !ifscCode.trim()) {
-      Toast.show({
-        type: 'error',
-        text1: 'Validation Error',
-        text2: 'All bank fields except branch are required.',
-        position: 'bottom',
-      });
-      return;
-    }
-    setIsSaving(true);
-    try {
-      const details = {
-        accountHolderName: holderName.trim(),
-        bankName: bankName.trim(),
-        accountNumber: accountNumber.trim(),
-        ifscCode: ifscCode.trim().toUpperCase(),
-        branchName: branchName.trim(),
-      };
-      await AsyncStorage.setItem(`@bank_details_${user?.id}`, JSON.stringify(details));
-      Toast.show({
-        type: 'success',
-        text1: 'Bank Saved',
-        text2: 'Bank details updated successfully.',
-        position: 'bottom',
-      });
-      router.back();
-    } catch {
-      Toast.show({
-        type: 'error',
-        text1: 'Save Failed',
-        text2: 'Could not persist bank details.',
-        position: 'bottom',
-      });
-    } finally {
-      setIsSaving(false);
-    }
-  };
-
-  if (isLoading) {
-    return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#00875A" />
-      </View>
-    );
-  }
 
   return (
     <View style={styles.safeArea}>
@@ -173,16 +95,11 @@ export default function BankDetailsScreen() {
             </View>
 
             <TouchableOpacity
-              style={[styles.saveButton, isSaving && styles.saveButtonDisabled]}
-              onPress={handleSave}
-              disabled={isSaving}
+              style={styles.saveButton}
+              onPress={() => {}}
               activeOpacity={0.8}
             >
-              {isSaving ? (
-                <ActivityIndicator size="small" color="#FFFFFF" />
-              ) : (
-                <Text style={styles.saveButtonText}>Save Details</Text>
-              )}
+              <Text style={styles.saveButtonText}>Submit</Text>
             </TouchableOpacity>
           </View>
         </ScrollView>
@@ -195,7 +112,6 @@ const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: '#F9FAFB' },
   keyboardAvoidingWrapper: { flex: 1 },
   scrollContainer: { flexGrow: 1, padding: 20 },
-  loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#F9FAFB' },
   formCard: {
     backgroundColor: '#FFFFFF',
     borderRadius: 16,
@@ -227,9 +143,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     marginTop: 24,
-  },
-  saveButtonDisabled: {
-    opacity: 0.6,
   },
   saveButtonText: {
     fontSize: 16,
