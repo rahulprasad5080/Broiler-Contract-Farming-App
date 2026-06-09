@@ -102,6 +102,7 @@ export function BottomTabs({ state, descriptors, navigation, hiddenTabs = EMPTY_
   const shouldHideForRoute =
     pathname.startsWith('/manage/farms') ||
     pathname.startsWith('/manage/batches') ||
+    pathname.startsWith('/manage/payments') ||
     pathname.startsWith('/manage/users') ||
     pathname.startsWith('/manage/settings');
 
