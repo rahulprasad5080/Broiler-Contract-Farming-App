@@ -267,14 +267,14 @@ export default function BatchManagementScreen() {
                     onPress={(event) => {
                       event.stopPropagation();
                       router.navigate({
-                        pathname: '/(owner)/manage/batches/[id]',
+                        pathname: '/(owner)/manage/batches/create',
                         params: { id: batch.id },
                       });
                     }}
                     accessibilityRole="button"
-                    accessibilityLabel={`View batch ${batch.code}`}
+                    accessibilityLabel={`Edit batch ${batch.code}`}
                   >
-                    <Ionicons name="eye-outline" size={18} color={THEME_GREEN} />
+                    <Ionicons name="create-outline" size={18} color={THEME_GREEN} />
                   </TouchableOpacity>
                 </View>
 
@@ -298,14 +298,14 @@ export default function BatchManagementScreen() {
                         onPress={(event) => {
                           event.stopPropagation();
                           router.navigate({
-                            pathname: '/(owner)/manage/batches/create',
+                            pathname: '/(owner)/manage/batches/[id]',
                             params: { id: batch.id },
                           });
                         }}
                         accessibilityRole="button"
-                        accessibilityLabel={`Edit batch ${batch.code}`}
+                        accessibilityLabel={`View batch ${batch.code}`}
                       >
-                        <Ionicons name="create-outline" size={16} color={THEME_GREEN} />
+                        <Ionicons name="eye-outline" size={16} color={THEME_GREEN} />
                       </TouchableOpacity>
                     </View>
                   </View>
