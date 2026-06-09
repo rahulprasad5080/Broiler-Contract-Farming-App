@@ -456,24 +456,21 @@ export default function AddFarmScreen() {
 
     try {
       const normalizedCapacity = data.capacity?.trim();
-      const payload: CreateFarmRequest = {
-        name: data.name.trim(),
-        code: data.code.trim(),
-        location: data.location?.trim() || undefined,
-        village: data.village?.trim() || undefined,
-        district: data.district?.trim() || undefined,
-        state: data.state?.trim() || undefined,
-        capacity: normalizedCapacity ? Number(normalizedCapacity) : undefined,
-        notes: data.notes?.trim() || undefined,
-        primaryFarmerId: data.primaryFarmerId || undefined,
-        supervisorId: data.supervisorId || undefined,
-        assignmentUserIds: data.assignmentUserIds?.length ? data.assignmentUserIds : undefined,
-      };
 
       if (isEditMode && farmId) {
         const updatePayload: UpdateFarmRequest = {
-          ...payload,
-          status: data.status,
+          name: data.name.trim(),
+          code: data.code.trim(),
+          location: data.location?.trim() || '',
+          village: data.village?.trim() || '',
+          district: data.district?.trim() || '',
+          state: data.state?.trim() || '',
+          capacity: normalizedCapacity ? Number(normalizedCapacity) : 0,
+          notes: data.notes?.trim() || '',
+          status: data.status || 'ACTIVE',
+          primaryFarmerId: data.primaryFarmerId || '',
+          supervisorId: data.supervisorId || '',
+          assignmentUserIds: data.assignmentUserIds || [],
         };
         await updateFarm(accessToken, farmId, updatePayload);
         Toast.show({
@@ -483,7 +480,20 @@ export default function AddFarmScreen() {
           position: 'bottom',
         });
       } else {
-        await createFarm(accessToken, payload);
+        const createPayload: CreateFarmRequest = {
+          name: data.name.trim(),
+          code: data.code.trim(),
+          location: data.location?.trim() || '',
+          village: data.village?.trim() || '',
+          district: data.district?.trim() || '',
+          state: data.state?.trim() || '',
+          capacity: normalizedCapacity ? Number(normalizedCapacity) : 0,
+          notes: data.notes?.trim() || '',
+          primaryFarmerId: data.primaryFarmerId || '',
+          supervisorId: data.supervisorId || '',
+          assignmentUserIds: data.assignmentUserIds || [],
+        };
+        await createFarm(accessToken, createPayload);
         await clearPersistedData();
         Toast.show({
           type: 'success',
@@ -871,33 +881,13 @@ export default function AddFarmScreen() {
       <NativeBottomSheet
         visible={showAssignmentPicker}
         onClose={closeAssignmentPicker}
-        maxHeight="88%"
+        maxHeight="65%"
         contentStyle={styles.pickerSheet}
       >
               <View style={styles.sheetHandle} />
               <Text style={styles.modalTitle}>{pickerTitle}</Text>
 
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterRow}>
-                {roleFilterOptions.map((option) => (
-                  <TouchableOpacity
-                    key={option.key}
-                    style={[
-                      styles.filterChip,
-                      assignmentRoleFilter === option.key && styles.filterChipActive,
-                    ]}
-                    onPress={() => setAssignmentRoleFilter(option.key)}
-                  >
-                    <Text
-                      style={[
-                        styles.filterChipText,
-                        assignmentRoleFilter === option.key && styles.filterChipTextActive,
-                      ]}
-                    >
-                      {option.label}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </ScrollView>
+
 
               <View style={styles.searchBox}>
                 <Ionicons name="search-outline" size={18} color={Colors.textSecondary} />
