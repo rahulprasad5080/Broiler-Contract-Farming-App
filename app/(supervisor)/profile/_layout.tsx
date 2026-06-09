@@ -10,6 +10,7 @@ export default function ProfileLayout() {
       <Stack.Screen name="bank" />
       <Stack.Screen name="security" />
       <Stack.Screen name="alerts" />
+      <Stack.Screen name="financial-control" />
       <Stack.Screen name="privacy-policy" />
     </Stack>
   );

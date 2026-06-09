@@ -34,6 +34,7 @@ type AppSettingsPanelProps = {
   onOpenSecurity: () => void;
   onOpenPayoutRules: () => void;
   onOpenAlerts: () => void;
+  onOpenFinancialControl: () => void;
 };
 
 
@@ -152,6 +153,7 @@ const AppSettingsPanel = ({
   onOpenSecurity,
   onOpenPayoutRules,
   onOpenAlerts,
+  onOpenFinancialControl,
 }: AppSettingsPanelProps) => {
   return (
     <>
@@ -176,6 +178,13 @@ const AppSettingsPanel = ({
           label="Alerts"
           description="Pending Entry, FCR, Mortality"
           onPress={onOpenAlerts}
+          isLast={false}
+        />
+        <SettingItem
+          icon="cash-outline"
+          label="Financial Control"
+          description="Supervisor expenses and farmer approval"
+          onPress={onOpenFinancialControl}
           isLast
         />
       </SurfaceCard>
@@ -419,6 +428,10 @@ export default function ProfileScreen() {
             onOpenAlerts={() => {
               const roleGroup = user?.role === 'OWNER' ? '(owner)' : user?.role === 'SUPERVISOR' ? '(supervisor)' : '(farmer)';
               router.navigate(`/${roleGroup}/profile/alerts` as any);
+            }}
+            onOpenFinancialControl={() => {
+              const roleGroup = user?.role === 'OWNER' ? '(owner)' : user?.role === 'SUPERVISOR' ? '(supervisor)' : '(farmer)';
+              router.navigate(`/${roleGroup}/profile/financial-control` as any);
             }}
           />
 
