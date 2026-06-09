@@ -139,10 +139,47 @@ const ownerRoutes: DashboardSidebarRoute[] = [
     section: "Management",
     requiredPermission: "manage:batches",
   },
+  {
+    title: "Partners",
+    subtitle: "Vendors and traders",
+    icon: "people-outline",
+    route: "/(owner)/manage/partners" as Href,
+    section: "Management",
+    requiredPermission: ["manage:partners", "create:sales"],
+  },
+  {
+    title: "Users",
+    subtitle: "User management",
+    icon: "person-add-outline",
+    route: "/(owner)/manage/users" as Href,
+    section: "Management",
+    requiredPermission: "manage:users",
+  },
 
-
-
-
+  {
+    title: "Payments",
+    subtitle: "Payment list",
+    icon: "card-outline",
+    route: "/(owner)/manage/payments",
+    section: "Finance",
+    requiredPermission: "manage:settlements",
+  },
+  {
+    title: "Receipts",
+    subtitle: "Sale receipt list",
+    icon: "receipt-outline",
+    route: "/(owner)/manage/sales" as Href,
+    section: "Finance",
+    requiredPermission: "create:sales",
+  },
+  {
+    title: "Settlements and Profit",
+    subtitle: "Batch settlement and P&L",
+    icon: "trending-up-outline",
+    route: "/(owner)/manage/settlement",
+    section: "Finance",
+    requiredPermission: "manage:settlements",
+  },
   {
     title: "Inventory",
     subtitle: "Current stock list",
@@ -168,25 +205,9 @@ const ownerRoutes: DashboardSidebarRoute[] = [
     requiredPermission: "view:financial-dashboard",
   },
   {
-    title: "Payments",
-    subtitle: "Payment list",
-    icon: "card-outline",
-    route: "/(owner)/manage/payments",
-    section: "Finance",
-    requiredPermission: "manage:settlements",
-  },
-  {
-    title: "Settlement",
-    subtitle: "Batch settlement list",
-    icon: "document-text-outline",
-    route: "/(owner)/manage/settlement",
-    section: "Finance",
-    requiredPermission: "manage:settlements",
-  },
-  {
     title: "Profitability",
     subtitle: "Batch P&L list",
-    icon: "trending-up-outline",
+    icon: "analytics-outline",
     route: "/(owner)/manage/profitability" as Href,
     section: "Finance",
     requiredPermission: "view:inventory-cost",
@@ -381,7 +402,7 @@ const farmerRoutes: DashboardSidebarRoute[] = [
   },
 ];
 
-const sectionOrder = ["Main", "Entries", "Management", "Finance", "More"];
+const sectionOrder = ["Main", "Management", "Finance", "Entries", "More"];
 
 const sectionIcons: Record<string, React.ComponentProps<typeof Ionicons>["name"]> = {
   Main: "home-outline",
