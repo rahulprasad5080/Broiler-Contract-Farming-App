@@ -242,54 +242,40 @@ export default function BatchManagementScreen() {
               >
                 <View style={styles.cardHeader}>
                   <View style={styles.batchIdentity}>
-                    <Text style={styles.batchTitle} numberOfLines={1}>
-                      {batch.code}
-                    </Text>
+                    <View style={styles.batchTitleRow}>
+                      <Text style={styles.batchTitle} numberOfLines={1}>
+                        {batch.code}
+                      </Text>
+                      <View style={[styles.inlineBadge, { backgroundColor: badge.bg }]}>
+                        <Text style={[styles.inlineBadgeText, { color: badge.text }]}>{badge.label}</Text>
+                      </View>
+                    </View>
                     <Text style={styles.farmName} numberOfLines={1}>
                       {batch.farmName || 'Unknown Farm'}
                     </Text>
                   </View>
-                  <View style={[styles.badge, { backgroundColor: badge.bg }]}>
-                    <Text style={[styles.badgeText, { color: badge.text }]}>{badge.label}</Text>
-                  </View>
+
                   <View style={styles.ageBox}>
                     <Text style={styles.ageLabel}>Age</Text>
                     <Text style={styles.ageValue}>
                       {ageDays} {ageDays === 1 ? 'Day' : 'Days'}
                     </Text>
                   </View>
-                  <View style={styles.cardActions}>
-                    <TouchableOpacity
-                      style={styles.actionIconBtn}
-                      activeOpacity={0.82}
-                      onPress={(event) => {
-                        event.stopPropagation();
-                        router.navigate({
-                          pathname: '/(owner)/manage/batches/create',
-                          params: { id: batch.id },
-                        });
-                      }}
-                      accessibilityRole="button"
-                      accessibilityLabel={`Edit batch ${batch.code}`}
-                    >
-                      <Ionicons name="create-outline" size={18} color={THEME_GREEN} />
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                      style={styles.actionIconBtn}
-                      activeOpacity={0.82}
-                      onPress={(event) => {
-                        event.stopPropagation();
-                        router.navigate({
-                          pathname: '/(owner)/manage/batches/[id]',
-                          params: { id: batch.id },
-                        });
-                      }}
-                      accessibilityRole="button"
-                      accessibilityLabel={`View batch ${batch.code}`}
-                    >
-                      <Ionicons name="eye-outline" size={18} color={THEME_GREEN} />
-                    </TouchableOpacity>
-                  </View>
+                  <TouchableOpacity
+                    style={styles.actionIconBtn}
+                    activeOpacity={0.82}
+                    onPress={(event) => {
+                      event.stopPropagation();
+                      router.navigate({
+                        pathname: '/(owner)/manage/batches/[id]',
+                        params: { id: batch.id },
+                      });
+                    }}
+                    accessibilityRole="button"
+                    accessibilityLabel={`View batch ${batch.code}`}
+                  >
+                    <Ionicons name="eye-outline" size={18} color={THEME_GREEN} />
+                  </TouchableOpacity>
                 </View>
 
                 <View style={styles.divider} />
@@ -301,8 +287,27 @@ export default function BatchManagementScreen() {
                   </View>
                   <View style={styles.metricDivider} />
                   <View style={styles.metricCol}>
-                    <Text style={styles.metricLabel}>Mortality</Text>
-                    <Text style={styles.mortalityValue}>{formatMortality(batch)}</Text>
+                    <View style={styles.mortalityRow}>
+                      <View style={styles.mortalityTextCol}>
+                        <Text style={styles.metricLabel}>Mortality</Text>
+                        <Text style={styles.mortalityValue}>{formatMortality(batch)}</Text>
+                      </View>
+                      <TouchableOpacity
+                        style={styles.viewActionBtn}
+                        activeOpacity={0.82}
+                        onPress={(event) => {
+                          event.stopPropagation();
+                          router.navigate({
+                            pathname: '/(owner)/manage/batches/create',
+                            params: { id: batch.id },
+                          });
+                        }}
+                        accessibilityRole="button"
+                        accessibilityLabel={`Edit batch ${batch.code}`}
+                      >
+                        <Ionicons name="create-outline" size={16} color={THEME_GREEN} />
+                      </TouchableOpacity>
+                    </View>
                   </View>
                 </View>
               </TouchableOpacity>
@@ -439,18 +444,38 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: '700',
   },
-  cardActions: {
-    width: 34,
+  batchTitleRow: {
+    flexDirection: 'row',
     alignItems: 'center',
-    gap: 7,
+    gap: 6,
   },
-  badge: {
-    minWidth: 58,
+  inlineBadge: {
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+    borderRadius: 4,
+  },
+  inlineBadgeText: {
+    fontSize: 10,
+    fontWeight: '800',
+  },
+  viewActionBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: 7,
     alignItems: 'center',
-    paddingHorizontal: 8,
-    paddingVertical: 5,
-    borderRadius: 5,
-    marginTop: 1,
+    justifyContent: 'center',
+    backgroundColor: '#F0FDF4',
+    borderWidth: 1,
+    borderColor: '#CFE8D6',
+    marginLeft: 8,
+  },
+  mortalityRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  mortalityTextCol: {
+    flex: 1,
+    minWidth: 0,
   },
   actionIconBtn: {
     width: 28,
@@ -461,10 +486,6 @@ const styles = StyleSheet.create({
     backgroundColor: '#F0FDF4',
     borderWidth: 1,
     borderColor: '#CFE8D6',
-  },
-  badgeText: {
-    fontSize: 9,
-    fontWeight: '900',
   },
   ageBox: {
     width: 45,
