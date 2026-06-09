@@ -9,7 +9,7 @@ import {
 } from '@/services/managementApi';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
-import { useRouter, type Href } from 'expo-router';
+import { useRouter } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
@@ -33,43 +33,21 @@ const FILTERS: { key: FilterKey; label: string }[] = [
   { key: 'PLANNED', label: 'Planned' },
   { key: 'ACTIVE', label: 'Active' },
   { key: 'SALES_RUNNING', label: 'Sales Ready' },
-  { key: 'SETTLEMENT_PENDING', label: 'Settlement' },
   { key: 'CLOSED', label: 'Closed' },
-  { key: 'CANCELLED', label: 'Cancelled' },
 ];
-
-function formatReadableDate(value?: string | null) {
-  if (!value) return 'Not set';
-
-  const datePart = value.split('T')[0];
-  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(datePart);
-
-  if (!match) return value;
-
-  const [, year, month, day] = match;
-  const date = new Date(Number(year), Number(month) - 1, Number(day));
-
-  return date.toLocaleDateString('en-GB', {
-    day: '2-digit',
-    month: 'short',
-    year: 'numeric',
-  });
-}
 
 function formatNumber(value?: number | null) {
   return Number(value ?? 0).toLocaleString('en-IN');
 }
 
-function formatCurrency(value?: number | null) {
-  return `Rs ${Number(value ?? 0).toLocaleString('en-IN')}`;
-}
+function formatMortality(batch: ApiBatch) {
+  const mortality = Number(batch.summary?.mortalityCount ?? 0);
+  const percent =
+    batch.summary?.mortalityPercent ??
+    batch.summary?.mortalityRate ??
+    (batch.placementCount ? (mortality / batch.placementCount) * 100 : 0);
 
-function labelize(value?: string | null) {
-  if (!value) return '-';
-  return value
-    .replace(/_/g, ' ')
-    .toLowerCase()
-    .replace(/\b\w/g, (char) => char.toUpperCase());
+  return `${formatNumber(mortality)} (${Number(percent).toFixed(2)}%)`;
 }
 
 function getBadgeStyle(status: ApiBatch['status']) {
@@ -90,15 +68,6 @@ function getBadgeStyle(status: ApiBatch['status']) {
   }
 }
 
-function DetailCell({ label, value }: { label: string; value?: string | number | null }) {
-  return (
-    <View style={styles.detailCell}>
-      <Text style={styles.detailLabel}>{label}</Text>
-      <Text style={styles.detailValue} numberOfLines={2}>{value || '-'}</Text>
-    </View>
-  );
-}
-
 export default function BatchManagementScreen() {
   const router = useRouter();
   const { accessToken } = useAuth();
@@ -108,7 +77,6 @@ export default function BatchManagementScreen() {
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
-  const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
@@ -137,7 +105,6 @@ export default function BatchManagementScreen() {
       });
       setBatches((current) => (append ? [...current, ...(response.data ?? [])] : response.data ?? []));
       setPage(response.meta?.page ?? targetPage);
-      setTotal(response.meta?.total ?? 0);
       setTotalPages(response.meta?.totalPages ?? 1);
     } catch (error) {
       requestedPageRef.current = append ? Math.max(targetPage - 1, 1) : 1;
@@ -184,16 +151,6 @@ export default function BatchManagementScreen() {
         title="Batches"
         subtitle="Track active, sales-ready, and closed batches"
         onBack={() => router.replace('/(owner)/dashboard')}
-        right={
-          <TouchableOpacity
-            style={styles.iconBtn}
-            onPress={() => router.navigate('/(owner)/manage/batches/create' as Href)}
-            accessibilityRole="button"
-            accessibilityLabel="Create new batch"
-          >
-            <Ionicons name="add" size={22} color="#FFF" />
-          </TouchableOpacity>
-        }
       />
 
       <View style={styles.filterContainer}>
@@ -258,12 +215,6 @@ export default function BatchManagementScreen() {
           refreshControl={
             <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[THEME_GREEN]} />
           }
-          ListHeaderComponent={
-            <View style={styles.listHeader}>
-              <Text style={styles.listTitle}>Batch List</Text>
-              <Text style={styles.listCount}>{batches.length}/{total} loaded</Text>
-            </View>
-          }
           ListEmptyComponent={
             <View style={styles.loadingBox}>
               <ScreenState
@@ -275,6 +226,8 @@ export default function BatchManagementScreen() {
           }
           renderItem={({ item: batch }) => {
             const badge = getBadgeStyle(batch.status);
+            const liveBirds = Number(batch.summary?.liveBirds ?? batch.placementCount);
+            const ageDays = Number(batch.summary?.currentAgeDays ?? 0);
             
             return (
               <TouchableOpacity
@@ -288,15 +241,26 @@ export default function BatchManagementScreen() {
                 }
               >
                 <View style={styles.cardHeader}>
-                  <Text style={styles.batchTitle} numberOfLines={1}>
-                    {batch.code} {batch.farmName ? `(${batch.farmName.split(' ')[1] || 'Shed'})` : ''}
-                  </Text>
+                  <View style={styles.batchIdentity}>
+                    <Text style={styles.batchTitle} numberOfLines={1}>
+                      {batch.code}
+                    </Text>
+                    <Text style={styles.farmName} numberOfLines={1}>
+                      {batch.farmName || 'Unknown Farm'}
+                    </Text>
+                  </View>
+                  <View style={[styles.badge, { backgroundColor: badge.bg }]}>
+                    <Text style={[styles.badgeText, { color: badge.text }]}>{badge.label}</Text>
+                  </View>
+                  <View style={styles.ageBox}>
+                    <Text style={styles.ageLabel}>Age</Text>
+                    <Text style={styles.ageValue}>
+                      {ageDays} {ageDays === 1 ? 'Day' : 'Days'}
+                    </Text>
+                  </View>
                   <View style={styles.cardActions}>
-                    <View style={[styles.badge, { backgroundColor: badge.bg }]}>
-                      <Text style={[styles.badgeText, { color: badge.text }]}>{badge.label}</Text>
-                    </View>
                     <TouchableOpacity
-                      style={styles.editIconBtn}
+                      style={styles.actionIconBtn}
                       activeOpacity={0.82}
                       onPress={(event) => {
                         event.stopPropagation();
@@ -308,26 +272,23 @@ export default function BatchManagementScreen() {
                       accessibilityRole="button"
                       accessibilityLabel={`Edit batch ${batch.code}`}
                     >
-                      <Ionicons name="create-outline" size={17} color={THEME_GREEN} />
+                      <Ionicons name="create-outline" size={18} color={THEME_GREEN} />
                     </TouchableOpacity>
-                  </View>
-                </View>
-
-                <View style={styles.infoRow}>
-                  <View style={styles.infoCol}>
-                    <Text style={styles.infoLabel}>Farm</Text>
-                    <Text style={styles.infoValue}>{batch.farmName || 'Unknown Farm'}</Text>
-                  </View>
-                  <View style={styles.infoColRight}>
-                    <Text style={styles.infoLabel}>Age</Text>
-                    <Text style={styles.infoValue}>{batch.summary?.currentAgeDays ?? 0} Days</Text>
-                  </View>
-                </View>
-
-                <View style={styles.infoRow}>
-                  <View style={styles.infoCol}>
-                    <Text style={styles.infoLabel}>Placed On</Text>
-                    <Text style={styles.infoValue}>{formatReadableDate(batch.placementDate)}</Text>
+                    <TouchableOpacity
+                      style={styles.actionIconBtn}
+                      activeOpacity={0.82}
+                      onPress={(event) => {
+                        event.stopPropagation();
+                        router.navigate({
+                          pathname: '/(owner)/manage/batches/[id]',
+                          params: { id: batch.id },
+                        });
+                      }}
+                      accessibilityRole="button"
+                      accessibilityLabel={`View batch ${batch.code}`}
+                    >
+                      <Ionicons name="eye-outline" size={18} color={THEME_GREEN} />
+                    </TouchableOpacity>
                   </View>
                 </View>
 
@@ -336,15 +297,12 @@ export default function BatchManagementScreen() {
                 <View style={styles.metricsRow}>
                   <View style={styles.metricCol}>
                     <Text style={styles.metricLabel}>Live Birds</Text>
-                    <Text style={styles.metricValue}>
-                      {Number(batch.summary?.liveBirds ?? batch.placementCount).toLocaleString('en-IN')}
-                    </Text>
+                    <Text style={styles.liveBirdValue}>{formatNumber(liveBirds)}</Text>
                   </View>
-                  <View style={styles.metricColRight}>
+                  <View style={styles.metricDivider} />
+                  <View style={styles.metricCol}>
                     <Text style={styles.metricLabel}>Mortality</Text>
-                    <Text style={styles.metricValue}>
-                      {Number(batch.summary?.mortalityCount ?? 0).toLocaleString('en-IN')}
-                    </Text>
+                    <Text style={styles.mortalityValue}>{formatMortality(batch)}</Text>
                   </View>
                 </View>
               </TouchableOpacity>
@@ -363,6 +321,15 @@ export default function BatchManagementScreen() {
         />
       )}
 
+      <TouchableOpacity
+        style={styles.fab}
+        onPress={() => router.navigate('/(owner)/manage/batches/create')}
+        activeOpacity={0.86}
+        accessibilityRole="button"
+        accessibilityLabel="Create new batch"
+      >
+        <Ionicons name="add" size={28} color="#FFFFFF" />
+      </TouchableOpacity>
     </View>
   );
 }
@@ -370,40 +337,28 @@ export default function BatchManagementScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F9FAF9',
-  },
-  iconBtn: {
-    width: 38,
-    height: 38,
-    borderRadius: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: "rgba(255,255,255,0.14)",
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.22)",
+    backgroundColor: '#F8FAFC',
   },
   filterContainer: {
-    backgroundColor: '#FFF',
-    borderBottomWidth: 1,
-    borderBottomColor: '#EFEFEF',
+    backgroundColor: '#F8FAFC',
+    paddingTop: 8,
   },
   searchBox: {
-    minHeight: 42,
-    borderRadius: 10,
+    minHeight: 40,
+    borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#D9E2EC',
+    borderColor: '#DFE7EF',
     backgroundColor: '#FFF',
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    marginHorizontal: 16,
-    marginTop: 12,
+    marginHorizontal: 10,
     paddingHorizontal: 12,
   },
   searchInput: {
     flex: 1,
     color: Colors.text,
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: '700',
     paddingVertical: 8,
   },
@@ -416,58 +371,46 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   filterScroll: {
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    gap: 8,
+    paddingHorizontal: 10,
+    paddingTop: 10,
+    paddingBottom: 8,
   },
   filterChip: {
     backgroundColor: '#FFF',
     borderWidth: 1,
-    borderColor: '#EFEFEF',
+    borderColor: '#E6EDF3',
     borderRadius: 8,
-    paddingHorizontal: 16,
+    minHeight: 34,
+    paddingHorizontal: 15,
     paddingVertical: 8,
-    marginRight: 8,
+    marginRight: 9,
   },
   filterChipActive: {
     backgroundColor: THEME_GREEN,
     borderColor: THEME_GREEN,
   },
   filterText: {
-    fontSize: 13,
-    fontWeight: '600',
+    fontSize: 11,
+    fontWeight: '800',
     color: Colors.textSecondary,
   },
   filterTextActive: {
     color: '#FFF',
   },
   listContainer: {
-    padding: 16,
-    paddingBottom: 100,
-  },
-  listHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 10,
-  },
-  listTitle: {
-    color: Colors.text,
-    fontSize: 15,
-    fontWeight: '900',
-  },
-  listCount: {
-    color: Colors.textSecondary,
-    fontSize: 12,
-    fontWeight: '700',
+    paddingHorizontal: 10,
+    paddingTop: 4,
+    paddingBottom: 104,
   },
   batchCard: {
     backgroundColor: '#FFF',
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#EFEFEF',
-    padding: 16,
-    marginBottom: 16,
+    borderColor: '#E7ECF2',
+    paddingHorizontal: 11,
+    paddingTop: 11,
+    paddingBottom: 10,
+    marginBottom: 8,
     elevation: 1,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
@@ -476,31 +419,43 @@ const styles = StyleSheet.create({
   },
   cardHeader: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    gap: 10,
-    marginBottom: 16,
-  },
-  batchTitle: {
-    flex: 1,
-    fontSize: 16,
-    fontWeight: '700',
-    color: Colors.text,
-  },
-  cardActions: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-start',
+    minHeight: 45,
     gap: 8,
   },
-  badge: {
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 6,
+  batchIdentity: {
+    flex: 1,
+    minWidth: 0,
+    paddingRight: 2,
   },
-  editIconBtn: {
-    width: 32,
-    height: 32,
-    borderRadius: 8,
+  batchTitle: {
+    fontSize: 14,
+    fontWeight: '900',
+    color: Colors.text,
+  },
+  farmName: {
+    marginTop: 4,
+    color: Colors.textSecondary,
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  cardActions: {
+    width: 34,
+    alignItems: 'center',
+    gap: 7,
+  },
+  badge: {
+    minWidth: 58,
+    alignItems: 'center',
+    paddingHorizontal: 8,
+    paddingVertical: 5,
+    borderRadius: 5,
+    marginTop: 1,
+  },
+  actionIconBtn: {
+    width: 28,
+    height: 28,
+    borderRadius: 7,
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: '#F0FDF4',
@@ -508,111 +463,60 @@ const styles = StyleSheet.create({
     borderColor: '#CFE8D6',
   },
   badgeText: {
-    fontSize: 12,
-    fontWeight: '700',
+    fontSize: 9,
+    fontWeight: '900',
   },
-  infoRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 12,
+  ageBox: {
+    width: 45,
+    alignItems: 'center',
+    marginTop: 2,
   },
-  infoCol: {
-    flex: 1,
-  },
-  infoColRight: {
-    alignItems: 'flex-end',
-  },
-  infoLabel: {
-    fontSize: 11,
+  ageLabel: {
     color: Colors.textSecondary,
-    marginBottom: 4,
+    fontSize: 9,
+    fontWeight: '800',
   },
-  infoValue: {
-    fontSize: 14,
-    fontWeight: '600',
+  ageValue: {
+    marginTop: 4,
     color: Colors.text,
+    fontSize: 11,
+    fontWeight: '900',
+    textAlign: 'center',
   },
   divider: {
     height: 1,
-    backgroundColor: '#F0F0F0',
-    marginVertical: 12,
+    backgroundColor: '#EDF1F4',
+    marginTop: 7,
+    marginBottom: 8,
   },
   metricsRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    alignItems: 'center',
   },
   metricCol: {
     flex: 1,
   },
-  metricColCenter: {
-    flex: 1,
-    alignItems: 'center',
-  },
-  metricColRight: {
-    flex: 1,
-    alignItems: 'flex-end',
+  metricDivider: {
+    width: 1,
+    height: 26,
+    backgroundColor: '#E7ECF2',
+    marginHorizontal: 10,
   },
   metricLabel: {
-    fontSize: 11,
+    fontSize: 9,
     color: Colors.textSecondary,
-    marginBottom: 4,
-  },
-  metricValue: {
-    fontSize: 14,
-    fontWeight: 'bold',
-    color: Colors.text,
-  },
-  detailsGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-    marginTop: 12,
-    paddingTop: 10,
-    borderTopWidth: 1,
-    borderTopColor: '#F1F5F9',
-  },
-  detailCell: {
-    flexGrow: 1,
-    flexBasis: 136,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: '#EEF2F7',
-    backgroundColor: '#F8FAFC',
-    paddingHorizontal: 10,
-    paddingVertical: 8,
-  },
-  detailLabel: {
-    color: Colors.textSecondary,
-    fontSize: 10,
-    fontWeight: '900',
-    textTransform: 'uppercase',
-  },
-  detailValue: {
-    color: Colors.text,
-    fontSize: 12,
+    marginBottom: 3,
     fontWeight: '800',
-    lineHeight: 16,
-    marginTop: 3,
   },
-  noteBox: {
-    marginTop: 10,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
-    backgroundColor: '#FFF',
-    padding: 10,
-  },
-  noteLabel: {
-    color: Colors.textSecondary,
-    fontSize: 10,
+  liveBirdValue: {
+    color: '#16A34A',
+    fontSize: 13,
     fontWeight: '900',
-    textTransform: 'uppercase',
   },
-  noteText: {
-    color: Colors.text,
-    fontSize: 12,
-    lineHeight: 17,
-    marginTop: 4,
+  mortalityValue: {
+    color: '#EF4444',
+    fontSize: 13,
+    fontWeight: '900',
   },
   footerLoader: {
     paddingVertical: 18,
@@ -626,6 +530,24 @@ const styles = StyleSheet.create({
   },
   footerSpacer: {
     height: 36,
+  },
+  fab: {
+    position: 'absolute',
+    right: 18,
+    bottom: 24,
+    width: 58,
+    height: 58,
+    borderRadius: 29,
+    backgroundColor: THEME_GREEN,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#003E2B',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.24,
+    shadowRadius: 10,
+    elevation: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.18)',
   },
   loadingBox: {
     padding: 16,
