@@ -226,7 +226,13 @@ export default function OrganizationSettingsScreen() {
       <TopAppBar
         title={screenTitle}
         subtitle={screenSubtitle}
-        onBack={() => router.replace('/(owner)/dashboard')}
+        onBack={() => {
+          if (focusedSection) {
+            router.replace('/(owner)/profile');
+            return;
+          }
+          router.replace('/(owner)/dashboard');
+        }}
         right={
           <TouchableOpacity onPress={() => void loadSettings()} style={styles.headerBtn}>
             <Ionicons name="refresh-outline" size={22} color="#FFF" />
