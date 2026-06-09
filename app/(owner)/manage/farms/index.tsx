@@ -639,6 +639,17 @@ export default function FarmListScreen() {
                   <Text style={[styles.statusText, { color: sc.text }]}>{farm.status}</Text>
                 </View>
                 <TouchableOpacity
+                  style={[styles.eyeButton, styles.editButton]}
+                  onPress={() =>
+                    router.push({ pathname: '/(owner)/manage/farms/add', params: { id: farm.id } })
+                  }
+                  activeOpacity={0.76}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Edit ${farm.name}`}
+                >
+                  <MaterialCommunityIcons name="pencil" size={18} color={THEME_GREEN} />
+                </TouchableOpacity>
+                <TouchableOpacity
                   style={styles.eyeButton}
                   onPress={() => router.push({ pathname: '/(owner)/manage/farms/[id]', params: { id: farm.id } })}
                   activeOpacity={0.76}
@@ -1007,11 +1018,11 @@ const styles = StyleSheet.create({
     paddingRight: 10,
   },
   farmListActions: {
-    width: 84,
+    width: 116,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'flex-end',
-    gap: 12,
+    gap: 10,
   },
   cardTop: {
     flexDirection: 'row',
@@ -1055,6 +1066,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     backgroundColor: 'transparent',
+  },
+  editButton: {
+    backgroundColor: '#E8F5E9',
   },
   compactMetricsRow: {
     marginTop: 7,
