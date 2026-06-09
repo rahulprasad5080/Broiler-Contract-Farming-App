@@ -1,6 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect } from "@react-navigation/native";
-import { useRouter } from "expo-router";
+import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useCallback, useState } from "react";
 import {
   ActivityIndicator,
@@ -78,6 +78,7 @@ function toForm(settings: ApiOrganizationSettings): SettingsForm {
 export default function OrganizationSettingsScreen() {
   const { accessToken } = useAuth();
   const router = useRouter();
+  const { section } = useLocalSearchParams<{ section?: string }>();
   const [form, setForm] = useState<SettingsForm | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -199,13 +200,32 @@ export default function OrganizationSettingsScreen() {
     }
   };
 
+  const focusedSection = typeof section === "string" ? section : "";
+  const showAllSections = !focusedSection;
+  const showSection = (key: string) => showAllSections || focusedSection === key;
+  const screenTitle =
+    focusedSection === "payoutRules"
+      ? "Payout Rules"
+      : focusedSection === "alerts"
+        ? "Alerts"
+        : focusedSection === "financialControl"
+          ? "Financial Control"
+          : "Organization Settings";
+  const screenSubtitle =
+    focusedSection === "payoutRules"
+      ? "Based on KG sold or Production Cost"
+      : focusedSection === "alerts"
+        ? "Pending Entry, FCR, and Mortality"
+        : focusedSection === "financialControl"
+          ? "Supervisor expenses and farmer approval"
+          : "Payout, alert, and finance controls";
 
 
   return (
     <View style={styles.safeArea}>
       <TopAppBar
-        title="Organization Settings"
-        subtitle="Payout, alert, and finance controls"
+        title={screenTitle}
+        subtitle={screenSubtitle}
         onBack={() => router.replace('/(owner)/dashboard')}
         right={
           <TouchableOpacity onPress={() => void loadSettings()} style={styles.headerBtn}>
@@ -226,7 +246,7 @@ export default function OrganizationSettingsScreen() {
           enableOnAndroid={true}
           extraScrollHeight={Platform.OS === 'ios' ? 20 : 100}
         >
-          <View style={styles.heroPanel}>
+          {showAllSections ? <View style={styles.heroPanel}>
             <View style={styles.heroIcon}>
               <Ionicons name="settings-outline" size={24} color="#FFFFFF" />
             </View>
@@ -236,9 +256,9 @@ export default function OrganizationSettingsScreen() {
                 Security, payout rules, alerts, and finance permissions in one place.
               </Text>
             </View>
-          </View>
+          </View> : null}
 
-          <View style={styles.summaryGrid}>
+          {showAllSections ? <View style={styles.summaryGrid}>
             <SummaryTile icon="cash-outline" label="Currency" value={form.currency || "INR"} color="#0F766E" />
             <SummaryTile icon="scale-outline" label="Payout Unit" value={labelize(form.defaultPayoutUnit)} color="#2563EB" />
             <SummaryTile icon="warning-outline" label="Pending Alert" value={`${form.pendingEntryDays || 0} days`} color="#B45309" />
@@ -248,9 +268,9 @@ export default function OrganizationSettingsScreen() {
               value={form.farmerExpenseRequiresApproval ? "Required" : "Optional"}
               color="#7C3AED"
             />
-          </View>
+          </View> : null}
 
-          <SectionCard
+          {showSection("security") ? <SectionCard
             title="Security"
             subtitle="Login preferences and mobile-first behavior"
             icon="lock-closed-outline"
@@ -264,10 +284,10 @@ export default function OrganizationSettingsScreen() {
               onValueChange={(value) => setField("mobileFirst", value)}
               isLast
             />
-          </SectionCard>
+          </SectionCard> : null}
 
 
-          <SectionCard
+          {showSection("expenseCategories") ? <SectionCard
             title="Expense Categories"
             subtitle="Keep farmer and company expense options tidy"
             icon="pricetags-outline"
@@ -295,9 +315,9 @@ export default function OrganizationSettingsScreen() {
               }
               onRemove={(value) => removeCategory("companyExpenseCategories", value)}
             />
-          </SectionCard>
+          </SectionCard> : null}
 
-          <SectionCard
+          {showSection("payoutRules") ? <SectionCard
             title="Payout Rules"
             subtitle="Decide how farmer settlement amount is calculated"
             icon="cash-outline"
@@ -325,9 +345,9 @@ export default function OrganizationSettingsScreen() {
                 );
               })}
             </View>
-          </SectionCard>
+          </SectionCard> : null}
 
-          <SectionCard
+          {showSection("alerts") ? <SectionCard
             title="Alerts"
             subtitle="Trigger attention for pending entry, FCR, and mortality"
             icon="notifications-outline"
@@ -346,9 +366,9 @@ export default function OrganizationSettingsScreen() {
               onChangeText={(value) => setField("mortalityPercent", value)}
               keyboardType="decimal-pad"
             />
-          </SectionCard>
+          </SectionCard> : null}
 
-          <SectionCard
+          {showSection("financialControl") ? <SectionCard
             title="Financial Control"
             subtitle="Supervisor expense permissions and approval checks"
             icon="shield-checkmark-outline"
@@ -373,7 +393,7 @@ export default function OrganizationSettingsScreen() {
               onValueChange={(value) => setField("farmerExpenseRequiresApproval", value)}
               isLast
             />
-          </SectionCard>
+          </SectionCard> : null}
 
 
 

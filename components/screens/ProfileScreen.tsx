@@ -424,7 +424,7 @@ export default function ProfileScreen() {
           {/* Security */}
           <AppSettingsPanel
             onOpenSecurity={openSecurity}
-            onOpenPayoutRules={() => router.navigate('/(owner)/manage/settings' as any)}
+            onOpenPayoutRules={() => router.navigate('/(owner)/manage/settings?section=payoutRules' as any)}
             onOpenAlerts={() => {
               const roleGroup = user?.role === 'OWNER' ? '(owner)' : user?.role === 'SUPERVISOR' ? '(supervisor)' : '(farmer)';
               router.navigate(`/${roleGroup}/profile/alerts` as any);
