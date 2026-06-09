@@ -87,6 +87,14 @@ const ownerRoutes: DashboardSidebarRoute[] = [
   },
 
   {
+    title: "Payments",
+    subtitle: "Payment entry list",
+    icon: "cash-outline",
+    route: "/(owner)/manage/payments" as Href,
+    section: "Finance",
+    requiredPermission: "view:financial-dashboard",
+  },
+  {
     title: "Settlements and Profit",
     subtitle: "Batch settlement and P&L",
     icon: "trending-up-outline",

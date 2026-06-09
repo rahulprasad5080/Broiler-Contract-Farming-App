@@ -217,16 +217,12 @@ export default function PaymentsScreen() {
     void loadPayments(page + 1, true);
   };
 
-  const renderItem = ({ item, index }: { item: ApiFinancePayment; index: number }) => {
+  const renderItem = ({ item }: { item: ApiFinancePayment }) => {
     const partyName = item.partyName || item.vendorName || item.traderName || "Unknown Party";
     const mode = getPaymentMode(item);
-    const serial = String(index + 1).padStart(2, "0");
 
     return (
       <View style={styles.paymentRow}>
-        <View style={styles.serialCol}>
-          <Text style={styles.serialText}>{serial}</Text>
-        </View>
         <View style={styles.dateCol}>
           <Ionicons name="calendar-outline" size={12} color={Colors.textSecondary} />
           <Text style={styles.dateDay}>{formatDay(item.paymentDate)}</Text>
