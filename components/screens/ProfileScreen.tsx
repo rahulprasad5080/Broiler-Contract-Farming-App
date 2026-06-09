@@ -4,7 +4,6 @@ import { useFocusEffect } from '@react-navigation/native';
 import { useRouter } from 'expo-router';
 import React from 'react';
 import {
-  ActivityIndicator,
   Alert,
   KeyboardAvoidingView,
   Platform,
@@ -14,13 +13,11 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import Toast from 'react-native-toast-message';
 
 import { SurfaceCard } from '@/components/ui/SurfaceCard';
 import { TopAppBar } from '@/components/ui/TopAppBar';
 import { useAuth } from '@/context/AuthContext';
 import { fetchMe, type ApiUser } from '@/services/authApi';
-import { authenticateWithBiometrics, getBiometricAvailability } from '@/services/authSecurity';
 import type { AppPermission } from '@/services/permissionRules';
 
 type SettingItemProps = {
@@ -34,13 +31,7 @@ type SettingItemProps = {
 };
 
 type AppSettingsPanelProps = {
-  biometricAvailable: boolean;
-  biometricEnabled: boolean;
-  isTogglingBiometric: boolean;
-  onBiometricToggle: () => void;
-  onChangePassword: () => void;
-  onChangePin: () => void;
-  onOpenOrganizationSettings: () => void;
+  onOpenSecurity: () => void;
 };
 
 
@@ -156,148 +147,23 @@ const SettingItem = ({ icon, label, value, description, onPress, isLast, color =
 );
 
 const AppSettingsPanel = ({
-  biometricAvailable,
-  biometricEnabled,
-  isTogglingBiometric,
-  onBiometricToggle,
-  onChangePassword,
-  onChangePin,
-  onOpenOrganizationSettings,
-}: AppSettingsPanelProps) => (
-  <View style={styles.appSettingsPanel}>
-    <View style={styles.appSettingsHero}>
-      <View style={styles.appSettingsHeroIcon}>
-        <Ionicons name="settings-outline" size={23} color="#FFFFFF" />
-      </View>
-      <View style={styles.appSettingsHeroCopy}>
-        <Text style={styles.appSettingsHeroTitle}>App Settings</Text>
-        <Text style={styles.appSettingsHeroText}>
-          Security, payout rules, alerts, and finance 
-        </Text>
-      </View>
-    </View>
-
-    <View style={styles.appSettingsSection}>
-      <View style={styles.appSettingsSectionHeader}>
-        <View style={[styles.appSettingsSectionIcon, { backgroundColor: "#E8F5E9" }]}>
-          <Ionicons name="shield-checkmark-outline" size={18} color="#00875A" />
-        </View>
-        <View style={styles.appSettingsSectionCopy}>
-          <Text style={styles.appSettingsSectionTitle}>Security</Text>
-          <Text style={styles.appSettingsSectionText}>Password, PIN and biometric unlock</Text>
-        </View>
-      </View>
-
-      <AppSettingsAction
-        icon="lock-closed-outline"
-        title="Change Password"
-        subtitle="Update login password"
-        onPress={onChangePassword}
-      />
-      <AppSettingsAction
-        icon="key-outline"
-        title="Change Pin"
-        subtitle="Change quick unlock PIN"
-        onPress={onChangePin}
-      />
-      {biometricAvailable ? (
-        <View style={styles.appSettingsToggleRow}>
-          <View style={styles.appSettingsActionIcon}>
-            <Ionicons name="finger-print" size={18} color="#0B5C36" />
-          </View>
-          <View style={styles.appSettingsActionCopy}>
-            <Text style={styles.appSettingsActionTitle}>BioMetric</Text>
-            <Text style={styles.appSettingsActionSubtitle}>Fingerprint or face unlock</Text>
-          </View>
-          <View style={styles.toggleContainer}>
-            {isTogglingBiometric && <ActivityIndicator size="small" color="#0B5C36" style={{ marginRight: 8 }} />}
-            <TouchableOpacity
-              style={[
-                styles.biometricSwitch,
-                biometricEnabled && styles.biometricSwitchOn,
-                isTogglingBiometric && styles.biometricSwitchDisabled,
-              ]}
-              onPress={onBiometricToggle}
-              disabled={isTogglingBiometric}
-              activeOpacity={0.82}
-              accessibilityRole="switch"
-              accessibilityState={{ checked: biometricEnabled, disabled: isTogglingBiometric }}
-            >
-              <View style={[styles.biometricSwitchThumb, biometricEnabled && styles.biometricSwitchThumbOn]}>
-                <Ionicons
-                  name={biometricEnabled ? "checkmark" : "close"}
-                  size={13}
-                  color={biometricEnabled ? "#0B5C36" : "#94A3B8"}
-                />
-              </View>
-            </TouchableOpacity>
-          </View>
-        </View>
-      ) : null}
-    </View>
-
-    <View style={styles.appSettingsSection}>
-      <View style={styles.appSettingsSectionHeader}>
-        <View style={[styles.appSettingsSectionIcon, { backgroundColor: "#EFF6FF" }]}>
-          <Ionicons name="calculator-outline" size={18} color="#2563EB" />
-        </View>
-        <View style={styles.appSettingsSectionCopy}>
-          <Text style={styles.appSettingsSectionTitle}>Business Rules</Text>
-          <Text style={styles.appSettingsSectionText}>Payout, alerts and expense approvals</Text>
-        </View>
-      </View>
-
-      <AppSettingsAction
-        icon="scale-outline"
-        title="Payout Rules"
-        subtitle="Based on KG sold or production cost"
-        onPress={onOpenOrganizationSettings}
-      />
-      <AppSettingsAction
-        icon="notifications-outline"
-        title="Alerts"
-        subtitle="Pending entry, FCR, mortality"
-        onPress={onOpenOrganizationSettings}
-      />
-      <AppSettingsAction
-        icon="cash-outline"
-        title="Financial Control"
-        subtitle="Supervisor expenses and farmer approval"
-        onPress={onOpenOrganizationSettings}
-        isLast
-      />
-    </View>
-  </View>
-);
-
-const AppSettingsAction = ({
-  icon,
-  title,
-  subtitle,
-  onPress,
-  isLast,
-}: {
-  icon: keyof typeof Ionicons.glyphMap;
-  title: string;
-  subtitle: string;
-  onPress: () => void;
-  isLast?: boolean;
-}) => (
-  <TouchableOpacity
-    style={[styles.appSettingsAction, isLast && styles.appSettingsActionLast]}
-    onPress={onPress}
-    activeOpacity={0.76}
-  >
-    <View style={styles.appSettingsActionIcon}>
-      <Ionicons name={icon} size={18} color="#0B5C36" />
-    </View>
-    <View style={styles.appSettingsActionCopy}>
-      <Text style={styles.appSettingsActionTitle}>{title}</Text>
-      <Text style={styles.appSettingsActionSubtitle}>{subtitle}</Text>
-    </View>
-    <Ionicons name="chevron-forward" size={18} color="#94A3B8" />
-  </TouchableOpacity>
-);
+  onOpenSecurity,
+}: AppSettingsPanelProps) => {
+  return (
+    <>
+      <Text style={styles.sectionTitle}>App Settings</Text>
+      <SurfaceCard padded={false} style={styles.settingsGroup}>
+        <SettingItem
+          icon="shield-checkmark-outline"
+          label="Security"
+          description="Password, PIN and biometric unlock"
+          onPress={onOpenSecurity}
+          isLast
+        />
+      </SurfaceCard>
+    </>
+  );
+};
 
 
 
@@ -310,7 +176,7 @@ function getRoleLabel(role?: string | null) {
 }
 
 export default function ProfileScreen() {
-  const { accessToken, hasPermission, signOut, user, setBiometricPreference } = useAuth();
+  const { accessToken, hasPermission, signOut, user } = useAuth();
   const router = useRouter();
   const canManageUsers = hasPermission('manage:users');
 
@@ -322,20 +188,6 @@ export default function ProfileScreen() {
     ifscCode: string;
     branchName: string;
   } | null>(null);
-
-  const [biometricEnabled, setBiometricEnabled] = React.useState(user?.biometricEnabled ?? false);
-  const [isTogglingBiometric, setIsTogglingBiometric] = React.useState(false);
-  const [biometricAvailable, setBiometricAvailable] = React.useState(true);
-
-  React.useEffect(() => {
-    // Check if biometric is available on the device
-    const checkBiometric = async () => {
-      const availability = await getBiometricAvailability();
-      setBiometricAvailable(availability.available);
-    };
-
-    checkBiometric();
-  }, []);
 
   useFocusEffect(
     React.useCallback(() => {
@@ -369,7 +221,6 @@ export default function ProfileScreen() {
         const apiUser = await fetchMe(accessToken);
         if (!cancelled) {
           setProfileUser(apiUser);
-          setBiometricEnabled(Boolean(apiUser.biometricEnabled));
         }
       } catch (error) {
         console.warn('Failed to load profile details:', error);
@@ -382,10 +233,6 @@ export default function ProfileScreen() {
       cancelled = true;
     };
   }, [accessToken]);
-
-  React.useEffect(() => {
-    setBiometricEnabled(user?.biometricEnabled ?? false);
-  }, [user?.biometricEnabled]);
 
   const personalInfo = profileUser ?? user;
   const companyName = personalInfo?.organization?.name;
@@ -415,70 +262,9 @@ export default function ProfileScreen() {
     router.navigate(`/${roleGroup}/profile/privacy-policy` as any);
   };
 
-  const handleBiometricToggle = async () => {
-    if (isTogglingBiometric) return;
-
-    // If enabling biometric, authenticate first
-    if (!biometricEnabled) {
-      setIsTogglingBiometric(true);
-      try {
-        const result = await authenticateWithBiometrics('Enable biometric unlock');
-
-        if (!result.success) {
-          if (result.error) {
-            Toast.show({
-              type: 'error',
-              text1: 'Biometric setup',
-              text2: result.error,
-              position: 'bottom',
-            });
-          }
-          setIsTogglingBiometric(false);
-          return;
-        }
-
-        // Update server and local state
-        await setBiometricPreference(true);
-        setBiometricEnabled(true);
-        Toast.show({
-          type: 'success',
-          text1: 'Biometric enabled',
-          text2: 'Fingerprint or face unlock is now ready.',
-          position: 'bottom',
-        });
-      } catch (error) {
-        Toast.show({
-          type: 'error',
-          text1: 'Error',
-          text2: error instanceof Error ? error.message : 'Failed to enable biometric',
-          position: 'bottom',
-        });
-      } finally {
-        setIsTogglingBiometric(false);
-      }
-    } else {
-      // If disabling, just update server
-      setIsTogglingBiometric(true);
-      try {
-        await setBiometricPreference(false);
-        setBiometricEnabled(false);
-        Toast.show({
-          type: 'success',
-          text1: 'Biometric disabled',
-          text2: 'You can still use password or PIN to unlock.',
-          position: 'bottom',
-        });
-      } catch (error) {
-        Toast.show({
-          type: 'error',
-          text1: 'Error',
-          text2: error instanceof Error ? error.message : 'Failed to disable biometric',
-          position: 'bottom',
-        });
-      } finally {
-        setIsTogglingBiometric(false);
-      }
-    }
+  const openSecurity = () => {
+    const roleGroup = user?.role === 'OWNER' ? '(owner)' : user?.role === 'SUPERVISOR' ? '(supervisor)' : '(farmer)';
+    router.navigate(`/${roleGroup}/profile/security` as any);
   };
 
   return (
@@ -610,13 +396,7 @@ export default function ProfileScreen() {
 
           {/* Security */}
           <AppSettingsPanel
-            biometricAvailable={biometricAvailable}
-            biometricEnabled={biometricEnabled}
-            isTogglingBiometric={isTogglingBiometric}
-            onBiometricToggle={handleBiometricToggle}
-            onChangePassword={() => router.navigate('/(auth)/change-password' as any)}
-            onChangePin={() => router.navigate('/(auth)/set-pin' as any)}
-            onOpenOrganizationSettings={() => router.navigate('/(owner)/manage/settings' as any)}
+            onOpenSecurity={openSecurity}
           />
 
 
@@ -862,6 +642,14 @@ const styles = StyleSheet.create({
   settingItem: {
     flexDirection: "row", alignItems: "center", justifyContent: "space-between",
     paddingVertical: 14, paddingHorizontal: 16, borderBottomWidth: 1, borderBottomColor: "#F3F4F6",
+  },
+  settingItemExpanded: {
+    backgroundColor: "#FBFCFD",
+  },
+  securityOptions: {
+    borderTopWidth: 1,
+    borderTopColor: "#F3F4F6",
+    backgroundColor: "#FFFFFF",
   },
   settingItemLeft: { flex: 1, minWidth: 0, flexDirection: "row", alignItems: "center" },
   iconBox: { width: 32, alignItems: "center" },
