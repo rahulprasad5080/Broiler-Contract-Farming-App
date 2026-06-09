@@ -95,6 +95,14 @@ const ownerRoutes: DashboardSidebarRoute[] = [
     requiredPermission: "view:financial-dashboard",
   },
   {
+    title: "Receipts",
+    subtitle: "Incoming receipts list",
+    icon: "receipt-outline",
+    route: "/(owner)/manage/receipts" as Href,
+    section: "Finance",
+    requiredPermission: "view:financial-dashboard",
+  },
+  {
     title: "Settlements and Profit",
     subtitle: "Batch settlement and P&L",
     icon: "trending-up-outline",
