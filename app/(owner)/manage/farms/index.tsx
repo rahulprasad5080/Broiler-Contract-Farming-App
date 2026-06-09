@@ -639,6 +639,15 @@ export default function FarmListScreen() {
                   <Text style={[styles.statusText, { color: sc.text }]}>{farm.status}</Text>
                 </View>
                 <TouchableOpacity
+                  style={[styles.eyeButton, styles.eyeButtonFilled]}
+                  onPress={() => router.push({ pathname: '/(owner)/manage/farms/[id]', params: { id: farm.id } })}
+                  activeOpacity={0.76}
+                  accessibilityRole="button"
+                  accessibilityLabel={`View ${farm.name}`}
+                >
+                  <Ionicons name="eye" size={20} color={Colors.primary} />
+                </TouchableOpacity>
+                <TouchableOpacity
                   style={[styles.eyeButton, styles.editButton]}
                   onPress={() =>
                     router.push({ pathname: '/(owner)/manage/farms/add', params: { id: farm.id } })
@@ -647,16 +656,7 @@ export default function FarmListScreen() {
                   accessibilityRole="button"
                   accessibilityLabel={`Edit ${farm.name}`}
                 >
-                  <MaterialCommunityIcons name="pencil" size={18} color={THEME_GREEN} />
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={styles.eyeButton}
-                  onPress={() => router.push({ pathname: '/(owner)/manage/farms/[id]', params: { id: farm.id } })}
-                  activeOpacity={0.76}
-                  accessibilityRole="button"
-                  accessibilityLabel={`View ${farm.name}`}
-                >
-                  <Ionicons name="eye" size={21} color={Colors.primary} />
+                  <MaterialCommunityIcons name="pencil" size={17} color={THEME_GREEN} />
                 </TouchableOpacity>
               </View>
             </TouchableOpacity>
@@ -1018,11 +1018,10 @@ const styles = StyleSheet.create({
     paddingRight: 10,
   },
   farmListActions: {
-    width: 116,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'flex-end',
-    gap: 10,
+    gap: 8,
   },
   cardTop: {
     flexDirection: 'row',
@@ -1060,9 +1059,9 @@ const styles = StyleSheet.create({
   },
   statusText: { fontSize: 10, fontWeight: '900' },
   eyeButton: {
-    width: 26,
-    height: 26,
-    borderRadius: 13,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
     justifyContent: 'center',
     alignItems: 'center',
     backgroundColor: 'transparent',
@@ -1070,6 +1069,10 @@ const styles = StyleSheet.create({
   editButton: {
     backgroundColor: '#E8F5E9',
   },
+  eyeButtonFilled: {
+    backgroundColor: '#EFF6FF',
+  },
+
   compactMetricsRow: {
     marginTop: 7,
     flexDirection: 'row',
