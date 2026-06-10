@@ -102,12 +102,6 @@ export function PaymentDetailModal({ visible, item, onClose, title = "Payment De
             <View style={styles.detailsCard}>
               <DetailRow label="Payment Date" value={formatDate(item.paymentDate)} />
               <View style={styles.divider} />
-              <DetailRow label="Payment Type" value={labelize(item.paymentType)} />
-              <View style={styles.divider} />
-              <DetailRow label="Direction" value={labelize(item.direction)} />
-              <View style={styles.divider} />
-              <DetailRow label="Reference Type" value={labelize(item.referenceType)} />
-              <View style={styles.divider} />
               {item.vendorName ? (
                 <>
                   <View style={styles.divider} />

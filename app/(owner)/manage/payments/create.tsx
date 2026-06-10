@@ -47,6 +47,7 @@ const paymentSchema = z.object({
   partyName: z.string().optional(),
   amount: numberString("Amount"),
   paymentDate: z.string().min(1, "Payment date is required"),
+  notes: z.string().optional(),
 });
 
 type PaymentFormData = z.infer<typeof paymentSchema>;
@@ -57,6 +58,7 @@ const DEFAULTS: PaymentFormData = {
   partyName: "",
   amount: "",
   paymentDate: getLocalDateValue(),
+  notes: "",
 };
 
 function toNumber(value: string) {
@@ -181,6 +183,7 @@ export default function CreatePaymentScreen() {
         partyName: data.partyName?.trim() || undefined,
         amount: toNumber(data.amount),
         paymentDate: data.paymentDate,
+        notes: data.notes?.trim() || undefined,
       });
 
       showSuccessToast(type === "receipt" ? "Receipt created successfully." : "Payment created successfully.");
@@ -273,9 +276,14 @@ export default function CreatePaymentScreen() {
               )}
             />
 
-
-
-
+            <ControlledInput
+              control={control}
+              name="notes"
+              label="Notes"
+              placeholder="Add notes/remarks..."
+              error={errors.notes?.message}
+              multiline
+            />
 
             <TouchableOpacity
               style={[styles.submitButton, saving && styles.submitButtonDisabled]}

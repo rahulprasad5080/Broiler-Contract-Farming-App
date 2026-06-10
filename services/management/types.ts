@@ -753,6 +753,7 @@ export type CreateFinancePaymentRequest = {
   amount: number;
   paymentDate: string;
   referenceId?: string;
+  notes?: string;
 };
 
 export type AllocateInventoryRequest = {
