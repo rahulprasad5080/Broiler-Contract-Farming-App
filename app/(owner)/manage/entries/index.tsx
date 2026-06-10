@@ -47,37 +47,13 @@ function labelize(value?: string | null) {
     .replace(/\b\w/g, (char) => char.toUpperCase());
 }
 
-function getEntryTone(type?: string | null) {
-  switch (type) {
-    case "INVESTMENT":
-      return {
-        color: "#4F46E5",
-        bg: "#EEF2FF",
-        icon: "briefcase-outline" as const,
-        sign: "+",
-      };
-    case "OTHER_INCOME":
-      return {
-        color: Colors.primary,
-        bg: "#E7F5ED",
-        icon: "cash-plus" as const,
-        sign: "+",
-      };
-    case "OTHER_EXPENSE":
-      return {
-        color: Colors.error,
-        bg: "#FEF2F2",
-        icon: "cash-minus" as const,
-        sign: "-",
-      };
-    default:
-      return {
-        color: "#1D4ED8",
-        bg: "#EFF6FF",
-        icon: "file-document-outline" as const,
-        sign: "",
-      };
-  }
+function getEntryTone() {
+  return {
+    color: "#4F46E5",
+    bg: "#EEF2FF",
+    icon: "briefcase-outline" as const,
+    sign: "+",
+  };
 }
 
 function InfoCell({ label, value }: { label: string; value: string }) {
@@ -167,7 +143,7 @@ export default function FinanceEntriesScreen() {
   };
 
   const renderItem = ({ item }: { item: ApiFinanceEntry }) => {
-    const tone = getEntryTone(item.type);
+    const tone = getEntryTone();
 
     return (
       <View style={styles.card}>
@@ -176,9 +152,9 @@ export default function FinanceEntriesScreen() {
             <MaterialCommunityIcons name={tone.icon} size={22} color={tone.color} />
           </View>
           <View style={styles.titleBlock}>
-            <Text style={styles.title} numberOfLines={1}>{item.description || labelize(item.type)}</Text>
+            <Text style={styles.title} numberOfLines={1}>{item.investedByName || "Owner Investment"}</Text>
             <Text style={styles.subtitle}>
-              {[labelize(item.type), formatDate(item.entryDate), labelize(item.paymentStatus)]
+              {[formatDate(item.entryDate), labelize(item.paymentMethod)]
                 .filter(Boolean)
                 .join(" | ")}
             </Text>
@@ -192,7 +168,7 @@ export default function FinanceEntriesScreen() {
 
         <View style={styles.detailsGrid}>
           <InfoCell label="Entry Date" value={formatDate(item.entryDate)} />
-          <InfoCell label="Status" value={labelize(item.paymentStatus)} />
+          <InfoCell label="Payment Method" value={labelize(item.paymentMethod)} />
           <InfoCell label="Created" value={formatDate(item.createdAt)} />
           <InfoCell label="Updated" value={formatDate(item.updatedAt)} />
         </View>

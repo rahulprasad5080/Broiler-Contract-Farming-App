@@ -1,7 +1,7 @@
-import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
+import { Ionicons } from "@expo/vector-icons";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useLocalSearchParams, useRouter } from "expo-router";
-import { useState, type ComponentProps } from "react";
+import { useRouter } from "expo-router";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { Controller, useForm } from "react-hook-form";
 import {
   ActivityIndicator,
@@ -11,13 +11,13 @@ import {
   TextInput,
   TouchableOpacity,
   View,
-  useWindowDimensions,
 } from "react-native";
 import { KeyboardAwareScrollView } from "react-native-keyboard-aware-scroll-view";
 import { z } from "zod";
 
 import { TopAppBar } from "@/components/ui/TopAppBar";
 import { DatePickerField } from "@/components/ui/DatePickerField";
+import { SearchableSelectField, type SearchableSelectOption } from "@/components/ui/SearchableSelectField";
 import { Colors } from "@/constants/Colors";
 import { useAuth } from "@/context/AuthContext";
 import {
@@ -25,48 +25,30 @@ import {
   showSuccessToast,
 } from "@/services/apiFeedback";
 import {
-  API_FINANCE_ENTRY_TYPE_VALUES,
-  API_OPEN_TRANSACTION_PAYMENT_STATUS_VALUES,
   createFinanceEntry,
-  type ApiFinanceEntryType,
-  type ApiTransactionPaymentStatus,
+  listAllUsers,
+  type ApiUser,
 } from "@/services/managementApi";
 import { getLocalDateValue } from "@/services/dateUtils";
 
 const entrySchema = z.object({
-  type: z.enum(API_FINANCE_ENTRY_TYPE_VALUES),
   amount: z.string().min(1, "Amount is required").refine(
     (value) => !Number.isNaN(Number(value.replace(/,/g, ""))) && Number(value.replace(/,/g, "")) > 0,
     "Enter a valid amount",
   ),
-  paymentStatus: z.enum(API_OPEN_TRANSACTION_PAYMENT_STATUS_VALUES),
   entryDate: z.string().min(1, "Entry date is required"),
-  description: z.string().min(1, "Description is required"),
+  investedById: z.string().min(1, "Invested by is required"),
+  paymentMethod: z.enum(["CASH", "ACCOUNT"]),
   notes: z.string().optional(),
 });
 
 type EntryFormData = z.infer<typeof entrySchema>;
 
-const TYPE_OPTIONS: {
-  value: ApiFinanceEntryType;
-  label: string;
-  shortLabel: string;
-  icon: ComponentProps<typeof MaterialCommunityIcons>["name"];
-}[] = API_FINANCE_ENTRY_TYPE_VALUES.map((value) => ({
-  value,
-  label: labelize(value),
-  shortLabel: value === "OTHER_INCOME" ? "Income" : value === "OTHER_EXPENSE" ? "Expense" : "Invest",
-  icon: value === "INVESTMENT" ? "briefcase-outline" : value === "OTHER_INCOME" ? "cash-plus" : "cash-minus",
-}));
-
-const STATUS_OPTIONS = API_OPEN_TRANSACTION_PAYMENT_STATUS_VALUES satisfies readonly ApiTransactionPaymentStatus[];
-
 const DEFAULTS: EntryFormData = {
-  type: "INVESTMENT",
   amount: "",
-  paymentStatus: "PAID",
   entryDate: getToday(),
-  description: "",
+  investedById: "",
+  paymentMethod: "CASH",
   notes: "",
 };
 
@@ -74,25 +56,13 @@ function getToday() {
   return getLocalDateValue();
 }
 
-function labelize(value?: string | null) {
-  if (!value) return "-";
-  return value
-    .replace(/_/g, " ")
-    .toLowerCase()
-    .replace(/\b\w/g, (char) => char.toUpperCase());
-}
-
 export default function CreateFinanceEntryScreen() {
   const router = useRouter();
-  const { type: routeType } = useLocalSearchParams<{ type?: string }>();
   const { accessToken } = useAuth();
-  const { width } = useWindowDimensions();
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
-  const compact = width < 360;
-  const defaultType = API_FINANCE_ENTRY_TYPE_VALUES.includes(routeType as ApiFinanceEntryType)
-    ? (routeType as ApiFinanceEntryType)
-    : DEFAULTS.type;
+  const [owners, setOwners] = useState<ApiUser[]>([]);
+  const [loadingOwners, setLoadingOwners] = useState(false);
 
   const {
     control,
@@ -103,14 +73,39 @@ export default function CreateFinanceEntryScreen() {
     formState: { errors },
   } = useForm<EntryFormData>({
     resolver: zodResolver(entrySchema),
-    defaultValues: {
-      ...DEFAULTS,
-      type: defaultType,
-    },
+    defaultValues: DEFAULTS,
   });
 
-  const type = watch("type");
-  const paymentStatus = watch("paymentStatus");
+  const investedById = watch("investedById");
+  const paymentMethod = watch("paymentMethod");
+
+  const loadOwners = useCallback(async () => {
+    if (!accessToken) return;
+    setLoadingOwners(true);
+    try {
+      const res = await listAllUsers(accessToken, undefined, "OWNER");
+      setOwners(res.data ?? []);
+    } catch (error) {
+      showRequestErrorToast(error, { title: "Unable to load owners" });
+    } finally {
+      setLoadingOwners(false);
+    }
+  }, [accessToken]);
+
+  useEffect(() => {
+    void loadOwners();
+  }, [loadOwners]);
+
+  const ownerOptions = useMemo<SearchableSelectOption[]>(
+    () =>
+      owners.map((owner) => ({
+        label: owner.name,
+        value: owner.id,
+        description: owner.phone ?? undefined,
+        keywords: [owner.name, owner.phone].filter(Boolean).join(" "),
+      })),
+    [owners],
+  );
 
   const onSubmit = async (data: EntryFormData) => {
     if (!accessToken || saving) return;
@@ -119,11 +114,10 @@ export default function CreateFinanceEntryScreen() {
 
     try {
       await createFinanceEntry(accessToken, {
-        type: data.type,
         amount: Number(data.amount.replace(/,/g, "")),
-        paymentStatus: data.paymentStatus,
         entryDate: data.entryDate.trim(),
-        description: data.description.trim(),
+        investedById: data.investedById,
+        paymentMethod: data.paymentMethod,
         notes: data.notes?.trim() || undefined,
       });
 
@@ -160,160 +154,123 @@ export default function CreateFinanceEntryScreen() {
         enableOnAndroid={true}
         extraScrollHeight={Platform.OS === 'ios' ? 20 : 100}
       >
-          {message ? <Text style={styles.messageText}>{message}</Text> : null}
+        {message ? <Text style={styles.messageText}>{message}</Text> : null}
 
-          <View style={styles.formCard}>
-            <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>Entry Type</Text>
-            </View>
+        <View style={styles.formCard}>
+          <SearchableSelectField
+            label="Invested By"
+            value={investedById}
+            options={ownerOptions}
+            onSelect={(val) => setValue("investedById", val, { shouldDirty: true, shouldValidate: true })}
+            placeholder={loadingOwners ? "Loading owners..." : "Select Owner"}
+            searchPlaceholder="Search owner"
+            emptyMessage="No owners found"
+            error={errors.investedById?.message}
+            required
+          />
+
+          <View style={styles.inputGroup}>
+            <Text style={styles.label}>Amount <Text style={styles.required}>*</Text></Text>
+            <Controller
+              control={control}
+              name="amount"
+              render={({ field: { value, onChange } }) => (
+                <View style={[styles.inputContainer, errors.amount && styles.inputError]}>
+                  <Text style={styles.prefix}>Rs</Text>
+                  <TextInput
+                    style={styles.inputWithPrefix}
+                    value={value}
+                    onChangeText={onChange}
+                    keyboardType="decimal-pad"
+                    placeholder="250000"
+                    placeholderTextColor="#9CA3AF"
+                  />
+                </View>
+              )}
+            />
+            {errors.amount?.message ? <Text style={styles.errorText}>{errors.amount.message}</Text> : null}
+          </View>
+
+          <View style={styles.inputGroup}>
+            <Text style={styles.label}>Payment Method <Text style={styles.required}>*</Text></Text>
             <View style={styles.typeSelector}>
-              {TYPE_OPTIONS.map((option) => {
-                const active = type === option.value;
+              {(["CASH", "ACCOUNT"] as const).map((method) => {
+                const active = paymentMethod === method;
                 return (
                   <TouchableOpacity
-                    key={option.value}
+                    key={method}
                     style={[styles.typeChip, active && styles.typeChipActive]}
                     onPress={() =>
-                      setValue("type", option.value, {
+                      setValue("paymentMethod", method, {
                         shouldDirty: true,
                         shouldValidate: true,
                       })
                     }
                     activeOpacity={0.82}
                   >
-                    <MaterialCommunityIcons
-                      name={option.icon}
-                      size={compact ? 14 : 16}
+                    <Ionicons
+                      name={method === "CASH" ? "cash-outline" : "card-outline"}
+                      size={16}
                       color={active ? "#FFF" : Colors.primary}
                     />
-                    <Text
-                      style={[styles.typeChipText, compact && styles.typeChipTextCompact, active && styles.typeChipTextActive]}
-                      numberOfLines={1}
-                      adjustsFontSizeToFit
-                      minimumFontScale={0.82}
-                    >
-                      {compact ? option.shortLabel : option.label}
+                    <Text style={[styles.typeChipText, active && styles.typeChipTextActive]}>
+                      {method === "CASH" ? "Cash" : "Bank Account"}
                     </Text>
                   </TouchableOpacity>
                 );
               })}
             </View>
+          </View>
 
-            <View style={styles.inputGroup}>
-              <Text style={styles.label}>Amount</Text>
-              <Controller
-                control={control}
-                name="amount"
-                render={({ field: { value, onChange } }) => (
-                  <View style={[styles.inputContainer, errors.amount && styles.inputError]}>
-                    <Text style={styles.prefix}>Rs</Text>
-                    <TextInput
-                      style={styles.inputWithPrefix}
-                      value={value}
-                      onChangeText={onChange}
-                      keyboardType="decimal-pad"
-                      placeholder="250000"
-                      placeholderTextColor="#9CA3AF"
-                    />
-                  </View>
-                )}
+          <Controller
+            control={control}
+            name="entryDate"
+            render={({ field: { value, onChange } }) => (
+              <DatePickerField
+                label="Entry Date"
+                value={value}
+                onChange={onChange}
+                error={errors.entryDate?.message}
+                disableFuture
               />
-              {errors.amount?.message ? <Text style={styles.errorText}>{errors.amount.message}</Text> : null}
-            </View>
+            )}
+          />
 
-            <View style={styles.inputGroup}>
-              <Text style={styles.label}>Payment Status</Text>
-              <View style={styles.statusRow}>
-                {STATUS_OPTIONS.map((status) => {
-                  const active = paymentStatus === status;
-                  return (
-                    <TouchableOpacity
-                      key={status}
-                      style={[styles.statusChip, active && styles.statusChipActive]}
-                      onPress={() =>
-                        setValue("paymentStatus", status, {
-                          shouldDirty: true,
-                          shouldValidate: true,
-                        })
-                      }
-                      activeOpacity={0.82}
-                    >
-                      <Text style={[styles.statusChipText, active && styles.statusChipTextActive]} numberOfLines={1}>
-                        {labelize(status)}
-                      </Text>
-                    </TouchableOpacity>
-                  );
-                })}
-              </View>
-            </View>
-
+          <View style={styles.inputGroup}>
+            <Text style={styles.label}>Notes</Text>
             <Controller
               control={control}
-              name="entryDate"
+              name="notes"
               render={({ field: { value, onChange } }) => (
-                <DatePickerField
-                  label="Entry Date"
+                <TextInput
+                  style={[styles.input, styles.textArea]}
                   value={value}
-                  onChange={onChange}
-                  error={errors.entryDate?.message}
-                  disableFuture
+                  onChangeText={onChange}
+                  placeholder="Optional notes"
+                  placeholderTextColor="#9CA3AF"
+                  multiline
+                  scrollEnabled={false}
                 />
               )}
             />
-
-            <View style={styles.inputGroup}>
-              <Text style={styles.label}>Description</Text>
-              <Controller
-                control={control}
-                name="description"
-                render={({ field: { value, onChange } }) => (
-                  <TextInput
-                    style={[styles.input, errors.description && styles.inputError]}
-                    value={value}
-                    onChangeText={onChange}
-                    placeholder="Owner investment"
-                    placeholderTextColor="#9CA3AF"
-                  />
-                )}
-              />
-              {errors.description?.message ? <Text style={styles.errorText}>{errors.description.message}</Text> : null}
-            </View>
-
-            <View style={styles.inputGroup}>
-              <Text style={styles.label}>Notes</Text>
-              <Controller
-                control={control}
-                name="notes"
-                render={({ field: { value, onChange } }) => (
-                  <TextInput
-                    style={[styles.input, styles.textArea]}
-                    value={value}
-                    onChangeText={onChange}
-                    placeholder="Optional notes"
-                    placeholderTextColor="#9CA3AF"
-                    multiline
-                    scrollEnabled={false}
-                  />
-                )}
-              />
-            </View>
-
-            <TouchableOpacity
-              style={[styles.submitButton, saving && styles.disabledButton]}
-              onPress={handleSubmit(onSubmit)}
-              disabled={saving}
-              activeOpacity={0.82}
-            >
-              {saving ? (
-                <ActivityIndicator color="#FFF" />
-              ) : (
-                <>
-                  <Ionicons name="save-outline" size={18} color="#FFF" />
-                  <Text style={styles.submitButtonText}>Save Entry</Text>
-                </>
-              )}
-            </TouchableOpacity>
           </View>
+
+          <TouchableOpacity
+            style={[styles.submitButton, saving && styles.disabledButton]}
+            onPress={handleSubmit(onSubmit)}
+            disabled={saving}
+            activeOpacity={0.82}
+          >
+            {saving ? (
+              <ActivityIndicator color="#FFF" />
+            ) : (
+              <>
+                <Ionicons name="save-outline" size={18} color="#FFF" />
+                <Text style={styles.submitButtonText}>Save Entry</Text>
+              </>
+            )}
+          </TouchableOpacity>
+        </View>
       </KeyboardAwareScrollView>
     </View>
   );
@@ -358,59 +315,6 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     elevation: 2,
   },
-  sectionHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-  },
-  sectionTitle: {
-    color: Colors.text,
-    fontSize: 14,
-    fontWeight: "900",
-  },
-  typeSelector: {
-    minHeight: 44,
-    borderRadius: 11,
-    borderWidth: 1,
-    borderColor: "#DDEFE5",
-    backgroundColor: "#F8FAFC",
-    padding: 4,
-    flexDirection: "row",
-    gap: 4,
-  },
-  typeChip: {
-    flex: 1,
-    minWidth: 0,
-    minHeight: 36,
-    borderRadius: 8,
-    backgroundColor: "transparent",
-    paddingHorizontal: 4,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 4,
-  },
-  typeChipActive: {
-    backgroundColor: Colors.primary,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.08,
-    shadowRadius: 2,
-    elevation: 1,
-  },
-  typeChipText: {
-    color: Colors.primary,
-    fontSize: 10.5,
-    fontWeight: "900",
-    flexShrink: 1,
-    textAlign: "center",
-  },
-  typeChipTextCompact: {
-    fontSize: 10,
-  },
-  typeChipTextActive: {
-    color: "#FFF",
-  },
   inputGroup: {
     gap: 7,
   },
@@ -418,6 +322,9 @@ const styles = StyleSheet.create({
     color: Colors.text,
     fontSize: 13,
     fontWeight: "900",
+  },
+  required: {
+    color: Colors.error,
   },
   input: {
     minHeight: 46,
@@ -461,33 +368,44 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: "800",
   },
-  statusRow: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 7,
-  },
-  statusChip: {
-    flexGrow: 1,
-    flexBasis: 96,
-    minHeight: 36,
-    borderRadius: 10,
+  typeSelector: {
+    minHeight: 44,
+    borderRadius: 11,
     borderWidth: 1,
-    borderColor: "#E5E7EB",
+    borderColor: "#DDEFE5",
     backgroundColor: "#F8FAFC",
-    paddingHorizontal: 9,
+    padding: 4,
+    flexDirection: "row",
+    gap: 4,
+  },
+  typeChip: {
+    flex: 1,
+    minWidth: 0,
+    minHeight: 36,
+    borderRadius: 8,
+    backgroundColor: "transparent",
+    paddingHorizontal: 4,
+    flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
+    gap: 4,
   },
-  statusChipActive: {
-    backgroundColor: Colors.secondary,
-    borderColor: Colors.secondary,
+  typeChipActive: {
+    backgroundColor: Colors.primary,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.08,
+    shadowRadius: 2,
+    elevation: 1,
   },
-  statusChipText: {
-    color: Colors.text,
-    fontSize: 11,
+  typeChipText: {
+    color: Colors.primary,
+    fontSize: 10.5,
     fontWeight: "900",
+    flexShrink: 1,
+    textAlign: "center",
   },
-  statusChipTextActive: {
+  typeChipTextActive: {
     color: "#FFF",
   },
   textArea: {

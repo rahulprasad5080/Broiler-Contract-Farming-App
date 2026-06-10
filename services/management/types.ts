@@ -409,11 +409,11 @@ export type ApiFinancePurchase = {
 export type ApiFinanceEntry = {
   id: string;
   organizationId: string;
-  type: ApiFinanceEntryType;
   amount: number;
-  paymentStatus: ApiTransactionPaymentStatus;
   entryDate: string;
-  description: string;
+  investedById: string;
+  investedByName?: string | null;
+  paymentMethod: "CASH" | "ACCOUNT";
   notes?: string | null;
   createdById?: string | null;
   createdAt: string;
@@ -429,11 +429,10 @@ export type ApiFinancePayment = {
   traderId?: string | null;
   traderName?: string | null;
   partyName?: string | null;
-  paymentType: ApiPaymentEntryType;
-  direction: ApiPaymentDirection;
+  paymentMode: "CASH" | "ACCOUNT";
   amount: number;
   paymentDate: string;
-  referenceType?: ApiPaymentEntryType | string | null;
+  referenceType?: string | null;
   referenceId?: string | null;
   notes?: string | null;
   createdById?: string | null;
@@ -738,20 +737,22 @@ export type UpdateFinancePurchaseRequest = Partial<
 >;
 
 export type CreateFinanceEntryRequest = {
-  type: ApiFinanceEntryType;
   amount: number;
-  paymentStatus?: ApiTransactionPaymentStatus;
   entryDate: string;
-  description: string;
+  investedById: string;
+  paymentMethod: "CASH" | "ACCOUNT";
   notes?: string;
 };
 
 export type CreateFinancePaymentRequest = {
+  batchId?: string;
   vendorId?: string;
   traderId?: string;
   partyName?: string;
+  paymentMode: "CASH" | "ACCOUNT";
   amount: number;
   paymentDate: string;
+  referenceType?: string;
   referenceId?: string;
   notes?: string;
 };

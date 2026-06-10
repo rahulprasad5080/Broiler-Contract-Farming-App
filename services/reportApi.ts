@@ -238,7 +238,7 @@ export async function fetchSettlementReport(token: string, params: ReportFilterP
 export async function fetchVendorLedgerReport(
   token: string,
   vendorId: string,
-  params: Pick<ReportFilterParams, "dateFrom" | "dateTo"> = {},
+  params: Pick<ReportFilterParams, "dateFrom" | "dateTo"> & { paymentMode?: "CASH" | "ACCOUNT" } = {},
 ) {
   return apiRequest<ApiPartnerLedgerReport>(`/reports/vendors/${vendorId}/ledger`, {
     method: "GET",
@@ -250,7 +250,7 @@ export async function fetchVendorLedgerReport(
 export async function fetchTraderLedgerReport(
   token: string,
   traderId: string,
-  params: Pick<ReportFilterParams, "dateFrom" | "dateTo"> = {},
+  params: Pick<ReportFilterParams, "dateFrom" | "dateTo"> & { paymentMode?: "CASH" | "ACCOUNT" } = {},
 ) {
   return apiRequest<ApiPartnerLedgerReport>(`/reports/traders/${traderId}/ledger`, {
     method: "GET",

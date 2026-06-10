@@ -74,7 +74,8 @@ export async function listFinancePayments(
     vendorId?: string;
     traderId?: string;
     partyType?: string;
-    referenceType?: ApiPaymentEntryType | string;
+    referenceType?: string;
+    paymentMode?: "CASH" | "ACCOUNT";
   } = {},
 ) {
   return apiRequest<ListResponse<ApiFinancePayment>>("/finance/payments", {

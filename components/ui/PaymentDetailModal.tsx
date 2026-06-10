@@ -102,6 +102,7 @@ export function PaymentDetailModal({ visible, item, onClose, title = "Payment De
             <View style={styles.detailsCard}>
               <DetailRow label="Payment Date" value={formatDate(item.paymentDate)} />
               <View style={styles.divider} />
+              <DetailRow label="Payment Mode" value={labelize(item.paymentMode)} />
               {item.vendorName ? (
                 <>
                   <View style={styles.divider} />
@@ -134,8 +135,7 @@ export function PaymentDetailModal({ visible, item, onClose, title = "Payment De
 }
 
 function getPaymentMode(item: ApiFinancePayment) {
-  const haystack = `${item.referenceType ?? ""} ${item.notes ?? ""} ${item.paymentType ?? ""}`.toLowerCase();
-  if (haystack.includes("bank") || haystack.includes("upi") || haystack.includes("neft")) {
+  if (item.paymentMode === "ACCOUNT") {
     return { label: "Bank", bg: "#EFF6FF", color: "#2563EB" };
   }
   return { label: "Cash", bg: "#E8F5E9", color: THEME_GREEN };

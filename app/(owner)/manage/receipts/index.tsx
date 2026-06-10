@@ -57,8 +57,7 @@ function labelize(value?: string | null) {
 }
 
 function getPaymentMode(item: ApiFinancePayment) {
-  const haystack = `${item.referenceType ?? ""} ${item.notes ?? ""} ${item.paymentType ?? ""}`.toLowerCase();
-  if (haystack.includes("bank") || haystack.includes("upi") || haystack.includes("neft")) {
+  if (item.paymentMode === "ACCOUNT") {
     return { label: "Bank", bg: "#EFF6FF", color: "#2563EB" };
   }
   return { label: "Cash", bg: "#E8F5E9", color: THEME_GREEN };
@@ -75,6 +74,7 @@ export default function ReceiptsScreen() {
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [traderId, setTraderId] = useState("");
   const [referenceType, setReferenceType] = useState("");
+  const [paymentMode, setPaymentMode] = useState<"CASH" | "ACCOUNT" | "">("");
   const [loading, setLoading] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
   const [loadingOptions, setLoadingOptions] = useState(false);
@@ -107,7 +107,16 @@ export default function ReceiptsScreen() {
     [],
   );
 
-  const hasActiveFilters = Boolean(search.trim() || traderId || referenceType);
+  const paymentModeOptions = useMemo<SearchableSelectOption[]>(
+    () => [
+      { label: "All Payment Modes", value: "" },
+      { label: "Cash", value: "CASH" },
+      { label: "Bank Account", value: "ACCOUNT" },
+    ],
+    [],
+  );
+
+  const hasActiveFilters = Boolean(search.trim() || traderId || referenceType || paymentMode);
 
   const loadOptions = useCallback(async () => {
     if (!accessToken) return;
@@ -147,6 +156,7 @@ export default function ReceiptsScreen() {
           partyType: "Trader",
           traderId: traderId || undefined,
           referenceType: referenceType || undefined,
+          paymentMode: paymentMode || undefined,
         });
         setRows((current) => (append ? [...current, ...(response.data ?? [])] : response.data ?? []));
         setPage(response.meta?.page ?? targetPage);
@@ -164,7 +174,7 @@ export default function ReceiptsScreen() {
         setRefreshing(false);
       }
     },
-    [accessToken, debouncedSearch, referenceType, traderId],
+    [accessToken, debouncedSearch, referenceType, traderId, paymentMode],
   );
 
   useEffect(() => {
@@ -183,13 +193,14 @@ export default function ReceiptsScreen() {
 
   useEffect(() => {
     void loadReceipts(1, false);
-  }, [debouncedSearch, loadReceipts, referenceType, traderId]);
+  }, [debouncedSearch, loadReceipts, referenceType, traderId, paymentMode]);
 
   const clearFilters = () => {
     setSearch("");
     setDebouncedSearch("");
     setTraderId("");
     setReferenceType("");
+    setPaymentMode("");
   };
 
   const loadNextPage = () => {
@@ -212,9 +223,11 @@ export default function ReceiptsScreen() {
           <Text style={styles.partyName} numberOfLines={1}>
             {partyName}
           </Text>
-          <Text style={styles.paymentMeta} numberOfLines={1}>
-            {labelize(item.paymentType)}
-          </Text>
+          {item.referenceType ? (
+            <Text style={styles.paymentMeta} numberOfLines={1}>
+              Ref: {labelize(item.referenceType)}
+            </Text>
+          ) : null}
         </View>
         <View style={styles.amountCol}>
           <Text style={styles.amountText}>{formatAmount(item.amount)}</Text>
@@ -305,6 +318,16 @@ export default function ReceiptsScreen() {
                     placeholder="All References"
                     searchPlaceholder="Search reference type"
                     emptyMessage="No reference types found"
+                  />
+                  <SearchableSelectField
+                    variant="filter"
+                    label="Payment Mode"
+                    value={paymentMode}
+                    options={paymentModeOptions}
+                    onSelect={(val) => setPaymentMode(val as "CASH" | "ACCOUNT" | "")}
+                    placeholder="All Payment Modes"
+                    searchPlaceholder="Search payment mode"
+                    emptyMessage="No modes found"
                   />
                   {hasActiveFilters ? (
                     <TouchableOpacity style={styles.clearButton} onPress={clearFilters}>

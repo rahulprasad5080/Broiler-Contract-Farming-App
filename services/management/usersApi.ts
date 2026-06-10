@@ -12,7 +12,7 @@ import type {
 
 export async function listUsers(
   token: string,
-  params: ListParams = {},
+  params: ListParams & { role?: string } = {},
 ) {
   return apiRequest<ListResponse<ApiUser>>("/users", {
     method: "GET",
@@ -21,13 +21,14 @@ export async function listUsers(
   });
 }
 
-export async function listAllUsers(token: string, search?: string) {
+export async function listAllUsers(token: string, search?: string, role?: string) {
   return fetchAllPages(
     (page, limit) =>
       listUsers(token, {
         page,
         limit,
         search,
+        role,
       }),
   );
 }

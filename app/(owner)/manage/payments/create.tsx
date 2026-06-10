@@ -45,6 +45,7 @@ const paymentSchema = z.object({
   vendorId: z.string().optional(),
   traderId: z.string().optional(),
   partyName: z.string().optional(),
+  paymentMode: z.enum(["CASH", "ACCOUNT"]),
   amount: numberString("Amount"),
   paymentDate: z.string().min(1, "Payment date is required"),
   notes: z.string().optional(),
@@ -56,6 +57,7 @@ const DEFAULTS: PaymentFormData = {
   vendorId: "",
   traderId: "",
   partyName: "",
+  paymentMode: "CASH",
   amount: "",
   paymentDate: getLocalDateValue(),
   notes: "",
@@ -100,6 +102,7 @@ export default function CreatePaymentScreen() {
 
   const vendorId = watch("vendorId");
   const traderId = watch("traderId");
+  const paymentMode = watch("paymentMode");
 
   const vendorOptions = useMemo<SearchableSelectOption[]>(
     () =>
@@ -181,6 +184,7 @@ export default function CreatePaymentScreen() {
         vendorId: data.vendorId?.trim() || undefined,
         traderId: data.traderId?.trim() || undefined,
         partyName: data.partyName?.trim() || undefined,
+        paymentMode: data.paymentMode,
         amount: toNumber(data.amount),
         paymentDate: data.paymentDate,
         notes: data.notes?.trim() || undefined,
@@ -261,6 +265,44 @@ export default function CreatePaymentScreen() {
               error={errors.amount?.message}
               required
             />
+
+            <View style={styles.segmentedContainer}>
+              <Text style={styles.label}>
+                Payment Mode <Text style={styles.required}>*</Text>
+              </Text>
+              <View style={styles.segmentedControl}>
+                {(["CASH", "ACCOUNT"] as const).map((mode) => {
+                  const active = paymentMode === mode;
+                  return (
+                    <TouchableOpacity
+                      key={mode}
+                      style={[styles.segmentButton, active && styles.segmentButtonActive]}
+                      onPress={() =>
+                        setValue("paymentMode", mode, {
+                          shouldDirty: true,
+                          shouldValidate: true,
+                        })
+                      }
+                      activeOpacity={0.82}
+                    >
+                      <Ionicons
+                        name={mode === "CASH" ? "cash-outline" : "card-outline"}
+                        size={16}
+                        color={active ? "#FFF" : "#4B5563"}
+                      />
+                      <Text
+                        style={[
+                          styles.segmentButtonText,
+                          active && styles.segmentButtonTextActive,
+                        ]}
+                      >
+                        {mode === "CASH" ? "Cash" : "Bank Account"}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            </View>
 
             <Controller
               control={control}

@@ -47,6 +47,7 @@ export default function PartnerStatementsTab({
   const [selectedPartnerId, setSelectedPartnerId] = useState("");
   const [partnerDateFrom, setPartnerDateFrom] = useState("");
   const [partnerDateTo, setPartnerDateTo] = useState("");
+  const [partnerPaymentMode, setPartnerPaymentMode] = useState<"ALL" | "CASH" | "ACCOUNT">("ALL");
   const [partnerLedger, setPartnerLedger] = useState<ApiPartnerLedgerReport | null>(null);
   const [loadingPartnerLedger, setLoadingPartnerLedger] = useState(false);
 
@@ -76,6 +77,7 @@ export default function PartnerStatementsTab({
       const params = {
         dateFrom: partnerDateFrom || undefined,
         dateTo: partnerDateTo || undefined,
+        paymentMode: partnerPaymentMode === "ALL" ? undefined : partnerPaymentMode,
       };
       const response =
         partnerStatementKind === "vendor"
@@ -92,6 +94,7 @@ export default function PartnerStatementsTab({
     loadingPartnerLedger,
     partnerDateFrom,
     partnerDateTo,
+    partnerPaymentMode,
     partnerStatementKind,
     selectedPartnerId,
   ]);
@@ -186,6 +189,35 @@ export default function PartnerStatementsTab({
           searchPlaceholder={`Search ${partnerStatementKind}`}
           emptyMessage={`No ${partnerStatementKind}s found`}
         />
+
+        <Text style={styles.categoryTitle}>Payment Mode</Text>
+        <View style={styles.statementToggle}>
+          {(["ALL", "CASH", "ACCOUNT"] as const).map((mode) => (
+            <TouchableOpacity
+              key={mode}
+              style={[
+                styles.statementToggleBtn,
+                partnerPaymentMode === mode && {
+                  backgroundColor: THEME_GREEN,
+                  borderColor: THEME_GREEN,
+                  shadowColor: THEME_GREEN,
+                  shadowOffset: { width: 0, height: 2 },
+                  shadowOpacity: 0.25,
+                  shadowRadius: 3.84,
+                  elevation: 5,
+                }
+              ]}
+              onPress={() => {
+                setPartnerPaymentMode(mode);
+                setPartnerLedger(null);
+              }}
+            >
+              <Text style={[styles.statementToggleText, partnerPaymentMode === mode && styles.statementToggleTextActive]}>
+                {mode === "ALL" ? "All" : mode === "CASH" ? "Cash" : "Bank"}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </View>
 
         <View style={styles.statementDateRow}>
           <View style={styles.statementDateCell}>
