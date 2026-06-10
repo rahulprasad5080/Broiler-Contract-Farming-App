@@ -83,15 +83,6 @@ function getMovementTone(type?: string | null) {
   };
 }
 
-function InfoCell({ label, value }: { label: string; value: string }) {
-  return (
-    <View style={styles.infoCell}>
-      <Text style={styles.infoLabel}>{label}</Text>
-      <Text style={styles.infoValue} numberOfLines={2}>{value}</Text>
-    </View>
-  );
-}
-
 interface LedgerTabProps {
   isStandalone?: boolean;
 }
@@ -219,64 +210,35 @@ export default function LedgerTab({ isStandalone = false }: LedgerTabProps) {
     const quantityOut = Number(item.quantityOut ?? 0);
     const netQuantity = quantityIn - quantityOut;
     return (
-      <View style={styles.card}>
-        <View style={styles.cardHeader}>
-          <View style={[styles.avatarBox, { backgroundColor: tone.bg }]}>
-            <Ionicons name={tone.icon} size={22} color={tone.color} />
+      <View style={styles.compactCard}>
+        <View style={styles.leftCol}>
+          <View style={[styles.compactAvatarBox, { backgroundColor: tone.bg }]}>
+            <Ionicons name={tone.icon} size={16} color={tone.color} />
           </View>
-          <View style={styles.titleBlock}>
-            <Text style={styles.title} numberOfLines={1}>{item.catalogItemName || item.catalogItemId}</Text>
-            <Text style={styles.subtitle}>
-              {[tone.label, formatDate(item.movementDate), item.vendorName || "No vendor"]
-                .filter(Boolean)
-                .join(" | ")}
+          <View style={styles.compactTitleBlock}>
+            <Text style={styles.compactTitle} numberOfLines={1}>
+              {item.catalogItemName || item.catalogItemId}
             </Text>
-          </View>
-          <View style={[styles.typeBadge, { backgroundColor: tone.bg, borderColor: tone.border }]}>
-            <Text style={[styles.typeBadgeText, { color: tone.color }]} numberOfLines={1}>
-              {labelize(item.movementType)}
+            <Text style={styles.compactSubtitle}>
+              {tone.label} | {formatDate(item.movementDate)}
+              {item.vendorName ? ` | ${item.vendorName}` : ""}
             </Text>
+            {item.notes ? (
+              <Text style={styles.compactNotes} numberOfLines={1}>
+                Note: {item.notes}
+              </Text>
+            ) : null}
           </View>
         </View>
 
-        <View style={styles.balancePanel}>
-          <View>
-            <Text style={styles.balanceLabel}>Balance after movement</Text>
-            <Text style={styles.balanceValue}>{formatQuantity(item.balanceAfter)}</Text>
-          </View>
-          <View style={[styles.netBadge, { backgroundColor: tone.bg }]}>
-            <Text style={[styles.netBadgeText, { color: tone.color }]}>
-              {netQuantity > 0 ? "+" : ""}{formatQuantity(netQuantity)}
-            </Text>
-          </View>
+        <View style={styles.rightCol}>
+          <Text style={[styles.compactNetQuantity, { color: tone.color }]}>
+            {netQuantity > 0 ? "+" : ""}{formatQuantity(netQuantity)}
+          </Text>
+          <Text style={styles.compactBalance}>
+            Bal: {formatQuantity(item.balanceAfter)}
+          </Text>
         </View>
-
-        <View style={styles.metricsRow}>
-          <View style={styles.metricBox}>
-            <Text style={styles.metricLabel}>In</Text>
-            <Text style={styles.inText}>+{formatQuantity(item.quantityIn)}</Text>
-          </View>
-          <View style={styles.metricBox}>
-            <Text style={styles.metricLabel}>Out</Text>
-            <Text style={styles.outText}>-{formatQuantity(item.quantityOut)}</Text>
-          </View>
-          <View style={styles.metricBox}>
-            <Text style={styles.metricLabel}>Date</Text>
-            <Text style={styles.metricValue}>{formatDate(item.movementDate)}</Text>
-          </View>
-        </View>
-
-        <View style={styles.detailsGrid}>
-          <InfoCell label="Vendor" value={item.vendorName || item.vendorId || "-"} />
-          <InfoCell label="Created" value={formatDate(item.createdAt)} />
-        </View>
-
-        {item.notes ? (
-          <View style={styles.noteBox}>
-            <Text style={styles.noteLabel}>Notes</Text>
-            <Text style={styles.noteText}>{item.notes}</Text>
-          </View>
-        ) : null}
       </View>
     );
   };
@@ -562,184 +524,69 @@ const styles = StyleSheet.create({
     flex: 1,
     minWidth: 0,
   },
-  card: {
+  compactCard: {
     backgroundColor: "#FFF",
-    borderRadius: 14,
+    borderRadius: 10,
     borderWidth: 1,
     borderColor: "#E5E7EB",
-    padding: 14,
-    marginBottom: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    marginBottom: 8,
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.06,
-    shadowRadius: 4,
-    elevation: 2,
+    shadowOpacity: 0.04,
+    shadowRadius: 3,
+    elevation: 1,
   },
-  cardHeader: {
+  leftCol: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between",
-    gap: 10,
+    flex: 1,
+    marginRight: 12,
   },
-  avatarBox: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
+  compactAvatarBox: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
     alignItems: "center",
     justifyContent: "center",
+    marginRight: 10,
   },
-  titleBlock: {
+  compactTitleBlock: {
     flex: 1,
-    minWidth: 0,
   },
-  title: {
+  compactTitle: {
     color: Colors.text,
+    fontSize: 14,
+    fontWeight: "800",
+  },
+  compactSubtitle: {
+    color: Colors.textSecondary,
+    fontSize: 11,
+    marginTop: 2,
+  },
+  compactNotes: {
+    color: "#7F8C8D",
+    fontSize: 10,
+    marginTop: 3,
+    fontStyle: "italic",
+  },
+  rightCol: {
+    alignItems: "flex-end",
+    justifyContent: "center",
+    minWidth: 80,
+  },
+  compactNetQuantity: {
     fontSize: 15,
     fontWeight: "900",
   },
-  subtitle: {
+  compactBalance: {
     color: Colors.textSecondary,
-    fontSize: 12,
-    lineHeight: 17,
-    marginTop: 3,
-  },
-  typeBadge: {
-    maxWidth: 94,
-    borderRadius: 999,
-    borderWidth: 1,
-    paddingHorizontal: 9,
-    paddingVertical: 6,
-    alignItems: "center",
-  },
-  typeBadgeText: {
-    fontSize: 10,
-    fontWeight: "900",
-  },
-  balancePanel: {
-    marginTop: 12,
-    borderRadius: 12,
-    backgroundColor: "#F0FBF5",
-    borderWidth: 1,
-    borderColor: "#CDEBDD",
-    padding: 12,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    gap: 12,
-  },
-  balanceLabel: {
-    color: Colors.textSecondary,
-    fontSize: 10,
-    fontWeight: "800",
-    textTransform: "uppercase",
-  },
-  balanceValue: {
-    color: Colors.primary,
-    fontSize: 20,
-    fontWeight: "900",
-    marginTop: 3,
-  },
-  netBadge: {
-    minWidth: 72,
-    borderRadius: 999,
-    paddingHorizontal: 10,
-    paddingVertical: 7,
-    alignItems: "center",
-  },
-  netBadgeText: {
-    fontSize: 13,
-    fontWeight: "900",
-  },
-  metricsRow: {
-    flexDirection: "row",
-    gap: 8,
-    marginTop: 12,
-  },
-  metricBox: {
-    flex: 1,
-    minHeight: 56,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: "#EEF2F7",
-    backgroundColor: "#F9FAFB",
-    paddingHorizontal: 9,
-    paddingVertical: 8,
-    justifyContent: "center",
-  },
-  metricLabel: {
-    color: Colors.textSecondary,
-    fontSize: 10,
-    fontWeight: "800",
-    textTransform: "uppercase",
-  },
-  metricValue: {
-    color: Colors.text,
-    fontSize: 12,
-    fontWeight: "900",
-    marginTop: 4,
-  },
-  inText: {
-    color: Colors.primary,
-    fontSize: 13,
-    fontWeight: "900",
-    marginTop: 4,
-  },
-  outText: {
-    color: Colors.error,
-    fontSize: 13,
-    fontWeight: "900",
-    marginTop: 4,
-  },
-  detailsGrid: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 8,
-    marginTop: 12,
-    paddingTop: 10,
-    borderTopWidth: 1,
-    borderTopColor: "#F1F5F9",
-  },
-  infoCell: {
-    flexGrow: 1,
-    flexBasis: 136,
-    borderRadius: 10,
-    backgroundColor: "#F8FAFC",
-    borderWidth: 1,
-    borderColor: "#EEF2F7",
-    paddingHorizontal: 10,
-    paddingVertical: 8,
-  },
-  infoLabel: {
-    color: Colors.textSecondary,
-    fontSize: 10,
-    fontWeight: "900",
-    textTransform: "uppercase",
-  },
-  infoValue: {
-    color: Colors.text,
-    fontSize: 12,
-    lineHeight: 16,
-    fontWeight: "800",
-    marginTop: 3,
-  },
-  noteBox: {
-    marginTop: 10,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: "#E5E7EB",
-    backgroundColor: "#FFF",
-    padding: 10,
-  },
-  noteLabel: {
-    color: Colors.textSecondary,
-    fontSize: 10,
-    fontWeight: "900",
-    textTransform: "uppercase",
-  },
-  noteText: {
-    color: Colors.text,
-    fontSize: 12,
-    lineHeight: 17,
-    marginTop: 4,
+    fontSize: 11,
+    marginTop: 2,
+    fontWeight: "600",
   },
 });
