@@ -1,13 +1,12 @@
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
-import React from "react";
 import {
+  Dimensions,
   ScrollView,
   StyleSheet,
   Text,
   TouchableOpacity,
   View,
-  Dimensions,
 } from "react-native";
 
 import { ScreenState } from "@/components/ui/ScreenState";
@@ -92,33 +91,33 @@ const ENTRY_ITEMS: EntryItem[] = [
     route: "/(owner)/manage/entries/create?type=OTHER_INCOME",
     requiredPermission: "view:financial-dashboard",
   },
-  {
-    title: "Treatments",
-    desc: "List and add batch treatments",
-    icon: "medical-outline",
-    iconType: "Ionicons",
-    color: "#0EA5E9",
-    route: "/(owner)/manage/treatments",
-    requiredPermission: "create:treatments",
-  },
-  {
-    title: "Costs",
-    desc: "View batch costs",
-    icon: "calculator-outline",
-    iconType: "Ionicons",
-    color: "#0F766E",
-    route: "/(owner)/manage/costs",
-    requiredPermission: "view:inventory-cost",
-  },
-  {
-    title: "Comments",
-    desc: "View batch notes and corrections",
-    icon: "chatbubbles-outline",
-    iconType: "Ionicons",
-    color: "#F59E0B",
-    route: "/(owner)/manage/comments",
-    requiredPermission: "view:comments",
-  },
+  // {
+  //   title: "Treatments",
+  //   desc: "List and add batch treatments",
+  //   icon: "medical-outline",
+  //   iconType: "Ionicons",
+  //   color: "#0EA5E9",
+  //   route: "/(owner)/manage/treatments",
+  //   requiredPermission: "create:treatments",
+  // },
+  // {
+  //   title: "Costs",
+  //   desc: "View batch costs",
+  //   icon: "calculator-outline",
+  //   iconType: "Ionicons",
+  //   color: "#0F766E",
+  //   route: "/(owner)/manage/costs",
+  //   requiredPermission: "view:inventory-cost",
+  // },
+  // {
+  //   title: "Comments",
+  //   desc: "View batch notes and corrections",
+  //   icon: "chatbubbles-outline",
+  //   iconType: "Ionicons",
+  //   color: "#F59E0B",
+  //   route: "/(owner)/manage/comments",
+  //   requiredPermission: "view:comments",
+  // },
 ];
 
 export default function EntriesScreen() {
