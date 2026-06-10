@@ -89,12 +89,15 @@ export default function AllocateInventoryScreen() {
 
   const catalogOptions = useMemo(
     () =>
-      catalogItems.map((item) => ({
-        label: item.name,
-        value: item.id,
-        description: [item.type, item.unit].filter(Boolean).join(" | "),
-        keywords: `${item.type} ${item.unit} ${item.sku ?? ""}`,
-      })),
+      catalogItems.map((item) => {
+        const stock = item.currentStock ?? 0;
+        return {
+          label: item.name,
+          value: item.id,
+          description: [item.type, item.unit].filter(Boolean).join(" | "),
+          keywords: `${item.type} ${item.unit} ${item.sku ?? ""} ${stock}`,
+        };
+      }),
     [catalogItems],
   );
 
@@ -230,6 +233,39 @@ export default function AllocateInventoryScreen() {
               error={errors.catalogItemId?.message}
               disabled={loading}
             />
+
+            {selectedItem ? (
+              <View style={styles.stockInfoCard}>
+                <View style={styles.stockInfoRow}>
+                  <Ionicons name="cube-outline" size={16} color={Colors.primary} />
+                  <Text style={styles.stockInfoLabel}>Current Stock</Text>
+                </View>
+                <View style={styles.stockValueRow}>
+                  <Text
+                    style={[
+                      styles.stockValue,
+                      {
+                        color:
+                          selectedItem.reorderLevel != null &&
+                          (selectedItem.currentStock ?? 0) <= selectedItem.reorderLevel
+                            ? Colors.error
+                            : Colors.primary,
+                      },
+                    ]}
+                  >
+                    {selectedItem.currentStock ?? 0}
+                  </Text>
+                  <Text style={styles.stockUnit}>{selectedItem.unit}</Text>
+                  {selectedItem.reorderLevel != null &&
+                  (selectedItem.currentStock ?? 0) <= selectedItem.reorderLevel ? (
+                    <View style={styles.lowStockBadge}>
+                      <Ionicons name="warning-outline" size={12} color="#FFF" />
+                      <Text style={styles.lowStockText}>Low Stock</Text>
+                    </View>
+                  ) : null}
+                </View>
+              </View>
+            ) : null}
 
             <View style={styles.inputGroup}>
               <Text style={styles.label}>Quantity</Text>
@@ -447,5 +483,53 @@ const styles = StyleSheet.create({
   },
   disabledButton: {
     opacity: 0.7,
+  },
+  stockInfoCard: {
+    backgroundColor: "#F0FBF5",
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: "#CDEBDD",
+    padding: 12,
+    gap: 8,
+  },
+  stockInfoRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+  },
+  stockInfoLabel: {
+    fontSize: 12,
+    fontWeight: "800",
+    color: Colors.textSecondary,
+    letterSpacing: 0.3,
+    textTransform: "uppercase",
+  },
+  stockValueRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  stockValue: {
+    fontSize: 22,
+    fontWeight: "900",
+  },
+  stockUnit: {
+    fontSize: 13,
+    fontWeight: "800",
+    color: Colors.textSecondary,
+  },
+  lowStockBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    backgroundColor: Colors.error,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 8,
+  },
+  lowStockText: {
+    fontSize: 10,
+    fontWeight: "900",
+    color: "#FFF",
   },
 });
