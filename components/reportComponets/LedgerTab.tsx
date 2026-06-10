@@ -1,10 +1,13 @@
 import { Ionicons } from "@expo/vector-icons";
-import { useFocusEffect } from "@react-navigation/native";
+import { useIsFocused } from "@react-navigation/native";
 import { useRouter } from "expo-router";
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   FlatList,
+  Modal,
+  RefreshControl,
+  ScrollView,
   StyleSheet,
   Text,
   TouchableOpacity,
@@ -90,6 +93,7 @@ interface LedgerTabProps {
 export default function LedgerTab({ isStandalone = false }: LedgerTabProps) {
   const router = useRouter();
   const { accessToken } = useAuth();
+  const isFocused = useIsFocused();
   const [rows, setRows] = useState<ApiInventoryLedgerEntry[]>([]);
   const [catalogItems, setCatalogItems] = useState<ApiCatalogItem[]>([]);
   const [batches, setBatches] = useState<ApiBatch[]>([]);
@@ -101,6 +105,7 @@ export default function LedgerTab({ isStandalone = false }: LedgerTabProps) {
   const [loadingLedger, setLoadingLedger] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [filtersOpen, setFiltersOpen] = useState(false);
+  const [selectedItem, setSelectedItem] = useState<ApiInventoryLedgerEntry | null>(null);
 
   const catalogOptions = useMemo<SearchableSelectOption[]>(
     () => [
@@ -197,12 +202,17 @@ export default function LedgerTab({ isStandalone = false }: LedgerTabProps) {
     }
   }, [accessToken, batchId, catalogItemId, vendorId]);
 
-  useFocusEffect(
-    useCallback(() => {
+  useEffect(() => {
+    if (isFocused) {
       void loadOptions();
+    }
+  }, [isFocused, loadOptions]);
+
+  useEffect(() => {
+    if (isFocused) {
       void loadLedger();
-    }, [loadLedger, loadOptions]),
-  );
+    }
+  }, [isFocused, loadLedger]);
 
   const renderItem = ({ item }: { item: ApiInventoryLedgerEntry }) => {
     const tone = getMovementTone(item.movementType);
@@ -210,7 +220,11 @@ export default function LedgerTab({ isStandalone = false }: LedgerTabProps) {
     const quantityOut = Number(item.quantityOut ?? 0);
     const netQuantity = quantityIn - quantityOut;
     return (
-      <View style={styles.compactCard}>
+      <TouchableOpacity
+        style={styles.compactCard}
+        onPress={() => setSelectedItem(item)}
+        activeOpacity={0.8}
+      >
         <View style={styles.leftCol}>
           <View style={[styles.compactAvatarBox, { backgroundColor: tone.bg }]}>
             <Ionicons name={tone.icon} size={16} color={tone.color} />
@@ -232,143 +246,163 @@ export default function LedgerTab({ isStandalone = false }: LedgerTabProps) {
         </View>
 
         <View style={styles.rightCol}>
-          <Text style={[styles.compactNetQuantity, { color: tone.color }]}>
-            {netQuantity > 0 ? "+" : ""}{formatQuantity(netQuantity)}
-          </Text>
-          <Text style={styles.compactBalance}>
-            Bal: {formatQuantity(item.balanceAfter)}
-          </Text>
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
+            <View style={{ alignItems: "flex-end" }}>
+              <Text style={[styles.compactNetQuantity, { color: tone.color }]}>
+                {netQuantity > 0 ? "+" : ""}{formatQuantity(netQuantity)}
+              </Text>
+              <Text style={styles.compactBalance}>
+                Bal: {formatQuantity(item.balanceAfter)}
+              </Text>
+            </View>
+            <Ionicons name="eye-outline" size={16} color={Colors.textSecondary} />
+          </View>
         </View>
-      </View>
+      </TouchableOpacity>
     );
   };
 
   const content = (
-    <View style={isStandalone ? styles.page : styles.pageEmbed}>
-      <FlatList
-        data={loadingLedger ? [] : rows}
-        keyExtractor={(item) => item.id}
-        renderItem={renderItem}
-        contentContainerStyle={[
-          styles.listContent,
-          !loadingLedger && rows.length === 0 && styles.listEmpty,
-        ]}
-        showsVerticalScrollIndicator={false}
-        keyboardShouldPersistTaps="handled"
-        ListHeaderComponent={
-          <>
-            <View style={styles.filtersCard}>
-              <View style={styles.filterHeader}>
-                <TouchableOpacity
-                  style={styles.filterHeaderToggle}
-                  onPress={() => setFiltersOpen((open) => !open)}
-                  activeOpacity={0.78}
-                >
-                  <View style={styles.filterTitleWrap}>
-                    <Ionicons name="funnel-outline" size={16} color={Colors.primary} />
-                    <Text style={styles.filterTitle}>Filters</Text>
-                    <Text style={styles.summaryText}>
-                      {hasActiveFilters ? "Filters applied" : "All movements"}
-                    </Text>
-                  </View>
-                </TouchableOpacity>
-                <View style={styles.filterHeaderActions}>
-                  {hasActiveFilters ? (
-                    <TouchableOpacity
-                      style={styles.clearButton}
-                      onPress={clearFilters}
-                      disabled={loadingLedger}
-                    >
-                      <Text style={styles.clearButtonText}>Clear</Text>
-                    </TouchableOpacity>
-                  ) : null}
+    <>
+      <View style={isStandalone ? styles.page : styles.pageEmbed}>
+        <FlatList
+          data={loadingLedger ? [] : rows}
+          keyExtractor={(item) => item.id}
+          renderItem={renderItem}
+          contentContainerStyle={[
+            styles.listContent,
+            !isStandalone && styles.listContentEmbed,
+            !loadingLedger && rows.length === 0 && styles.listEmpty,
+          ]}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+          refreshControl={
+            <RefreshControl
+              refreshing={loadingLedger}
+              onRefresh={() => void loadLedger()}
+              colors={[Colors.primary]}
+            />
+          }
+          ListHeaderComponent={
+            <>
+              <View style={styles.filtersCard}>
+                <View style={styles.filterHeader}>
                   <TouchableOpacity
-                    style={styles.chevronButton}
+                    style={styles.filterHeaderToggle}
                     onPress={() => setFiltersOpen((open) => !open)}
                     activeOpacity={0.78}
                   >
-                    <Ionicons
-                      name={filtersOpen ? "chevron-up" : "chevron-down"}
-                      size={18}
-                      color={Colors.text}
-                    />
+                    <View style={styles.filterTitleWrap}>
+                      <Ionicons name="funnel-outline" size={16} color={Colors.primary} />
+                      <Text style={styles.filterTitle}>Filters</Text>
+                      <Text style={styles.summaryText}>
+                        {hasActiveFilters ? "Filters applied" : "All movements"}
+                      </Text>
+                    </View>
                   </TouchableOpacity>
-                </View>
-              </View>
-
-              {message ? <Text style={styles.messageText}>{message}</Text> : null}
-
-              {filtersOpen ? (
-                <>
-                  <View style={styles.filterRow}>
-                    <SearchableSelectField
-                      variant="filter"
-                      label="Catalog Item"
-                      value={catalogItemId}
-                      options={catalogOptions}
-                      onSelect={setCatalogItemId}
-                      placeholder={loadingOptions ? "Loading catalog..." : "All Catalog Items"}
-                      searchPlaceholder="Search catalog item"
-                      emptyMessage="No catalog items found"
-                      disabled={loadingOptions}
-                    />
-                    <SearchableSelectField
-                      variant="filter"
-                      label="Batch"
-                      value={batchId}
-                      options={batchOptions}
-                      onSelect={setBatchId}
-                      placeholder={loadingOptions ? "Loading batches..." : "All Batches"}
-                      searchPlaceholder="Search batch"
-                      emptyMessage="No batches found"
-                      disabled={loadingOptions}
-                    />
-                    <SearchableSelectField
-                      variant="filter"
-                      label="Vendor"
-                      value={vendorId}
-                      options={vendorOptions}
-                      onSelect={setVendorId}
-                      placeholder={loadingOptions ? "Loading vendors..." : "All Vendors"}
-                      searchPlaceholder="Search vendor"
-                      emptyMessage="No vendors found"
-                      disabled={loadingOptions}
-                    />
+                  <View style={styles.filterHeaderActions}>
+                    {hasActiveFilters ? (
+                      <TouchableOpacity
+                        style={styles.clearButton}
+                        onPress={clearFilters}
+                        disabled={loadingLedger}
+                      >
+                        <Text style={styles.clearButtonText}>Clear</Text>
+                      </TouchableOpacity>
+                    ) : null}
+                    <TouchableOpacity
+                      style={styles.chevronButton}
+                      onPress={() => setFiltersOpen((open) => !open)}
+                      activeOpacity={0.78}
+                    >
+                      <Ionicons
+                        name={filtersOpen ? "chevron-up" : "chevron-down"}
+                        size={18}
+                        color={Colors.text}
+                      />
+                    </TouchableOpacity>
                   </View>
+                </View>
 
-                  <TouchableOpacity
-                    style={[styles.loadButton, loadingLedger && styles.disabledButton]}
-                    onPress={() => void loadLedger()}
-                    disabled={loadingLedger}
-                  >
-                    {loadingLedger ? (
-                      <ActivityIndicator color="#FFF" />
-                    ) : (
-                      <>
-                        <Ionicons name="search-outline" size={18} color="#FFF" />
-                        <Text style={styles.loadButtonText}>Apply Filters</Text>
-                      </>
-                    )}
-                  </TouchableOpacity>
-                </>
-              ) : null}
-            </View>
-          </>
-        }
-        ListEmptyComponent={
-          loadingLedger ? (
-            <ScreenState title="Loading ledger" message="Fetching inventory movements..." loading />
-          ) : (
-            <ScreenState
-              title="No ledger movements"
-              message="Use filters and load ledger to view stock movement history."
-              icon="swap-horizontal-outline"
-            />
-          )
-        }
-        ListFooterComponent={<View style={{ height: 28 }} />}
+                {message ? <Text style={styles.messageText}>{message}</Text> : null}
+
+                {filtersOpen ? (
+                  <>
+                    <View style={styles.filterRow}>
+                      <SearchableSelectField
+                        variant="filter"
+                        label="Catalog Item"
+                        value={catalogItemId}
+                        options={catalogOptions}
+                        onSelect={setCatalogItemId}
+                        placeholder={loadingOptions ? "Loading catalog..." : "All Catalog Items"}
+                        searchPlaceholder="Search catalog item"
+                        emptyMessage="No catalog items found"
+                        disabled={loadingOptions}
+                      />
+                      <SearchableSelectField
+                        variant="filter"
+                        label="Batch"
+                        value={batchId}
+                        options={batchOptions}
+                        onSelect={setBatchId}
+                        placeholder={loadingOptions ? "Loading batches..." : "All Batches"}
+                        searchPlaceholder="Search batch"
+                        emptyMessage="No batches found"
+                        disabled={loadingOptions}
+                      />
+                      <SearchableSelectField
+                        variant="filter"
+                        label="Vendor"
+                        value={vendorId}
+                        options={vendorOptions}
+                        onSelect={setVendorId}
+                        placeholder={loadingOptions ? "Loading vendors..." : "All Vendors"}
+                        searchPlaceholder="Search vendor"
+                        emptyMessage="No vendors found"
+                        disabled={loadingOptions}
+                      />
+                    </View>
+
+                    <TouchableOpacity
+                      style={[styles.loadButton, loadingLedger && styles.disabledButton]}
+                      onPress={() => void loadLedger()}
+                      disabled={loadingLedger}
+                    >
+                      {loadingLedger ? (
+                        <ActivityIndicator color="#FFF" />
+                      ) : (
+                        <>
+                          <Ionicons name="search-outline" size={18} color="#FFF" />
+                          <Text style={styles.loadButtonText}>Apply Filters</Text>
+                        </>
+                      )}
+                    </TouchableOpacity>
+                  </>
+                ) : null}
+              </View>
+            </>
+          }
+          ListEmptyComponent={
+            loadingLedger ? (
+              <ScreenState title="Loading ledger" message="Fetching inventory movements..." loading />
+            ) : (
+              <ScreenState
+                title="No ledger movements"
+                message="Use filters and load ledger to view stock movement history."
+                icon="swap-horizontal-outline"
+              />
+            )
+          }
+          ListFooterComponent={<View style={{ height: 28 }} />}
+        />
+      </View>
+      <LedgerDetailModal
+        visible={!!selectedItem}
+        item={selectedItem}
+        onClose={() => setSelectedItem(null)}
       />
-    </View>
+    </>
   );
 
   if (isStandalone) {
@@ -399,6 +433,253 @@ export default function LedgerTab({ isStandalone = false }: LedgerTabProps) {
   return content;
 }
 
+interface LedgerDetailModalProps {
+  visible: boolean;
+  item: ApiInventoryLedgerEntry | null;
+  onClose: () => void;
+}
+
+function LedgerDetailModal({ visible, item, onClose }: LedgerDetailModalProps) {
+  if (!item) return null;
+
+  const tone = getMovementTone(item.movementType);
+  const quantityIn = Number(item.quantityIn ?? 0);
+  const quantityOut = Number(item.quantityOut ?? 0);
+  const netQuantity = quantityIn - quantityOut;
+
+  return (
+    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
+      <TouchableOpacity style={modalStyles.overlay} activeOpacity={1} onPress={onClose}>
+        <TouchableOpacity
+          style={modalStyles.sheet}
+          activeOpacity={1}
+          onPress={() => { }}
+        >
+          {/* Header */}
+          <View style={modalStyles.sheetHeader}>
+            <View style={modalStyles.sheetHandle} />
+            <View style={modalStyles.sheetTitleRow}>
+              <Text style={modalStyles.sheetTitle}>Movement Details</Text>
+              <TouchableOpacity style={modalStyles.closeBtn} onPress={onClose}>
+                <Ionicons name="close" size={18} color={Colors.textSecondary} />
+              </TouchableOpacity>
+            </View>
+          </View>
+
+          <ScrollView contentContainerStyle={modalStyles.sheetBody} showsVerticalScrollIndicator={false}>
+            {/* Item & Quantity Hero */}
+            <View style={modalStyles.heroSection}>
+              <View style={[modalStyles.heroIcon, { backgroundColor: tone.bg }]}>
+                <Ionicons name={tone.icon} size={22} color={tone.color} />
+              </View>
+              <Text style={modalStyles.heroItemName}>{item.catalogItemName || item.catalogItemId}</Text>
+              <Text style={[modalStyles.heroQuantity, { color: tone.color }]}>
+                {netQuantity > 0 ? "+" : ""}{formatQuantity(netQuantity)}
+              </Text>
+              <View style={[modalStyles.heroBadge, { backgroundColor: tone.bg }]}>
+                <Text style={[modalStyles.heroBadgeText, { color: tone.color }]}>{tone.label}</Text>
+              </View>
+            </View>
+
+            {/* Details Card */}
+            <View style={modalStyles.detailsCard}>
+              <DetailRow label="Date" value={formatDate(item.movementDate)} />
+              <View style={modalStyles.divider} />
+              <DetailRow label="Movement Type" value={labelize(item.movementType)} />
+              <View style={modalStyles.divider} />
+              <DetailRow label="Balance After" value={formatQuantity(item.balanceAfter)} />
+
+              {item.referenceType ? (
+                <>
+                  <View style={modalStyles.divider} />
+                  <DetailRow label="Reference Type" value={labelize(item.referenceType)} />
+                </>
+              ) : null}
+
+
+              {item.vendorName ? (
+                <>
+                  <View style={modalStyles.divider} />
+                  <DetailRow label="Vendor" value={item.vendorName} />
+                </>
+              ) : null}
+            </View>
+
+            {item.notes ? (
+              <View style={modalStyles.notesBox}>
+                <Text style={modalStyles.notesLabel}>Notes</Text>
+                <Text style={modalStyles.notesText}>{item.notes}</Text>
+              </View>
+            ) : null}
+          </ScrollView>
+        </TouchableOpacity>
+      </TouchableOpacity>
+    </Modal>
+  );
+}
+
+type DetailRowProps = {
+  label: string;
+  value: string;
+};
+
+function DetailRow({ label, value }: DetailRowProps) {
+  return (
+    <View style={modalStyles.detailRow}>
+      <Text style={modalStyles.detailLabel}>{label}</Text>
+      <Text style={modalStyles.detailValue} numberOfLines={2}>
+        {value}
+      </Text>
+    </View>
+  );
+}
+
+const modalStyles = StyleSheet.create({
+  overlay: {
+    flex: 1,
+    justifyContent: "flex-end",
+    backgroundColor: "rgba(0,0,0,0.45)",
+  },
+  sheet: {
+    backgroundColor: "#FFF",
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    maxHeight: "85%",
+    paddingBottom: 24,
+  },
+  sheetHeader: {
+    paddingTop: 8,
+    paddingHorizontal: 16,
+    paddingBottom: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: "#F0F0F0",
+  },
+  sheetHandle: {
+    width: 36,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: "#D1D5DB",
+    alignSelf: "center",
+    marginBottom: 12,
+  },
+  sheetTitleRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  sheetTitle: {
+    fontSize: 16,
+    fontWeight: "900",
+    color: Colors.text,
+  },
+  closeBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#F3F4F6",
+  },
+  sheetBody: {
+    paddingHorizontal: 16,
+    paddingTop: 16,
+    paddingBottom: 12,
+    gap: 16,
+  },
+  heroSection: {
+    alignItems: "center",
+    paddingVertical: 16,
+    backgroundColor: "#F8FAFC",
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "#E7ECF2",
+  },
+  heroIcon: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 10,
+  },
+  heroItemName: {
+    fontSize: 16,
+    fontWeight: "900",
+    color: Colors.text,
+    textAlign: "center",
+  },
+  heroQuantity: {
+    fontSize: 22,
+    fontWeight: "900",
+    marginTop: 6,
+  },
+  heroBadge: {
+    paddingHorizontal: 12,
+    paddingVertical: 4,
+    borderRadius: 6,
+    marginTop: 8,
+  },
+  heroBadgeText: {
+    fontSize: 10,
+    fontWeight: "900",
+  },
+  detailsCard: {
+    backgroundColor: "#FFF",
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "#E7ECF2",
+    overflow: "hidden",
+  },
+  detailRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    minHeight: 40,
+  },
+  detailLabel: {
+    fontSize: 11,
+    fontWeight: "800",
+    color: Colors.textSecondary,
+    textTransform: "uppercase",
+    flex: 1,
+  },
+  detailValue: {
+    fontSize: 12,
+    fontWeight: "800",
+    color: Colors.text,
+    textAlign: "right",
+    flex: 1.5,
+  },
+  divider: {
+    height: 1,
+    backgroundColor: "#F3F4F6",
+    marginHorizontal: 14,
+  },
+  notesBox: {
+    backgroundColor: "#F8FAFC",
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "#E7ECF2",
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+  },
+  notesLabel: {
+    fontSize: 11,
+    fontWeight: "800",
+    color: Colors.textSecondary,
+    textTransform: "uppercase",
+  },
+  notesText: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: "#4B5563",
+    lineHeight: 18,
+    marginTop: 6,
+  },
+});
+
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
@@ -423,6 +704,9 @@ const styles = StyleSheet.create({
   listContent: {
     padding: 14,
     paddingBottom: 56,
+  },
+  listContentEmbed: {
+    paddingBottom: 85,
   },
   listEmpty: {
     flexGrow: 1,
