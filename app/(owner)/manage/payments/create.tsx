@@ -28,15 +28,9 @@ import {
 } from "@/services/apiFeedback";
 import { getLocalDateValue } from "@/services/dateUtils";
 import {
-    API_PAYMENT_DIRECTION_VALUES,
-    API_PAYMENT_ENTRY_TYPE_VALUES,
     createFinancePayment,
-    listAllBatches,
     listAllTraders,
     listAllVendors,
-    type ApiBatch,
-    type ApiPaymentDirection,
-    type ApiPaymentEntryType,
     type ApiTrader,
     type ApiVendor,
 } from "@/services/managementApi";
@@ -48,31 +42,21 @@ const numberString = (label: string) =>
   );
 
 const paymentSchema = z.object({
-  batchId: z.string().optional(),
   vendorId: z.string().optional(),
   traderId: z.string().optional(),
   partyName: z.string().optional(),
-  paymentType: z.enum(API_PAYMENT_ENTRY_TYPE_VALUES),
-  direction: z.enum(API_PAYMENT_DIRECTION_VALUES),
   amount: numberString("Amount"),
   paymentDate: z.string().min(1, "Payment date is required"),
-    referenceType: z.string().optional(),
-  notes: z.string().optional(),
 });
 
 type PaymentFormData = z.infer<typeof paymentSchema>;
 
 const DEFAULTS: PaymentFormData = {
-  batchId: "",
   vendorId: "",
   traderId: "",
   partyName: "",
-  paymentType: "PURCHASE",
-  direction: "INBOUND",
   amount: "",
   paymentDate: getLocalDateValue(),
-    referenceType: "",
-  notes: "",
 };
 
 function toNumber(value: string) {
@@ -90,7 +74,6 @@ function labelize(value: string) {
 export default function CreatePaymentScreen() {
   const router = useRouter();
   const { accessToken } = useAuth();
-  const [batches, setBatches] = useState<ApiBatch[]>([]);
   const [vendors, setVendors] = useState<ApiVendor[]>([]);
   const [traders, setTraders] = useState<ApiTrader[]>([]);
   const [loading, setLoading] = useState(true);
@@ -120,23 +103,8 @@ export default function CreatePaymentScreen() {
     clearErrors(["vendorId", "traderId", "partyName"]);
   };
 
-  const batchId = watch("batchId");
   const vendorId = watch("vendorId");
   const traderId = watch("traderId");
-  const paymentType = watch("paymentType");
-  const direction = watch("direction");
-  const referenceType = watch("referenceType");
-
-  const batchOptions = useMemo<SearchableSelectOption[]>(
-    () =>
-      batches.map((batch) => ({
-        label: batch.code,
-        value: batch.id,
-        description: batch.farmName ?? undefined,
-        keywords: batch.status,
-      })),
-    [batches],
-  );
 
   const vendorOptions = useMemo<SearchableSelectOption[]>(
     () =>
@@ -160,45 +128,14 @@ export default function CreatePaymentScreen() {
     [traders],
   );
 
-  const paymentTypeOptions = useMemo<SearchableSelectOption[]>(
-    () =>
-      API_PAYMENT_ENTRY_TYPE_VALUES.map((type) => ({
-        label: labelize(type),
-        value: type,
-      })),
-    [],
-  );
-
-  const directionOptions = useMemo<SearchableSelectOption[]>(
-    () =>
-      API_PAYMENT_DIRECTION_VALUES.map((item) => ({
-        label: labelize(item),
-        value: item,
-      })),
-    [],
-  );
-
-  const referenceTypeOptions = useMemo<SearchableSelectOption[]>(
-    () => [
-      { label: "No Reference Type", value: "" },
-      ...API_PAYMENT_ENTRY_TYPE_VALUES.map((type) => ({
-        label: labelize(type),
-        value: type,
-      })),
-    ],
-    [],
-  );
-
   const loadOptions = useCallback(async () => {
     if (!accessToken) return;
     setLoading(true);
     try {
-      const [batchRes, vendorRes, traderRes] = await Promise.all([
-        listAllBatches(accessToken),
+      const [vendorRes, traderRes] = await Promise.all([
         listAllVendors(accessToken),
         listAllTraders(accessToken),
       ]);
-      setBatches(batchRes.data ?? []);
       setVendors(vendorRes.data ?? []);
       setTraders(traderRes.data ?? []);
     } catch (error) {
@@ -246,16 +183,11 @@ export default function CreatePaymentScreen() {
 
     try {
       await createFinancePayment(accessToken, {
-        batchId: data.batchId?.trim() || undefined,
         vendorId: data.vendorId?.trim() || undefined,
         traderId: data.traderId?.trim() || undefined,
         partyName: data.partyName?.trim() || undefined,
-        paymentType: data.paymentType as ApiPaymentEntryType,
-        direction: data.direction as ApiPaymentDirection,
         amount: toNumber(data.amount),
         paymentDate: data.paymentDate,
-          referenceType: data.referenceType?.trim() || undefined,
-        notes: data.notes?.trim() || undefined,
       });
 
       showSuccessToast("Payment created successfully.");
@@ -293,17 +225,6 @@ export default function CreatePaymentScreen() {
           ) : null}
 
           <View style={styles.formCard}>
-            <SearchableSelectField
-                          label="Batch"
-              value={batchId}
-              options={batchOptions}
-              onSelect={(value) => setValue("batchId", value, { shouldDirty: true, shouldValidate: true })}
-              placeholder="Select Batch"
-              searchPlaceholder="Search batch"
-              emptyMessage="No batches found"
-              error={errors.batchId?.message}
-            />
-
             {/* Party Type Selection */}
             <View style={styles.segmentedContainer}>
               <Text style={styles.label}>
@@ -384,29 +305,7 @@ export default function CreatePaymentScreen() {
               />
             )}
 
-            <SearchableSelectField
-              label="Payment Type"
-              value={paymentType}
-              options={paymentTypeOptions}
-              onSelect={(value) => setValue("paymentType", value as ApiPaymentEntryType, { shouldDirty: true, shouldValidate: true })}
-              placeholder="Select Payment Type"
-              searchPlaceholder="Search payment type"
-              emptyMessage="No payment types found"
-              error={errors.paymentType?.message}
-              required
-            />
 
-            <SearchableSelectField
-              label="Direction"
-              value={direction}
-              options={directionOptions}
-              onSelect={(value) => setValue("direction", value as ApiPaymentDirection, { shouldDirty: true, shouldValidate: true })}
-              placeholder="Select Direction"
-              searchPlaceholder="Search direction"
-              emptyMessage="No directions found"
-              error={errors.direction?.message}
-              required
-            />
 
             <ControlledInput
               control={control}
@@ -432,25 +331,9 @@ export default function CreatePaymentScreen() {
               )}
             />
 
-            <SearchableSelectField
-              label="Reference Type"
-              value={referenceType}
-              options={referenceTypeOptions}
-              onSelect={(value) => setValue("referenceType", value, { shouldDirty: true, shouldValidate: true })}
-              placeholder="Select Reference Type"
-              searchPlaceholder="Search reference type"
-              emptyMessage="No reference types found"
-              error={errors.referenceType?.message}
-            />
 
-            <ControlledInput
-              control={control}
-              name="notes"
-              label="Notes"
-              placeholder="Payment notes"
-              multiline
-              error={errors.notes?.message}
-            />
+
+
 
             <TouchableOpacity
               style={[styles.submitButton, saving && styles.submitButtonDisabled]}

@@ -747,17 +747,12 @@ export type CreateFinanceEntryRequest = {
 };
 
 export type CreateFinancePaymentRequest = {
-  batchId?: string;
   vendorId?: string;
   traderId?: string;
   partyName?: string;
-  paymentType: ApiPaymentEntryType;
-  direction: ApiPaymentDirection;
   amount: number;
   paymentDate: string;
-  referenceType?: ApiPaymentEntryType | string;
   referenceId?: string;
-  notes?: string;
 };
 
 export type AllocateInventoryRequest = {
