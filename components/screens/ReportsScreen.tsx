@@ -1,5 +1,5 @@
-import { MaterialCommunityIcons, Ionicons, FontAwesome5 } from "@expo/vector-icons";
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { FontAwesome5, Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   KeyboardAvoidingView,
@@ -8,21 +8,37 @@ import {
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   TouchableOpacity,
   View,
-  TextInput,
 } from "react-native";
 
-import { useAuth } from "@/context/AuthContext";
+import PartnerStatementsTab from "@/components/reportComponets/PartnerStatementsTab";
+import ProfitabilityTab from "@/components/reportComponets/ProfitabilityTab";
+import SettlementsTab from "@/components/reportComponets/SettlementsTab";
+import { DatePickerField } from "@/components/ui/DatePickerField";
 import { ScreenState } from "@/components/ui/ScreenState";
+import { SearchableSelectField } from "@/components/ui/SearchableSelectField";
 import { SurfaceCard } from "@/components/ui/SurfaceCard";
 import { TopAppBar } from "@/components/ui/TopAppBar";
-import { DatePickerField } from "@/components/ui/DatePickerField";
-import { SearchableSelectField } from "@/components/ui/SearchableSelectField";
+import { useAuth } from "@/context/AuthContext";
+import { getRequestErrorMessage, showRequestErrorToast, showSuccessToast } from "@/services/apiFeedback";
 import {
-  fetchBatchSummary,
+  listAllBatches,
+  listAllFarms,
+  listAllTraders,
+  listAllUsers,
+  listAllVendors,
+  type ApiBatch,
+  type ApiFarm,
+  type ApiTrader,
+  type ApiUser,
+  type ApiVendor,
+} from "@/services/managementApi";
+import {
   downloadBatchExcelReport,
   downloadBatchPdfReport,
+  fetchBatchSummary,
   fetchExpenseReport,
   fetchFarmSummary,
   fetchInventoryReport,
@@ -37,23 +53,7 @@ import {
   type ApiProfitabilityReportRow,
   type ApiSettlementReportRow,
 } from "@/services/reportApi";
-import {
-  listAllFarms,
-  listAllBatches,
-  listAllTraders,
-  listAllVendors,
-  listAllUsers,
-  type ApiBatch,
-  type ApiFarm,
-  type ApiTrader,
-  type ApiVendor,
-  type ApiUser,
-} from "@/services/managementApi";
-import { getRequestErrorMessage, showRequestErrorToast, showSuccessToast } from "@/services/apiFeedback";
 import { saveAndShareReport } from "@/services/reportExport";
-import SettlementsTab from "@/components/reportComponets/SettlementsTab";
-import ProfitabilityTab from "@/components/reportComponets/ProfitabilityTab";
-import PartnerStatementsTab from "@/components/reportComponets/PartnerStatementsTab";
 
 const THEME_GREEN = "#0B5C36";
 
@@ -65,7 +65,7 @@ export default function ReportsScreen() {
   const { accessToken } = useAuth();
   
   // Tab controller state
-  const [activeTab, setActiveTab] = useState<"overview" | "financials" | "stock" | "settlements" | "profitability" | "statements">("overview");
+  const [activeTab, setActiveTab] = useState<"overview" | "financials" | "stock" | "settlements" | "profitability" | "statements" | "Ledger">("overview");
 
   const [overview, setOverview] = useState<ApiOverviewReport | null>(null);
   const [expenses, setExpenses] = useState<ApiExpenseReportRow[]>([]);
