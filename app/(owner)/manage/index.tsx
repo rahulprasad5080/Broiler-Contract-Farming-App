@@ -88,7 +88,7 @@ const ENTRY_ITEMS: EntryItem[] = [
     icon: "cash-outline",
     iconType: "Ionicons",
     color: "#16A34A",
-    route: "/(owner)/manage/entries/create?type=OTHER_INCOME",
+    route: "/(owner)/manage/payments/create?type=receipt",
     requiredPermission: "view:financial-dashboard",
   },
   // {
