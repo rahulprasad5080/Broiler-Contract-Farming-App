@@ -13,6 +13,7 @@ import {
   View,
 } from "react-native";
 
+import LedgerTab from "@/components/reportComponets/LedgerTab";
 import PartnerStatementsTab from "@/components/reportComponets/PartnerStatementsTab";
 import ProfitabilityTab from "@/components/reportComponets/ProfitabilityTab";
 import SettlementsTab from "@/components/reportComponets/SettlementsTab";
@@ -508,15 +509,26 @@ export default function ReportsScreen() {
               <FontAwesome5 name="file-invoice-dollar" size={14} color={activeTab === "statements" ? "#FFF" : "#64748B"} />
               <Text style={[styles.tabBtnText, activeTab === "statements" && styles.activeTabBtnText]}>Statements</Text>
             </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[styles.tabBtn, activeTab === "Ledger" && styles.activeTabBtn]}
+              onPress={() => setActiveTab("Ledger")}
+            >
+              <Ionicons name="list-outline" size={16} color={activeTab === "Ledger" ? "#FFF" : "#64748B"} />
+              <Text style={[styles.tabBtnText, activeTab === "Ledger" && styles.activeTabBtnText]}>Ledger</Text>
+            </TouchableOpacity>
           </ScrollView>
 
-          <ScrollView
-            contentContainerStyle={styles.scrollContainer}
-            showsVerticalScrollIndicator={false}
-            refreshControl={
-              <RefreshControl refreshing={refreshing} onRefresh={() => void loadReports(true)} colors={[THEME_GREEN]} />
-            }
-          >
+          {activeTab === "Ledger" ? (
+            <LedgerTab isStandalone={false} />
+          ) : (
+            <ScrollView
+              contentContainerStyle={styles.scrollContainer}
+              showsVerticalScrollIndicator={false}
+              refreshControl={
+                <RefreshControl refreshing={refreshing} onRefresh={() => void loadReports(true)} colors={[THEME_GREEN]} />
+              }
+            >
             {error && (
               <ScreenState
                 title="Failed to sync report data"
@@ -1471,7 +1483,8 @@ export default function ReportsScreen() {
               />
             )}
 
-          </ScrollView>
+            </ScrollView>
+          )}
 
         </View>
       </KeyboardAvoidingView>
