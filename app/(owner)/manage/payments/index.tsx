@@ -341,7 +341,7 @@ export default function PaymentsScreen() {
 
       <TouchableOpacity
         style={styles.fab}
-        onPress={() => router.push({ pathname: "/(owner)/manage/payments/create" })}
+        onPress={() => router.push({ pathname: "/(owner)/manage/payments/create", params: { type: "payment" } })}
         activeOpacity={0.86}
         accessibilityRole="button"
         accessibilityLabel="Add payment"

@@ -1,17 +1,17 @@
 import { Ionicons } from "@expo/vector-icons";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useFocusEffect } from "@react-navigation/native";
-import { useRouter } from "expo-router";
+import { useLocalSearchParams, useRouter } from "expo-router";
 import { useCallback, useMemo, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 import {
-    ActivityIndicator,
-    Platform,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  Platform,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from "react-native";
 import { KeyboardAwareScrollView } from "react-native-keyboard-aware-scroll-view";
 import { z } from "zod";
@@ -23,16 +23,16 @@ import { TopAppBar } from "@/components/ui/TopAppBar";
 import { Colors } from "@/constants/Colors";
 import { useAuth } from "@/context/AuthContext";
 import {
-    showRequestErrorToast,
-    showSuccessToast,
+  showRequestErrorToast,
+  showSuccessToast,
 } from "@/services/apiFeedback";
 import { getLocalDateValue } from "@/services/dateUtils";
 import {
-    createFinancePayment,
-    listAllTraders,
-    listAllVendors,
-    type ApiTrader,
-    type ApiVendor,
+  createFinancePayment,
+  listAllTraders,
+  listAllVendors,
+  type ApiTrader,
+  type ApiVendor,
 } from "@/services/managementApi";
 
 const numberString = (label: string) =>
@@ -73,13 +73,14 @@ function labelize(value: string) {
 
 export default function CreatePaymentScreen() {
   const router = useRouter();
+  const { type } = useLocalSearchParams<{ type?: "payment" | "receipt" }>();
+  const partyType = type === "receipt" ? "trader" : "vendor";
   const { accessToken } = useAuth();
   const [vendors, setVendors] = useState<ApiVendor[]>([]);
   const [traders, setTraders] = useState<ApiTrader[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [savedMessage, setSavedMessage] = useState<string | null>(null);
-  const [partyType, setPartyType] = useState<'vendor' | 'trader'>('vendor');
 
   const {
     control,
@@ -94,14 +95,6 @@ export default function CreatePaymentScreen() {
     resolver: zodResolver(paymentSchema),
     defaultValues: DEFAULTS,
   });
-
-  const handlePartyTypeChange = (type: 'vendor' | 'trader') => {
-    setPartyType(type);
-    setValue("vendorId", "", { shouldDirty: true, shouldValidate: true });
-    setValue("traderId", "", { shouldDirty: true, shouldValidate: true });
-    setValue("partyName", "", { shouldDirty: true, shouldValidate: true });
-    clearErrors(["vendorId", "traderId", "partyName"]);
-  };
 
   const vendorId = watch("vendorId");
   const traderId = watch("traderId");
@@ -190,10 +183,10 @@ export default function CreatePaymentScreen() {
         paymentDate: data.paymentDate,
       });
 
-      showSuccessToast("Payment created successfully.");
-      setSavedMessage("Payment created successfully.");
+      showSuccessToast(type === "receipt" ? "Receipt created successfully." : "Payment created successfully.");
+      setSavedMessage(type === "receipt" ? "Receipt created successfully." : "Payment created successfully.");
       reset(DEFAULTS);
-      router.replace({ pathname: "/(owner)/manage/payments" });
+      router.replace({ pathname: type === "receipt" ? "/(owner)/manage/receipts" : "/(owner)/manage/payments" });
     } catch (error) {
       showRequestErrorToast(error, { title: "Payment save failed" });
     } finally {
@@ -204,8 +197,7 @@ export default function CreatePaymentScreen() {
   return (
     <View style={styles.safeArea}>
       <TopAppBar
-        title="Create Payment"
-        subtitle="POST /finance/payments"
+        title={type === "receipt" ? "Create Receipt" : "Create Payment"}
         leadingMode="back"
         onBack={() => router.back()}
       />
@@ -221,61 +213,11 @@ export default function CreatePaymentScreen() {
             <ScreenState title="Loading payment form" message="Fetching dropdown options..." loading compact style={styles.stateSpacing} />
           ) : null}
           {savedMessage ? (
-            <ScreenState title={savedMessage} message="Returning to payment list." compact style={styles.stateSpacing} />
+            <ScreenState title={savedMessage} message={type === "receipt" ? "Returning to receipt list." : "Returning to payment list."} compact style={styles.stateSpacing} />
           ) : null}
 
           <View style={styles.formCard}>
-            {/* Party Type Selection */}
-            <View style={styles.segmentedContainer}>
-              <Text style={styles.label}>
-                Party Type <Text style={styles.required}>*</Text>
-              </Text>
-              <View style={styles.segmentedControl}>
-                <TouchableOpacity
-                  style={[
-                    styles.segmentButton,
-                    partyType === "vendor" && styles.segmentButtonActive,
-                  ]}
-                  onPress={() => handlePartyTypeChange("vendor")}
-                >
-                  <Ionicons
-                    name="business-outline"
-                    size={16}
-                    color={partyType === "vendor" ? "#FFF" : "#4B5563"}
-                  />
-                  <Text
-                    style={[
-                      styles.segmentButtonText,
-                      partyType === "vendor" && styles.segmentButtonTextActive,
-                    ]}
-                  >
-                    Vendor
-                  </Text>
-                </TouchableOpacity>
 
-                <TouchableOpacity
-                  style={[
-                    styles.segmentButton,
-                    partyType === "trader" && styles.segmentButtonActive,
-                  ]}
-                  onPress={() => handlePartyTypeChange("trader")}
-                >
-                  <Ionicons
-                    name="people-outline"
-                    size={16}
-                    color={partyType === "trader" ? "#FFF" : "#4B5563"}
-                  />
-                  <Text
-                    style={[
-                      styles.segmentButtonText,
-                      partyType === "trader" && styles.segmentButtonTextActive,
-                    ]}
-                  >
-                    Trader
-                  </Text>
-                </TouchableOpacity>
-              </View>
-            </View>
 
             {partyType === "vendor" && (
               <SearchableSelectField

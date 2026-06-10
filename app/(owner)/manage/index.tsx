@@ -79,7 +79,7 @@ const ENTRY_ITEMS: EntryItem[] = [
     icon: "card-outline",
     iconType: "Ionicons",
     color: "#0D9488",
-    route: "/(owner)/manage/payments/create",
+    route: "/(owner)/manage/payments/create?type=payment",
     requiredPermission: "manage:settlements",
   },
   {
