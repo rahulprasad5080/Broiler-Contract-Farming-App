@@ -350,9 +350,7 @@ export default function PurchaseCreateUpdateScreen() {
               />
             ) : null}
 
-            <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>Purchase Details</Text>
-            </View>
+
 
             <SearchableSelectField
               label="Vendor"
