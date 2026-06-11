@@ -672,7 +672,7 @@ export default function BatchDetailsScreen() {
                   canUseExpenses
                     ? () =>
                       router.navigate(
-                        `/(owner)/manage/batches/expense-create?batchId=${encodeURIComponent(id)}&ledger=${activeExpenseTab === 'farmer' ? 'FARMER' : 'COMPANY'
+                        `/(owner)/manage/expenses/create?batchId=${encodeURIComponent(id)}&ledger=${activeExpenseTab === 'farmer' ? 'FARMER' : 'COMPANY'
                         }` as Href,
                       )
                     : undefined
