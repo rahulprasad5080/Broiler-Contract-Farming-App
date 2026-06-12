@@ -515,7 +515,7 @@ export default function ReportsScreen() {
               onPress={() => setActiveTab("Ledger")}
             >
               <Ionicons name="list-outline" size={16} color={activeTab === "Ledger" ? "#FFF" : "#64748B"} />
-              <Text style={[styles.tabBtnText, activeTab === "Ledger" && styles.activeTabBtnText]}>Ledger</Text>
+              <Text style={[styles.tabBtnText, activeTab === "Ledger" && styles.activeTabBtnText]}>Inventory Ledger</Text>
             </TouchableOpacity>
           </ScrollView>
 
