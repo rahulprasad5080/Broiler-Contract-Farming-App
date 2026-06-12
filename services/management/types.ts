@@ -367,10 +367,12 @@ export type ApiInventoryLedgerEntry = {
   catalogItemId: string;
   catalogItemName?: string | null;
   batchId?: string | null;
+  purchaseId?: string | null;
   movementType: ApiInventoryMovementType;
   movementDate: string;
   quantityIn?: number | null;
   quantityOut?: number | null;
+  unitCost?: number | null;
   balanceAfter?: number | null;
   referenceType?: string | null;
   referenceId?: string | null;
@@ -760,6 +762,7 @@ export type CreateFinancePaymentRequest = {
 export type AllocateInventoryRequest = {
   batchId: string;
   catalogItemId: string;
+  purchaseId: string;
   quantity: number;
   remarks?: string;
 };

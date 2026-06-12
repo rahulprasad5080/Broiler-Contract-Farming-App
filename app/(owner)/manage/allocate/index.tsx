@@ -11,6 +11,8 @@ import {
   allocateInventory,
   listAllBatches,
   listCatalogItems,
+  listFinancePurchases,
+  listInventoryLedger,
   type ApiBatch,
   type ApiCatalogItem,
 } from "@/services/managementApi";
@@ -18,7 +20,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect } from "@react-navigation/native";
 import { useRouter } from "expo-router";
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 import {
   ActivityIndicator,
@@ -33,11 +35,12 @@ import { KeyboardAwareScrollView } from "react-native-keyboard-aware-scroll-view
 import { z } from "zod";
 
 const allocationSchema = z.object({
-  batchId: z.string().min(1, "Batch is required"),
-  catalogItemId: z.string().min(1, "Catalog item is required"),
-  quantity: z.string().min(1, "Quantity is required").refine(
+  batchId: z.string().min(1, "Please select a batch"),
+  catalogItemId: z.string().min(1, "Please select an item"),
+  purchaseId: z.string().min(1, "Please select a purchase"),
+  quantity: z.string().min(1, "Quantity must be greater than 0").refine(
     (value) => !Number.isNaN(Number(value)) && Number(value) > 0,
-    "Enter a valid quantity",
+    "Quantity must be greater than 0",
   ),
   remarks: z.string().optional(),
 });
@@ -47,18 +50,33 @@ type AllocationFormData = z.infer<typeof allocationSchema>;
 const DEFAULTS: AllocationFormData = {
   batchId: "",
   catalogItemId: "",
+  purchaseId: "",
   quantity: "",
   remarks: "",
 };
+
+function formatDate(value?: string | null) {
+  if (!value) return "";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  return date.toLocaleDateString("en-IN", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+  });
+}
 
 export default function AllocateInventoryScreen() {
   const router = useRouter();
   const { accessToken } = useAuth();
   const [batches, setBatches] = useState<ApiBatch[]>([]);
   const [catalogItems, setCatalogItems] = useState<ApiCatalogItem[]>([]);
+  const [purchaseLots, setPurchaseLots] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
+  const [loadingLots, setLoadingLots] = useState(false);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
 
   const {
     control,
@@ -66,6 +84,8 @@ export default function AllocateInventoryScreen() {
     setValue,
     watch,
     reset,
+    setError,
+    clearErrors,
     formState: { errors },
   } = useForm<AllocationFormData>({
     resolver: zodResolver(allocationSchema),
@@ -74,7 +94,12 @@ export default function AllocateInventoryScreen() {
 
   const batchId = watch("batchId");
   const catalogItemId = watch("catalogItemId");
+  const purchaseId = watch("purchaseId");
+  const quantity = watch("quantity");
+
   const selectedItem = catalogItems.find((item) => item.id === catalogItemId);
+  const selectedPurchaseLot = purchaseLots.find((lot) => lot.id === purchaseId);
+  const enteredQuantity = Number(quantity || 0);
 
   const batchOptions = useMemo(
     () =>
@@ -100,6 +125,25 @@ export default function AllocateInventoryScreen() {
       }),
     [catalogItems],
   );
+
+  const purchaseOptions = useMemo(() => {
+    return purchaseLots.map((lot) => {
+      const formattedDate = formatDate(lot.purchaseDate);
+      const label = [
+        formattedDate,
+        lot.vendorName || "Unknown Vendor",
+        `${lot.availableQty} ${lot.unit}`,
+        `Rs ${lot.unitCost}/${lot.unit}`,
+      ].filter(Boolean).join(" | ");
+
+      return {
+        label,
+        value: lot.id,
+        description: `Purchased: ${lot.quantity} ${lot.unit} | Unit Cost: Rs ${lot.unitCost}/${lot.unit}`,
+        keywords: `${lot.vendorName ?? ""} ${lot.invoiceNumber ?? ""} ${lot.id}`,
+      };
+    });
+  }, [purchaseLots]);
 
   const loadData = useCallback(async () => {
     if (!accessToken) return;
@@ -131,6 +175,99 @@ export default function AllocateInventoryScreen() {
     }, [loadData]),
   );
 
+  // Fetch purchase lots and ledger whenever catalog item selection changes (or refresh trigger fires)
+  useEffect(() => {
+    if (!accessToken || !catalogItemId) {
+      setPurchaseLots([]);
+      return;
+    }
+
+    let isMounted = true;
+    const fetchLots = async () => {
+      setLoadingLots(true);
+      try {
+        const [purchasesRes, ledgerRes] = await Promise.all([
+          listFinancePurchases(accessToken, { catalogItemId, page: 1, limit: 50 }),
+          listInventoryLedger(accessToken, { catalogItemId }),
+        ]);
+
+        if (!isMounted) return;
+
+        const purchases = purchasesRes.data ?? [];
+        const ledger = ledgerRes.data ?? [];
+
+        // Group ledger by purchaseId
+        const ledgerGroup: Record<string, { quantityIn: number; quantityOut: number }> = {};
+        ledger.forEach((entry) => {
+          if (entry.purchaseId) {
+            if (!ledgerGroup[entry.purchaseId]) {
+              ledgerGroup[entry.purchaseId] = { quantityIn: 0, quantityOut: 0 };
+            }
+            ledgerGroup[entry.purchaseId].quantityIn += Number(entry.quantityIn ?? 0);
+            ledgerGroup[entry.purchaseId].quantityOut += Number(entry.quantityOut ?? 0);
+          }
+        });
+
+        // Compute available quantity per purchase
+        const lots = purchases
+          .map((purchase) => {
+            const ledgerData = ledgerGroup[purchase.id];
+            const quantityIn = ledgerData ? ledgerData.quantityIn : (purchase.quantity ?? 0);
+            const quantityOut = ledgerData ? ledgerData.quantityOut : 0;
+            const availableQty = quantityIn - quantityOut;
+            const unit = purchase.unit || selectedItem?.unit || "kg";
+            return {
+              id: purchase.id,
+              purchaseId: purchase.id,
+              invoiceNumber: purchase.invoiceNumber,
+              vendorName: purchase.vendorName,
+              purchaseDate: purchase.purchaseDate,
+              unit,
+              unitCost: purchase.unitCost ?? 0,
+              quantity: purchase.quantity ?? 0,
+              availableQty,
+            };
+          })
+          .filter((lot) => lot.availableQty > 0);
+
+        setPurchaseLots(lots);
+      } catch (error) {
+        showRequestErrorToast(error, {
+          title: "Failed to load purchase lots",
+          fallbackMessage: "Could not fetch purchase lots and ledger.",
+        });
+      } finally {
+        if (isMounted) {
+          setLoadingLots(false);
+        }
+      }
+    };
+
+    void fetchLots();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [accessToken, catalogItemId, selectedItem?.unit, refreshTrigger]);
+
+  // Real-time error message when quantity exceeds available stock
+  useEffect(() => {
+    if (selectedPurchaseLot && enteredQuantity > selectedPurchaseLot.availableQty) {
+      setError("quantity", {
+        type: "manual",
+        message: `Only ${selectedPurchaseLot.availableQty} ${selectedPurchaseLot.unit} is available in the selected purchase`,
+      });
+    } else {
+      clearErrors("quantity");
+    }
+  }, [enteredQuantity, selectedPurchaseLot, setError, clearErrors]);
+
+  const isQuantityExceeded = useMemo(() => {
+    if (!selectedPurchaseLot || !quantity) return false;
+    const qty = Number(quantity);
+    return !Number.isNaN(qty) && qty > selectedPurchaseLot.availableQty;
+  }, [quantity, selectedPurchaseLot]);
+
   const onSubmit = async (data: AllocationFormData) => {
     if (!accessToken || saving) return;
     setSaving(true);
@@ -140,12 +277,17 @@ export default function AllocateInventoryScreen() {
       await allocateInventory(accessToken, {
         batchId: data.batchId,
         catalogItemId: data.catalogItemId,
+        purchaseId: data.purchaseId,
         quantity: Number(data.quantity),
         remarks: data.remarks?.trim() || undefined,
       });
       showSuccessToast("Inventory allocated successfully.", "Saved");
       setMessage("Inventory allocated successfully.");
-      reset(DEFAULTS);
+      
+      setValue("quantity", "");
+      setValue("purchaseId", "");
+      
+      setRefreshTrigger((prev) => prev + 1);
     } catch (error) {
       setMessage(
         showRequestErrorToast(error, {
@@ -175,157 +317,190 @@ export default function AllocateInventoryScreen() {
         enableOnAndroid={true}
         extraScrollHeight={Platform.OS === 'ios' ? 20 : 100}
       >
-          <View style={styles.summaryCard}>
-            <View style={styles.summaryIcon}>
-              <Ionicons name="swap-horizontal-outline" size={24} color={Colors.primary} />
-            </View>
-            <View style={styles.summaryTextBlock}>
-              <Text style={styles.summaryTitle}>Allocate stock</Text>
-              <Text style={styles.summarySubtitle}>
-                Select a batch, choose an item, and enter quantity to post inventory allocation.
-              </Text>
-            </View>
+        <View style={styles.summaryCard}>
+          <View style={styles.summaryIcon}>
+            <Ionicons name="swap-horizontal-outline" size={24} color={Colors.primary} />
           </View>
+          <View style={styles.summaryTextBlock}>
+            <Text style={styles.summaryTitle}>Allocate stock</Text>
+            <Text style={styles.summarySubtitle}>
+              Select a batch, choose an item, and enter quantity to post inventory allocation.
+            </Text>
+          </View>
+        </View>
 
-          {loading ? (
-            <ScreenState
-              title="Loading allocation data"
-              message="Fetching batches and catalog items."
-              loading
-              compact
-              style={styles.stateSpacing}
+        {loading ? (
+          <ScreenState
+            title="Loading allocation data"
+            message="Fetching batches and catalog items."
+            loading
+            compact
+            style={styles.stateSpacing}
+          />
+        ) : null}
+
+        {message ? <Text style={styles.messageText}>{message}</Text> : null}
+
+        <View style={styles.formCard}>
+          <SearchableSelectField
+            label="Batch"
+            value={batchId}
+            options={batchOptions}
+            onSelect={(value) =>
+              setValue("batchId", value, {
+                shouldDirty: true,
+                shouldValidate: true,
+              })
+            }
+            placeholder={loading ? "Loading batches..." : "Select Batch"}
+            searchPlaceholder="Search batch"
+            emptyMessage="No batches found"
+            error={errors.batchId?.message}
+            disabled={loading}
+          />
+
+          <SearchableSelectField
+            label="Catalog Item"
+            value={catalogItemId}
+            options={catalogOptions}
+            onSelect={(value) => {
+              setValue("catalogItemId", value, {
+                shouldDirty: true,
+                shouldValidate: true,
+              });
+              setValue("purchaseId", "", {
+                shouldDirty: true,
+                shouldValidate: true,
+              });
+              setValue("quantity", "", {
+                shouldDirty: true,
+                shouldValidate: true,
+              });
+            }}
+            placeholder={loading ? "Loading catalog..." : "Select Catalog Item"}
+            searchPlaceholder="Search catalog item"
+            emptyMessage="No catalog items found"
+            error={errors.catalogItemId?.message}
+            disabled={loading}
+          />
+
+          {catalogItemId ? (
+            <SearchableSelectField
+              label="Purchase Lot"
+              value={purchaseId}
+              options={purchaseOptions}
+              onSelect={(value) =>
+                setValue("purchaseId", value, {
+                  shouldDirty: true,
+                  shouldValidate: true,
+                })
+              }
+              placeholder={loadingLots ? "Loading purchase lots..." : "Select Purchase Lot"}
+              searchPlaceholder="Search vendor or invoice"
+              emptyMessage="No available purchase lots found for this item"
+              error={errors.purchaseId?.message}
+              disabled={loading || loadingLots}
             />
           ) : null}
 
-          {message ? <Text style={styles.messageText}>{message}</Text> : null}
-
-          <View style={styles.formCard}>
-            <SearchableSelectField
-              label="Batch"
-              value={batchId}
-              options={batchOptions}
-              onSelect={(value) =>
-                setValue("batchId", value, {
-                  shouldDirty: true,
-                  shouldValidate: true,
-                })
-              }
-              placeholder={loading ? "Loading batches..." : "Select Batch"}
-              searchPlaceholder="Search batch"
-              emptyMessage="No batches found"
-              error={errors.batchId?.message}
-              disabled={loading}
-            />
-
-            <SearchableSelectField
-              label="Catalog Item"
-              value={catalogItemId}
-              options={catalogOptions}
-              onSelect={(value) =>
-                setValue("catalogItemId", value, {
-                  shouldDirty: true,
-                  shouldValidate: true,
-                })
-              }
-              placeholder={loading ? "Loading catalog..." : "Select Catalog Item"}
-              searchPlaceholder="Search catalog item"
-              emptyMessage="No catalog items found"
-              error={errors.catalogItemId?.message}
-              disabled={loading}
-            />
-
-            {selectedItem ? (
-              <View style={styles.stockInfoCard}>
-                <View style={styles.stockInfoRow}>
-                  <Ionicons name="cube-outline" size={16} color={Colors.primary} />
-                  <Text style={styles.stockInfoLabel}>Current Stock</Text>
-                </View>
-                <View style={styles.stockValueRow}>
-                  <Text
-                    style={[
-                      styles.stockValue,
-                      {
-                        color:
-                          selectedItem.reorderLevel != null &&
-                          (selectedItem.currentStock ?? 0) <= selectedItem.reorderLevel
-                            ? Colors.error
-                            : Colors.primary,
-                      },
-                    ]}
-                  >
-                    {selectedItem.currentStock ?? 0}
-                  </Text>
-                  <Text style={styles.stockUnit}>{selectedItem.unit}</Text>
-                  {selectedItem.reorderLevel != null &&
-                  (selectedItem.currentStock ?? 0) <= selectedItem.reorderLevel ? (
-                    <View style={styles.lowStockBadge}>
-                      <Ionicons name="warning-outline" size={12} color="#FFF" />
-                      <Text style={styles.lowStockText}>Low Stock</Text>
-                    </View>
-                  ) : null}
-                </View>
+          {selectedPurchaseLot ? (
+            <View style={styles.purchaseInfoCard}>
+              <View style={styles.purchaseInfoRow}>
+                <Ionicons name="receipt-outline" size={16} color={Colors.primary} />
+                <Text style={styles.purchaseInfoLabel}>Selected Purchase Lot</Text>
               </View>
-            ) : null}
-
-            <View style={styles.inputGroup}>
-              <Text style={styles.label}>Quantity</Text>
-              <Controller
-                control={control}
-                name="quantity"
-                render={({ field: { value, onChange } }) => (
-                  <View style={[styles.inputContainer, errors.quantity && styles.inputError]}>
-                    <TextInput
-                      style={styles.inputWithSuffix}
-                      value={value}
-                      onChangeText={onChange}
-                      keyboardType="numeric"
-                      placeholder="0"
-                      placeholderTextColor="#9CA3AF"
-                    />
-                    <Text style={styles.suffix}>{selectedItem?.unit || "unit"}</Text>
-                  </View>
-                )}
-              />
-              {errors.quantity?.message ? (
-                <Text style={styles.errorText}>{errors.quantity.message}</Text>
-              ) : null}
+              <View style={styles.purchaseDetails}>
+                <Text style={styles.purchaseDetailText}>
+                  <Text style={styles.boldText}>Purchase: </Text>
+                  {selectedPurchaseLot.invoiceNumber ? `${selectedPurchaseLot.invoiceNumber} | ` : ""}
+                  {selectedPurchaseLot.vendorName || "Unknown Vendor"}
+                </Text>
+                <Text style={styles.purchaseDetailText}>
+                  <Text style={styles.boldText}>Purchased: </Text>
+                  {selectedPurchaseLot.quantity} {selectedPurchaseLot.unit}
+                </Text>
+                <Text style={styles.purchaseDetailText}>
+                  <Text style={styles.boldText}>Available: </Text>
+                  {selectedPurchaseLot.availableQty} {selectedPurchaseLot.unit}
+                </Text>
+                <Text style={styles.purchaseDetailText}>
+                  <Text style={styles.boldText}>Unit Cost: </Text>
+                  Rs {selectedPurchaseLot.unitCost}/{selectedPurchaseLot.unit}
+                </Text>
+                {enteredQuantity > 0 ? (
+                  <Text style={styles.purchaseDetailText}>
+                    <Text style={styles.boldText}>Estimated Expense: </Text>
+                    Rs {(enteredQuantity * selectedPurchaseLot.unitCost).toLocaleString("en-IN")}
+                  </Text>
+                ) : null}
+              </View>
             </View>
+          ) : null}
 
-            <View style={styles.inputGroup}>
-              <Text style={styles.label}>Remarks</Text>
-              <Controller
-                control={control}
-                name="remarks"
-                render={({ field: { value, onChange } }) => (
+          <View style={styles.inputGroup}>
+            <Text style={styles.label}>Quantity</Text>
+            <Controller
+              control={control}
+              name="quantity"
+              render={({ field: { value, onChange } }) => (
+                <View style={[
+                  styles.inputContainer,
+                  errors.quantity && styles.inputError,
+                  !purchaseId && styles.disabledInputContainer
+                ]}>
                   <TextInput
-                    style={[styles.input, styles.textArea]}
+                    style={styles.inputWithSuffix}
                     value={value}
                     onChangeText={onChange}
-                    placeholder="Optional remarks"
+                    keyboardType="numeric"
+                    placeholder="0"
                     placeholderTextColor="#9CA3AF"
-                    multiline
-                    scrollEnabled={false}
+                    editable={!!purchaseId}
                   />
-                )}
-              />
-            </View>
-
-            <TouchableOpacity
-              style={[styles.submitButton, saving && styles.disabledButton]}
-              onPress={handleSubmit(onSubmit)}
-              disabled={saving || loading}
-              activeOpacity={0.82}
-            >
-              {saving ? (
-                <ActivityIndicator color="#FFF" />
-              ) : (
-                <>
-                  <Ionicons name="checkmark-circle-outline" size={19} color="#FFF" />
-                  <Text style={styles.submitButtonText}>Allocate Inventory</Text>
-                </>
+                  <Text style={styles.suffix}>{selectedItem?.unit || "unit"}</Text>
+                </View>
               )}
-            </TouchableOpacity>
+            />
+            {errors.quantity?.message ? (
+              <Text style={styles.errorText}>{errors.quantity.message}</Text>
+            ) : null}
           </View>
+
+          <View style={styles.inputGroup}>
+            <Text style={styles.label}>Remarks</Text>
+            <Controller
+              control={control}
+              name="remarks"
+              render={({ field: { value, onChange } }) => (
+                <TextInput
+                  style={[styles.input, styles.textArea]}
+                  value={value}
+                  onChangeText={onChange}
+                  placeholder="Optional remarks"
+                  placeholderTextColor="#9CA3AF"
+                  multiline
+                  scrollEnabled={false}
+                />
+              )}
+            />
+          </View>
+
+          <TouchableOpacity
+            style={[styles.submitButton, (saving || loading || isQuantityExceeded) && styles.disabledButton]}
+            onPress={handleSubmit(onSubmit)}
+            disabled={saving || loading || isQuantityExceeded}
+            activeOpacity={0.82}
+          >
+            {saving ? (
+              <ActivityIndicator color="#FFF" />
+            ) : (
+              <>
+                <Ionicons name="checkmark-circle-outline" size={19} color="#FFF" />
+                <Text style={styles.submitButtonText}>Allocate Inventory</Text>
+              </>
+            )}
+          </TouchableOpacity>
+        </View>
       </KeyboardAwareScrollView>
     </View>
   );
@@ -484,52 +659,40 @@ const styles = StyleSheet.create({
   disabledButton: {
     opacity: 0.7,
   },
-  stockInfoCard: {
-    backgroundColor: "#F0FBF5",
+  disabledInputContainer: {
+    backgroundColor: "#F3F4F6",
+    borderColor: "#E5E7EB",
+  },
+  purchaseInfoCard: {
+    backgroundColor: "#F0FDF4",
     borderRadius: 10,
     borderWidth: 1,
-    borderColor: "#CDEBDD",
+    borderColor: "#DCFCE7",
     padding: 12,
     gap: 8,
   },
-  stockInfoRow: {
+  purchaseInfoRow: {
     flexDirection: "row",
     alignItems: "center",
     gap: 6,
   },
-  stockInfoLabel: {
+  purchaseInfoLabel: {
     fontSize: 12,
     fontWeight: "800",
-    color: Colors.textSecondary,
+    color: Colors.primary,
     letterSpacing: 0.3,
     textTransform: "uppercase",
   },
-  stockValueRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
+  purchaseDetails: {
+    gap: 4,
   },
-  stockValue: {
-    fontSize: 22,
-    fontWeight: "900",
-  },
-  stockUnit: {
+  purchaseDetailText: {
     fontSize: 13,
+    color: Colors.text,
+    fontWeight: "600",
+  },
+  boldText: {
     fontWeight: "800",
     color: Colors.textSecondary,
-  },
-  lowStockBadge: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-    backgroundColor: Colors.error,
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 8,
-  },
-  lowStockText: {
-    fontSize: 10,
-    fontWeight: "900",
-    color: "#FFF",
   },
 });

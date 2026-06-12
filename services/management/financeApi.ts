@@ -14,7 +14,7 @@ import type {
 
 export async function listFinancePurchases(
   token: string,
-  params: ListParams & { vendorId?: string } = {},
+  params: ListParams & { vendorId?: string; catalogItemId?: string } = {},
 ) {
   return apiRequest<ListResponse<ApiFinancePurchase>>("/finance/purchases", {
     method: "GET",

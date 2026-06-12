@@ -503,6 +503,20 @@ function LedgerDetailModal({ visible, item, onClose }: LedgerDetailModalProps) {
                   <DetailRow label="Vendor" value={item.vendorName} />
                 </>
               ) : null}
+
+              {item.purchaseId ? (
+                <>
+                  <View style={modalStyles.divider} />
+                  <DetailRow label="Purchase" value={item.purchaseId} />
+                </>
+              ) : null}
+
+              {item.unitCost != null ? (
+                <>
+                  <View style={modalStyles.divider} />
+                  <DetailRow label="Unit Cost" value={`Rs ${item.unitCost}`} />
+                </>
+              ) : null}
             </View>
 
             {item.notes ? (
