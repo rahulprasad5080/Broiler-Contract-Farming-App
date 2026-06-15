@@ -209,7 +209,7 @@ export default function PurchaseCreateUpdateScreen() {
       totalAmount: String(toNumber(params.quantity ?? "0") * toNumber(params.unitCost ?? "0")),
       invoiceNumber: params.invoiceNumber ?? "",
       paymentStatus: (params.paymentStatus || "PENDING") as ApiTransactionPaymentStatus,
-      purchaseDate: params.purchaseDate ?? getLocalDateValue(),
+      purchaseDate: params.purchaseDate ? params.purchaseDate.split("T")[0] : getLocalDateValue(),
       remarks: params.remarks ?? "",
     });
   }, [
