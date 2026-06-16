@@ -3,7 +3,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useFocusEffect } from "@react-navigation/native";
 import { useRouter } from "expo-router";
 import React, { useCallback, useMemo, useState } from "react";
-import { Controller, useFieldArray, useForm } from "react-hook-form";
+import { Controller, useFieldArray, useForm, useWatch } from "react-hook-form";
 import {
   ActivityIndicator,
   Platform,
@@ -130,7 +130,10 @@ export default function PurchaseCreateScreen() {
 
   const selectedVendorId = watch("vendorId");
   const selectedWarehouseId = watch("warehouseId");
-  const itemsWatch = watch("items");
+  const itemsWatch = useWatch({
+    control,
+    name: "items",
+  });
 
   const grandTotal = useMemo(
     () =>
@@ -419,10 +422,22 @@ function ItemRow({
   canRemove,
   onRemove,
 }: ItemRowProps) {
-  const purchaseType = watch(`items.${index}.purchaseType`);
-  const catalogItemId = watch(`items.${index}.catalogItemId`);
-  const quantity = watch(`items.${index}.quantity`);
-  const unitCost = watch(`items.${index}.unitCost`);
+  const purchaseType = useWatch({
+    control,
+    name: `items.${index}.purchaseType`,
+  });
+  const catalogItemId = useWatch({
+    control,
+    name: `items.${index}.catalogItemId`,
+  });
+  const quantity = useWatch({
+    control,
+    name: `items.${index}.quantity`,
+  });
+  const unitCost = useWatch({
+    control,
+    name: `items.${index}.unitCost`,
+  });
 
   const lineTotal = useMemo(
     () => {
