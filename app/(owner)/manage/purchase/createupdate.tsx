@@ -6,6 +6,8 @@ import React, { useCallback, useMemo, useState } from "react";
 import { Controller, useFieldArray, useForm, useWatch } from "react-hook-form";
 import {
   ActivityIndicator,
+  Keyboard,
+  Modal,
   Platform,
   ScrollView,
   StyleSheet,
@@ -16,9 +18,11 @@ import {
 } from "react-native";
 import { KeyboardAwareScrollView } from "react-native-keyboard-aware-scroll-view";
 import { z } from "zod";
+import DateTimePicker from "@react-native-community/datetimepicker";
 
 import { DatePickerField } from "@/components/ui/DatePickerField";
 import { ScreenState } from "@/components/ui/ScreenState";
+import { SearchBottomSheet } from "@/components/ui/SearchBottomSheet";
 import { SearchableSelectField, type SearchableSelectOption } from "@/components/ui/SearchableSelectField";
 import { TopAppBar } from "@/components/ui/TopAppBar";
 import { Colors } from "@/constants/Colors";
@@ -100,6 +104,285 @@ function labelize(value: string) {
     .replace(/\b\w/g, (char) => char.toUpperCase());
 }
 
+function getPurchaseTypeColors(type: string) {
+  const upper = (type || "").toUpperCase();
+  if (upper.includes("FEED")) {
+    return { bg: "#E7F5ED", text: "#0B5C36" };
+  }
+  if (upper.includes("MEDICINE")) {
+    return { bg: "#EFF6FF", text: "#1D4ED8" };
+  }
+  if (upper.includes("VACCINE")) {
+    return { bg: "#F3E8FF", text: "#6B21A8" };
+  }
+  return { bg: "#FFEDD5", text: "#C2410C" }; // Others
+}
+
+function RowSelectField({
+  icon,
+  label,
+  value,
+  options,
+  onSelect,
+  placeholder = "Select",
+  searchPlaceholder = "Search...",
+  emptyMessage = "No options found",
+  error,
+  required = false,
+  isLast = false,
+}: {
+  icon: string;
+  label: string;
+  value?: string;
+  options: SearchableSelectOption[];
+  onSelect: (value: string) => void;
+  placeholder?: string;
+  searchPlaceholder?: string;
+  emptyMessage?: string;
+  error?: string;
+  required?: boolean;
+  isLast?: boolean;
+}) {
+  const [open, setOpen] = useState(false);
+  const [sheetKey, setSheetKey] = useState(0);
+
+  const selectedOption = options.find((opt) => opt.value === value);
+
+  const sheetData = useMemo(
+    () =>
+      options.map((opt) => ({
+        label: opt.label,
+        value: opt.value,
+        description: opt.description,
+      })),
+    [options]
+  );
+
+  return (
+    <View style={[styles.rowWrapper, isLast && { borderBottomWidth: 0 }]}>
+      <View style={styles.rowInner}>
+        <View style={styles.rowLeft}>
+          <Ionicons name={icon as any} size={18} color="#0B5C36" style={styles.rowIcon} />
+          <Text style={styles.rowLabel}>
+            {label}
+            {required && <Text style={styles.required}> *</Text>}
+          </Text>
+        </View>
+        <TouchableOpacity
+          activeOpacity={0.7}
+          onPress={() => {
+            Keyboard.dismiss();
+            setSheetKey((key) => key + 1);
+            setOpen(true);
+          }}
+          style={styles.rowRightSelect}
+        >
+          <Text
+            style={[
+              styles.rowValueText,
+              !selectedOption && styles.rowPlaceholderText,
+            ]}
+            numberOfLines={1}
+          >
+            {selectedOption?.label || placeholder}
+          </Text>
+          <Ionicons name="chevron-down" size={16} color="#6B7280" style={{ marginLeft: 4 }} />
+        </TouchableOpacity>
+      </View>
+      {open && (
+        <SearchBottomSheet
+          key={sheetKey}
+          visible={open}
+          title={label}
+          data={sheetData}
+          selectedValue={value || undefined}
+          placeholder={searchPlaceholder}
+          emptyMessage={emptyMessage}
+          onClose={() => setOpen(false)}
+          onSelect={(val) => {
+            onSelect(val);
+            setOpen(false);
+          }}
+        />
+      )}
+      {error ? <Text style={styles.rowErrorText}>{error}</Text> : null}
+    </View>
+  );
+}
+
+function RowInputField({
+  icon,
+  label,
+  control,
+  name,
+  placeholder,
+  error,
+  required = false,
+  keyboardType = "default",
+  multiline = false,
+  isLast = false,
+}: {
+  icon: string;
+  label: string;
+  control: any;
+  name: string;
+  placeholder?: string;
+  error?: string;
+  required?: boolean;
+  keyboardType?: any;
+  multiline?: boolean;
+  isLast?: boolean;
+}) {
+  return (
+    <View style={[styles.rowWrapper, isLast && { borderBottomWidth: 0 }]}>
+      <View style={[styles.rowInner, multiline && { alignItems: 'flex-start' }]}>
+        <View style={[styles.rowLeft, multiline && { marginTop: 12 }]}>
+          <Ionicons name={icon as any} size={18} color="#0B5C36" style={styles.rowIcon} />
+          <Text style={styles.rowLabel}>
+            {label}
+            {required && <Text style={styles.required}> *</Text>}
+          </Text>
+        </View>
+        <View style={styles.rowRightInputContainer}>
+          <Controller
+            control={control}
+            name={name}
+            render={({ field: { value, onChange } }) => (
+              <TextInput
+                style={[
+                  styles.rowTextInput,
+                  multiline && styles.rowTextInputMultiline,
+                ]}
+                value={String(value ?? "")}
+                onChangeText={onChange}
+                placeholder={placeholder}
+                placeholderTextColor="#9CA3AF"
+                keyboardType={keyboardType}
+                autoCapitalize="sentences"
+                multiline={multiline}
+                scrollEnabled={multiline ? false : undefined}
+              />
+            )}
+          />
+        </View>
+      </View>
+      {error ? <Text style={styles.rowErrorText}>{error}</Text> : null}
+    </View>
+  );
+}
+
+function RowDatePickerField({
+  icon,
+  label,
+  value,
+  onChange,
+  error,
+  required = false,
+  placeholder = "Select date",
+  disableFuture = false,
+  isLast = false,
+}: {
+  icon: string;
+  label: string;
+  value?: string;
+  onChange: (value: string) => void;
+  error?: string;
+  required?: boolean;
+  placeholder?: string;
+  disableFuture?: boolean;
+  isLast?: boolean;
+}) {
+  const [show, setShow] = useState(false);
+
+  const dateValue = useMemo(() => {
+    if (!value) return new Date();
+    const [year, month, day] = value.split('-').map(Number);
+    return new Date(year, month - 1, day);
+  }, [value]);
+
+  const maximumDate = useMemo(() => {
+    return disableFuture ? new Date() : undefined;
+  }, [disableFuture]);
+
+  return (
+    <View style={[styles.rowWrapper, isLast && { borderBottomWidth: 0 }]}>
+      <View style={styles.rowInner}>
+        <View style={styles.rowLeft}>
+          <Ionicons name={icon as any} size={18} color="#0B5C36" style={styles.rowIcon} />
+          <Text style={styles.rowLabel}>
+            {label}
+            {required && <Text style={styles.required}> *</Text>}
+          </Text>
+        </View>
+        <TouchableOpacity
+          style={styles.rowRightSelect}
+          onPress={() => setShow(true)}
+          activeOpacity={0.7}
+        >
+          <Text
+            style={[styles.rowValueText, !value && styles.rowPlaceholderText]}
+            numberOfLines={1}
+          >
+            {value || placeholder}
+          </Text>
+          <Ionicons name="calendar-outline" size={16} color="#6B7280" style={{ marginLeft: 4 }} />
+        </TouchableOpacity>
+      </View>
+      {error ? <Text style={styles.rowErrorText}>{error}</Text> : null}
+
+      {show && (
+        Platform.OS === 'ios' ? (
+          <Modal transparent visible={show} animationType="slide" onRequestClose={() => setShow(false)}>
+            <View style={styles.dateModalOverlay}>
+              <View style={styles.dateModalContent}>
+                <View style={styles.dateModalHeader}>
+                  <TouchableOpacity onPress={() => setShow(false)}>
+                    <Text style={styles.dateModalCancelText}>Cancel</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity onPress={() => setShow(false)}>
+                    <Text style={styles.dateModalDoneText}>Done</Text>
+                  </TouchableOpacity>
+                </View>
+                <DateTimePicker
+                  value={dateValue}
+                  mode="date"
+                  display="spinner"
+                  maximumDate={maximumDate}
+                  textColor={Colors.text}
+                  onChange={(event, selectedDate) => {
+                    if (selectedDate) {
+                      const year = selectedDate.getFullYear();
+                      const month = String(selectedDate.getMonth() + 1).padStart(2, '0');
+                      const day = String(selectedDate.getDate()).padStart(2, '0');
+                      onChange(`${year}-${month}-${day}`);
+                    }
+                  }}
+                />
+              </View>
+            </View>
+          </Modal>
+        ) : (
+          <DateTimePicker
+            value={dateValue}
+            mode="date"
+            display="default"
+            maximumDate={maximumDate}
+            onChange={(event, selectedDate) => {
+              setShow(false);
+              if (selectedDate && event.type !== 'dismissed') {
+                const year = selectedDate.getFullYear();
+                const month = String(selectedDate.getMonth() + 1).padStart(2, '0');
+                const day = String(selectedDate.getDate()).padStart(2, '0');
+                onChange(`${year}-${month}-${day}`);
+              }
+            }}
+          />
+        )
+      )}
+    </View>
+  );
+}
+
 export default function PurchaseCreateScreen() {
   const router = useRouter();
   const { accessToken } = useAuth();
@@ -108,6 +391,7 @@ export default function PurchaseCreateScreen() {
   const [catalogItems, setCatalogItems] = useState<ApiCatalogItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [expandedIndex, setExpandedIndex] = useState<number | null>(0);
 
   const {
     control,
@@ -236,11 +520,16 @@ export default function PurchaseCreateScreen() {
     }
   };
 
+  const handleAddItem = () => {
+    append({ ...DEFAULT_ITEM });
+    setExpandedIndex(fields.length);
+  };
+
   return (
     <View style={styles.safeArea}>
       <TopAppBar
-        title="New Purchase Transaction"
-        subtitle="Multi-item warehouse purchase"
+        title="Create Purchase"
+        subtitle="Add multiple items from a single invoice"
         leadingMode="back"
         onBack={() => router.back()}
       />
@@ -264,131 +553,192 @@ export default function PurchaseCreateScreen() {
 
         {/* Header Card */}
         <View style={styles.card}>
-          <Text style={styles.sectionTitle}>Transaction Details</Text>
+          <View style={styles.cardHeaderMock}>
+            <View style={styles.cardHeaderIconBoxMock}>
+              <Ionicons name="document-text-outline" size={18} color="#0B5C36" />
+            </View>
+            <Text style={styles.cardTitleMock}>Purchase Details</Text>
+          </View>
 
-          <SearchableSelectField
-            label="Vendor"
-            value={selectedVendorId}
-            options={vendorOptions}
-            onSelect={(value) => {
-              setValue("vendorId", value, { shouldDirty: true, shouldValidate: true });
-            }}
-            placeholder="Select Vendor"
-            searchPlaceholder="Search vendor"
-            emptyMessage="No vendors found"
-            error={errors.vendorId?.message}
-            required
-          />
+          <View style={styles.tableContainer}>
+            <RowSelectField
+              icon="person-outline"
+              label="Vendor"
+              value={selectedVendorId}
+              options={vendorOptions}
+              onSelect={(value) => {
+                setValue("vendorId", value, { shouldDirty: true, shouldValidate: true });
+              }}
+              placeholder="Select Vendor"
+              searchPlaceholder="Search vendor"
+              emptyMessage="No vendors found"
+              error={errors.vendorId?.message}
+              required
+            />
 
-          <SearchableSelectField
-            label="Warehouse"
-            value={selectedWarehouseId}
-            options={warehouseOptions}
-            onSelect={(value) => {
-              setValue("warehouseId", value, { shouldDirty: true, shouldValidate: true });
-            }}
-            placeholder="Select Warehouse"
-            searchPlaceholder="Search warehouse"
-            emptyMessage="No warehouses found"
-            error={errors.warehouseId?.message}
-            required
-          />
+            <RowSelectField
+              icon="business-outline"
+              label="Warehouse"
+              value={selectedWarehouseId}
+              options={warehouseOptions}
+              onSelect={(value) => {
+                setValue("warehouseId", value, { shouldDirty: true, shouldValidate: true });
+              }}
+              placeholder="Select Warehouse"
+              searchPlaceholder="Search warehouse"
+              emptyMessage="No warehouses found"
+              error={errors.warehouseId?.message}
+              required
+            />
 
-          <SimpleInput
-            control={control}
-            name="invoiceNumber"
-            label="Invoice Number"
-            placeholder="INV-001"
-            error={errors.invoiceNumber?.message}
-          />
+            <RowInputField
+              icon="receipt-outline"
+              label="Invoice Number"
+              control={control}
+              name="invoiceNumber"
+              placeholder="INV-12345"
+              error={errors.invoiceNumber?.message}
+            />
 
-          <Controller
-            control={control}
-            name="purchaseDate"
-            render={({ field: { value, onChange } }) => (
-              <DatePickerField
-                label="Purchase Date"
-                value={value}
-                onChange={onChange}
-                error={errors.purchaseDate?.message}
-                disableFuture
-              />
-            )}
-          />
+            <Controller
+              control={control}
+              name="purchaseDate"
+              render={({ field: { value, onChange } }) => (
+                <RowDatePickerField
+                  icon="calendar-outline"
+                  label="Purchase Date"
+                  value={value}
+                  onChange={onChange}
+                  error={errors.purchaseDate?.message}
+                  disableFuture
+                  required
+                />
+              )}
+            />
 
-          <SimpleInput
-            control={control}
-            name="remarks"
-            label="Remarks"
-            placeholder="Optional transaction remarks"
-            multiline
-            error={errors.remarks?.message}
-          />
+            <RowInputField
+              icon="document-text-outline"
+              label="Notes"
+              control={control}
+              name="remarks"
+              placeholder="Optional"
+              error={errors.remarks?.message}
+              isLast
+            />
+          </View>
         </View>
 
         {/* Items Card */}
         <View style={styles.card}>
-          <View style={styles.sectionHeaderRow}>
-            <Text style={styles.sectionTitle}>Items</Text>
+          <View style={styles.cardHeaderRowMock}>
+            <View style={styles.cardHeaderLeftMock}>
+              <View style={styles.cardHeaderIconBoxMock}>
+                <Ionicons name="cart-outline" size={20} color="#0B5C36" />
+              </View>
+              <View style={{ flexShrink: 1 }}>
+                <Text style={styles.cardTitleMock}>Item Details</Text>
+                <Text style={styles.cardSubtitleMock}>Add multiple items for this purchase</Text>
+              </View>
+            </View>
             <TouchableOpacity
-              style={styles.addItemBtn}
-              onPress={() => append({ ...DEFAULT_ITEM })}
-              activeOpacity={0.78}
+              style={styles.addItemBtnMock}
+              onPress={handleAddItem}
+              activeOpacity={0.7}
             >
-              <Ionicons name="add-circle-outline" size={16} color={Colors.primary} />
-              <Text style={styles.addItemBtnText}>Add Item</Text>
+              <Text style={styles.addItemBtnTextMock}>+ Add Item</Text>
             </TouchableOpacity>
           </View>
 
-          {fields.map((field, index) => (
-            <ItemRow
-              key={field.id}
-              index={index}
-              control={control}
-              errors={errors}
-              purchaseTypeOptions={purchaseTypeOptions}
-              loadingPurchaseTypes={loadingPurchaseTypes}
-              getCatalogOptions={getCatalogOptions}
-              catalogItems={catalogItems}
-              setValue={setValue}
-              watch={watch}
-              canRemove={fields.length > 1}
-              onRemove={() => remove(index)}
-            />
-          ))}
-
-          {/* Grand Total */}
-          <View style={styles.totalCard}>
-            <View style={styles.totalCardHeader}>
-              <Text style={styles.totalLabel}>Grand Total</Text>
-              <View style={styles.totalIconBox}>
-                <Ionicons name="calculator-outline" size={18} color={Colors.primary} />
-              </View>
+          {fields.length > 0 && (
+            <View style={styles.itemsTableContainer}>
+              {fields.map((field, index) => (
+                <ItemRow
+                  key={field.id}
+                  index={index}
+                  control={control}
+                  errors={errors}
+                  purchaseTypeOptions={purchaseTypeOptions}
+                  loadingPurchaseTypes={loadingPurchaseTypes}
+                  getCatalogOptions={getCatalogOptions}
+                  catalogItems={catalogItems}
+                  setValue={setValue}
+                  watch={watch}
+                  canRemove={fields.length > 1}
+                  onRemove={() => {
+                    remove(index);
+                    if (expandedIndex === index) {
+                      setExpandedIndex(null);
+                    } else if (expandedIndex != null && expandedIndex > index) {
+                      setExpandedIndex(expandedIndex - 1);
+                    }
+                  }}
+                  isExpanded={expandedIndex === index}
+                  onToggleExpand={() => {
+                    setExpandedIndex(expandedIndex === index ? null : index);
+                  }}
+                  isLast={index === fields.length - 1}
+                />
+              ))}
             </View>
-            <Text style={styles.totalAmount}>
-              Rs {grandTotal.toLocaleString("en-IN")}
-            </Text>
-            <Text style={styles.totalHint}>
-              {fields.length} item{fields.length !== 1 ? "s" : ""}
-            </Text>
-          </View>
+          )}
 
           <TouchableOpacity
-            style={[styles.submitButton, saving && styles.submitButtonDisabled]}
-            onPress={handleSubmit(onSubmit)}
-            disabled={saving || loading}
+            style={styles.addAnotherItemBtnMock}
+            onPress={handleAddItem}
+            activeOpacity={0.7}
           >
-            {saving ? (
-              <ActivityIndicator color="#FFF" />
-            ) : (
-              <>
-                <Ionicons name="save-outline" size={18} color="#FFF" />
-                <Text style={styles.submitButtonText}>Save Purchase Transaction</Text>
-              </>
-            )}
+            <Ionicons name="add-circle-outline" size={18} color="#0B5C36" />
+            <Text style={styles.addAnotherItemBtnTextMock}>Add Another Item</Text>
           </TouchableOpacity>
         </View>
+
+        {/* Summary Card */}
+        <View style={styles.card}>
+          <View style={styles.cardHeaderMock}>
+            <View style={styles.cardHeaderIconBoxMock}>
+              <Ionicons name="calculator-outline" size={18} color="#0B5C36" />
+            </View>
+            <Text style={styles.cardTitleMock}>Summary</Text>
+          </View>
+
+          <View style={styles.summaryContainerMock}>
+            <View style={styles.summaryRowMock}>
+              <Text style={styles.summaryRowLabelMock}>Sub Total</Text>
+              <Text style={styles.summaryRowValueMock}>
+                ₹ {grandTotal.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+              </Text>
+            </View>
+
+            <View style={styles.summaryRowDividerMock} />
+
+            <View style={styles.summaryRowMock}>
+              <Text style={styles.grandTotalRowLabelMock}>Grand Total</Text>
+              <Text style={styles.grandTotalRowValueMock}>
+                ₹ {grandTotal.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+              </Text>
+            </View>
+          </View>
+        </View>
       </KeyboardAwareScrollView>
+
+      {/* Sticky Save Button Bar */}
+      <View style={styles.bottomBarMock}>
+        <TouchableOpacity
+          style={[styles.submitButtonMock, (saving || loading) && styles.submitButtonDisabledMock]}
+          onPress={handleSubmit(onSubmit)}
+          disabled={saving || loading}
+          activeOpacity={0.82}
+        >
+          {saving ? (
+            <ActivityIndicator color="#FFF" />
+          ) : (
+            <>
+              <Ionicons name="save-outline" size={18} color="#FFF" />
+              <Text style={styles.submitButtonTextMock}>Save Purchase</Text>
+            </>
+          )}
+        </TouchableOpacity>
+      </View>
     </View>
   );
 }
@@ -407,6 +757,9 @@ type ItemRowProps = {
   watch: any;
   canRemove: boolean;
   onRemove: () => void;
+  isExpanded: boolean;
+  onToggleExpand: () => void;
+  isLast?: boolean;
 };
 
 function ItemRow({
@@ -421,6 +774,9 @@ function ItemRow({
   watch,
   canRemove,
   onRemove,
+  isExpanded,
+  onToggleExpand,
+  isLast = false,
 }: ItemRowProps) {
   const purchaseType = useWatch({
     control,
@@ -430,9 +786,17 @@ function ItemRow({
     control,
     name: `items.${index}.catalogItemId`,
   });
+  const itemName = useWatch({
+    control,
+    name: `items.${index}.itemName`,
+  });
   const quantity = useWatch({
     control,
     name: `items.${index}.quantity`,
+  });
+  const unit = useWatch({
+    control,
+    name: `items.${index}.unit`,
   });
   const unitCost = useWatch({
     control,
@@ -459,113 +823,159 @@ function ItemRow({
 
   const rowErrors = errors?.items?.[index];
 
+  const qtyStr = quantity ? `${quantity} ${unit || 'Bags'}` : `0 ${unit || 'Bags'}`;
+  const rateStr = unitCost ? `₹${Number(String(unitCost).replace(/,/g, "")).toLocaleString("en-IN")}` : `₹0.00`;
+  const typeColors = getPurchaseTypeColors(purchaseType);
+
   return (
-    <View style={styles.itemRow}>
-      <View style={styles.itemRowHeader}>
-        <View style={styles.itemRowBadge}>
-          <Text style={styles.itemRowBadgeText}>Item {index + 1}</Text>
+    <View style={[styles.itemRowWrapper, isLast && { borderBottomWidth: 0 }]}>
+      {/* Collapsed/Header view */}
+      <TouchableOpacity
+        style={styles.itemRowHeaderMock}
+        onPress={onToggleExpand}
+        activeOpacity={0.7}
+      >
+        <View style={styles.itemCardHeaderLeft}>
+          <View style={styles.itemCardIndexBox}>
+            <Text style={styles.itemCardIndexText}>{index + 1}</Text>
+          </View>
+          <View style={styles.itemCardCenter}>
+            <View style={styles.itemCardTitleRow}>
+              <Text style={styles.itemCardTitleText} numberOfLines={1}>
+                {itemName || "Select Item"}
+              </Text>
+              {purchaseType ? (
+                <View style={[styles.itemCardBadge, { backgroundColor: typeColors.bg }]}>
+                  <Text style={[styles.itemCardBadgeText, { color: typeColors.text }]}>
+                    {purchaseType}
+                  </Text>
+                </View>
+              ) : null}
+            </View>
+            <Text style={styles.itemCardSubtext}>
+              {qtyStr}  •  {rateStr}
+            </Text>
+          </View>
         </View>
-        {canRemove ? (
-          <TouchableOpacity
-            onPress={onRemove}
-            style={styles.removeItemBtn}
-            activeOpacity={0.75}
-          >
-            <Ionicons name="trash-outline" size={16} color="#EF4444" />
-          </TouchableOpacity>
-        ) : null}
-      </View>
 
-      <SearchableSelectField
-        label="Purchase Type"
-        value={purchaseType}
-        options={purchaseTypeOptions}
-        onSelect={(value) => {
-          setValue(`items.${index}.purchaseType`, value, { shouldDirty: true, shouldValidate: true });
-          const currentCatalog = catalogItems.find((c) => c.id === catalogItemId);
-          if (currentCatalog && currentCatalog.type !== value) {
-            setValue(`items.${index}.catalogItemId`, "", { shouldDirty: true });
-            setValue(`items.${index}.itemName`, "", { shouldDirty: true });
-            setValue(`items.${index}.unit`, "", { shouldDirty: true });
-            setValue(`items.${index}.unitCost`, "", { shouldDirty: true });
-          }
-        }}
-        placeholder={loadingPurchaseTypes ? "Loading..." : "Select Type"}
-        searchPlaceholder="Search type"
-        emptyMessage="No types found"
-        error={rowErrors?.purchaseType?.message}
-        disabled={loadingPurchaseTypes}
-        required
-      />
+        <View style={styles.itemCardHeaderRight}>
+          {canRemove ? (
+            <TouchableOpacity
+              onPress={(e) => {
+                e.stopPropagation();
+                onRemove();
+              }}
+              style={styles.removeItemBtnMock}
+              activeOpacity={0.7}
+            >
+              <Ionicons name="trash-outline" size={16} color="#EF4444" />
+            </TouchableOpacity>
+          ) : (
+            <View style={{ height: 28 }} />
+          )}
+          <View style={styles.itemCardPriceRow}>
+            <Text style={styles.itemCardPriceText}>
+              ₹{lineTotal.toLocaleString("en-IN")}
+            </Text>
+            <Ionicons
+              name={isExpanded ? "chevron-down" : "chevron-forward"}
+              size={16}
+              color="#6B7280"
+            />
+          </View>
+        </View>
+      </TouchableOpacity>
 
-      <SearchableSelectField
-        label="Catalog Item"
-        value={catalogItemId}
-        options={catalogOptions}
-        onSelect={(value) => {
-          const item = catalogItems.find((c) => c.id === value);
-          setValue(`items.${index}.catalogItemId`, value, { shouldDirty: true, shouldValidate: true });
-          setValue(`items.${index}.itemName`, item?.name ?? "", { shouldDirty: true });
-          setValue(`items.${index}.unit`, item?.unit ?? "", { shouldDirty: true });
-          if (item?.defaultRate != null) {
-            setValue(`items.${index}.unitCost`, String(item.defaultRate), { shouldDirty: true });
-          }
-        }}
-        placeholder="Select Catalog Item"
-        searchPlaceholder="Search item"
-        emptyMessage="No items found"
-        error={rowErrors?.catalogItemId?.message}
-        required
-      />
-
-      <View style={styles.rowGrid}>
-        <View style={{ flex: 1 }}>
-          <SimpleInput
-            control={control}
-            name={`items.${index}.quantity`}
-            label="Qty"
-            placeholder="0"
-            keyboardType="numeric"
-            error={rowErrors?.quantity?.message}
+      {/* Expanded form fields */}
+      {isExpanded && (
+        <View style={styles.itemRowBodyMock}>
+          <View style={styles.itemRowBodyDivider} />
+          
+          <SearchableSelectField
+            label="Purchase Type"
+            value={purchaseType}
+            options={purchaseTypeOptions}
+            onSelect={(value) => {
+              setValue(`items.${index}.purchaseType`, value, { shouldDirty: true, shouldValidate: true });
+              const currentCatalog = catalogItems.find((c) => c.id === catalogItemId);
+              if (currentCatalog && currentCatalog.type !== value) {
+                setValue(`items.${index}.catalogItemId`, "", { shouldDirty: true });
+                setValue(`items.${index}.itemName`, "", { shouldDirty: true });
+                setValue(`items.${index}.unit`, "", { shouldDirty: true });
+                setValue(`items.${index}.unitCost`, "", { shouldDirty: true });
+              }
+            }}
+            placeholder={loadingPurchaseTypes ? "Loading..." : "Select Type"}
+            searchPlaceholder="Search type"
+            emptyMessage="No types found"
+            error={rowErrors?.purchaseType?.message}
+            disabled={loadingPurchaseTypes}
             required
           />
-        </View>
-        <View style={{ flex: 1 }}>
-          <SimpleInput
-            control={control}
-            name={`items.${index}.unit`}
-            label="Unit"
-            placeholder="kg / pcs"
-            error={rowErrors?.unit?.message}
-          />
-        </View>
-        <View style={{ flex: 1 }}>
-          <SimpleInput
-            control={control}
-            name={`items.${index}.unitCost`}
-            label="Rate"
-            placeholder="0"
-            keyboardType="numeric"
-            error={rowErrors?.unitCost?.message}
+
+          <SearchableSelectField
+            label="Catalog Item"
+            value={catalogItemId}
+            options={catalogOptions}
+            onSelect={(value) => {
+              const item = catalogItems.find((c) => c.id === value);
+              setValue(`items.${index}.catalogItemId`, value, { shouldDirty: true, shouldValidate: true });
+              setValue(`items.${index}.itemName`, item?.name ?? "", { shouldDirty: true });
+              setValue(`items.${index}.unit`, item?.unit ?? "", { shouldDirty: true });
+              if (item?.defaultRate != null) {
+                setValue(`items.${index}.unitCost`, String(item.defaultRate), { shouldDirty: true });
+              }
+            }}
+            placeholder="Select Catalog Item"
+            searchPlaceholder="Search item"
+            emptyMessage="No items found"
+            error={rowErrors?.catalogItemId?.message}
             required
           />
+
+          <View style={styles.rowGrid}>
+            <View style={{ flex: 1 }}>
+              <SimpleInput
+                control={control}
+                name={`items.${index}.quantity`}
+                label="Qty"
+                placeholder="0"
+                keyboardType="numeric"
+                error={rowErrors?.quantity?.message}
+                required
+              />
+            </View>
+            <View style={{ flex: 1 }}>
+              <SimpleInput
+                control={control}
+                name={`items.${index}.unit`}
+                label="Unit"
+                placeholder="kg / pcs"
+                error={rowErrors?.unit?.message}
+              />
+            </View>
+            <View style={{ flex: 1 }}>
+              <SimpleInput
+                control={control}
+                name={`items.${index}.unitCost`}
+                label="Rate"
+                placeholder="0"
+                keyboardType="numeric"
+                error={rowErrors?.unitCost?.message}
+                required
+              />
+            </View>
+          </View>
+
+          <SimpleInput
+            control={control}
+            name={`items.${index}.remarks`}
+            label="Lot Remarks"
+            placeholder="Optional remarks for this item"
+            error={rowErrors?.remarks?.message}
+          />
         </View>
-      </View>
-
-      <View style={styles.lineTotalBox}>
-        <Text style={styles.lineTotalLabel}>Line Total</Text>
-        <Text style={styles.lineTotalValue}>
-          Rs {lineTotal.toLocaleString("en-IN")}
-        </Text>
-      </View>
-
-      <SimpleInput
-        control={control}
-        name={`items.${index}.remarks`}
-        label="Lot Remarks"
-        placeholder="Optional remarks for this item"
-        error={rowErrors?.remarks?.message}
-      />
+      )}
     </View>
   );
 }
@@ -815,5 +1225,356 @@ const styles = StyleSheet.create({
     color: "#FFF",
     fontSize: 15,
     fontWeight: "900",
+  },
+
+  // Redesigned Card Mock Elements
+  cardHeaderMock: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    marginBottom: 14,
+  },
+  cardHeaderIconBoxMock: {
+    width: 32,
+    height: 32,
+    borderRadius: 8,
+    backgroundColor: "#E7F5ED",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  cardTitleMock: {
+    color: Colors.text,
+    fontSize: 16,
+    fontWeight: "700",
+  },
+  cardSubtitleMock: {
+    color: Colors.textSecondary,
+    fontSize: 11,
+    marginTop: 1,
+  },
+
+  // Table row list inside card
+  tableContainer: {
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
+    borderRadius: 12,
+    overflow: "hidden",
+    backgroundColor: "#FFF",
+  },
+  rowWrapper: {
+    borderBottomWidth: 1,
+    borderBottomColor: "#F3F4F6",
+  },
+  rowInner: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    minHeight: 52,
+    paddingHorizontal: 16,
+    backgroundColor: "#FFF",
+  },
+  rowLeft: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+  },
+  rowIcon: {
+    width: 20,
+    textAlign: "center",
+  },
+  rowLabel: {
+    color: Colors.text,
+    fontSize: 14,
+    fontWeight: "500",
+  },
+  rowRightSelect: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "flex-end",
+    flex: 1,
+    alignSelf: "stretch",
+    paddingLeft: 16,
+  },
+  rowValueText: {
+    color: Colors.text,
+    fontSize: 14,
+    fontWeight: "500",
+    textAlign: "right",
+    flex: 1,
+  },
+  rowPlaceholderText: {
+    color: "#9CA3AF",
+    fontWeight: "400",
+  },
+  rowRightInputContainer: {
+    flex: 1,
+    alignSelf: "stretch",
+    justifyContent: "center",
+    paddingLeft: 16,
+  },
+  rowTextInput: {
+    color: Colors.text,
+    fontSize: 14,
+    fontWeight: "500",
+    textAlign: "right",
+    flex: 1,
+    width: "100%",
+    paddingVertical: 0,
+  },
+  rowTextInputMultiline: {
+    minHeight: 50,
+    textAlignVertical: "top",
+    paddingTop: 14,
+  },
+  rowErrorText: {
+    color: Colors.error,
+    fontSize: 11,
+    fontWeight: "600",
+    marginTop: 2,
+    marginLeft: 16,
+    marginBottom: 6,
+  },
+
+  // Date Modal styling
+  dateModalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0, 0, 0, 0.45)",
+    justifyContent: "flex-end",
+  },
+  dateModalContent: {
+    backgroundColor: "#FFFFFF",
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    paddingBottom: 20,
+  },
+  dateModalHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: "#E2E8F0",
+  },
+  dateModalCancelText: {
+    color: "#64748B",
+    fontSize: 15,
+    fontWeight: "600",
+  },
+  dateModalDoneText: {
+    color: "#0B5C36",
+    fontSize: 15,
+    fontWeight: "700",
+  },
+
+  // Item Details Header Row
+  cardHeaderRowMock: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 14,
+  },
+  cardHeaderLeftMock: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    flex: 1,
+  },
+  addItemBtnMock: {
+    borderWidth: 1,
+    borderColor: "#0B5C36",
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    backgroundColor: "#FFF",
+  },
+  addItemBtnTextMock: {
+    color: "#0B5C36",
+    fontSize: 12,
+    fontWeight: "700",
+  },
+
+  // Items table container (a single card containing all items)
+  itemsTableContainer: {
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
+    borderRadius: 12,
+    overflow: "hidden",
+    backgroundColor: "#FFF",
+    marginTop: 8,
+  },
+  itemRowWrapper: {
+    borderBottomWidth: 1,
+    borderBottomColor: "#E5E7EB",
+    backgroundColor: "#FFF",
+  },
+  itemRowHeaderMock: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+  },
+  itemCardHeaderLeft: {
+    flexDirection: "row",
+    alignItems: "center",
+    flex: 1,
+    marginRight: 8,
+  },
+  itemCardIndexBox: {
+    width: 36,
+    height: 36,
+    borderRadius: 8,
+    backgroundColor: "#E7F5ED",
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: 10,
+  },
+  itemCardIndexText: {
+    color: "#0B5C36",
+    fontSize: 14,
+    fontWeight: "700",
+  },
+  itemCardCenter: {
+    flex: 1,
+  },
+  itemCardTitleRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    marginBottom: 3,
+  },
+  itemCardTitleText: {
+    color: Colors.text,
+    fontSize: 14,
+    fontWeight: "700",
+    maxWidth: "70%",
+  },
+  itemCardBadge: {
+    borderRadius: 6,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+  },
+  itemCardBadgeText: {
+    fontSize: 10,
+    fontWeight: "700",
+    textTransform: "capitalize",
+  },
+  itemCardSubtext: {
+    color: Colors.textSecondary,
+    fontSize: 12,
+  },
+  itemCardHeaderRight: {
+    alignItems: "flex-end",
+    gap: 6,
+  },
+  removeItemBtnMock: {
+    padding: 4,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: "#FCA5A5",
+    backgroundColor: "#FEF2F2",
+  },
+  itemCardPriceRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+  },
+  itemCardPriceText: {
+    color: "#0B5C36",
+    fontSize: 14,
+    fontWeight: "700",
+  },
+  itemRowBodyMock: {
+    paddingHorizontal: 16,
+    paddingBottom: 16,
+    backgroundColor: "#FAFAFA",
+  },
+  itemRowBodyDivider: {
+    height: 1,
+    backgroundColor: "#E5E7EB",
+    marginBottom: 14,
+  },
+
+  // Add Another Item Button (dashed border)
+  addAnotherItemBtnMock: {
+    borderWidth: 1,
+    borderStyle: "dashed",
+    borderColor: "#0B5C36",
+    borderRadius: 12,
+    minHeight: 48,
+    alignItems: "center",
+    justifyContent: "center",
+    flexDirection: "row",
+    backgroundColor: "#FFF",
+    marginTop: 12,
+    gap: 6,
+  },
+  addAnotherItemBtnTextMock: {
+    color: "#0B5C36",
+    fontSize: 14,
+    fontWeight: "700",
+  },
+
+  // Summary styles
+  summaryContainerMock: {
+    gap: 12,
+    marginTop: 4,
+  },
+  summaryRowMock: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
+  summaryRowLabelMock: {
+    color: Colors.textSecondary,
+    fontSize: 14,
+    fontWeight: "500",
+  },
+  summaryRowValueMock: {
+    color: Colors.text,
+    fontSize: 14,
+    fontWeight: "600",
+  },
+  summaryRowDividerMock: {
+    height: 1,
+    backgroundColor: "#F3F4F6",
+  },
+  grandTotalRowLabelMock: {
+    color: Colors.text,
+    fontSize: 15,
+    fontWeight: "700",
+  },
+  grandTotalRowValueMock: {
+    color: "#0B5C36",
+    fontSize: 18,
+    fontWeight: "700",
+  },
+
+  // Sticky bottom save bar
+  bottomBarMock: {
+    backgroundColor: "#FFF",
+    borderTopWidth: 1,
+    borderTopColor: "#E5E7EB",
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    paddingBottom: Platform.OS === "ios" ? 28 : 12,
+  },
+  submitButtonMock: {
+    minHeight: 52,
+    borderRadius: 12,
+    backgroundColor: "#0B5C36",
+    alignItems: "center",
+    justifyContent: "center",
+    flexDirection: "row",
+    gap: 8,
+  },
+  submitButtonDisabledMock: {
+    opacity: 0.7,
+  },
+  submitButtonTextMock: {
+    color: "#FFF",
+    fontSize: 16,
+    fontWeight: "700",
   },
 });
