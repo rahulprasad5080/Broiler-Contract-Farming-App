@@ -3,18 +3,25 @@ import type {
   ApiFinanceEntry,
   ApiFinancePayment,
   ApiFinancePurchase,
-  ApiPaymentEntryType,
+  ApiPurchaseTransaction,
   CreateFinanceEntryRequest,
   CreateFinancePaymentRequest,
   CreateFinancePurchaseRequest,
+  CreatePurchaseTransactionRequest,
   ListParams,
+  ListPurchaseTransactionsParams,
   ListResponse,
   UpdateFinancePurchaseRequest,
 } from "./types";
 
 export async function listFinancePurchases(
   token: string,
-  params: ListParams & { vendorId?: string; catalogItemId?: string } = {},
+  params: ListParams & {
+    vendorId?: string;
+    catalogItemId?: string;
+    warehouseId?: string;
+    purchaseTransactionId?: string;
+  } = {},
 ) {
   return apiRequest<ListResponse<ApiFinancePurchase>>("/finance/purchases", {
     method: "GET",
@@ -90,6 +97,37 @@ export async function createFinancePayment(
   payload: CreateFinancePaymentRequest,
 ) {
   return apiRequest<ApiFinancePayment>("/finance/payments", {
+    method: "POST",
+    token,
+    body: payload,
+  });
+}
+
+// ─── New Purchase Transaction APIs ─────────────────────────────────────────────
+
+export async function listPurchaseTransactions(
+  token: string,
+  params: ListPurchaseTransactionsParams = {},
+) {
+  return apiRequest<ListResponse<ApiPurchaseTransaction>>("/finance/purchase-transactions", {
+    method: "GET",
+    token,
+    query: params,
+  });
+}
+
+export async function getPurchaseTransaction(token: string, transactionId: string) {
+  return apiRequest<ApiPurchaseTransaction>(
+    `/finance/purchase-transactions/${transactionId}`,
+    { method: "GET", token },
+  );
+}
+
+export async function createPurchaseTransaction(
+  token: string,
+  payload: CreatePurchaseTransactionRequest,
+) {
+  return apiRequest<ApiPurchaseTransaction>("/finance/purchase-transactions", {
     method: "POST",
     token,
     body: payload,

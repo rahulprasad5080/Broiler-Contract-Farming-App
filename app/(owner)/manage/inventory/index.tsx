@@ -1,8 +1,8 @@
 import { Ionicons } from "@expo/vector-icons";
+import { useFocusEffect } from "@react-navigation/native";
 import { useRouter } from "expo-router";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
-  ActivityIndicator,
   FlatList,
   RefreshControl,
   StyleSheet,
@@ -12,142 +12,250 @@ import {
 } from "react-native";
 
 import { ScreenState } from "@/components/ui/ScreenState";
+import { SearchableSelectField } from "@/components/ui/SearchableSelectField";
 import { TopAppBar } from "@/components/ui/TopAppBar";
+import { Colors } from "@/constants/Colors";
 import { useAuth } from "@/context/AuthContext";
 import { getRequestErrorMessage } from "@/services/apiFeedback";
-import { fetchInventoryReport, type ApiInventoryReportRow } from "@/services/reportApi";
-
-const THEME_GREEN = "#0B5C36";
+import {
+  listStockBalances,
+  listWarehouses,
+  type ApiStockBalance,
+  type ApiWarehouse,
+} from "@/services/managementApi";
 
 export default function InventoryStockScreen() {
   const router = useRouter();
   const { accessToken } = useAuth();
-  const [inventory, setInventory] = useState<ApiInventoryReportRow[]>([]);
+  const [warehouses, setWarehouses] = useState<ApiWarehouse[]>([]);
+  const [selectedWarehouseId, setSelectedWarehouseId] = useState("");
+  const [balances, setBalances] = useState<ApiStockBalance[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const loadStock = useCallback(async (isRefresh = false) => {
-    if (!accessToken) return;
-    if (isRefresh) {
-      setRefreshing(true);
-    } else {
-      setLoading(true);
-    }
-    setError(null);
+  const warehouseOptions = useMemo(
+    () =>
+      warehouses
+        .filter((wh) => wh.isActive)
+        .map((wh) => ({
+          label: wh.name,
+          value: wh.id,
+          description: wh.location ?? wh.code,
+        })),
+    [warehouses],
+  );
 
+  const loadWarehouses = useCallback(async () => {
+    if (!accessToken) return;
     try {
-      const res = await fetchInventoryReport(accessToken);
-      setInventory(res);
+      const res = await listWarehouses(accessToken);
+      const whs = res.data ?? [];
+      setWarehouses(whs);
+      if (!selectedWarehouseId && whs.length > 0) {
+        setSelectedWarehouseId(whs[0].id);
+      }
     } catch (err) {
-      setError(getRequestErrorMessage(err, "Unable to load inventory stock."));
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
+      setError(getRequestErrorMessage(err, "Unable to load warehouses."));
     }
-  }, [accessToken]);
+  }, [accessToken, selectedWarehouseId]);
+
+  const loadStock = useCallback(
+    async (isRefresh = false) => {
+      if (!accessToken || !selectedWarehouseId) return;
+      if (isRefresh) {
+        setRefreshing(true);
+      } else {
+        setLoading(true);
+      }
+      setError(null);
+
+      try {
+        const res = await listStockBalances(accessToken, {
+          locationType: "WAREHOUSE",
+          locationId: selectedWarehouseId,
+        });
+        setBalances(res.data ?? []);
+      } catch (err) {
+        setError(getRequestErrorMessage(err, "Unable to load inventory stock."));
+      } finally {
+        setLoading(false);
+        setRefreshing(false);
+      }
+    },
+    [accessToken, selectedWarehouseId],
+  );
+
+  useFocusEffect(
+    useCallback(() => {
+      void loadWarehouses();
+    }, [loadWarehouses]),
+  );
 
   useEffect(() => {
-    void loadStock();
-  }, [loadStock]);
+    if (selectedWarehouseId) {
+      void loadStock();
+    }
+  }, [selectedWarehouseId, loadStock]);
 
-  const renderItem = ({ item }: { item: ApiInventoryReportRow }) => {
-    const isLow = item.lowStock;
+  // Group balances by item
+  const groupedBalances = useMemo(() => {
+    const groups: Record<string, { item: string; lots: ApiStockBalance[]; totalBalance: number; unit: string }> = {};
+    for (const b of balances) {
+      const key = b.catalogItemId;
+      if (!groups[key]) {
+        groups[key] = {
+          item: b.catalogItemName ?? b.catalogItemId,
+          lots: [],
+          totalBalance: 0,
+          unit: b.unit ?? "",
+        };
+      }
+      groups[key].lots.push(b);
+      groups[key].totalBalance += b.balance;
+    }
+    return Object.values(groups);
+  }, [balances]);
+
+  const renderItem = ({
+    item,
+  }: {
+    item: { item: string; lots: ApiStockBalance[]; totalBalance: number; unit: string };
+  }) => {
+    const isLow = item.totalBalance < 10;
     return (
-      <View style={[styles.ledgerCard, isLow && { borderColor: "#FCA5A5", backgroundColor: "#FFF8F8" }]}>
-        <View style={styles.ledgerHeader}>
-          <Text style={styles.ledgerDate}>{item.itemType || "ITEM"}</Text>
-          <View style={styles.badgeRow}>
-            <View
-              style={[
-                styles.statusBadge,
-                isLow
-                  ? { backgroundColor: "#FEE2E2", borderColor: "#FCA5A5" }
-                  : { backgroundColor: "#ECFDF5", borderColor: "#A7F3D0" }
-              ]}
-            >
-              <Text style={[styles.statusBadgeText, { color: isLow ? "#EF4444" : "#059669" }]}>
-                {isLow ? "Low Stock" : "In Stock"}
-              </Text>
-            </View>
-          </View>
-        </View>
-
-        <View style={styles.ledgerBody}>
-          <View style={styles.ledgerDetails}>
-            <Text style={styles.ledgerTitle}>{item.itemName}</Text>
-            {item.reorderLevel !== undefined && item.reorderLevel !== null ? (
-              <Text style={{ fontSize: 10, color: "#6B7280" }}>
-                Reorder Level: {item.reorderLevel}
-              </Text>
-            ) : null}
-          </View>
-
-          <View style={[styles.ledgerAmounts, { minWidth: 90, alignItems: "flex-end" }]}>
-            <Text style={[styles.amountLabel, { marginBottom: 2 }]}>Current Stock</Text>
-            <Text style={[styles.amountValueBold, { fontSize: 13, color: isLow ? "#EF4444" : "#0B5C36" }]}>
-              {item.currentStock !== undefined && item.currentStock !== null ? item.currentStock.toLocaleString() : "0"}
+      <View style={[styles.card, isLow && { borderColor: "#FCA5A5", backgroundColor: "#FFF8F8" }]}>
+        <View style={styles.cardHeader}>
+          <Text style={styles.itemName}>{item.item}</Text>
+          <View
+            style={[
+              styles.stockBadge,
+              isLow
+                ? { backgroundColor: "#FEE2E2", borderColor: "#FCA5A5" }
+                : { backgroundColor: "#ECFDF5", borderColor: "#A7F3D0" },
+            ]}
+          >
+            <Text style={[styles.stockBadgeText, { color: isLow ? "#EF4444" : "#059669" }]}>
+              {isLow ? "Low Stock" : "In Stock"}
             </Text>
           </View>
         </View>
+
+        <View style={styles.totalRow}>
+          <Text style={styles.totalLabel}>Total Available</Text>
+          <Text style={[styles.totalBalance, isLow && { color: "#EF4444" }]}>
+            {item.totalBalance.toLocaleString("en-IN")} {item.unit}
+          </Text>
+        </View>
+
+        {item.lots.length > 1 ? (
+          <View style={styles.lotsSection}>
+            <Text style={styles.lotsTitle}>Purchase Lots ({item.lots.length})</Text>
+            {item.lots.map((lot, idx) => (
+              <View key={`${lot.purchaseId}-${idx}`} style={styles.lotRow}>
+                <Text style={styles.lotId} numberOfLines={1}>
+                  Lot: {lot.purchaseId.slice(0, 12)}...
+                </Text>
+                <Text style={styles.lotBalance}>
+                  {lot.balance} {lot.unit}
+                  {lot.unitCost ? ` · Rs ${lot.unitCost}/${lot.unit}` : ""}
+                </Text>
+              </View>
+            ))}
+          </View>
+        ) : item.lots.length === 1 && item.lots[0].unitCost ? (
+          <Text style={styles.unitCostText}>
+            Unit Cost: Rs {item.lots[0].unitCost}/{item.unit}
+          </Text>
+        ) : null}
       </View>
     );
   };
 
-  const renderHeader = () => {
-    if (inventory.length === 0) return null;
-    const lowStockCount = inventory.filter((item) => item.lowStock).length;
+  const selectedWarehouse = warehouses.find((wh) => wh.id === selectedWarehouseId);
 
-    if (lowStockCount > 0) {
+  const renderHeader = () => {
+    if (!selectedWarehouseId || groupedBalances.length === 0) return null;
+    const lowCount = groupedBalances.filter((g) => g.totalBalance < 10).length;
+
+    if (lowCount > 0) {
       return (
-        <View style={styles.lowStockBanner}>
-          <View style={styles.bannerHeader}>
-            <Ionicons name="warning-outline" size={20} color="#EA580C" />
-            <Text style={styles.bannerTitle}>Inventory Shortage Detected</Text>
-          </View>
-          <Text style={styles.bannerDesc}>
-            There are {lowStockCount} low stock items in central inventory. Allocate immediately to prevent feed stoppage.
-          </Text>
-        </View>
-      );
-    } else {
-      return (
-        <View style={styles.safeStockBanner}>
-          <View style={styles.bannerHeader}>
-            <Ionicons name="checkmark-circle-outline" size={20} color="#10B981" />
-            <Text style={[styles.bannerTitle, { color: "#10B981" }]}>Stock Status Stable</Text>
-          </View>
-          <Text style={styles.bannerDesc}>
-            All feed, medicine, and vaccine stocks are at healthy operating levels.
+        <View style={styles.banner}>
+          <Ionicons name="warning-outline" size={18} color="#EA580C" />
+          <Text style={styles.bannerText}>
+            {lowCount} item{lowCount !== 1 ? "s" : ""} low stock in{" "}
+            {selectedWarehouse?.name ?? "warehouse"}
           </Text>
         </View>
       );
     }
+    return (
+      <View style={[styles.banner, styles.bannerGreen]}>
+        <Ionicons name="checkmark-circle-outline" size={18} color="#10B981" />
+        <Text style={[styles.bannerText, { color: "#10B981" }]}>
+          All stock levels healthy in {selectedWarehouse?.name ?? "warehouse"}
+        </Text>
+      </View>
+    );
   };
 
   return (
     <View style={styles.safeArea}>
       <TopAppBar
-        title="Inventory Stock"
-        subtitle="Central warehouse levels"
+        title="Warehouse Stock"
+        subtitle="Lot-wise balance view"
         leadingMode="back"
         onBack={() => {
           if (router.canGoBack()) {
             router.back();
           } else {
-            router.replace('/(owner)/dashboard');
+            router.replace("/(owner)/dashboard");
           }
         }}
+        right={
+          <View style={styles.headerActions}>
+            <TouchableOpacity
+              style={styles.headerBtn}
+              onPress={() => router.navigate("/(owner)/manage/inventory/adjustment")}
+              activeOpacity={0.8}
+            >
+              <Ionicons name="build-outline" size={16} color="#FFF" />
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.headerBtn}
+              onPress={() => router.navigate("/(owner)/manage/inventory/sale")}
+              activeOpacity={0.8}
+            >
+              <Ionicons name="storefront-outline" size={16} color="#FFF" />
+            </TouchableOpacity>
+          </View>
+        }
       />
       <View style={styles.page}>
         <FlatList
-          data={loading ? [] : inventory}
-          keyExtractor={(item) => item.itemId}
+          data={loading || !selectedWarehouseId ? [] : groupedBalances}
+          keyExtractor={(item) => item.item}
           renderItem={renderItem}
-          ListHeaderComponent={renderHeader}
+          ListHeaderComponent={
+            <>
+              {/* Warehouse selector */}
+              <View style={styles.selectorCard}>
+                <SearchableSelectField
+                  label="Warehouse"
+                  value={selectedWarehouseId}
+                  options={warehouseOptions}
+                  onSelect={setSelectedWarehouseId}
+                  placeholder="Select Warehouse"
+                  searchPlaceholder="Search warehouse"
+                  emptyMessage="No warehouses found"
+                />
+              </View>
+              {renderHeader()}
+            </>
+          }
           contentContainerStyle={[
             styles.listContent,
-            !loading && inventory.length === 0 && styles.listEmpty,
+            !loading && groupedBalances.length === 0 && styles.listEmpty,
           ]}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
@@ -155,25 +263,31 @@ export default function InventoryStockScreen() {
             <RefreshControl
               refreshing={refreshing}
               onRefresh={() => void loadStock(true)}
-              colors={[THEME_GREEN]}
+              colors={["#0B5C36"]}
             />
           }
           ListEmptyComponent={
             loading ? (
-              <ScreenState title="Loading inventory" message="Fetching central stock levels..." loading />
+              <ScreenState title="Loading inventory" message="Fetching warehouse stock levels..." loading />
             ) : error ? (
               <ScreenState
                 title="Failed to load stock"
                 message={error}
                 icon="alert-circle-outline"
                 tone="error"
-                actionLabel="Retry Connection"
-                onAction={() => void loadStock(true)}
+                actionLabel="Retry"
+                onAction={() => void loadStock()}
+              />
+            ) : !selectedWarehouseId ? (
+              <ScreenState
+                title="Select a warehouse"
+                message="Choose a warehouse above to view stock levels."
+                icon="business-outline"
               />
             ) : (
               <ScreenState
-                title="No inventory stock found"
-                message="Central warehouse does not contain any stock items."
+                title="No stock found"
+                message="This warehouse has no inventory on record."
                 icon="cube-outline"
               />
             )
@@ -186,139 +300,84 @@ export default function InventoryStockScreen() {
 }
 
 const styles = StyleSheet.create({
-  safeArea: {
-    flex: 1,
-    backgroundColor: "#0B5C36",
-  },
-  page: {
-    flex: 1,
-    backgroundColor: "#F4F6F8",
-  },
-  headerAddButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+  safeArea: { flex: 1, backgroundColor: "#0B5C36" },
+  page: { flex: 1, backgroundColor: "#F4F6F8" },
+  headerActions: { flexDirection: "row", gap: 8 },
+  headerBtn: {
+    width: 34,
+    height: 34,
+    borderRadius: 8,
+    backgroundColor: "rgba(255,255,255,0.18)",
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "rgba(255,255,255,0.16)",
   },
-  listContent: {
-    padding: 14,
-    paddingBottom: 56,
-  },
-  listEmpty: {
-    flexGrow: 1,
-  },
-  ledgerCard: {
-    backgroundColor: "#FFFFFF",
+  listContent: { padding: 14, paddingBottom: 56 },
+  listEmpty: { flexGrow: 1 },
+  selectorCard: {
+    backgroundColor: "#FFF",
     borderRadius: 12,
     borderWidth: 1,
     borderColor: "#E5E7EB",
-    padding: 10,
-    marginTop: 12,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.02,
-    shadowRadius: 3,
+    padding: 12,
+    marginBottom: 10,
     elevation: 1,
   },
-  ledgerHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginBottom: 6,
-    gap: 6,
-    flexWrap: "wrap",
-  },
-  ledgerDate: {
-    fontSize: 10,
-    fontWeight: "700",
-    color: "#4B5563",
-    backgroundColor: "#F3F4F6",
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 4,
-  },
-  badgeRow: {
-    flexDirection: "row",
-    gap: 4,
-    marginLeft: "auto",
-  },
-  statusBadge: {
-    borderRadius: 4,
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderWidth: 0.5,
-  },
-  statusBadgeText: {
-    fontSize: 8,
-    fontWeight: "800",
-  },
-  ledgerBody: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "flex-start",
-    gap: 12,
-  },
-  ledgerDetails: {
-    flex: 1,
-  },
-  ledgerTitle: {
-    fontSize: 12,
-    fontWeight: "800",
-    color: "#1F2937",
-    marginBottom: 6,
-  },
-  ledgerAmounts: {
-    minWidth: 100,
-    backgroundColor: "#F9FAFB",
-    paddingHorizontal: 8,
-    paddingVertical: 6,
-    borderRadius: 8,
-    borderWidth: 0.5,
-    borderColor: "#E5E7EB",
-    gap: 2,
-  },
-  amountLabel: {
-    fontSize: 10,
-    fontWeight: "600",
-    color: "#6B7280",
-  },
-  amountValueBold: {
-    fontSize: 10,
-    fontWeight: "900",
-    color: "#111827",
-  },
-  lowStockBanner: {
+  banner: {
     backgroundColor: "#FFF7ED",
     borderColor: "#FFEDD5",
     borderWidth: 1.5,
     borderRadius: 12,
     padding: 12,
-    marginBottom: 16,
-  },
-  safeStockBanner: {
-    backgroundColor: "#F0FDF4",
-    borderColor: "#D1FAE5",
-    borderWidth: 1.5,
-    borderRadius: 12,
-    padding: 12,
-    marginBottom: 16,
-  },
-  bannerHeader: {
+    marginBottom: 12,
     flexDirection: "row",
     alignItems: "center",
     gap: 8,
   },
-  bannerTitle: {
-    fontSize: 13,
-    fontWeight: "800",
-    color: "#C2410C",
+  bannerGreen: { backgroundColor: "#F0FDF4", borderColor: "#D1FAE5" },
+  bannerText: { fontSize: 12, fontWeight: "800", color: "#C2410C", flex: 1 },
+  card: {
+    backgroundColor: "#FFF",
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
+    padding: 12,
+    marginBottom: 10,
+    elevation: 1,
+    gap: 6,
   },
-  bannerDesc: {
-    fontSize: 11,
-    fontWeight: "600",
-    color: "#4B5563",
-    marginTop: 6,
-    lineHeight: 15,
+  cardHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 8,
   },
+  itemName: { color: "#1F2937", fontSize: 14, fontWeight: "800", flex: 1 },
+  stockBadge: {
+    borderRadius: 6,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderWidth: 0.5,
+  },
+  stockBadgeText: { fontSize: 10, fontWeight: "800" },
+  totalRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    backgroundColor: "#F9FAFB",
+    borderRadius: 8,
+    padding: 8,
+  },
+  totalLabel: { color: "#6B7280", fontSize: 11, fontWeight: "700" },
+  totalBalance: { color: "#0B5C36", fontSize: 15, fontWeight: "900" },
+  lotsSection: { gap: 4, marginTop: 4 },
+  lotsTitle: { color: Colors.textSecondary, fontSize: 11, fontWeight: "800", textTransform: "uppercase" },
+  lotRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingVertical: 2,
+  },
+  lotId: { color: "#9CA3AF", fontSize: 11, fontWeight: "600", flex: 1 },
+  lotBalance: { color: "#374151", fontSize: 12, fontWeight: "700" },
+  unitCostText: { color: Colors.textSecondary, fontSize: 11, fontWeight: "600" },
 });

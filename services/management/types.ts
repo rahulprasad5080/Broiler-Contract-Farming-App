@@ -386,10 +386,13 @@ export type ApiInventoryLedgerEntry = {
 export type ApiFinancePurchase = {
   id: string;
   organizationId: string;
+  purchaseTransactionId?: string | null;
   batchId?: string | null;
   purchaseType: ApiPurchaseType;
   vendorId?: string | null;
   vendorName?: string | null;
+  warehouseId?: string | null;
+  warehouseName?: string | null;
   catalogItemId?: string | null;
   itemName: string;
   quantity?: number | null;
@@ -759,13 +762,7 @@ export type CreateFinancePaymentRequest = {
   notes?: string;
 };
 
-export type AllocateInventoryRequest = {
-  batchId: string;
-  catalogItemId: string;
-  purchaseId: string;
-  quantity: number;
-  remarks?: string;
-};
+
 
 export type CreateBatchSettlementRequest = {
   payoutRate: number;
@@ -794,4 +791,228 @@ export type CreateCommentRequest = {
   targetId: string;
   comment: string;
   correctionNote?: string;
+};
+
+// ─── New Stock Flow Types ─────────────────────────────────────────────────────
+
+export type ApiWarehouse = {
+  id: string;
+  organizationId: string;
+  name: string;
+  code: string;
+  location?: string | null;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type CreateWarehouseRequest = {
+  name: string;
+  code: string;
+  location?: string;
+  isActive?: boolean;
+};
+
+export type ApiPurchaseTransactionItem = {
+  id: string;
+  organizationId: string;
+  purchaseTransactionId: string;
+  batchId?: string | null;
+  vendorId?: string | null;
+  warehouseId?: string | null;
+  warehouseName?: string | null;
+  purchaseType: ApiPurchaseType;
+  vendorName?: string | null;
+  catalogItemId?: string | null;
+  itemName: string;
+  quantity: number;
+  unit?: string | null;
+  unitCost: number;
+  totalAmount: number;
+  invoiceNumber?: string | null;
+  paymentStatus: ApiTransactionPaymentStatus;
+  paidAmount?: number | null;
+  purchaseDate: string;
+  attachmentUrl?: string | null;
+  remarks?: string | null;
+  clientReferenceId?: string | null;
+  createdById?: string | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type ApiPurchaseTransaction = {
+  id: string;
+  organizationId: string;
+  vendorId: string;
+  vendorName?: string | null;
+  warehouseId: string;
+  warehouseName?: string | null;
+  invoiceNumber?: string | null;
+  purchaseDate: string;
+  attachmentUrl?: string | null;
+  remarks?: string | null;
+  totalAmount: number;
+  createdById?: string | null;
+  createdAt: string;
+  updatedAt: string;
+  items: ApiPurchaseTransactionItem[];
+};
+
+export type CreatePurchaseTransactionItemRequest = {
+  purchaseType: ApiPurchaseType;
+  catalogItemId?: string;
+  itemName: string;
+  quantity: number;
+  unit?: string;
+  unitCost: number;
+  totalAmount: number;
+  remarks?: string;
+};
+
+export type CreatePurchaseTransactionRequest = {
+  vendorId: string;
+  warehouseId: string;
+  invoiceNumber?: string;
+  purchaseDate: string;
+  attachmentUrl?: string;
+  remarks?: string;
+  items: CreatePurchaseTransactionItemRequest[];
+};
+
+export type ApiStockBalance = {
+  catalogItemId: string;
+  catalogItemName?: string | null;
+  purchaseTransactionId?: string | null;
+  purchaseId: string;
+  locationType: "WAREHOUSE" | "BATCH";
+  locationId: string;
+  locationName?: string | null;
+  unit?: string | null;
+  unitCost?: number | null;
+  quantityIn: number;
+  quantityOut: number;
+  balance: number;
+};
+
+export type ListStockBalancesParams = {
+  catalogItemId?: string;
+  locationType?: "WAREHOUSE" | "BATCH";
+  locationId?: string;
+  purchaseId?: string;
+};
+
+export type ApiStockMovement = {
+  id: string;
+  organizationId: string;
+  movementType: ApiInventoryMovementType;
+  movementDate: string;
+  catalogItemId: string;
+  catalogItemName?: string | null;
+  purchaseTransactionId?: string | null;
+  purchaseId?: string | null;
+  traderId?: string | null;
+  quantity: number;
+  unit?: string | null;
+  unitCost?: number | null;
+  totalAmount?: number | null;
+  fromLocationType?: string | null;
+  fromLocationId?: string | null;
+  fromLocationName?: string | null;
+  toLocationType?: string | null;
+  toLocationId?: string | null;
+  toLocationName?: string | null;
+  referenceType?: string | null;
+  referenceId?: string | null;
+  reason?: string | null;
+  notes?: string | null;
+  createdById?: string | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type ListStockMovementsParams = {
+  catalogItemId?: string;
+  movementType?: ApiInventoryMovementType;
+  locationType?: "WAREHOUSE" | "BATCH";
+  locationId?: string;
+  purchaseId?: string;
+  purchaseTransactionId?: string;
+  page?: number;
+  limit?: number;
+};
+
+export type OpeningStockRequest = {
+  warehouseId: string;
+  catalogItemId: string;
+  quantity: number;
+  unit?: string;
+  unitCost: number;
+  totalAmount: number;
+  openingDate: string;
+  notes?: string;
+};
+
+export type BatchReturnRequest = {
+  batchId: string;
+  warehouseId: string;
+  catalogItemId: string;
+  purchaseId: string;
+  quantity: number;
+  returnDate: string;
+  remarks?: string;
+};
+
+export type BatchTransferRequest = {
+  fromBatchId: string;
+  toBatchId: string;
+  catalogItemId: string;
+  purchaseId: string;
+  quantity: number;
+  transferDate: string;
+  remarks?: string;
+};
+
+export type StockAdjustmentRequest = {
+  catalogItemId: string;
+  locationType: "WAREHOUSE" | "BATCH";
+  locationId: string;
+  purchaseId: string;
+  quantity: number;
+  direction: "IN" | "OUT";
+  adjustmentDate: string;
+  unitCost?: number;
+  reason: string;
+  remarks?: string;
+};
+
+export type StockSaleRequest = {
+  warehouseId: string;
+  traderId: string;
+  catalogItemId: string;
+  purchaseId?: string;
+  quantity: number;
+  saleDate: string;
+  unitPrice?: number;
+  totalAmount?: number;
+  notes?: string;
+};
+
+export type ListPurchaseTransactionsParams = {
+  page?: number;
+  limit?: number;
+  search?: string;
+  vendorId?: string;
+  warehouseId?: string;
+};
+
+// Updated AllocateInventoryRequest with new required warehouseId
+export type AllocateInventoryRequest = {
+  batchId: string;
+  warehouseId: string;
+  catalogItemId: string;
+  purchaseId: string;
+  quantity: number;
+  allocationDate?: string;
+  remarks?: string;
 };

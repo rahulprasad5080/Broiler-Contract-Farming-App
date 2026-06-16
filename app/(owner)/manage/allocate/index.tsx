@@ -3,18 +3,22 @@ import { SearchableSelectField } from "@/components/ui/SearchableSelectField";
 import { TopAppBar } from "@/components/ui/TopAppBar";
 import { Colors } from "@/constants/Colors";
 import { useAuth } from "@/context/AuthContext";
+import { DatePickerField } from "@/components/ui/DatePickerField";
 import {
   showRequestErrorToast,
   showSuccessToast,
 } from "@/services/apiFeedback";
+import { getLocalDateValue } from "@/services/dateUtils";
 import {
   allocateInventory,
   listAllBatches,
   listCatalogItems,
   listFinancePurchases,
-  listInventoryLedger,
+  listStockBalances,
+  listWarehouses,
   type ApiBatch,
   type ApiCatalogItem,
+  type ApiWarehouse,
 } from "@/services/managementApi";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Ionicons } from "@expo/vector-icons";
@@ -36,12 +40,14 @@ import { z } from "zod";
 
 const allocationSchema = z.object({
   batchId: z.string().min(1, "Please select a batch"),
+  warehouseId: z.string().min(1, "Please select a warehouse"),
   catalogItemId: z.string().min(1, "Please select an item"),
-  purchaseId: z.string().min(1, "Please select a purchase"),
+  purchaseId: z.string().min(1, "Please select a purchase lot"),
   quantity: z.string().min(1, "Quantity must be greater than 0").refine(
     (value) => !Number.isNaN(Number(value)) && Number(value) > 0,
     "Quantity must be greater than 0",
   ),
+  allocationDate: z.string().optional(),
   remarks: z.string().optional(),
 });
 
@@ -49,27 +55,19 @@ type AllocationFormData = z.infer<typeof allocationSchema>;
 
 const DEFAULTS: AllocationFormData = {
   batchId: "",
+  warehouseId: "",
   catalogItemId: "",
   purchaseId: "",
   quantity: "",
+  allocationDate: getLocalDateValue(),
   remarks: "",
 };
-
-function formatDate(value?: string | null) {
-  if (!value) return "";
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return value;
-  return date.toLocaleDateString("en-IN", {
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-  });
-}
 
 export default function AllocateInventoryScreen() {
   const router = useRouter();
   const { accessToken } = useAuth();
   const [batches, setBatches] = useState<ApiBatch[]>([]);
+  const [warehouses, setWarehouses] = useState<ApiWarehouse[]>([]);
   const [catalogItems, setCatalogItems] = useState<ApiCatalogItem[]>([]);
   const [purchaseLots, setPurchaseLots] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
@@ -93,9 +91,11 @@ export default function AllocateInventoryScreen() {
   });
 
   const batchId = watch("batchId");
+  const warehouseId = watch("warehouseId");
   const catalogItemId = watch("catalogItemId");
   const purchaseId = watch("purchaseId");
   const quantity = watch("quantity");
+  const allocationDate = watch("allocationDate");
 
   const selectedItem = catalogItems.find((item) => item.id === catalogItemId);
   const selectedPurchaseLot = purchaseLots.find((lot) => lot.id === purchaseId);
@@ -112,34 +112,45 @@ export default function AllocateInventoryScreen() {
     [batches],
   );
 
+  const warehouseOptions = useMemo(
+    () =>
+      warehouses
+        .filter((wh) => wh.isActive)
+        .map((wh) => ({
+          label: wh.name,
+          value: wh.id,
+          description: wh.location ?? wh.code,
+          keywords: `${wh.code} ${wh.location ?? ""}`,
+        })),
+    [warehouses],
+  );
+
   const catalogOptions = useMemo(
     () =>
-      catalogItems.map((item) => {
-        const stock = item.currentStock ?? 0;
-        return {
-          label: item.name,
-          value: item.id,
-          description: [item.type, item.unit].filter(Boolean).join(" | "),
-          keywords: `${item.type} ${item.unit} ${item.sku ?? ""} ${stock}`,
-        };
-      }),
+      catalogItems.map((item) => ({
+        label: item.name,
+        value: item.id,
+        description: [item.type, item.unit].filter(Boolean).join(" | "),
+        keywords: `${item.type} ${item.unit} ${item.sku ?? ""}`,
+      })),
     [catalogItems],
   );
 
+  // Build purchase lot dropdown label: INV-1001 | Main Warehouse | Item | 50 kg | Rs 28/kg
   const purchaseOptions = useMemo(() => {
     return purchaseLots.map((lot) => {
-      const formattedDate = formatDate(lot.purchaseDate);
       const label = [
-        formattedDate,
-        lot.vendorName || "Unknown Vendor",
-        `${lot.availableQty} ${lot.unit}`,
-        `Rs ${lot.unitCost}/${lot.unit}`,
+        lot.invoiceNumber || null,
+        lot.warehouseName || null,
+        lot.itemName || null,
+        lot.balance != null ? `${lot.balance} ${lot.unit}` : null,
+        lot.unitCost != null ? `Rs ${lot.unitCost}/${lot.unit}` : null,
       ].filter(Boolean).join(" | ");
 
       return {
         label,
         value: lot.id,
-        description: `Purchased: ${lot.quantity} ${lot.unit} | Unit Cost: Rs ${lot.unitCost}/${lot.unit}`,
+        description: `Available: ${lot.balance} ${lot.unit} · Purchased: ${lot.quantityIn} ${lot.unit}`,
         keywords: `${lot.vendorName ?? ""} ${lot.invoiceNumber ?? ""} ${lot.id}`,
       };
     });
@@ -151,17 +162,19 @@ export default function AllocateInventoryScreen() {
     setMessage(null);
 
     try {
-      const [batchRes, catalogRes] = await Promise.all([
+      const [batchRes, catalogRes, warehouseRes] = await Promise.all([
         listAllBatches(accessToken),
         listCatalogItems(accessToken, { limit: 100 }),
+        listWarehouses(accessToken),
       ]);
       setBatches(batchRes.data ?? []);
       setCatalogItems(catalogRes.data ?? []);
+      setWarehouses(warehouseRes.data ?? []);
     } catch (error) {
       setMessage(
         showRequestErrorToast(error, {
           title: "Unable to load allocation data",
-          fallbackMessage: "Failed to load batches and catalog items.",
+          fallbackMessage: "Failed to load batches, warehouses and catalog items.",
         }),
       );
     } finally {
@@ -175,9 +188,9 @@ export default function AllocateInventoryScreen() {
     }, [loadData]),
   );
 
-  // Fetch purchase lots and ledger whenever catalog item selection changes (or refresh trigger fires)
+  // Fetch purchase lots using new /inventory/balances API when warehouse + item selected
   useEffect(() => {
-    if (!accessToken || !catalogItemId) {
+    if (!accessToken || !catalogItemId || !warehouseId) {
       setPurchaseLots([]);
       return;
     }
@@ -186,60 +199,53 @@ export default function AllocateInventoryScreen() {
     const fetchLots = async () => {
       setLoadingLots(true);
       try {
-        const [purchasesRes, ledgerRes] = await Promise.all([
-          listFinancePurchases(accessToken, { catalogItemId, page: 1, limit: 50 }),
-          listInventoryLedger(accessToken, { catalogItemId }),
+        // Get warehouse balances for this item
+        const [balancesRes, purchasesRes] = await Promise.all([
+          listStockBalances(accessToken, {
+            catalogItemId,
+            locationType: "WAREHOUSE",
+            locationId: warehouseId,
+          }),
+          listFinancePurchases(accessToken, {
+            catalogItemId,
+            warehouseId,
+            page: 1,
+            limit: 100,
+          }),
         ]);
 
         if (!isMounted) return;
 
+        const balances = balancesRes.data ?? [];
         const purchases = purchasesRes.data ?? [];
-        const ledger = ledgerRes.data ?? [];
 
-        // Group ledger by purchaseId
-        const ledgerGroup: Record<string, { quantityIn: number; quantityOut: number }> = {};
-        ledger.forEach((entry) => {
-          if (entry.purchaseId) {
-            if (!ledgerGroup[entry.purchaseId]) {
-              ledgerGroup[entry.purchaseId] = { quantityIn: 0, quantityOut: 0 };
-            }
-            ledgerGroup[entry.purchaseId].quantityIn += Number(entry.quantityIn ?? 0);
-            ledgerGroup[entry.purchaseId].quantityOut += Number(entry.quantityOut ?? 0);
-          }
-        });
-
-        // Compute available quantity per purchase
-        const lots = purchases
-          .map((purchase) => {
-            const ledgerData = ledgerGroup[purchase.id];
-            const quantityIn = ledgerData ? ledgerData.quantityIn : (purchase.quantity ?? 0);
-            const quantityOut = ledgerData ? ledgerData.quantityOut : 0;
-            const availableQty = quantityIn - quantityOut;
-            const unit = purchase.unit || selectedItem?.unit || "kg";
+        // Map balances to lot objects, joining with purchase info for labels
+        const lots = balances
+          .filter((b) => b.balance > 0)
+          .map((b) => {
+            const purchase = purchases.find((p) => p.id === b.purchaseId);
             return {
-              id: purchase.id,
-              purchaseId: purchase.id,
-              invoiceNumber: purchase.invoiceNumber,
-              vendorName: purchase.vendorName,
-              purchaseDate: purchase.purchaseDate,
-              unit,
-              unitCost: purchase.unitCost ?? 0,
-              quantity: purchase.quantity ?? 0,
-              availableQty,
+              id: b.purchaseId,
+              invoiceNumber: purchase?.invoiceNumber ?? null,
+              warehouseName: b.locationName ?? null,
+              vendorName: purchase?.vendorName ?? null,
+              itemName: b.catalogItemName ?? selectedItem?.name ?? null,
+              unit: b.unit ?? selectedItem?.unit ?? "unit",
+              unitCost: b.unitCost ?? purchase?.unitCost ?? 0,
+              quantityIn: b.quantityIn,
+              quantityOut: b.quantityOut,
+              balance: b.balance,
             };
-          })
-          .filter((lot) => lot.availableQty > 0);
+          });
 
         setPurchaseLots(lots);
       } catch (error) {
         showRequestErrorToast(error, {
           title: "Failed to load purchase lots",
-          fallbackMessage: "Could not fetch purchase lots and ledger.",
+          fallbackMessage: "Could not fetch stock balances.",
         });
       } finally {
-        if (isMounted) {
-          setLoadingLots(false);
-        }
+        if (isMounted) setLoadingLots(false);
       }
     };
 
@@ -248,14 +254,14 @@ export default function AllocateInventoryScreen() {
     return () => {
       isMounted = false;
     };
-  }, [accessToken, catalogItemId, selectedItem?.unit, refreshTrigger]);
+  }, [accessToken, catalogItemId, warehouseId, selectedItem, refreshTrigger]);
 
-  // Real-time error message when quantity exceeds available stock
+  // Real-time error when quantity exceeds available stock
   useEffect(() => {
-    if (selectedPurchaseLot && enteredQuantity > selectedPurchaseLot.availableQty) {
+    if (selectedPurchaseLot && enteredQuantity > selectedPurchaseLot.balance) {
       setError("quantity", {
         type: "manual",
-        message: `Only ${selectedPurchaseLot.availableQty} ${selectedPurchaseLot.unit} is available in the selected purchase`,
+        message: `Only ${selectedPurchaseLot.balance} ${selectedPurchaseLot.unit} available in this warehouse lot`,
       });
     } else {
       clearErrors("quantity");
@@ -265,7 +271,7 @@ export default function AllocateInventoryScreen() {
   const isQuantityExceeded = useMemo(() => {
     if (!selectedPurchaseLot || !quantity) return false;
     const qty = Number(quantity);
-    return !Number.isNaN(qty) && qty > selectedPurchaseLot.availableQty;
+    return !Number.isNaN(qty) && qty > selectedPurchaseLot.balance;
   }, [quantity, selectedPurchaseLot]);
 
   const onSubmit = async (data: AllocationFormData) => {
@@ -276,17 +282,19 @@ export default function AllocateInventoryScreen() {
     try {
       await allocateInventory(accessToken, {
         batchId: data.batchId,
+        warehouseId: data.warehouseId,
         catalogItemId: data.catalogItemId,
         purchaseId: data.purchaseId,
         quantity: Number(data.quantity),
+        allocationDate: data.allocationDate || undefined,
         remarks: data.remarks?.trim() || undefined,
       });
       showSuccessToast("Inventory allocated successfully.", "Saved");
       setMessage("Inventory allocated successfully.");
-      
+
       setValue("quantity", "");
       setValue("purchaseId", "");
-      
+
       setRefreshTrigger((prev) => prev + 1);
     } catch (error) {
       setMessage(
@@ -304,9 +312,9 @@ export default function AllocateInventoryScreen() {
     <View style={styles.safeArea}>
       <TopAppBar
         title="Inventory Allocation"
-        subtitle="Assign stock to batches"
+        subtitle="Warehouse → Batch stock transfer"
         leadingMode="back"
-        onBack={() => router.replace('/(owner)/dashboard')}
+        onBack={() => router.replace("/(owner)/dashboard")}
       />
 
       <KeyboardAwareScrollView
@@ -315,7 +323,7 @@ export default function AllocateInventoryScreen() {
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
         enableOnAndroid={true}
-        extraScrollHeight={Platform.OS === 'ios' ? 20 : 100}
+        extraScrollHeight={Platform.OS === "ios" ? 20 : 100}
       >
         <View style={styles.summaryCard}>
           <View style={styles.summaryIcon}>
@@ -324,7 +332,7 @@ export default function AllocateInventoryScreen() {
           <View style={styles.summaryTextBlock}>
             <Text style={styles.summaryTitle}>Allocate stock</Text>
             <Text style={styles.summarySubtitle}>
-              Select a batch, choose an item, and enter quantity to post inventory allocation.
+              Select warehouse, batch, choose item and purchase lot to post allocation.
             </Text>
           </View>
         </View>
@@ -332,7 +340,7 @@ export default function AllocateInventoryScreen() {
         {loading ? (
           <ScreenState
             title="Loading allocation data"
-            message="Fetching batches and catalog items."
+            message="Fetching batches, warehouses and catalog items."
             loading
             compact
             style={styles.stateSpacing}
@@ -347,16 +355,30 @@ export default function AllocateInventoryScreen() {
             value={batchId}
             options={batchOptions}
             onSelect={(value) =>
-              setValue("batchId", value, {
-                shouldDirty: true,
-                shouldValidate: true,
-              })
+              setValue("batchId", value, { shouldDirty: true, shouldValidate: true })
             }
             placeholder={loading ? "Loading batches..." : "Select Batch"}
             searchPlaceholder="Search batch"
             emptyMessage="No batches found"
             error={errors.batchId?.message}
             disabled={loading}
+            required
+          />
+
+          <SearchableSelectField
+            label="Warehouse"
+            value={warehouseId}
+            options={warehouseOptions}
+            onSelect={(value) => {
+              setValue("warehouseId", value, { shouldDirty: true, shouldValidate: true });
+              setValue("purchaseId", "", { shouldDirty: true });
+            }}
+            placeholder={loading ? "Loading warehouses..." : "Select Warehouse"}
+            searchPlaceholder="Search warehouse"
+            emptyMessage="No warehouses found"
+            error={errors.warehouseId?.message}
+            disabled={loading}
+            required
           />
 
           <SearchableSelectField
@@ -364,64 +386,65 @@ export default function AllocateInventoryScreen() {
             value={catalogItemId}
             options={catalogOptions}
             onSelect={(value) => {
-              setValue("catalogItemId", value, {
-                shouldDirty: true,
-                shouldValidate: true,
-              });
-              setValue("purchaseId", "", {
-                shouldDirty: true,
-                shouldValidate: true,
-              });
-              setValue("quantity", "", {
-                shouldDirty: true,
-                shouldValidate: true,
-              });
+              setValue("catalogItemId", value, { shouldDirty: true, shouldValidate: true });
+              setValue("purchaseId", "", { shouldDirty: true });
+              setValue("quantity", "", { shouldDirty: true });
             }}
             placeholder={loading ? "Loading catalog..." : "Select Catalog Item"}
             searchPlaceholder="Search catalog item"
             emptyMessage="No catalog items found"
             error={errors.catalogItemId?.message}
             disabled={loading}
+            required
           />
 
-          {catalogItemId ? (
+          {catalogItemId && warehouseId ? (
             <SearchableSelectField
               label="Purchase Lot"
               value={purchaseId}
               options={purchaseOptions}
               onSelect={(value) =>
-                setValue("purchaseId", value, {
-                  shouldDirty: true,
-                  shouldValidate: true,
-                })
+                setValue("purchaseId", value, { shouldDirty: true, shouldValidate: true })
               }
-              placeholder={loadingLots ? "Loading purchase lots..." : "Select Purchase Lot"}
-              searchPlaceholder="Search vendor or invoice"
-              emptyMessage="No available purchase lots found for this item"
+              placeholder={
+                loadingLots
+                  ? "Loading purchase lots..."
+                  : "Select Purchase Lot"
+              }
+              searchPlaceholder="Search invoice, vendor"
+              emptyMessage="No available stock lots found for this item in the selected warehouse"
               error={errors.purchaseId?.message}
               disabled={loading || loadingLots}
+              required
             />
-          ) : null}
+          ) : (
+            <View style={styles.hintBox}>
+              <Ionicons name="information-circle-outline" size={14} color={Colors.textSecondary} />
+              <Text style={styles.hintText}>
+                Select warehouse and catalog item to load purchase lots
+              </Text>
+            </View>
+          )}
 
           {selectedPurchaseLot ? (
             <View style={styles.purchaseInfoCard}>
               <View style={styles.purchaseInfoRow}>
                 <Ionicons name="receipt-outline" size={16} color={Colors.primary} />
-                <Text style={styles.purchaseInfoLabel}>Selected Purchase Lot</Text>
+                <Text style={styles.purchaseInfoLabel}>Selected Lot</Text>
               </View>
               <View style={styles.purchaseDetails}>
                 <Text style={styles.purchaseDetailText}>
-                  <Text style={styles.boldText}>Purchase: </Text>
-                  {selectedPurchaseLot.invoiceNumber ? `${selectedPurchaseLot.invoiceNumber} | ` : ""}
+                  <Text style={styles.boldText}>Invoice: </Text>
+                  {selectedPurchaseLot.invoiceNumber || "N/A"} |{" "}
                   {selectedPurchaseLot.vendorName || "Unknown Vendor"}
                 </Text>
                 <Text style={styles.purchaseDetailText}>
                   <Text style={styles.boldText}>Purchased: </Text>
-                  {selectedPurchaseLot.quantity} {selectedPurchaseLot.unit}
+                  {selectedPurchaseLot.quantityIn} {selectedPurchaseLot.unit}
                 </Text>
                 <Text style={styles.purchaseDetailText}>
                   <Text style={styles.boldText}>Available: </Text>
-                  {selectedPurchaseLot.availableQty} {selectedPurchaseLot.unit}
+                  {selectedPurchaseLot.balance} {selectedPurchaseLot.unit}
                 </Text>
                 <Text style={styles.purchaseDetailText}>
                   <Text style={styles.boldText}>Unit Cost: </Text>
@@ -443,11 +466,13 @@ export default function AllocateInventoryScreen() {
               control={control}
               name="quantity"
               render={({ field: { value, onChange } }) => (
-                <View style={[
-                  styles.inputContainer,
-                  errors.quantity && styles.inputError,
-                  !purchaseId && styles.disabledInputContainer
-                ]}>
+                <View
+                  style={[
+                    styles.inputContainer,
+                    errors.quantity && styles.inputError,
+                    !purchaseId && styles.disabledInputContainer,
+                  ]}
+                >
                   <TextInput
                     style={styles.inputWithSuffix}
                     value={value}
@@ -465,6 +490,19 @@ export default function AllocateInventoryScreen() {
               <Text style={styles.errorText}>{errors.quantity.message}</Text>
             ) : null}
           </View>
+
+          <Controller
+            control={control}
+            name="allocationDate"
+            render={({ field: { value, onChange } }) => (
+              <DatePickerField
+                label="Allocation Date"
+                value={value ?? ""}
+                onChange={onChange}
+                disableFuture
+              />
+            )}
+          />
 
           <View style={styles.inputGroup}>
             <Text style={styles.label}>Remarks</Text>
@@ -486,7 +524,10 @@ export default function AllocateInventoryScreen() {
           </View>
 
           <TouchableOpacity
-            style={[styles.submitButton, (saving || loading || isQuantityExceeded) && styles.disabledButton]}
+            style={[
+              styles.submitButton,
+              (saving || loading || isQuantityExceeded) && styles.disabledButton,
+            ]}
             onPress={handleSubmit(onSubmit)}
             disabled={saving || loading || isQuantityExceeded}
             activeOpacity={0.82}
@@ -507,22 +548,10 @@ export default function AllocateInventoryScreen() {
 }
 
 const styles = StyleSheet.create({
-  safeArea: {
-    flex: 1,
-    backgroundColor: "#F4F6F8",
-  },
-  keyboardView: {
-    flex: 1,
-    backgroundColor: "#F4F6F8",
-  },
-  scrollContainer: {
-    flexGrow: 1,
-    padding: 14,
-    paddingBottom: 80,
-  },
-  stateSpacing: {
-    marginBottom: 12,
-  },
+  safeArea: { flex: 1, backgroundColor: "#F4F6F8" },
+  keyboardView: { flex: 1, backgroundColor: "#F4F6F8" },
+  scrollContainer: { flexGrow: 1, padding: 14, paddingBottom: 80 },
+  stateSpacing: { marginBottom: 12 },
   summaryCard: {
     backgroundColor: "#FFF",
     borderRadius: 14,
@@ -547,21 +576,9 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  summaryTextBlock: {
-    flex: 1,
-    minWidth: 0,
-  },
-  summaryTitle: {
-    color: Colors.text,
-    fontSize: 17,
-    fontWeight: "900",
-  },
-  summarySubtitle: {
-    color: Colors.textSecondary,
-    fontSize: 12,
-    lineHeight: 17,
-    marginTop: 3,
-  },
+  summaryTextBlock: { flex: 1, minWidth: 0 },
+  summaryTitle: { color: Colors.text, fontSize: 17, fontWeight: "900" },
+  summarySubtitle: { color: Colors.textSecondary, fontSize: 12, lineHeight: 17, marginTop: 3 },
   messageText: {
     borderRadius: 10,
     borderWidth: 1,
@@ -586,14 +603,19 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     elevation: 2,
   },
-  inputGroup: {
-    gap: 8,
+  hintBox: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    backgroundColor: "#F9FAFB",
+    borderRadius: 8,
+    padding: 10,
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
   },
-  label: {
-    color: Colors.text,
-    fontSize: 13,
-    fontWeight: "900",
-  },
+  hintText: { color: Colors.textSecondary, fontSize: 12, fontWeight: "600", flex: 1 },
+  inputGroup: { gap: 8 },
+  label: { color: Colors.text, fontSize: 13, fontWeight: "900" },
   input: {
     minHeight: 48,
     borderRadius: 10,
@@ -615,32 +637,11 @@ const styles = StyleSheet.create({
     alignItems: "center",
     paddingHorizontal: 12,
   },
-  inputError: {
-    borderColor: Colors.error,
-  },
-  inputWithSuffix: {
-    flex: 1,
-    height: "100%",
-    color: Colors.text,
-    fontSize: 14,
-    fontWeight: "800",
-  },
-  suffix: {
-    color: Colors.textSecondary,
-    fontSize: 12,
-    fontWeight: "900",
-    marginLeft: 8,
-  },
-  errorText: {
-    color: Colors.error,
-    fontSize: 11,
-    fontWeight: "800",
-  },
-  textArea: {
-    minHeight: 96,
-    paddingTop: 12,
-    textAlignVertical: "top",
-  },
+  inputError: { borderColor: Colors.error },
+  inputWithSuffix: { flex: 1, height: "100%", color: Colors.text, fontSize: 14, fontWeight: "800" },
+  suffix: { color: Colors.textSecondary, fontSize: 12, fontWeight: "900", marginLeft: 8 },
+  errorText: { color: Colors.error, fontSize: 11, fontWeight: "800" },
+  textArea: { minHeight: 96, paddingTop: 12, textAlignVertical: "top" },
   submitButton: {
     minHeight: 50,
     borderRadius: 11,
@@ -651,18 +652,9 @@ const styles = StyleSheet.create({
     gap: 8,
     paddingHorizontal: 14,
   },
-  submitButtonText: {
-    color: "#FFF",
-    fontSize: 14,
-    fontWeight: "900",
-  },
-  disabledButton: {
-    opacity: 0.7,
-  },
-  disabledInputContainer: {
-    backgroundColor: "#F3F4F6",
-    borderColor: "#E5E7EB",
-  },
+  submitButtonText: { color: "#FFF", fontSize: 14, fontWeight: "900" },
+  disabledButton: { opacity: 0.7 },
+  disabledInputContainer: { backgroundColor: "#F3F4F6", borderColor: "#E5E7EB" },
   purchaseInfoCard: {
     backgroundColor: "#F0FDF4",
     borderRadius: 10,
@@ -671,11 +663,7 @@ const styles = StyleSheet.create({
     padding: 12,
     gap: 8,
   },
-  purchaseInfoRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-  },
+  purchaseInfoRow: { flexDirection: "row", alignItems: "center", gap: 6 },
   purchaseInfoLabel: {
     fontSize: 12,
     fontWeight: "800",
@@ -683,16 +671,7 @@ const styles = StyleSheet.create({
     letterSpacing: 0.3,
     textTransform: "uppercase",
   },
-  purchaseDetails: {
-    gap: 4,
-  },
-  purchaseDetailText: {
-    fontSize: 13,
-    color: Colors.text,
-    fontWeight: "600",
-  },
-  boldText: {
-    fontWeight: "800",
-    color: Colors.textSecondary,
-  },
+  purchaseDetails: { gap: 4 },
+  purchaseDetailText: { fontSize: 13, color: Colors.text, fontWeight: "600" },
+  boldText: { fontWeight: "800", color: Colors.textSecondary },
 });

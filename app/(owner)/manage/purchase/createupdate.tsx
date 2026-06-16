@@ -1,12 +1,13 @@
 import { Ionicons } from "@expo/vector-icons";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useFocusEffect } from "@react-navigation/native";
-import { useLocalSearchParams, useRouter } from "expo-router";
+import { useRouter } from "expo-router";
 import React, { useCallback, useMemo, useState } from "react";
-import { Controller, useForm } from "react-hook-form";
+import { Controller, useFieldArray, useForm } from "react-hook-form";
 import {
   ActivityIndicator,
   Platform,
+  ScrollView,
   StyleSheet,
   Text,
   TextInput,
@@ -29,14 +30,13 @@ import {
 } from "@/services/apiFeedback";
 import { getLocalDateValue } from "@/services/dateUtils";
 import {
-  API_TRANSACTION_PAYMENT_STATUS_VALUES,
-  createFinancePurchase,
+  createPurchaseTransaction,
   listAllVendors,
   listCatalogItems,
-  updateFinancePurchase,
+  listWarehouses,
   type ApiCatalogItem,
-  type ApiTransactionPaymentStatus,
   type ApiVendor,
+  type ApiWarehouse,
 } from "@/services/managementApi";
 
 const numberString = (label: string) =>
@@ -45,40 +45,47 @@ const numberString = (label: string) =>
     `${label} must be a number`,
   );
 
-const purchaseSchema = z.object({
-  batchId: z.string().optional(),
-  vendorId: z.string().min(1, "Vendor is required"),
+const itemRowSchema = z.object({
   purchaseType: z.string().min(1, "Purchase type is required"),
-  vendorName: z.string().optional(),
-  catalogItemId: z.string().optional(),
+  catalogItemId: z.string().min(1, "Item is required"),
   itemName: z.string().min(1, "Item name is required"),
   quantity: numberString("Quantity"),
   unit: z.string().optional(),
   unitCost: numberString("Unit cost"),
-  totalAmount: numberString("Total amount"),
-  invoiceNumber: z.string().optional(),
-  paymentStatus: z.enum(API_TRANSACTION_PAYMENT_STATUS_VALUES),
-  purchaseDate: z.string().min(1, "Purchase date is required"),
+  totalAmount: z.string(),
   remarks: z.string().optional(),
 });
 
-type PurchaseFormData = z.infer<typeof purchaseSchema>;
+const transactionSchema = z.object({
+  vendorId: z.string().min(1, "Vendor is required"),
+  warehouseId: z.string().min(1, "Warehouse is required"),
+  invoiceNumber: z.string().optional(),
+  purchaseDate: z.string().min(1, "Purchase date is required"),
+  remarks: z.string().optional(),
+  items: z.array(itemRowSchema).min(1, "At least one item is required"),
+});
 
-const DEFAULTS: PurchaseFormData = {
-  batchId: "",
-  vendorId: "",
+type ItemRowData = z.infer<typeof itemRowSchema>;
+type TransactionFormData = z.infer<typeof transactionSchema>;
+
+const DEFAULT_ITEM: ItemRowData = {
   purchaseType: "",
-  vendorName: "",
   catalogItemId: "",
   itemName: "",
   quantity: "",
   unit: "",
   unitCost: "",
   totalAmount: "",
+  remarks: "",
+};
+
+const DEFAULTS: TransactionFormData = {
+  vendorId: "",
+  warehouseId: "",
   invoiceNumber: "",
-  paymentStatus: "PENDING",
   purchaseDate: getLocalDateValue(),
   remarks: "",
+  items: [{ ...DEFAULT_ITEM }],
 };
 
 function toNumber(value: string) {
@@ -93,45 +100,47 @@ function labelize(value: string) {
     .replace(/\b\w/g, (char) => char.toUpperCase());
 }
 
-export default function PurchaseCreateUpdateScreen() {
+export default function PurchaseCreateScreen() {
   const router = useRouter();
-  const params = useLocalSearchParams<Partial<Record<keyof PurchaseFormData | "purchaseId", string>>>();
   const { accessToken } = useAuth();
   const [vendors, setVendors] = useState<ApiVendor[]>([]);
+  const [warehouses, setWarehouses] = useState<ApiWarehouse[]>([]);
   const [catalogItems, setCatalogItems] = useState<ApiCatalogItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [savedMessage, setSavedMessage] = useState<string | null>(null);
-  const purchaseId = typeof params.purchaseId === "string" ? params.purchaseId : "";
-  const isEditMode = Boolean(purchaseId);
 
   const {
     control,
     handleSubmit,
     setValue,
     watch,
-    reset,
-    setError,
-    clearErrors,
     formState: { errors },
-  } = useForm<PurchaseFormData>({
-    resolver: zodResolver(purchaseSchema),
+  } = useForm<TransactionFormData>({
+    resolver: zodResolver(transactionSchema),
     defaultValues: DEFAULTS,
   });
 
-  const selectedVendorId = watch("vendorId");
-  const selectedCatalogItemId = watch("catalogItemId");
-  const paymentStatus = watch("paymentStatus");
-  const purchaseType = watch("purchaseType");
-  const quantity = watch("quantity");
-  const unitCost = watch("unitCost");
-  const unit = watch("unit");
+  const { fields, append, remove } = useFieldArray({
+    control,
+    name: "items",
+  });
 
-  const {
-    selectOptions: purchaseTypeOptions,
-    loading: loadingPurchaseTypes,
-    errorMessage: purchaseTypeError,
-  } = useMasterDataTypeOptions("PURCHASE_TYPE");
+  const { selectOptions: purchaseTypeOptions, loading: loadingPurchaseTypes } =
+    useMasterDataTypeOptions("PURCHASE_TYPE");
+
+  const selectedVendorId = watch("vendorId");
+  const selectedWarehouseId = watch("warehouseId");
+  const itemsWatch = watch("items");
+
+  const grandTotal = useMemo(
+    () =>
+      (itemsWatch ?? []).reduce(
+        (sum, item) =>
+          sum + toNumber(item.quantity || "0") * toNumber(item.unitCost || "0"),
+        0,
+      ),
+    [itemsWatch],
+  );
 
   const vendorOptions = useMemo<SearchableSelectOption[]>(
     () =>
@@ -144,42 +153,30 @@ export default function PurchaseCreateUpdateScreen() {
     [vendors],
   );
 
-  const catalogOptions = useMemo<SearchableSelectOption[]>(
+  const warehouseOptions = useMemo<SearchableSelectOption[]>(
     () =>
-      catalogItems
-        .filter((item) => !purchaseType || item.type === purchaseType)
-        .map((item) => ({
-          label: item.name,
-          value: item.id,
-          description: `${item.type} - ${item.unit}`,
-          keywords: `${item.type} ${item.unit} ${item.sku ?? ""}`,
+      warehouses
+        .filter((wh) => wh.isActive)
+        .map((wh) => ({
+          label: wh.name,
+          value: wh.id,
+          description: wh.location ?? wh.code,
+          keywords: `${wh.code} ${wh.location ?? ""}`,
         })),
-    [catalogItems, purchaseType],
-  );
-
-  const paymentStatusOptions = useMemo<SearchableSelectOption[]>(
-    () =>
-      API_TRANSACTION_PAYMENT_STATUS_VALUES.map((status) => ({
-        label: labelize(status),
-        value: status,
-      })),
-    [],
-  );
-
-  const calculatedTotal = useMemo(
-    () => toNumber(quantity || "0") * toNumber(unitCost || "0"),
-    [quantity, unitCost],
+    [warehouses],
   );
 
   const loadOptions = useCallback(async () => {
     if (!accessToken) return;
     setLoading(true);
     try {
-      const [vendorRes, catalogRes] = await Promise.all([
+      const [vendorRes, warehouseRes, catalogRes] = await Promise.all([
         listAllVendors(accessToken),
+        listWarehouses(accessToken),
         listCatalogItems(accessToken, { limit: 100 }),
       ]);
       setVendors(vendorRes.data);
+      setWarehouses(warehouseRes.data ?? []);
       setCatalogItems(catalogRes.data);
     } catch (error) {
       showRequestErrorToast(error, { title: "Unable to load purchase options" });
@@ -194,121 +191,40 @@ export default function PurchaseCreateUpdateScreen() {
     }, [loadOptions]),
   );
 
-  React.useEffect(() => {
-    if (!isEditMode) return;
-    reset({
-      batchId: params.batchId ?? "",
-      vendorId: params.vendorId ?? "",
-      purchaseType: params.purchaseType ?? "",
-      vendorName: params.vendorName ?? "",
-      catalogItemId: params.catalogItemId ?? "",
-      itemName: params.itemName ?? "",
-      quantity: params.quantity ?? "",
-      unit: params.unit ?? "",
-      unitCost: params.unitCost ?? "",
-      totalAmount: String(toNumber(params.quantity ?? "0") * toNumber(params.unitCost ?? "0")),
-      invoiceNumber: params.invoiceNumber ?? "",
-      paymentStatus: (params.paymentStatus || "PENDING") as ApiTransactionPaymentStatus,
-      purchaseDate: params.purchaseDate ? params.purchaseDate.split("T")[0] : getLocalDateValue(),
-      remarks: params.remarks ?? "",
-    });
-  }, [
-    isEditMode,
-    params.batchId,
-    params.catalogItemId,
-    params.invoiceNumber,
-    params.itemName,
-    params.paymentStatus,
-    params.purchaseDate,
-    params.purchaseType,
-    params.quantity,
-    params.remarks,
-    params.unit,
-    params.unitCost,
-    params.vendorId,
-    params.vendorName,
-    reset,
-  ]);
+  const getCatalogOptions = (purchaseType: string): SearchableSelectOption[] =>
+    catalogItems
+      .filter((item) => !purchaseType || item.type === purchaseType)
+      .map((item) => ({
+        label: item.name,
+        value: item.id,
+        description: `${item.type} — ${item.unit}`,
+        keywords: `${item.type} ${item.unit} ${item.sku ?? ""}`,
+      }));
 
-  React.useEffect(() => {
-    if (isEditMode) return;
-    if (!purchaseType && purchaseTypeOptions[0]) {
-      setValue("purchaseType", purchaseTypeOptions[0].value, {
-        shouldDirty: false,
-        shouldValidate: true,
-      });
-    }
-  }, [isEditMode, purchaseType, purchaseTypeOptions, setValue]);
-
-  React.useEffect(() => {
-    setValue("totalAmount", String(calculatedTotal), {
-      shouldDirty: true,
-      shouldValidate: true,
-    });
-  }, [calculatedTotal, setValue]);
-
-  const onVendorSelect = (value: string) => {
-    const vendor = vendors.find((item) => item.id === value);
-    setValue("vendorId", value, { shouldDirty: true, shouldValidate: true });
-    setValue("vendorName", vendor?.name ?? "", { shouldDirty: true, shouldValidate: true });
-  };
-
-  const onCatalogSelect = (value: string) => {
-    const item = catalogItems.find((catalogItem) => catalogItem.id === value);
-    setValue("catalogItemId", value, { shouldDirty: true, shouldValidate: true });
-    setValue("itemName", item?.name ?? "", { shouldDirty: true, shouldValidate: true });
-    setValue("unit", item?.unit ?? "", { shouldDirty: true, shouldValidate: true });
-    if (item?.defaultRate !== undefined && item.defaultRate !== null) {
-      setValue("unitCost", String(item.defaultRate), { shouldDirty: true, shouldValidate: true });
-    }
-    clearErrors("catalogItemId");
-  };
-
-  const onSubmit = async (data: PurchaseFormData) => {
-    if (!data.catalogItemId) {
-      setError("catalogItemId", { type: "manual", message: "Catalog item is required" });
-      return;
-    }
+  const onSubmit = async (data: TransactionFormData) => {
     if (!accessToken || saving) return;
     setSaving(true);
-    setSavedMessage(null);
 
     try {
-      if (isEditMode) {
-        await updateFinancePurchase(accessToken, purchaseId, {
-          vendorId: data.vendorId?.trim() || undefined,
-          vendorName: data.vendorName?.trim() || undefined,
-          purchaseType: data.purchaseType.trim(),
-          quantity: toNumber(data.quantity),
-          unit: data.unit?.trim() || undefined,
-          unitCost: toNumber(data.unitCost),
-          totalAmount: calculatedTotal,
-          invoiceNumber: data.invoiceNumber?.trim() || undefined,
-          paymentStatus: data.paymentStatus as ApiTransactionPaymentStatus,
-          purchaseDate: data.purchaseDate,
-          remarks: data.remarks?.trim() || undefined,
-        });
-      } else {
-        await createFinancePurchase(accessToken, {
-        batchId: data.batchId?.trim() || undefined,
-        vendorId: data.vendorId?.trim() || undefined,
-        purchaseType: data.purchaseType.trim(),
-        vendorName: data.vendorName?.trim() || undefined,
-        catalogItemId: data.catalogItemId?.trim() || undefined,
-        itemName: data.itemName.trim(),
-        quantity: toNumber(data.quantity),
-        unit: data.unit?.trim() || undefined,
-        unitCost: toNumber(data.unitCost),
-        totalAmount: calculatedTotal,
+      await createPurchaseTransaction(accessToken, {
+        vendorId: data.vendorId,
+        warehouseId: data.warehouseId,
         invoiceNumber: data.invoiceNumber?.trim() || undefined,
-        paymentStatus: data.paymentStatus as ApiTransactionPaymentStatus,
         purchaseDate: data.purchaseDate,
         remarks: data.remarks?.trim() || undefined,
-        });
-      }
+        items: data.items.map((item) => ({
+          purchaseType: item.purchaseType,
+          catalogItemId: item.catalogItemId || undefined,
+          itemName: item.itemName.trim(),
+          quantity: toNumber(item.quantity),
+          unit: item.unit?.trim() || undefined,
+          unitCost: toNumber(item.unitCost),
+          totalAmount: toNumber(item.quantity) * toNumber(item.unitCost),
+          remarks: item.remarks?.trim() || undefined,
+        })),
+      });
 
-      showSuccessToast(isEditMode ? "Purchase updated successfully." : "Purchase created successfully.");
-      setSavedMessage(isEditMode ? "Purchase updated successfully." : "Purchase created successfully.");
+      showSuccessToast("Purchase transaction created successfully.");
       router.replace({ pathname: "/(owner)/manage/purchase" });
     } catch (error) {
       showRequestErrorToast(error, { title: "Purchase save failed" });
@@ -320,7 +236,8 @@ export default function PurchaseCreateUpdateScreen() {
   return (
     <View style={styles.safeArea}>
       <TopAppBar
-        title={isEditMode ? "Update Purchase" : "Create Purchase"}
+        title="New Purchase Transaction"
+        subtitle="Multi-item warehouse purchase"
         leadingMode="back"
         onBack={() => router.back()}
       />
@@ -330,203 +247,328 @@ export default function PurchaseCreateUpdateScreen() {
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
         enableOnAndroid={true}
-        extraScrollHeight={Platform.OS === 'ios' ? 20 : 100}
+        extraScrollHeight={Platform.OS === "ios" ? 20 : 100}
       >
-          {loading ? (
-            <ScreenState title="Loading purchase form" message="Fetching dropdown options..." loading compact style={styles.stateSpacing} />
-          ) : null}
-          {savedMessage ? (
-            <ScreenState title={savedMessage} message="Form is ready for another purchase." compact style={styles.stateSpacing} />
-          ) : null}
+        {loading ? (
+          <ScreenState
+            title="Loading options"
+            message="Fetching vendors, warehouses and items..."
+            loading
+            compact
+            style={styles.stateSpacing}
+          />
+        ) : null}
 
-          {/* Card 1: Purchase Details */}
-          <View style={styles.card}>
-            {purchaseTypeError ? (
-              <ScreenState
-                title="Using fallback purchase types"
-                message={purchaseTypeError}
-                compact
-                style={styles.stateSpacing}
+        {/* Header Card */}
+        <View style={styles.card}>
+          <Text style={styles.sectionTitle}>Transaction Details</Text>
+
+          <SearchableSelectField
+            label="Vendor"
+            value={selectedVendorId}
+            options={vendorOptions}
+            onSelect={(value) => {
+              setValue("vendorId", value, { shouldDirty: true, shouldValidate: true });
+            }}
+            placeholder="Select Vendor"
+            searchPlaceholder="Search vendor"
+            emptyMessage="No vendors found"
+            error={errors.vendorId?.message}
+            required
+          />
+
+          <SearchableSelectField
+            label="Warehouse"
+            value={selectedWarehouseId}
+            options={warehouseOptions}
+            onSelect={(value) => {
+              setValue("warehouseId", value, { shouldDirty: true, shouldValidate: true });
+            }}
+            placeholder="Select Warehouse"
+            searchPlaceholder="Search warehouse"
+            emptyMessage="No warehouses found"
+            error={errors.warehouseId?.message}
+            required
+          />
+
+          <SimpleInput
+            control={control}
+            name="invoiceNumber"
+            label="Invoice Number"
+            placeholder="INV-001"
+            error={errors.invoiceNumber?.message}
+          />
+
+          <Controller
+            control={control}
+            name="purchaseDate"
+            render={({ field: { value, onChange } }) => (
+              <DatePickerField
+                label="Purchase Date"
+                value={value}
+                onChange={onChange}
+                error={errors.purchaseDate?.message}
+                disableFuture
               />
-            ) : null}
+            )}
+          />
 
+          <SimpleInput
+            control={control}
+            name="remarks"
+            label="Remarks"
+            placeholder="Optional transaction remarks"
+            multiline
+            error={errors.remarks?.message}
+          />
+        </View>
 
-
-            <SearchableSelectField
-              label="Vendor"
-              value={selectedVendorId}
-              options={vendorOptions}
-              onSelect={onVendorSelect}
-              placeholder="Select Vendor"
-              searchPlaceholder="Search vendor"
-              emptyMessage="No vendors found"
-              error={errors.vendorId?.message}
-              required
-            />
-
-            <SearchableSelectField
-              label="Purchase Type"
-              value={purchaseType}
-              options={purchaseTypeOptions}
-              onSelect={(value) => {
-                setValue("purchaseType", value, { shouldDirty: true, shouldValidate: true });
-                const currentCatalogItem = catalogItems.find((item) => item.id === selectedCatalogItemId);
-                if (currentCatalogItem && currentCatalogItem.type !== value) {
-                  setValue("catalogItemId", "", { shouldDirty: true, shouldValidate: true });
-                  setValue("itemName", "", { shouldDirty: true, shouldValidate: true });
-                  setValue("unit", "", { shouldDirty: true, shouldValidate: true });
-                  setValue("unitCost", "", { shouldDirty: true, shouldValidate: true });
-                }
-              }}
-              placeholder={loadingPurchaseTypes ? "Loading purchase types..." : "Select Purchase Type"}
-              searchPlaceholder="Search purchase type"
-              emptyMessage="No purchase types found"
-              error={errors.purchaseType?.message}
-              disabled={loadingPurchaseTypes}
-              required
-            />
-
-            <SearchableSelectField
-              label="Catalog Item"
-              value={selectedCatalogItemId}
-              options={catalogOptions}
-              onSelect={onCatalogSelect}
-              placeholder="Select Catalog Item"
-              searchPlaceholder="Search catalog item"
-              emptyMessage="No catalog items found"
-              error={errors.catalogItemId?.message}
-              required
-            />
-
-            <ControlledInput
-              control={control}
-              name="invoiceNumber"
-              label="Invoice Number"
-              placeholder="INV-001"
-              error={errors.invoiceNumber?.message}
-            />
-
-            <SearchableSelectField
-              label="Payment Status"
-              value={paymentStatus}
-              options={paymentStatusOptions}
-              onSelect={(value) => setValue("paymentStatus", value as ApiTransactionPaymentStatus, { shouldDirty: true, shouldValidate: true })}
-              placeholder="Select Payment Status"
-              searchPlaceholder="Search payment status"
-              emptyMessage="No payment statuses found"
-              error={errors.paymentStatus?.message}
-              required
-            />
-
-            <Controller
-              control={control}
-              name="purchaseDate"
-              render={({ field: { value, onChange } }) => (
-                <DatePickerField
-                  label="Purchase Date"
-                  value={value}
-                  onChange={onChange}
-                  error={errors.purchaseDate?.message}
-                  disableFuture
-                />
-              )}
-            />
-          </View>
-
-          {/* Card 2: Cost Calculation */}
-          <View style={styles.card}>
-            <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>Calculation & Cost</Text>
-            </View>
-
-            <ControlledInput
-              control={control}
-              name="quantity"
-              label="Quantity"
-              placeholder="0"
-              keyboardType="numeric"
-              error={errors.quantity?.message}
-              required
-            />
-
-            <ControlledInput
-              control={control}
-              name="unit"
-              label="Unit"
-              placeholder="kg / pcs / bag"
-              error={errors.unit?.message}
-            />
-
-            <ControlledInput
-              control={control}
-              name="unitCost"
-              label="Unit Cost"
-              placeholder="0"
-              keyboardType="numeric"
-              error={errors.unitCost?.message}
-              required
-            />
-
-            <ControlledInput
-              control={control}
-              name="remarks"
-              label="Remarks"
-              placeholder="Purchase remarks"
-              multiline
-              error={errors.remarks?.message}
-            />
-
-            <View style={styles.totalCard}>
-              <View style={styles.totalCardHeader}>
-                <View>
-                  <Text style={styles.totalLabel}>Total Amount</Text>
-                </View>
-                <View style={styles.totalIconBox}>
-                  <Ionicons name="calculator-outline" size={18} color={Colors.primary} />
-                </View>
-              </View>
-              <Text style={styles.totalAmount}>Rs {calculatedTotal.toLocaleString("en-IN")}</Text>
-             
-              {errors.totalAmount?.message ? (
-                <Text style={styles.errorText}>{errors.totalAmount.message}</Text>
-              ) : null}
-            </View>
-
+        {/* Items Card */}
+        <View style={styles.card}>
+          <View style={styles.sectionHeaderRow}>
+            <Text style={styles.sectionTitle}>Items</Text>
             <TouchableOpacity
-              style={[styles.submitButton, saving && styles.submitButtonDisabled]}
-              onPress={handleSubmit(onSubmit)}
-              disabled={saving}
+              style={styles.addItemBtn}
+              onPress={() => append({ ...DEFAULT_ITEM })}
+              activeOpacity={0.78}
             >
-              {saving ? (
-                <ActivityIndicator color="#FFF" />
-              ) : (
-                <>
-                  <Ionicons name="save-outline" size={18} color="#FFF" />
-                  <Text style={styles.submitButtonText}>
-                    {isEditMode ? "Update Purchase" : "Save Purchase"}
-                  </Text>
-                </>
-              )}
+              <Ionicons name="add-circle-outline" size={16} color={Colors.primary} />
+              <Text style={styles.addItemBtnText}>Add Item</Text>
             </TouchableOpacity>
           </View>
+
+          {fields.map((field, index) => (
+            <ItemRow
+              key={field.id}
+              index={index}
+              control={control}
+              errors={errors}
+              purchaseTypeOptions={purchaseTypeOptions}
+              loadingPurchaseTypes={loadingPurchaseTypes}
+              getCatalogOptions={getCatalogOptions}
+              catalogItems={catalogItems}
+              setValue={setValue}
+              watch={watch}
+              canRemove={fields.length > 1}
+              onRemove={() => remove(index)}
+            />
+          ))}
+
+          {/* Grand Total */}
+          <View style={styles.totalCard}>
+            <View style={styles.totalCardHeader}>
+              <Text style={styles.totalLabel}>Grand Total</Text>
+              <View style={styles.totalIconBox}>
+                <Ionicons name="calculator-outline" size={18} color={Colors.primary} />
+              </View>
+            </View>
+            <Text style={styles.totalAmount}>
+              Rs {grandTotal.toLocaleString("en-IN")}
+            </Text>
+            <Text style={styles.totalHint}>
+              {fields.length} item{fields.length !== 1 ? "s" : ""}
+            </Text>
+          </View>
+
+          <TouchableOpacity
+            style={[styles.submitButton, saving && styles.submitButtonDisabled]}
+            onPress={handleSubmit(onSubmit)}
+            disabled={saving || loading}
+          >
+            {saving ? (
+              <ActivityIndicator color="#FFF" />
+            ) : (
+              <>
+                <Ionicons name="save-outline" size={18} color="#FFF" />
+                <Text style={styles.submitButtonText}>Save Purchase Transaction</Text>
+              </>
+            )}
+          </TouchableOpacity>
+        </View>
       </KeyboardAwareScrollView>
     </View>
   );
 }
 
-type ControlledInputProps = {
-  control: ReturnType<typeof useForm<PurchaseFormData>>["control"];
-  name: keyof PurchaseFormData;
+// ─── Item Row Component ────────────────────────────────────────────────────────
+
+type ItemRowProps = {
+  index: number;
+  control: any;
+  errors: any;
+  purchaseTypeOptions: SearchableSelectOption[];
+  loadingPurchaseTypes: boolean;
+  getCatalogOptions: (purchaseType: string) => SearchableSelectOption[];
+  catalogItems: ApiCatalogItem[];
+  setValue: any;
+  watch: any;
+  canRemove: boolean;
+  onRemove: () => void;
+};
+
+function ItemRow({
+  index,
+  control,
+  errors,
+  purchaseTypeOptions,
+  loadingPurchaseTypes,
+  getCatalogOptions,
+  catalogItems,
+  setValue,
+  watch,
+  canRemove,
+  onRemove,
+}: ItemRowProps) {
+  const purchaseType = watch(`items.${index}.purchaseType`);
+  const catalogItemId = watch(`items.${index}.catalogItemId`);
+  const quantity = watch(`items.${index}.quantity`);
+  const unitCost = watch(`items.${index}.unitCost`);
+
+  const lineTotal = useMemo(
+    () => {
+      const q = Number(String(quantity || "0").replace(/,/g, ""));
+      const uc = Number(String(unitCost || "0").replace(/,/g, ""));
+      return Number.isNaN(q * uc) ? 0 : q * uc;
+    },
+    [quantity, unitCost],
+  );
+
+  React.useEffect(() => {
+    setValue(`items.${index}.totalAmount`, String(lineTotal), { shouldDirty: true });
+  }, [lineTotal, index, setValue]);
+
+  const catalogOptions = useMemo(
+    () => getCatalogOptions(purchaseType),
+    [getCatalogOptions, purchaseType],
+  );
+
+  const rowErrors = errors?.items?.[index];
+
+  return (
+    <View style={styles.itemRow}>
+      <View style={styles.itemRowHeader}>
+        <View style={styles.itemRowBadge}>
+          <Text style={styles.itemRowBadgeText}>Item {index + 1}</Text>
+        </View>
+        {canRemove ? (
+          <TouchableOpacity
+            onPress={onRemove}
+            style={styles.removeItemBtn}
+            activeOpacity={0.75}
+          >
+            <Ionicons name="trash-outline" size={16} color="#EF4444" />
+          </TouchableOpacity>
+        ) : null}
+      </View>
+
+      <SearchableSelectField
+        label="Purchase Type"
+        value={purchaseType}
+        options={purchaseTypeOptions}
+        onSelect={(value) => {
+          setValue(`items.${index}.purchaseType`, value, { shouldDirty: true, shouldValidate: true });
+          const currentCatalog = catalogItems.find((c) => c.id === catalogItemId);
+          if (currentCatalog && currentCatalog.type !== value) {
+            setValue(`items.${index}.catalogItemId`, "", { shouldDirty: true });
+            setValue(`items.${index}.itemName`, "", { shouldDirty: true });
+            setValue(`items.${index}.unit`, "", { shouldDirty: true });
+            setValue(`items.${index}.unitCost`, "", { shouldDirty: true });
+          }
+        }}
+        placeholder={loadingPurchaseTypes ? "Loading..." : "Select Type"}
+        searchPlaceholder="Search type"
+        emptyMessage="No types found"
+        error={rowErrors?.purchaseType?.message}
+        disabled={loadingPurchaseTypes}
+        required
+      />
+
+      <SearchableSelectField
+        label="Catalog Item"
+        value={catalogItemId}
+        options={catalogOptions}
+        onSelect={(value) => {
+          const item = catalogItems.find((c) => c.id === value);
+          setValue(`items.${index}.catalogItemId`, value, { shouldDirty: true, shouldValidate: true });
+          setValue(`items.${index}.itemName`, item?.name ?? "", { shouldDirty: true });
+          setValue(`items.${index}.unit`, item?.unit ?? "", { shouldDirty: true });
+          if (item?.defaultRate != null) {
+            setValue(`items.${index}.unitCost`, String(item.defaultRate), { shouldDirty: true });
+          }
+        }}
+        placeholder="Select Catalog Item"
+        searchPlaceholder="Search item"
+        emptyMessage="No items found"
+        error={rowErrors?.catalogItemId?.message}
+        required
+      />
+
+      <View style={styles.rowGrid}>
+        <View style={{ flex: 1 }}>
+          <SimpleInput
+            control={control}
+            name={`items.${index}.quantity`}
+            label="Qty"
+            placeholder="0"
+            keyboardType="numeric"
+            error={rowErrors?.quantity?.message}
+            required
+          />
+        </View>
+        <View style={{ flex: 1 }}>
+          <SimpleInput
+            control={control}
+            name={`items.${index}.unit`}
+            label="Unit"
+            placeholder="kg / pcs"
+            error={rowErrors?.unit?.message}
+          />
+        </View>
+        <View style={{ flex: 1 }}>
+          <SimpleInput
+            control={control}
+            name={`items.${index}.unitCost`}
+            label="Rate"
+            placeholder="0"
+            keyboardType="numeric"
+            error={rowErrors?.unitCost?.message}
+            required
+          />
+        </View>
+      </View>
+
+      <View style={styles.lineTotalBox}>
+        <Text style={styles.lineTotalLabel}>Line Total</Text>
+        <Text style={styles.lineTotalValue}>
+          Rs {lineTotal.toLocaleString("en-IN")}
+        </Text>
+      </View>
+
+      <SimpleInput
+        control={control}
+        name={`items.${index}.remarks`}
+        label="Lot Remarks"
+        placeholder="Optional remarks for this item"
+        error={rowErrors?.remarks?.message}
+      />
+    </View>
+  );
+}
+
+// ─── Simple Controlled Input ──────────────────────────────────────────────────
+
+type SimpleInputProps = {
+  control: any;
+  name: string;
   label: string;
   placeholder: string;
   error?: string;
   required?: boolean;
-  keyboardType?: "default" | "numeric" | "email-address" | "url";
-  autoCapitalize?: "none" | "sentences" | "words" | "characters";
+  keyboardType?: "default" | "numeric" | "email-address";
   multiline?: boolean;
 };
 
-function ControlledInput({
+function SimpleInput({
   control,
   name,
   label,
@@ -534,9 +576,8 @@ function ControlledInput({
   error,
   required,
   keyboardType = "default",
-  autoCapitalize = "sentences",
   multiline = false,
-}: ControlledInputProps) {
+}: SimpleInputProps) {
   return (
     <View style={styles.inputGroup}>
       <Text style={styles.label}>
@@ -553,7 +594,7 @@ function ControlledInput({
             placeholder={placeholder}
             placeholderTextColor="#9CA3AF"
             keyboardType={keyboardType}
-            autoCapitalize={autoCapitalize}
+            autoCapitalize="sentences"
             multiline={multiline}
             scrollEnabled={multiline ? false : undefined}
           />
@@ -563,6 +604,8 @@ function ControlledInput({
     </View>
   );
 }
+
+// ─── Styles ───────────────────────────────────────────────────────────────────
 
 const styles = StyleSheet.create({
   safeArea: {
@@ -590,47 +633,85 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.05,
     shadowRadius: 10,
     elevation: 3,
+    gap: 16,
   },
-  sectionHeader: {
-    marginBottom: 12,
+  sectionHeaderRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
   },
   sectionTitle: {
     color: Colors.text,
     fontSize: 16,
     fontWeight: "900",
   },
-  sectionDivider: {
-    height: 1,
-    backgroundColor: "#E5E7EB",
-    marginTop: 4,
-    marginBottom: 16,
+  addItemBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 8,
+    backgroundColor: "#E7F5ED",
   },
-  inputGroup: {
-    marginBottom: 20,
-  },
-  label: {
-    color: Colors.text,
-    fontSize: 14,
+  addItemBtnText: {
+    color: Colors.primary,
+    fontSize: 12,
     fontWeight: "800",
-    marginBottom: 8,
   },
-  required: {
-    color: Colors.error,
-  },
-  input: {
-    minHeight: 52,
-    borderRadius: 12,
+  itemRow: {
     borderWidth: 1,
     borderColor: "#E5E7EB",
-    backgroundColor: "#FFF",
-    paddingHorizontal: 16,
-    color: Colors.text,
-    fontSize: 15,
+    borderRadius: 12,
+    padding: 14,
+    backgroundColor: "#FAFAFA",
+    gap: 12,
+    marginBottom: 4,
   },
-  textArea: {
-    minHeight: 96,
-    paddingTop: 14,
-    textAlignVertical: "top",
+  itemRowHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  itemRowBadge: {
+    backgroundColor: Colors.primary + "18",
+    borderRadius: 6,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+  },
+  itemRowBadgeText: {
+    color: Colors.primary,
+    fontSize: 11,
+    fontWeight: "800",
+  },
+  removeItemBtn: {
+    padding: 6,
+    borderRadius: 8,
+    backgroundColor: "#FEE2E2",
+  },
+  rowGrid: {
+    flexDirection: "row",
+    gap: 8,
+  },
+  lineTotalBox: {
+    backgroundColor: "#F0FBF5",
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: "#CDEBDD",
+    padding: 10,
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
+  lineTotalLabel: {
+    color: Colors.textSecondary,
+    fontSize: 12,
+    fontWeight: "700",
+  },
+  lineTotalValue: {
+    color: Colors.primary,
+    fontSize: 15,
+    fontWeight: "900",
   },
   totalCard: {
     borderRadius: 14,
@@ -638,7 +719,6 @@ const styles = StyleSheet.create({
     borderColor: "#CDEBDD",
     backgroundColor: "#F0FBF5",
     padding: 14,
-    marginBottom: 20,
   },
   totalCardHeader: {
     flexDirection: "row",
@@ -651,12 +731,6 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: "900",
   },
-  totalHint: {
-    color: Colors.textSecondary,
-    fontSize: 11,
-    fontWeight: "700",
-    marginTop: 2,
-  },
   totalIconBox: {
     width: 34,
     height: 34,
@@ -667,32 +741,47 @@ const styles = StyleSheet.create({
   },
   totalAmount: {
     color: Colors.primary,
-    fontSize: 24,
+    fontSize: 26,
     fontWeight: "900",
-    marginTop: 12,
+    marginTop: 8,
   },
-  totalFormulaRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    flexWrap: "wrap",
-    gap: 8,
-    marginTop: 10,
-  },
-  totalFormulaText: {
+  totalHint: {
     color: Colors.textSecondary,
-    fontSize: 12,
+    fontSize: 11,
+    fontWeight: "700",
+    marginTop: 2,
+  },
+  inputGroup: {
+    gap: 6,
+  },
+  label: {
+    color: Colors.text,
+    fontSize: 14,
     fontWeight: "800",
   },
-  totalFormulaOperator: {
-    color: Colors.primary,
-    fontSize: 12,
-    fontWeight: "900",
+  required: {
+    color: Colors.error,
+  },
+  input: {
+    minHeight: 50,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
+    backgroundColor: "#FFF",
+    paddingHorizontal: 16,
+    color: Colors.text,
+    fontSize: 15,
+  },
+  textArea: {
+    minHeight: 80,
+    paddingTop: 14,
+    textAlignVertical: "top",
   },
   errorText: {
     color: Colors.error,
     fontSize: 12,
     fontWeight: "700",
-    marginTop: 5,
+    marginTop: 2,
   },
   submitButton: {
     minHeight: 54,

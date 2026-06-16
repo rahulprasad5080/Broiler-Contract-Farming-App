@@ -8,3 +8,4 @@ export * from "./masterDataApi";
 export * from "./expensesApi";
 export * from "./inventoryApi";
 export * from "./financeApi";
+export * from "./warehouseApi";
