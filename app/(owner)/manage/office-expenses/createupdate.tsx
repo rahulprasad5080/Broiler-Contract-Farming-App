@@ -335,7 +335,6 @@ export default function OfficeExpenseCreateUpdateScreen() {
                   onChange={onChange}
                   error={errors.expenseDate?.message}
                   disableFuture
-                  required
                 />
               )}
             />
