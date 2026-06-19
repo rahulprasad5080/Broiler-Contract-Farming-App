@@ -637,14 +637,6 @@ export default function FarmListScreen() {
                   <Text style={styles.capText}>
                     Capacity: <Text style={styles.compactMetricValue}>{formatCompactNumber(farm.capacity)}</Text>
                   </Text>
-                  {farm.sqFt ? (
-                    <>
-                      <View style={styles.metricSeparator} />
-                      <Text style={styles.capText}>
-                        Area: <Text style={styles.compactMetricValue}>{farm.sqFt.toLocaleString()} Sq. Ft.</Text>
-                      </Text>
-                    </>
-                  ) : null}
                   <View style={styles.metricSeparator} />
                   <Text style={styles.capText} numberOfLines={1}>
                     Batches: <Text style={styles.compactMetricValue}>{farm.activeBatchCount}</Text>
