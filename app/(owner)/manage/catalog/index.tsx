@@ -376,7 +376,8 @@ const styles = StyleSheet.create({
     color: Colors.error,
   },
   cardActions: {
-    alignItems: "flex-end",
+    flexDirection: "row",
+    alignItems: "center",
     gap: 8,
   },
   editButton: {
