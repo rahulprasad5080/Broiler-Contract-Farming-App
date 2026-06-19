@@ -268,11 +268,21 @@ export default function OwnerFarmDetailScreen() {
               <View style={styles.sectionCard}>
                 <Text style={styles.sectionHeader}>Farm Specifications</Text>
 
-                <View style={styles.detailsGrid}>
-                  <DetailCell label="Farm Name" value={farm.name} />
-                  <DetailCell label="Farm Code" value={farm.code} />
-                  <DetailCell label="Farm Area" value={farm.sqFt ? `${farm.sqFt.toLocaleString()} Sq. Ft.` : 'N/A'} />
-                </View>
+                {farm.sqFt ? (
+                  <View style={styles.areaHighlightContainer}>
+                    <View style={styles.areaHighlightIconBox}>
+                      <Ionicons name="resize-outline" size={20} color={THEME_GREEN} />
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.areaHighlightLabel}>Total Farm Area</Text>
+                      <Text style={styles.areaHighlightVal}>
+                        {farm.sqFt.toLocaleString()} <Text style={styles.areaHighlightUnit}>Sq. Ft.</Text>
+                      </Text>
+                    </View>
+                  </View>
+                ) : null}
+
+
 
                 <View style={styles.specRow}>
                   <View style={styles.specCol}>
@@ -280,17 +290,13 @@ export default function OwnerFarmDetailScreen() {
                     <Text style={styles.specVal}>{farm.state || 'N/A'}</Text>
                   </View>
                   <View style={styles.specCol}>
-                    <Text style={styles.specLabel}>Capacity</Text>
-                    <Text style={styles.specVal}>{farm.capacity ? `${farm.capacity.toLocaleString()} Birds` : 'N/A'}</Text>
+                    <Text style={styles.specLabel}>Active Batches</Text>
+                    <Text style={styles.specVal}>{farm.activeBatchCount}</Text>
                   </View>
                 </View>
 
 
                 <View style={styles.detailsGrid}>
-                  <DetailCell label="Primary Farmer" value={farm.primaryFarmerName || farmerName} />
-                  <DetailCell label="Supervisor" value={farm.supervisorName || supervisorName} />
-                  <DetailCell label="Assignment Count" value={farm.assignments.length} />
-                  <DetailCell label="Active Batch Count" value={farm.activeBatchCount} />
                   <DetailCell label="Created At" value={formatDate(farm.createdAt)} />
                   <DetailCell label="Updated At" value={formatDate(farm.updatedAt)} />
                 </View>
@@ -310,7 +316,7 @@ export default function OwnerFarmDetailScreen() {
                         <View style={styles.assignmentDetailText}>
                           <Text style={styles.assignmentName} numberOfLines={1}>{assignment.name}</Text>
                           <Text style={styles.assignmentMeta} numberOfLines={1}>
-                            {getRoleLabel(assignment.role)} | {assignment.userId}
+                            {getRoleLabel(assignment.role)}
                           </Text>
                         </View>
                       </View>
@@ -1004,5 +1010,44 @@ const styles = StyleSheet.create({
     fontSize: 9,
     fontWeight: '900',
     textTransform: 'uppercase',
+  },
+  areaHighlightContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#E8F5E9',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#B7E0C2',
+    padding: 14,
+    marginBottom: 16,
+    gap: 12,
+  },
+  areaHighlightIconBox: {
+    width: 40,
+    height: 40,
+    borderRadius: 10,
+    backgroundColor: '#FFFFFF',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: '#B7E0C2',
+  },
+  areaHighlightLabel: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: '#388E3C',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  areaHighlightVal: {
+    fontSize: 20,
+    fontWeight: '900',
+    color: '#0B5C36',
+    marginTop: 2,
+  },
+  areaHighlightUnit: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#388E3C',
   },
 });
