@@ -21,7 +21,6 @@ import {
   Animated,
   Easing,
   FlatList,
-  Image,
   KeyboardAvoidingView,
   Modal,
   Platform,
@@ -370,10 +369,6 @@ export default function OwnerDashboard() {
         {/* Profile Section */}
         <View style={styles.profileSection}>
           <View style={styles.profileLeft}>
-            <Image
-              source={{ uri: "https://i.pravatar.cc/100?img=11" }}
-              style={styles.avatar}
-            />
             <View>
               <Text style={styles.greetingText}>Hello, {user?.name ?? "Admin"}</Text>
               {canManageFarms ? (

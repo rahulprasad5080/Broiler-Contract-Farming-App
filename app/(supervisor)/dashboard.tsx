@@ -4,7 +4,6 @@ import { useRouter, type Href } from 'expo-router';
 import { useCallback, useState } from 'react';
 import {
   ActivityIndicator,
-  Image,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
@@ -121,10 +120,6 @@ export default function SupervisorDashboard() {
           {/* Profile Section */}
           <View style={styles.profileSection}>
             <View style={styles.profileLeft}>
-              <Image
-                source={{ uri: 'https://i.pravatar.cc/100?img=11' }}
-                style={styles.avatar}
-              />
               <View>
                 <Text style={styles.greetingText}>Hello, {user?.name ?? 'Supervisor'}</Text>
                 <View style={styles.farmSelector}>
