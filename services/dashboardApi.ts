@@ -63,7 +63,9 @@ export type ApiFinancialDashboard = {
   summary: {
     investment?: number | null;
     expenses?: number | null;
+    officeExpenses?: number | null;
     sales?: number | null;
+    availableBalance?: number | null;
     netProfitOrLoss?: number | null;
   };
   recentTransactions: ApiFinancialDashboardTransaction[];

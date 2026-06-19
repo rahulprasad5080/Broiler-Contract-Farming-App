@@ -73,9 +73,10 @@ export type ApiOverviewReport = {
 
 export type ApiExpenseReportRow = {
   expenseId: string;
-  batchId: string;
+  scope?: "BATCH" | "OFFICE" | string | null;
+  batchId?: string | null;
   batchCode?: string | null;
-  farmId: string;
+  farmId?: string | null;
   farmName?: string | null;
   ledger: ApiExpenseLedger;
   category: ApiExpenseCategoryCode;

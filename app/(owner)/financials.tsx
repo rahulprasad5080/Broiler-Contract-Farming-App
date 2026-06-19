@@ -155,6 +155,14 @@ export default function FinancialDashboardScreen() {
         backgroundColor: "#F3E8FF",
         onPress: () => router.navigate("/(owner)/manage/entries/create" as any),
       },
+      {
+        label: "Office Expenses",
+        subtitle: "Manage office overheads",
+        icon: "business-outline",
+        tone: "#4B5563",
+        backgroundColor: "#F3F4F6",
+        onPress: () => router.navigate("/(owner)/manage/office-expenses" as any),
+      },
       ...(hasPermission("create:purchase")
         ? [
             {
@@ -327,6 +335,20 @@ export default function FinancialDashboardScreen() {
                 value={formatAmount(summary?.expenses)}
                 icon="trending-down-outline"
                 tone="#DC2626"
+                cardStyle={twoColumnCardStyle}
+              />
+              <SummaryCard
+                label="Office Overhead"
+                value={formatAmount(summary?.officeExpenses)}
+                icon="business-outline"
+                tone="#D97706"
+                cardStyle={twoColumnCardStyle}
+              />
+              <SummaryCard
+                label="Available Balance"
+                value={formatAmount(summary?.availableBalance)}
+                icon="wallet-outline"
+                tone="#0D9488"
                 cardStyle={twoColumnCardStyle}
               />
               <SummaryCard

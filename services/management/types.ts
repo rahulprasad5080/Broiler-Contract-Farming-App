@@ -362,6 +362,36 @@ export type ApiBatchExpense = {
 
 export type ApiCost = ApiBatchExpense;
 
+export type ApiOfficeExpense = {
+  id: string;
+  organizationId: string;
+  scope: "OFFICE";
+  ledger: "COMPANY";
+  vendorId?: string | null;
+  category: ApiExpenseCategoryCode;
+  expenseDate: string;
+  description: string;
+  quantity?: number | null;
+  unit?: string | null;
+  rate?: number | null;
+  totalAmount: number;
+  vendorName?: string | null;
+  invoiceNumber?: string | null;
+  billPhotoUrl?: string | null;
+  paymentStatus: ApiTransactionPaymentStatus;
+  paidAmount: number;
+  approvalStatus?: ApiExpenseApprovalStatus | null;
+  approvedById?: string | null;
+  approvedAt?: string | null;
+  rejectedReason?: string | null;
+  notes?: string | null;
+  clientReferenceId?: string | null;
+  createdById?: string | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
+
 export type ApiInventoryLedgerEntry = {
   id: string;
   organizationId: string;
@@ -717,6 +747,30 @@ export type UpdateBatchExpenseApprovalRequest = {
   approvalStatus: ApiExpenseApprovalStatus;
   rejectedReason?: string;
 };
+
+export type CreateOfficeExpenseRequest = {
+  vendorId?: string;
+  category: ApiExpenseCategoryCode;
+  expenseDate: string;
+  description: string;
+  quantity?: number;
+  unit?: string;
+  rate?: number;
+  totalAmount?: number;
+  vendorName?: string;
+  invoiceNumber?: string;
+  billPhotoUrl?: string;
+  notes?: string;
+  clientReferenceId?: string;
+};
+
+export type UpdateOfficeExpenseRequest = Partial<
+  Omit<CreateOfficeExpenseRequest, "clientReferenceId">
+> & {
+  paymentStatus?: ApiTransactionPaymentStatus;
+  notes?: string;
+};
+
 
 export type CreateBatchCostRequest = CreateBatchExpenseRequest;
 

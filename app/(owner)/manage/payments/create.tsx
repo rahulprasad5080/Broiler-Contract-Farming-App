@@ -77,7 +77,14 @@ function labelize(value: string) {
 
 export default function CreatePaymentScreen() {
   const router = useRouter();
-  const { type } = useLocalSearchParams<{ type?: "payment" | "receipt" }>();
+  const { type, referenceType, referenceId, amount, vendorId: paramVendorId, partyName } = useLocalSearchParams<{
+    type?: "payment" | "receipt";
+    referenceType?: string;
+    referenceId?: string;
+    amount?: string;
+    vendorId?: string;
+    partyName?: string;
+  }>();
   const partyType = type === "receipt" ? "trader" : "vendor";
   const { accessToken } = useAuth();
   const [vendors, setVendors] = useState<ApiVendor[]>([]);
@@ -97,8 +104,14 @@ export default function CreatePaymentScreen() {
     formState: { errors },
   } = useForm<PaymentFormData>({
     resolver: zodResolver(paymentSchema),
-    defaultValues: DEFAULTS,
+    defaultValues: useMemo(() => ({
+      ...DEFAULTS,
+      vendorId: paramVendorId || "",
+      amount: amount || "",
+      partyName: partyName || "",
+    }), [paramVendorId, amount, partyName]),
   });
+
 
   const vendorId = watch("vendorId");
   const traderId = watch("traderId");
@@ -136,12 +149,18 @@ export default function CreatePaymentScreen() {
       ]);
       setVendors(vendorRes.data ?? []);
       setTraders(traderRes.data ?? []);
+      if (paramVendorId) {
+        const found = vendorRes.data.find(v => v.id === paramVendorId);
+        if (found) {
+          setValue("partyName", found.name);
+        }
+      }
     } catch (error) {
       showRequestErrorToast(error, { title: "Unable to load payment options" });
     } finally {
       setLoading(false);
     }
-  }, [accessToken]);
+  }, [accessToken, paramVendorId, setValue]);
 
   useFocusEffect(
     useCallback(() => {
@@ -187,6 +206,8 @@ export default function CreatePaymentScreen() {
         paymentMode: data.paymentMode,
         amount: toNumber(data.amount),
         paymentDate: data.paymentDate,
+        referenceType: referenceType || undefined,
+        referenceId: referenceId || undefined,
         notes: data.notes?.trim() || undefined,
       });
 

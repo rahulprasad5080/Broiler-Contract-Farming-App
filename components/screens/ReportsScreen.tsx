@@ -989,6 +989,12 @@ export default function ReportsScreen() {
                                     </Text>
                                   </View>
                                 ) : null}
+                                {row.scope === "OFFICE" ? (
+                                  <View style={[styles.batchTag, { backgroundColor: "#EFF6FF" }]}>
+                                    <Ionicons name="business-outline" size={10} color="#2563EB" />
+                                    <Text style={[styles.batchTagText, { color: "#2563EB" }]}>Office Overhead</Text>
+                                  </View>
+                                ) : null}
                               </View>
                             </View>
 

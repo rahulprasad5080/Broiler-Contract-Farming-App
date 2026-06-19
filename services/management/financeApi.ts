@@ -3,16 +3,20 @@ import type {
   ApiFinanceEntry,
   ApiFinancePayment,
   ApiFinancePurchase,
+  ApiOfficeExpense,
   ApiPurchaseTransaction,
   CreateFinanceEntryRequest,
   CreateFinancePaymentRequest,
   CreateFinancePurchaseRequest,
+  CreateOfficeExpenseRequest,
   CreatePurchaseTransactionRequest,
   ListParams,
   ListPurchaseTransactionsParams,
   ListResponse,
   UpdateFinancePurchaseRequest,
+  UpdateOfficeExpenseRequest,
 } from "./types";
+
 
 export async function listFinancePurchases(
   token: string,
@@ -133,3 +137,44 @@ export async function createPurchaseTransaction(
     body: payload,
   });
 }
+
+// ─── Office Expense APIs ───────────────────────────────────────────────────────
+
+export async function listOfficeExpenses(
+  token: string,
+  params: ListParams & {
+    vendorId?: string;
+    paymentStatus?: string;
+    category?: string;
+  } = {},
+) {
+  return apiRequest<ListResponse<ApiOfficeExpense>>("/finance/office-expenses", {
+    method: "GET",
+    token,
+    query: params,
+  });
+}
+
+export async function createOfficeExpense(
+  token: string,
+  payload: CreateOfficeExpenseRequest,
+) {
+  return apiRequest<ApiOfficeExpense>("/finance/office-expenses", {
+    method: "POST",
+    token,
+    body: payload,
+  });
+}
+
+export async function updateOfficeExpense(
+  token: string,
+  expenseId: string,
+  payload: UpdateOfficeExpenseRequest,
+) {
+  return apiRequest<ApiOfficeExpense>(`/finance/office-expenses/${expenseId}`, {
+    method: "PUT",
+    token,
+    body: payload,
+  });
+}
+
