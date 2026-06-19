@@ -85,6 +85,9 @@ const farmSchema = z.object({
   capacity: z.string().optional().refine((val) => !val || !isNaN(Number(val)), {
     message: 'Must be a number',
   }),
+  sqFt: z.string().optional().refine((val) => !val || !isNaN(Number(val)), {
+    message: 'Must be a number',
+  }),
   notes: z.string().optional(),
   primaryFarmerId: z.string().optional(),
   supervisorId: z.string().optional(),
@@ -102,6 +105,7 @@ const FARM_FORM_DEFAULTS: FarmFormData = {
   district: '',
   state: '',
   capacity: '',
+  sqFt: '',
   notes: '',
   primaryFarmerId: '',
   supervisorId: '',
@@ -263,6 +267,7 @@ export default function AddFarmScreen() {
           district: farm.district ?? '',
           state: farm.state ?? '',
           capacity: farm.capacity?.toString() ?? '',
+          sqFt: farm.sqFt?.toString() ?? '',
           notes: farm.notes ?? '',
           primaryFarmerId: farm.primaryFarmerId ?? '',
           supervisorId: farm.supervisorId ?? '',
@@ -456,6 +461,7 @@ export default function AddFarmScreen() {
 
     try {
       const normalizedCapacity = data.capacity?.trim();
+      const normalizedSqFt = data.sqFt?.trim();
 
       if (isEditMode && farmId) {
         const updatePayload: UpdateFarmRequest = {
@@ -466,6 +472,7 @@ export default function AddFarmScreen() {
           district: data.district?.trim() || '',
           state: data.state?.trim() || '',
           capacity: normalizedCapacity ? Number(normalizedCapacity) : 0,
+          sqFt: normalizedSqFt ? Number(normalizedSqFt) : undefined,
           notes: data.notes?.trim() || '',
           status: data.status || 'ACTIVE',
           primaryFarmerId: data.primaryFarmerId || '',
@@ -488,6 +495,7 @@ export default function AddFarmScreen() {
           district: data.district?.trim() || '',
           state: data.state?.trim() || '',
           capacity: normalizedCapacity ? Number(normalizedCapacity) : 0,
+          sqFt: normalizedSqFt ? Number(normalizedSqFt) : undefined,
           notes: data.notes?.trim() || '',
           primaryFarmerId: data.primaryFarmerId || '',
           supervisorId: data.supervisorId || '',
@@ -625,6 +633,28 @@ export default function AddFarmScreen() {
                 )}
               />
             </View>
+
+            <Controller
+              control={control}
+              name="sqFt"
+              render={({ field: { onChange, value } }) => (
+                <View style={styles.referenceField}>
+                  <Text style={styles.referenceLabel}>Farm Area (Sq. Ft.) (Optional)</Text>
+                  <View style={[styles.referenceInput, formErrors.sqFt && styles.referenceInputError]}>
+                    <Ionicons name="resize-outline" size={16} color={THEME_GREEN} />
+                    <TextInput
+                      style={styles.referenceTextInput}
+                      placeholder="Enter farm area in sq ft"
+                      placeholderTextColor="#A3AAA6"
+                      value={value}
+                      onChangeText={onChange}
+                      keyboardType="numeric"
+                    />
+                  </View>
+                  {formErrors.sqFt && <Text style={styles.fieldErrorText}>{formErrors.sqFt.message}</Text>}
+                </View>
+              )}
+            />
 
             <Controller
               control={control}

@@ -112,6 +112,14 @@ export default function FarmerFarmsScreen() {
               {item.location || 'Location not specified'}
             </Text>
           </View>
+          {item.sqFt ? (
+            <View style={{ flexDirection: 'row', alignItems: 'center', marginRight: 8 }}>
+              <Ionicons name="resize-outline" size={14} color={Colors.textSecondary} />
+              <Text style={{ fontSize: 12, color: '#6B7280', marginLeft: 4, fontWeight: '600' }}>
+                {item.sqFt.toLocaleString()} Sq. Ft.
+              </Text>
+            </View>
+          ) : null}
           <Ionicons name="chevron-forward" size={16} color="#9CA3AF" />
         </View>
       </TouchableOpacity>

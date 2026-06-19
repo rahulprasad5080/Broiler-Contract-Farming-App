@@ -136,6 +136,12 @@ export default function FarmerFarmDetailScreen() {
                   <Text style={styles.statValue}>{farm.capacity ? farm.capacity.toLocaleString() : 'N/A'}</Text>
                   <Text style={styles.statLabel}>Capacity</Text>
                 </View>
+                {farm.sqFt ? (
+                  <View style={styles.statBox}>
+                    <Text style={styles.statValue}>{farm.sqFt.toLocaleString()}</Text>
+                    <Text style={styles.statLabel}>Area (SqFt)</Text>
+                  </View>
+                ) : null}
                 <View style={styles.statBox}>
                   <Text style={styles.statValue}>{activeBatches.length}</Text>
                   <Text style={styles.statLabel}>Active Batches</Text>

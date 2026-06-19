@@ -151,6 +151,7 @@ export type ApiFarm = {
   district?: string | null;
   state?: string | null;
   capacity?: number | null;
+  sqFt?: number | null;
   status: ApiFarmStatus;
   notes?: string | null;
   primaryFarmerId?: string | null;
@@ -540,6 +541,7 @@ export type CreateFarmRequest = {
   district?: string;
   state?: string;
   capacity?: number;
+  sqFt?: number;
   notes?: string;
   primaryFarmerId?: string;
   supervisorId?: string;

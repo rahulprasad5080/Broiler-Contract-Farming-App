@@ -271,6 +271,7 @@ export default function OwnerFarmDetailScreen() {
                 <View style={styles.detailsGrid}>
                   <DetailCell label="Farm Name" value={farm.name} />
                   <DetailCell label="Farm Code" value={farm.code} />
+                  <DetailCell label="Farm Area" value={farm.sqFt ? `${farm.sqFt.toLocaleString()} Sq. Ft.` : 'N/A'} />
                 </View>
 
                 <View style={styles.specRow}>

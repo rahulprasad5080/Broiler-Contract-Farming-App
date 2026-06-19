@@ -49,6 +49,7 @@ type FarmCard = {
   district: string;
   state: string;
   capacity: number;
+  sqFt?: number | null;
   status: 'Active' | 'Inactive';
   notes: string;
   primaryFarmerId: string;
@@ -71,6 +72,9 @@ const editFarmSchema = z.object({
   district: z.string().optional(),
   state: z.string().optional(),
   capacity: z.string().optional().refine((val) => !val || !isNaN(Number(val)), {
+    message: 'Must be a number',
+  }),
+  sqFt: z.string().optional().refine((val) => !val || !isNaN(Number(val)), {
     message: 'Must be a number',
   }),
   notes: z.string().optional(),
@@ -149,6 +153,7 @@ function toFarmCard(farm: ApiFarm): FarmCard {
     district: farm.district ?? '',
     state: farm.state ?? '',
     capacity: Math.round(farm.capacity ?? 0),
+    sqFt: farm.sqFt,
     status: farm.status === 'ACTIVE' ? 'Active' : 'Inactive',
     notes: farm.notes ?? '',
     primaryFarmerId: farm.primaryFarmerId ?? '',
@@ -206,6 +211,7 @@ export default function FarmListScreen() {
       district: '',
       state: '',
       capacity: '',
+      sqFt: '',
       notes: '',
       status: 'ACTIVE',
       primaryFarmerId: '',
@@ -303,6 +309,7 @@ export default function FarmListScreen() {
         district: farm.district ?? '',
         state: farm.state ?? '',
         capacity: farm.capacity?.toString() ?? '',
+        sqFt: farm.sqFt?.toString() ?? '',
         notes: farm.notes ?? '',
         status: farm.status,
         primaryFarmerId: farm.primaryFarmerId ?? '',
@@ -365,6 +372,7 @@ export default function FarmListScreen() {
         district: updated.district ?? '',
         state: updated.state ?? '',
         capacity: updated.capacity?.toString() ?? '',
+        sqFt: updated.sqFt?.toString() ?? '',
         notes: updated.notes ?? '',
         status: updated.status,
         primaryFarmerId: updated.primaryFarmerId ?? '',
@@ -505,6 +513,7 @@ export default function FarmListScreen() {
         district: data.district?.trim() || undefined,
         state: data.state?.trim() || undefined,
         capacity: data.capacity ? Number(data.capacity) : undefined,
+        sqFt: data.sqFt ? Number(data.sqFt) : undefined,
         notes: data.notes?.trim() || undefined,
         status: data.status,
         primaryFarmerId: data.primaryFarmerId?.trim() || undefined,
@@ -628,6 +637,14 @@ export default function FarmListScreen() {
                   <Text style={styles.capText}>
                     Capacity: <Text style={styles.compactMetricValue}>{formatCompactNumber(farm.capacity)}</Text>
                   </Text>
+                  {farm.sqFt ? (
+                    <>
+                      <View style={styles.metricSeparator} />
+                      <Text style={styles.capText}>
+                        Area: <Text style={styles.compactMetricValue}>{farm.sqFt.toLocaleString()} Sq. Ft.</Text>
+                      </Text>
+                    </>
+                  ) : null}
                   <View style={styles.metricSeparator} />
                   <Text style={styles.capText} numberOfLines={1}>
                     Batches: <Text style={styles.compactMetricValue}>{farm.activeBatchCount}</Text>
