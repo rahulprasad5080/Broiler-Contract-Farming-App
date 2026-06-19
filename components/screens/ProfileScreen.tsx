@@ -371,12 +371,6 @@ export default function ProfileScreen() {
                   icon="people-outline"
                   label="Partner Master"
                   onPress={() => router.navigate('/(owner)/manage/partners' as any)}
-                  isLast={false}
-                />
-                <SettingItem
-                  icon="business-outline"
-                  label="Office Expenses"
-                  onPress={() => router.navigate('/(owner)/manage/office-expenses' as any)}
                   isLast={true}
                 />
               </SurfaceCard>

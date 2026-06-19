@@ -126,6 +126,14 @@ const ownerRoutes: DashboardSidebarRoute[] = [
     section: "Finance",
     requiredPermission: "view:financial-dashboard",
   },
+  {
+    title: "Office Expenses",
+    subtitle: "Office overhead bills",
+    icon: "briefcase-outline",
+    route: "/(owner)/manage/office-expenses" as Href,
+    section: "Finance",
+    requiredPermission: "view:financial-dashboard",
+  },
 //   {
 //     title: "Billing",
 //     icon: "wallet-outline",
