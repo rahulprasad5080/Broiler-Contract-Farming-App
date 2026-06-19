@@ -107,11 +107,6 @@ export default function CatalogListScreen() {
   };
 
   const renderItem = ({ item }: { item: ApiCatalogItem }) => {
-    const lowStock =
-      item.reorderLevel !== null &&
-      item.reorderLevel !== undefined &&
-      Number(item.currentStock ?? 0) <= Number(item.reorderLevel);
-
     return (
       <View style={[styles.card, item.isActive === false && styles.cardInactive]}>
         <View style={styles.cardTop}>
@@ -152,28 +147,6 @@ export default function CatalogListScreen() {
               <Ionicons name="create-outline" size={18} color={Colors.primary} />
             </TouchableOpacity>
           </View>
-        </View>
-
-        <View style={styles.detailGrid}>
-          <View style={styles.metricBox}>
-            <Text style={styles.metricLabel}>Stock</Text>
-            <Text style={[styles.metricValue, lowStock && styles.lowStockText]}>
-              {Number(item.currentStock ?? 0).toLocaleString("en-IN")} {item.unit}
-            </Text>
-          </View>
-          <View style={styles.metricBox}>
-            <Text style={styles.metricLabel}>Rate</Text>
-            <Text style={styles.metricValue}>{item.defaultRate ?? "-"}</Text>
-          </View>
-          <View style={styles.metricBox}>
-            <Text style={styles.metricLabel}>Reorder</Text>
-            <Text style={styles.metricValue}>{item.reorderLevel ?? "-"}</Text>
-          </View>
-        </View>
-
-        <View style={styles.cardFooter}>
-          <Text style={styles.footerMeta}>Created {formatDate(item.createdAt)}</Text>
-          <Text style={styles.footerMeta}>Updated {formatDate(item.updatedAt)}</Text>
         </View>
       </View>
     );
