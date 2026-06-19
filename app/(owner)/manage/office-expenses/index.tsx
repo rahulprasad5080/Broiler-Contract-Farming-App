@@ -5,6 +5,8 @@ import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   FlatList,
+  Modal,
+  ScrollView,
   StyleSheet,
   Text,
   TextInput,
@@ -43,6 +45,13 @@ function formatMonthYear(value?: string | null) {
   return date.toLocaleDateString("en-IN", { month: "short", year: "numeric" });
 }
 
+function formatDate(value?: string | null) {
+  if (!value) return "";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+  return date.toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" });
+}
+
 function formatAmount(value?: number | null) {
   return `₹${Number(value ?? 0).toLocaleString("en-IN")}`;
 }
@@ -65,6 +74,7 @@ export default function OfficeExpensesScreen() {
   const [loadingOptions, setLoadingOptions] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [filtersOpen, setFiltersOpen] = useState(false);
+  const [selectedExpense, setSelectedExpense] = useState<ApiOfficeExpense | null>(null);
 
   const { selectOptions: categoryOptions, loading: loadingCategories } =
     useMasterDataTypeOptions("EXPENSE_CATEGORY");
@@ -203,7 +213,11 @@ export default function OfficeExpensesScreen() {
     const remaining = Math.max(0, item.totalAmount - (item.paidAmount ?? 0));
 
     return (
-      <View style={styles.expenseCard}>
+      <TouchableOpacity
+        style={styles.expenseCard}
+        onPress={() => setSelectedExpense(item)}
+        activeOpacity={0.86}
+      >
         {/* Left Date Column */}
         <View style={styles.dateCol}>
           <Ionicons name="calendar-outline" size={13} color={Colors.textSecondary} />
@@ -216,11 +230,6 @@ export default function OfficeExpensesScreen() {
           <Text style={styles.categoryText} numberOfLines={1}>
             {item.category}
           </Text>
-          {item.notes ? (
-            <Text style={styles.descText} numberOfLines={2}>
-              {item.notes}
-            </Text>
-          ) : null}
           {item.vendorName ? (
             <View style={styles.vendorRow}>
               <Ionicons name="person-outline" size={10} color="#64748B" />
@@ -246,6 +255,15 @@ export default function OfficeExpensesScreen() {
 
         {/* Actions Column */}
         <View style={styles.actionsCol}>
+          <TouchableOpacity
+            style={styles.viewBtn}
+            onPress={() => setSelectedExpense(item)}
+            accessibilityRole="button"
+            accessibilityLabel="View details"
+          >
+            <Ionicons name="eye-outline" size={16} color="#0284C7" />
+          </TouchableOpacity>
+
           <TouchableOpacity
             style={styles.editBtn}
             onPress={() =>
@@ -296,7 +314,7 @@ export default function OfficeExpensesScreen() {
             </TouchableOpacity>
           )}
         </View>
-      </View>
+      </TouchableOpacity>
     );
   };
 
@@ -306,7 +324,7 @@ export default function OfficeExpensesScreen() {
         title="Office Expenses"
         subtitle="Manage office overhead expenses"
         leadingMode="back"
-        onBack={() => router.replace("/(owner)/profile" as any)}
+        onBack={() => router.replace("/(owner)/dashboard" as any)}
         right={
           <TouchableOpacity
             style={styles.addButton}
@@ -438,15 +456,50 @@ export default function OfficeExpensesScreen() {
         />
       </View>
 
-      <TouchableOpacity
-        style={styles.fab}
-        onPress={() => router.push("/(owner)/manage/office-expenses/createupdate" as any)}
-        activeOpacity={0.86}
-        accessibilityRole="button"
-        accessibilityLabel="Create office expense"
-      >
-        <Ionicons name="add" size={28} color="#FFFFFF" />
-      </TouchableOpacity>
+      <OfficeExpenseDetailModal
+        visible={selectedExpense !== null}
+        item={selectedExpense}
+        onClose={() => setSelectedExpense(null)}
+        onEdit={() => {
+          if (!selectedExpense) return;
+          const temp = selectedExpense;
+          setSelectedExpense(null);
+          router.navigate({
+            pathname: "/(owner)/manage/office-expenses/createupdate" as any,
+            params: {
+              expenseId: temp.id,
+              vendorId: temp.vendorId ?? "",
+              category: temp.category,
+              expenseDate: temp.expenseDate ? temp.expenseDate.split("T")[0] : "",
+              description: temp.description,
+              quantity: temp.quantity?.toString() ?? "",
+              unit: temp.unit ?? "",
+              rate: temp.rate?.toString() ?? "",
+              totalAmount: temp.totalAmount.toString(),
+              invoiceNumber: temp.invoiceNumber ?? "",
+              billPhotoUrl: temp.billPhotoUrl ?? "",
+              notes: temp.notes ?? "",
+            },
+          });
+        }}
+        onPay={() => {
+          if (!selectedExpense) return;
+          const temp = selectedExpense;
+          const tempRemaining = Math.max(0, temp.totalAmount - (temp.paidAmount ?? 0));
+          setSelectedExpense(null);
+          router.navigate({
+            pathname: "/(owner)/manage/payments/create" as any,
+            params: {
+              type: "payment",
+              referenceType: "expense",
+              referenceId: temp.id,
+              amount: tempRemaining.toString(),
+              vendorId: temp.vendorId ?? "",
+              partyName: temp.vendorName ?? temp.category,
+            },
+          });
+        }}
+      />
     </View>
   );
 }
@@ -642,6 +695,16 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "#B7E0C2",
   },
+  viewBtn: {
+    width: 28,
+    height: 28,
+    borderRadius: 6,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#E0F2FE",
+    borderWidth: 1,
+    borderColor: "#BAE6FD",
+  },
   payBtn: {
     width: 28,
     height: 28,
@@ -680,4 +743,231 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "rgba(255,255,255,0.18)",
   },
+});
+
+function OfficeExpenseDetailModal({
+  visible,
+  item,
+  onClose,
+  onEdit,
+  onPay,
+}: {
+  visible: boolean;
+  item: ApiOfficeExpense | null;
+  onClose: () => void;
+  onEdit: () => void;
+  onPay: () => void;
+}) {
+  if (!item) return null;
+  const remaining = Math.max(0, item.totalAmount - (item.paidAmount ?? 0));
+  const isPaid = item.paymentStatus === "PAID";
+
+  return (
+    <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
+      <View style={modalStyles.overlay}>
+        <View style={modalStyles.sheet}>
+          <View style={modalStyles.header}>
+            <View style={modalStyles.headerLeft}>
+              <Text style={modalStyles.title} numberOfLines={1}>
+                {item.category}
+              </Text>
+              <Text style={modalStyles.subtitle}>
+                {formatDate(item.expenseDate)}
+              </Text>
+            </View>
+            <TouchableOpacity onPress={onClose} style={modalStyles.closeBtn}>
+              <Ionicons name="close" size={22} color="#374151" />
+            </TouchableOpacity>
+          </View>
+
+          <ScrollView style={modalStyles.content} showsVerticalScrollIndicator={false}>
+            {/* Status Section */}
+            <View style={modalStyles.statusSection}>
+              <View style={modalStyles.amountWrap}>
+                <Text style={modalStyles.amountLabel}>Total Bill</Text>
+                <Text style={modalStyles.amountValue}>{formatAmount(item.totalAmount)}</Text>
+              </View>
+              <View style={modalStyles.divider} />
+              <View style={modalStyles.amountWrap}>
+                <Text style={modalStyles.amountLabel}>Paid</Text>
+                <Text style={[modalStyles.amountValue, { color: "#059669" }]}>
+                  {formatAmount(item.paidAmount ?? 0)}
+                </Text>
+              </View>
+              {remaining > 0 && (
+                <>
+                  <View style={modalStyles.divider} />
+                  <View style={modalStyles.amountWrap}>
+                    <Text style={modalStyles.amountLabel}>Pending</Text>
+                    <Text style={[modalStyles.amountValue, { color: "#D97706" }]}>
+                      {formatAmount(remaining)}
+                    </Text>
+                  </View>
+                </>
+              )}
+            </View>
+
+            {/* Vendor */}
+            <View style={modalStyles.detailSection}>
+              <Text style={modalStyles.sectionTitle}>Vendor details</Text>
+              <View style={modalStyles.detailCard}>
+                <View style={modalStyles.detailRow}>
+                  <Ionicons name="person-outline" size={16} color="#6B7280" />
+                  <Text style={modalStyles.detailText}>
+                    {item.vendorName || "No Vendor"}
+                  </Text>
+                </View>
+              </View>
+            </View>
+
+            {/* Calculations & Invoice */}
+            <View style={modalStyles.detailSection}>
+              <Text style={modalStyles.sectionTitle}>Billing & overhead details</Text>
+              <View style={modalStyles.detailCard}>
+                {item.quantity != null && item.quantity > 0 ? (
+                  <View style={modalStyles.infoGrid}>
+                    <View style={modalStyles.infoGridItem}>
+                      <Text style={modalStyles.infoGridLabel}>Quantity</Text>
+                      <Text style={modalStyles.infoGridValue}>
+                        {item.quantity} {item.unit || ""}
+                      </Text>
+                    </View>
+                    <View style={modalStyles.infoGridItem}>
+                      <Text style={modalStyles.infoGridLabel}>Rate</Text>
+                      <Text style={modalStyles.infoGridValue}>
+                        {formatAmount(item.rate ?? 0)}
+                      </Text>
+                    </View>
+                  </View>
+                ) : null}
+
+                {item.invoiceNumber ? (
+                  <View style={[modalStyles.detailRow, { marginTop: 8 }]}>
+                    <Ionicons name="receipt-outline" size={16} color="#6B7280" />
+                    <Text style={modalStyles.detailText}>Invoice: {item.invoiceNumber}</Text>
+                  </View>
+                ) : null}
+
+                {item.clientReferenceId ? (
+                  <View style={[modalStyles.detailRow, { marginTop: 8 }]}>
+                    <Ionicons name="key-outline" size={16} color="#6B7280" />
+                    <Text style={modalStyles.detailSubText}>Ref: {item.clientReferenceId}</Text>
+                  </View>
+                ) : null}
+              </View>
+            </View>
+
+
+            {/* Notes */}
+            {item.notes ? (
+              <View style={modalStyles.detailSection}>
+                <Text style={modalStyles.sectionTitle}>Notes / Remarks</Text>
+                <View style={modalStyles.detailCard}>
+                  <Text style={modalStyles.notesText}>{item.notes}</Text>
+                </View>
+              </View>
+            ) : null}
+          </ScrollView>
+
+          {/* Actions Footer */}
+          {!isPaid && (
+            <View style={modalStyles.footer}>
+              <TouchableOpacity style={[modalStyles.payBtn, { flex: 1 }]} onPress={onPay}>
+                <Ionicons name="card-outline" size={18} color="#FFFFFF" />
+                <Text style={modalStyles.payBtnText}>Pay Pending</Text>
+              </TouchableOpacity>
+            </View>
+          )}
+        </View>
+      </View>
+    </Modal>
+  );
+}
+
+const modalStyles = StyleSheet.create({
+  overlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.45)",
+    justifyContent: "flex-end",
+  },
+  sheet: {
+    backgroundColor: "#FFF",
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    padding: 20,
+    maxHeight: "85%",
+    gap: 12,
+  },
+  header: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    justifyContent: "space-between",
+    gap: 12,
+  },
+  headerLeft: { flex: 1 },
+  title: { color: "#111827", fontSize: 18, fontWeight: "900" },
+  subtitle: { color: "#6B7280", fontSize: 12, marginTop: 2 },
+  closeBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: "#F3F4F6",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  content: { maxHeight: 400, marginVertical: 8 },
+  statusSection: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#F9FAFB",
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
+    padding: 12,
+    marginBottom: 16,
+  },
+  amountWrap: { flex: 1, alignItems: "center", gap: 3 },
+  amountLabel: { fontSize: 10, color: "#6B7280", fontWeight: "700", textTransform: "uppercase" },
+  amountValue: { fontSize: 14, color: "#111827", fontWeight: "900" },
+  divider: { width: 1, height: 28, backgroundColor: "#E5E7EB" },
+  detailSection: { marginBottom: 16 },
+  sectionTitle: { fontSize: 12, color: "#4B5563", fontWeight: "800", textTransform: "uppercase", marginBottom: 6 },
+  detailCard: {
+    backgroundColor: "#F9FAFB",
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
+    padding: 12,
+  },
+  detailRow: { flexDirection: "row", alignItems: "center", gap: 8 },
+  detailText: { fontSize: 13, color: "#111827", fontWeight: "700" },
+  detailSubText: { fontSize: 11, color: "#6B7280", fontWeight: "600" },
+  infoGrid: { flexDirection: "row", gap: 12 },
+  infoGridItem: { flex: 1 },
+  infoGridLabel: { fontSize: 10, color: "#6B7280", fontWeight: "700", textTransform: "uppercase", marginBottom: 2 },
+  infoGridValue: { fontSize: 13, color: "#111827", fontWeight: "800" },
+  notesText: { fontSize: 13, color: "#374151", lineHeight: 18, fontWeight: "500" },
+  footer: { flexDirection: "row", gap: 10, marginTop: 8 },
+  editBtn: {
+    flex: 1,
+    height: 48,
+    borderRadius: 12,
+    backgroundColor: THEME_GREEN,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+  },
+  editBtnText: { color: "#FFFFFF", fontSize: 14, fontWeight: "900" },
+  payBtn: {
+    flex: 1.2,
+    height: 48,
+    borderRadius: 12,
+    backgroundColor: "#7C3AED",
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+  },
+  payBtnText: { color: "#FFFFFF", fontSize: 14, fontWeight: "900" },
 });
