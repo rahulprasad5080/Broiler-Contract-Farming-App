@@ -805,6 +805,9 @@ export type CreateFinanceEntryRequest = {
   notes?: string;
 };
 
+export type UpdateFinanceEntryRequest = Partial<CreateFinanceEntryRequest>;
+
+
 export type CreateFinancePaymentRequest = {
   batchId?: string;
   vendorId?: string;

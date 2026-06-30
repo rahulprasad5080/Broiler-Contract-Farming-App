@@ -160,6 +160,29 @@ export default function FinanceEntriesScreen() {
             </Text>
           </View>
           <View style={styles.amountBlock}>
+            <TouchableOpacity
+              style={styles.headerEditButton}
+              activeOpacity={0.75}
+              onPress={() => {
+                router.push({
+                  pathname: "/(owner)/manage/entries/create",
+                  params: {
+                    entryId: item.id,
+                    amount: item.amount.toString(),
+                    entryDate: item.entryDate ? item.entryDate.split("T")[0] : "",
+                    investedById: item.investedById,
+                    paymentMethod: item.paymentMethod,
+                    notes: item.notes ?? "",
+                  },
+                });
+              }}
+              accessibilityRole="button"
+              accessibilityLabel={`Edit investment entry by ${item.investedByName || 'Owner'}`}
+            >
+              <Ionicons name="create-outline" size={13} color="#0B5C36" />
+              <Text style={styles.headerEditButtonText}>Edit</Text>
+            </TouchableOpacity>
+
             <Text style={[styles.amountText, { color: tone.color }]}>
               {tone.sign}{formatAmount(item.amount)}
             </Text>
@@ -169,8 +192,6 @@ export default function FinanceEntriesScreen() {
         <View style={styles.detailsGrid}>
           <InfoCell label="Entry Date" value={formatDate(item.entryDate)} />
           <InfoCell label="Payment Method" value={labelize(item.paymentMethod)} />
-          <InfoCell label="Created" value={formatDate(item.createdAt)} />
-          <InfoCell label="Updated" value={formatDate(item.updatedAt)} />
         </View>
 
         {item.notes ? (
@@ -187,7 +208,6 @@ export default function FinanceEntriesScreen() {
     <View style={styles.safeArea}>
       <TopAppBar
         title="Finance Entries"
-        subtitle="GET /finance/entries"
         leadingMode="back"
         onBack={() => router.replace('/(owner)/dashboard')}
         right={
@@ -425,8 +445,9 @@ const styles = StyleSheet.create({
     maxWidth: 116,
   },
   amountText: {
-    fontSize: 13,
+    fontSize: 14,
     fontWeight: "900",
+    marginTop: 4,
   },
   detailsGrid: {
     flexDirection: "row",
@@ -492,5 +513,21 @@ const styles = StyleSheet.create({
     color: Colors.textSecondary,
     fontSize: 12,
     fontWeight: "700",
+  },
+  headerEditButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 3,
+    paddingVertical: 3,
+    paddingHorizontal: 8,
+    borderRadius: 6,
+    backgroundColor: "#E8F5E9",
+    borderWidth: 1,
+    borderColor: "#C8E6C9",
+  },
+  headerEditButtonText: {
+    color: "#0B5C36",
+    fontSize: 10,
+    fontWeight: "900",
   },
 });

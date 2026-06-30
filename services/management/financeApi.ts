@@ -13,6 +13,7 @@ import type {
   ListParams,
   ListPurchaseTransactionsParams,
   ListResponse,
+  UpdateFinanceEntryRequest,
   UpdateFinancePurchaseRequest,
   UpdateOfficeExpenseRequest,
 } from "./types";
@@ -74,6 +75,18 @@ export async function createFinanceEntry(
 ) {
   return apiRequest<ApiFinanceEntry>("/finance/entries", {
     method: "POST",
+    token,
+    body: payload,
+  });
+}
+
+export async function updateFinanceEntry(
+  token: string,
+  entryId: string,
+  payload: UpdateFinanceEntryRequest,
+) {
+  return apiRequest<ApiFinanceEntry>(`/finance/entries/${entryId}`, {
+    method: "PUT",
     token,
     body: payload,
   });

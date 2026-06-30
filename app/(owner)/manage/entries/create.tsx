@@ -1,6 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useRouter } from "expo-router";
+import { useLocalSearchParams, useRouter } from "expo-router";
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { Controller, useForm } from "react-hook-form";
 import {
@@ -27,6 +27,7 @@ import {
 import {
   createFinanceEntry,
   listAllUsers,
+  updateFinanceEntry,
   type ApiUser,
 } from "@/services/managementApi";
 import { getLocalDateValue } from "@/services/dateUtils";
@@ -58,11 +59,35 @@ function getToday() {
 
 export default function CreateFinanceEntryScreen() {
   const router = useRouter();
+  const params = useLocalSearchParams<{
+    entryId?: string;
+    amount?: string;
+    entryDate?: string;
+    investedById?: string;
+    paymentMethod?: string;
+    notes?: string;
+  }>();
+
+  const isEditMode = Boolean(params.entryId);
   const { accessToken } = useAuth();
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [owners, setOwners] = useState<ApiUser[]>([]);
   const [loadingOwners, setLoadingOwners] = useState(false);
+  const [initialized, setInitialized] = useState(false);
+
+  const initialValues = useMemo<EntryFormData>(() => {
+    if (isEditMode) {
+      return {
+        amount: params.amount ? Number(params.amount).toString() : "",
+        entryDate: params.entryDate ? params.entryDate.split("T")[0] : getToday(),
+        investedById: params.investedById || "",
+        paymentMethod: (params.paymentMethod as any) || "CASH",
+        notes: params.notes || "",
+      };
+    }
+    return DEFAULTS;
+  }, [isEditMode, params]);
 
   const {
     control,
@@ -73,8 +98,16 @@ export default function CreateFinanceEntryScreen() {
     formState: { errors },
   } = useForm<EntryFormData>({
     resolver: zodResolver(entrySchema),
-    defaultValues: DEFAULTS,
+    defaultValues: initialValues,
   });
+
+  // Keep form reset in sync with parameter preloading
+  useEffect(() => {
+    if (!initialized) {
+      reset(initialValues);
+      setInitialized(true);
+    }
+  }, [initialValues, reset, initialized]);
 
   const investedById = watch("investedById");
   const paymentMethod = watch("paymentMethod");
@@ -113,23 +146,36 @@ export default function CreateFinanceEntryScreen() {
     setMessage(null);
 
     try {
-      await createFinanceEntry(accessToken, {
-        amount: Number(data.amount.replace(/,/g, "")),
-        entryDate: data.entryDate.trim(),
-        investedById: data.investedById,
-        paymentMethod: data.paymentMethod,
-        notes: data.notes?.trim() || undefined,
-      });
+      if (isEditMode && params.entryId) {
+        await updateFinanceEntry(accessToken, params.entryId, {
+          amount: Number(data.amount.replace(/,/g, "")),
+          entryDate: data.entryDate.trim(),
+          investedById: data.investedById,
+          paymentMethod: data.paymentMethod,
+          notes: data.notes?.trim() || undefined,
+        });
 
-      showSuccessToast("Finance entry created successfully.", "Saved");
-      setMessage("Finance entry created successfully.");
-      reset(DEFAULTS);
+        showSuccessToast("Finance entry updated successfully.", "Saved");
+        setMessage("Finance entry updated successfully.");
+      } else {
+        await createFinanceEntry(accessToken, {
+          amount: Number(data.amount.replace(/,/g, "")),
+          entryDate: data.entryDate.trim(),
+          investedById: data.investedById,
+          paymentMethod: data.paymentMethod,
+          notes: data.notes?.trim() || undefined,
+        });
+
+        showSuccessToast("Finance entry created successfully.", "Saved");
+        setMessage("Finance entry created successfully.");
+        reset(DEFAULTS);
+      }
       router.replace({ pathname: "/(owner)/manage/entries" });
     } catch (error) {
       setMessage(
         showRequestErrorToast(error, {
-          title: "Finance entry failed",
-          fallbackMessage: "Failed to create finance entry.",
+          title: isEditMode ? "Finance entry update failed" : "Finance entry failed",
+          fallbackMessage: isEditMode ? "Failed to update finance entry." : "Failed to create finance entry.",
         }),
       );
     } finally {
@@ -140,8 +186,7 @@ export default function CreateFinanceEntryScreen() {
   return (
     <View style={styles.safeArea}>
       <TopAppBar
-        title="Create Finance Entry"
-        subtitle="POST /finance/entries"
+        title={isEditMode ? "Edit Finance Entry" : "Create Finance Entry"}
         leadingMode="back"
         onBack={() => router.back()}
       />
@@ -266,7 +311,7 @@ export default function CreateFinanceEntryScreen() {
             ) : (
               <>
                 <Ionicons name="save-outline" size={18} color="#FFF" />
-                <Text style={styles.submitButtonText}>Save Entry</Text>
+                <Text style={styles.submitButtonText}>{isEditMode ? "Update Entry" : "Save Entry"}</Text>
               </>
             )}
           </TouchableOpacity>
