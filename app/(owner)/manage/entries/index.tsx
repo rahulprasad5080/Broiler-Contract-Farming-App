@@ -4,6 +4,7 @@ import { useRouter } from "expo-router";
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
+  Alert,
   FlatList,
   StyleSheet,
   Text,
@@ -16,8 +17,9 @@ import { ScreenState } from "@/components/ui/ScreenState";
 import { TopAppBar } from "@/components/ui/TopAppBar";
 import { Colors } from "@/constants/Colors";
 import { useAuth } from "@/context/AuthContext";
-import { showRequestErrorToast } from "@/services/apiFeedback";
+import { showRequestErrorToast, showSuccessToast } from "@/services/apiFeedback";
 import {
+  deleteFinanceEntry,
   listFinanceEntries,
   type ApiFinanceEntry,
 } from "@/services/managementApi";
@@ -142,6 +144,22 @@ export default function FinanceEntriesScreen() {
     void loadEntries(nextPage, true);
   };
 
+  const handleDelete = async (entryId: string) => {
+    if (!accessToken) return;
+    try {
+      setLoading(true);
+      await deleteFinanceEntry(accessToken, entryId);
+      showSuccessToast("Finance entry deleted successfully.", "Deleted");
+      void loadEntries(1, false);
+    } catch (error) {
+      showRequestErrorToast(error, {
+        title: "Delete failed",
+        fallbackMessage: "Failed to delete finance entry.",
+      });
+      setLoading(false);
+    }
+  };
+
   const renderItem = ({ item }: { item: ApiFinanceEntry }) => {
     const tone = getEntryTone();
 
@@ -160,28 +178,54 @@ export default function FinanceEntriesScreen() {
             </Text>
           </View>
           <View style={styles.amountBlock}>
-            <TouchableOpacity
-              style={styles.headerEditButton}
-              activeOpacity={0.75}
-              onPress={() => {
-                router.push({
-                  pathname: "/(owner)/manage/entries/create",
-                  params: {
-                    entryId: item.id,
-                    amount: item.amount.toString(),
-                    entryDate: item.entryDate ? item.entryDate.split("T")[0] : "",
-                    investedById: item.investedById,
-                    paymentMethod: item.paymentMethod,
-                    notes: item.notes ?? "",
-                  },
-                });
-              }}
-              accessibilityRole="button"
-              accessibilityLabel={`Edit investment entry by ${item.investedByName || 'Owner'}`}
-            >
-              <Ionicons name="create-outline" size={13} color="#0B5C36" />
-              <Text style={styles.headerEditButtonText}>Edit</Text>
-            </TouchableOpacity>
+            <View style={styles.actionButtonsRow}>
+              <TouchableOpacity
+                style={styles.headerEditButton}
+                activeOpacity={0.75}
+                onPress={() => {
+                  router.push({
+                    pathname: "/(owner)/manage/entries/create",
+                    params: {
+                      entryId: item.id,
+                      amount: item.amount.toString(),
+                      entryDate: item.entryDate ? item.entryDate.split("T")[0] : "",
+                      investedById: item.investedById,
+                      paymentMethod: item.paymentMethod,
+                      notes: item.notes ?? "",
+                    },
+                  });
+                }}
+                accessibilityRole="button"
+                accessibilityLabel={`Edit investment entry by ${item.investedByName || 'Owner'}`}
+              >
+                <Ionicons name="create-outline" size={13} color="#0B5C36" />
+                <Text style={styles.headerEditButtonText}>Edit</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.headerDeleteButton}
+                activeOpacity={0.75}
+                onPress={() => {
+                  Alert.alert(
+                    "Delete Entry",
+                    "Are you sure you want to delete this finance entry?",
+                    [
+                      { text: "Cancel", style: "cancel" },
+                      {
+                        text: "Delete",
+                        style: "destructive",
+                        onPress: () => void handleDelete(item.id),
+                      },
+                    ],
+                  );
+                }}
+                accessibilityRole="button"
+                accessibilityLabel={`Delete investment entry by ${item.investedByName || 'Owner'}`}
+              >
+                <Ionicons name="trash-outline" size={13} color="#C53929" />
+                <Text style={styles.headerDeleteButtonText}>Delete</Text>
+              </TouchableOpacity>
+            </View>
 
             <Text style={[styles.amountText, { color: tone.color }]}>
               {tone.sign}{formatAmount(item.amount)}
@@ -442,7 +486,7 @@ const styles = StyleSheet.create({
   },
   amountBlock: {
     alignItems: "flex-end",
-    maxWidth: 116,
+    maxWidth: 160,
   },
   amountText: {
     fontSize: 14,
@@ -529,5 +573,26 @@ const styles = StyleSheet.create({
     color: "#0B5C36",
     fontSize: 10,
     fontWeight: "900",
+  },
+  headerDeleteButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 3,
+    paddingVertical: 3,
+    paddingHorizontal: 8,
+    borderRadius: 6,
+    backgroundColor: "#FCE8E6",
+    borderWidth: 1,
+    borderColor: "#FAD2CF",
+  },
+  headerDeleteButtonText: {
+    color: "#C53929",
+    fontSize: 10,
+    fontWeight: "900",
+  },
+  actionButtonsRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
   },
 });

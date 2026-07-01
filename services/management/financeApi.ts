@@ -92,6 +92,17 @@ export async function updateFinanceEntry(
   });
 }
 
+export async function deleteFinanceEntry(
+  token: string,
+  entryId: string,
+) {
+  return apiRequest<void>(`/finance/entries/${entryId}`, {
+    method: "DELETE",
+    token,
+  });
+}
+
+
 export async function listFinancePayments(
   token: string,
   params: ListParams & {
