@@ -106,14 +106,16 @@ function TransactionDetailModal({
                     <Text style={modal.itemAmount}>
                       {formatAmount(lineItem.totalAmount)}
                     </Text>
-                    <TouchableOpacity
-                      style={modal.itemDeleteBtn}
-                      onPress={() => onDeleteItem(lineItem)}
-                      accessibilityRole="button"
-                      accessibilityLabel={`Delete purchase item ${lineItem.itemName}`}
-                    >
-                      <Ionicons name="trash-outline" size={14} color="#C53929" />
-                    </TouchableOpacity>
+                    {lineItem.paymentStatus === "PENDING" && (lineItem.paidAmount ?? 0) === 0 && (
+                      <TouchableOpacity
+                        style={modal.itemDeleteBtn}
+                        onPress={() => onDeleteItem(lineItem)}
+                        accessibilityRole="button"
+                        accessibilityLabel={`Delete purchase item ${lineItem.itemName}`}
+                      >
+                        <Ionicons name="trash-outline" size={14} color="#C53929" />
+                      </TouchableOpacity>
+                    )}
                   </View>
                 </View>
                 <Text style={modal.itemMeta}>
@@ -270,6 +272,15 @@ export default function PurchaseListScreen() {
   };
 
   const handleDeletePurchaseItem = (lineItem: ApiPurchaseTransactionItem) => {
+    const isDeleteable = lineItem.paymentStatus === "PENDING" && (lineItem.paidAmount ?? 0) === 0;
+    if (!isDeleteable) {
+      Alert.alert(
+        "Cannot Delete Item",
+        "Only pending purchase items with zero paid amount can be deleted."
+      );
+      return;
+    }
+
     Alert.alert(
       "Delete Purchase Item",
       `Are you sure you want to delete "${lineItem.itemName}"?\n\nNote: Items linked to stock history, payments, or batch costs cannot be deleted.`,

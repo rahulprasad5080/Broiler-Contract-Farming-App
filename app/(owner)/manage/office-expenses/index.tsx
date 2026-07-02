@@ -200,10 +200,19 @@ export default function OfficeExpensesScreen() {
     void loadExpenses(page + 1, true);
   };
 
-  const handleDeleteExpense = (expenseId: string, category: string) => {
+  const handleDeleteExpense = (expense: ApiOfficeExpense) => {
+    const isUnpaid = (expense.paymentStatus === 'PENDING' || !expense.paymentStatus) && (expense.paidAmount ?? 0) === 0;
+    if (!isUnpaid) {
+      Alert.alert(
+        'Cannot Delete',
+        'Only unpaid expenses (with pending status and zero paid amount) can be deleted.',
+      );
+      return;
+    }
+
     Alert.alert(
       "Delete Expense",
-      `Are you sure you want to delete this office expense (${category})?`,
+      `Are you sure you want to delete this office expense (${expense.category})?`,
       [
         { text: "Cancel", style: "cancel" },
         {
@@ -212,7 +221,7 @@ export default function OfficeExpensesScreen() {
           onPress: async () => {
             if (!accessToken) return;
             try {
-              await deleteOfficeExpense(accessToken, expenseId);
+              await deleteOfficeExpense(accessToken, expense.id);
               showSuccessToast("Office expense deleted successfully.", "Deleted");
               void loadExpenses(1, false);
             } catch (error) {
@@ -344,14 +353,16 @@ export default function OfficeExpensesScreen() {
             </TouchableOpacity>
           )}
 
-          <TouchableOpacity
-            style={styles.deleteBtn}
-            onPress={() => handleDeleteExpense(item.id, item.category)}
-            accessibilityRole="button"
-            accessibilityLabel="Delete expense"
-          >
-            <Ionicons name="trash-outline" size={16} color="#C53929" />
-          </TouchableOpacity>
+          {item.paymentStatus === "PENDING" && (item.paidAmount ?? 0) === 0 && (
+            <TouchableOpacity
+              style={styles.deleteBtn}
+              onPress={() => handleDeleteExpense(item)}
+              accessibilityRole="button"
+              accessibilityLabel="Delete expense"
+            >
+              <Ionicons name="trash-outline" size={16} color="#C53929" />
+            </TouchableOpacity>
+          )}
         </View>
       </TouchableOpacity>
     );
