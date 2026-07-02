@@ -695,99 +695,39 @@ export function SalesEntryScreen({ title = "Sales Entry", subtitle, onBack, onSa
               </View>
 
               {/* Payment Status */}
-              <View style={styles.inputGroup}>
-                <Text style={styles.label}>Payment Status</Text>
-                <View style={styles.paymentStatusContainer}>
-                  {/* Row 1: Cancelled & Pending */}
-                  <View style={styles.paymentStatusRow}>
-                    {["CANCELLED", "PENDING"].map((status) => {
-                      const active = paymentStatus === status;
-                      const isCancelled = status === "CANCELLED";
-                      return (
-                        <TouchableOpacity
-                          key={status}
-                          style={[
-                            styles.paymentStatusCard2Col,
-                            active && styles.paymentStatusCardActive,
-                            active && isCancelled && styles.paymentStatusCancelled,
-                          ]}
-                          onPress={() => setValue("paymentStatus", status as ApiTransactionPaymentStatus, { shouldDirty: true, shouldValidate: true })}
-                          activeOpacity={0.85}
-                        >
-                          <Ionicons
-                            name={isCancelled ? "close-circle-outline" : "time-outline"}
-                            size={17}
-                            color={active ? "#FFFFFF" : isCancelled ? "#DC2626" : "#D97706"}
-                          />
-                          <Text
-                            style={[styles.paymentStatusText, active && styles.paymentStatusTextActive]}
-                            numberOfLines={1}
-                            adjustsFontSizeToFit
-                          >
-                            {labelize(status)}
-                          </Text>
-                        </TouchableOpacity>
-                      );
-                    })}
-                  </View>
-
-                  {/* Row 2: Partial & Paid */}
-                  <View style={[styles.paymentStatusRow, { marginTop: 10 }]}>
-                    {["PARTIAL", "PAID"].map((status) => {
-                      const active = paymentStatus === status;
-                      const isPaid = status === "PAID";
-                      const isPartial = status === "PARTIAL";
-                      return (
-                        <TouchableOpacity
-                          key={status}
-                          style={[
-                            styles.paymentStatusCard2Col,
-                            active && styles.paymentStatusCardActive,
-                            active && isPaid && styles.paymentStatusPaid,
-                            active && isPartial && styles.paymentStatusPartial,
-                          ]}
-                          onPress={() => setValue("paymentStatus", status as ApiTransactionPaymentStatus, { shouldDirty: true, shouldValidate: true })}
-                          activeOpacity={0.85}
-                        >
-                          <Ionicons
-                            name={isPaid ? "checkmark-circle-outline" : "pie-chart-outline"}
-                            size={17}
-                            color={active ? "#FFFFFF" : isPaid ? "#059669" : "#2563EB"}
-                          />
-                          <Text
-                            style={[styles.paymentStatusText, active && styles.paymentStatusTextActive]}
-                            numberOfLines={1}
-                            adjustsFontSizeToFit
-                          >
-                            {labelize(status)}
-                          </Text>
-                        </TouchableOpacity>
-                      );
-                    })}
-                  </View>
-                </View>
-              </View>
+              <SearchableSelectField
+                label="Payment Status"
+                value={paymentStatus}
+                options={[
+                  { label: "Pending", value: "PENDING" },
+                  { label: "Partial", value: "PARTIAL" },
+                  { label: "Paid", value: "PAID" },
+                  { label: "Cancelled", value: "CANCELLED" },
+                ]}
+                onSelect={(value) => setValue("paymentStatus", value as ApiTransactionPaymentStatus, { shouldDirty: true, shouldValidate: true })}
+                placeholder="Select Payment Status"
+                searchPlaceholder="Search payment status"
+                emptyMessage="No matching status"
+                error={errors.paymentStatus?.message}
+                required
+              />
 
               {/* Sale Status */}
-              <View style={styles.inputGroup}>
-                <Text style={styles.label}>Sale Status</Text>
-                <View style={styles.statusRow}>
-                  {API_SALE_STATUS_VALUES.map((status) => {
-                    const active = saleStatus === status;
-                    return (
-                      <TouchableOpacity
-                        key={status}
-                        style={[styles.statusChip, active && styles.statusChipActive]}
-                        onPress={() => setValue("status", status as ApiSaleStatus, { shouldDirty: true, shouldValidate: true })}
-                      >
-                        <Text style={[styles.statusChipText, active && styles.statusChipTextActive]} numberOfLines={1}>
-                          {labelize(status)}
-                        </Text>
-                      </TouchableOpacity>
-                    );
-                  })}
-                </View>
-              </View>
+              <SearchableSelectField
+                label="Sale Status"
+                value={saleStatus}
+                options={[
+                  { label: "Confirmed", value: "CONFIRMED" },
+                  { label: "Draft", value: "DRAFT" },
+                  { label: "Cancelled", value: "CANCELLED" },
+                ]}
+                onSelect={(value) => setValue("status", value as ApiSaleStatus, { shouldDirty: true, shouldValidate: true })}
+                placeholder="Select Sale Status"
+                searchPlaceholder="Search sale status"
+                emptyMessage="No matching status"
+                error={errors.status?.message}
+                required
+              />
 
               {/* Remarks */}
               <View style={styles.inputGroup}>
