@@ -17,8 +17,6 @@ function ExpenseHistoryCard({ expense, onPress, onDelete }: { expense: ApiBatchE
   const rateText =
     expense.rate === undefined || expense.rate === null ? null : `${formatMoney(expense.rate)} rate`;
 
-  const isUnpaid = (expense.paymentStatus === 'PENDING' || !expense.paymentStatus) && (expense.paidAmount ?? 0) === 0;
-
   return (
     <TouchableOpacity style={styles.expenseHistoryCard} activeOpacity={onPress ? 0.86 : 1} onPress={onPress}>
       <View style={styles.expenseHistoryHeader}>
@@ -32,7 +30,7 @@ function ExpenseHistoryCard({ expense, onPress, onDelete }: { expense: ApiBatchE
         </View>
         <View style={expenseCardStyles.amountRow}>
           <Text style={styles.expenseHistoryAmount}>{formatMoney(expense.totalAmount)}</Text>
-          {onDelete && isUnpaid ? (
+          {onDelete ? (
             <TouchableOpacity
               style={expenseCardStyles.deleteBtn}
               onPress={(e) => { e.stopPropagation(); onDelete(); }}

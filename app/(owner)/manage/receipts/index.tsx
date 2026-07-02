@@ -4,6 +4,7 @@ import { useRouter } from "expo-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
+  Alert,
   FlatList,
   StyleSheet,
   Text,
@@ -18,9 +19,10 @@ import { SearchableSelectField, type SearchableSelectOption } from "@/components
 import { TopAppBar } from "@/components/ui/TopAppBar";
 import { Colors } from "@/constants/Colors";
 import { useAuth } from "@/context/AuthContext";
-import { showRequestErrorToast } from "@/services/apiFeedback";
+import { showRequestErrorToast, showSuccessToast } from "@/services/apiFeedback";
 import {
   API_PAYMENT_ENTRY_TYPE_VALUES,
+  deleteFinancePayment,
   listAllTraders,
   listFinancePayments,
   type ApiFinancePayment,
@@ -208,6 +210,36 @@ export default function ReceiptsScreen() {
     void loadReceipts(page + 1, true);
   };
 
+  const handleDeleteReceipt = (receiptItem: ApiFinancePayment) => {
+    Alert.alert(
+      "Delete Receipt",
+      `Are you sure you want to delete this receipt of ${formatAmount(receiptItem.amount)}?\n\nThis will reverse any linked totals automatically.`,
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Delete",
+          style: "destructive",
+          onPress: async () => {
+            if (!accessToken) return;
+            try {
+              setLoading(true);
+              await deleteFinancePayment(accessToken, receiptItem.id);
+              showSuccessToast("Receipt deleted successfully.", "Deleted");
+              void loadReceipts(1, false);
+            } catch (error) {
+              showRequestErrorToast(error, {
+                title: "Delete failed",
+                fallbackMessage: "Failed to delete receipt.",
+              });
+            } finally {
+              setLoading(false);
+            }
+          },
+        },
+      ],
+    );
+  };
+
   const renderItem = ({ item }: { item: ApiFinancePayment }) => {
     const partyName = item.partyName || item.traderName || item.vendorName || "Unknown Party";
     const mode = getPaymentMode(item);
@@ -243,6 +275,15 @@ export default function ReceiptsScreen() {
           accessibilityLabel="View details"
         >
           <Ionicons name="eye-outline" size={16} color={THEME_GREEN} />
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={styles.deleteRowBtn}
+          onPress={() => handleDeleteReceipt(item)}
+          activeOpacity={0.78}
+          accessibilityRole="button"
+          accessibilityLabel="Delete receipt"
+        >
+          <Ionicons name="trash-outline" size={16} color={Colors.error || "#EF4444"} />
         </TouchableOpacity>
       </View>
     );
@@ -515,6 +556,16 @@ const styles = StyleSheet.create({
     backgroundColor: "#F0FDF4",
     borderWidth: 1,
     borderColor: "#CFE8D6",
+  },
+  deleteRowBtn: {
+    width: 30,
+    height: 30,
+    borderRadius: 7,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#FEF2F2",
+    borderWidth: 1,
+    borderColor: "#FEE2E2",
   },
   amountCol: {
     minWidth: 78,

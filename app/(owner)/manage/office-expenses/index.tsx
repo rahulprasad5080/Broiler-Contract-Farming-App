@@ -201,15 +201,6 @@ export default function OfficeExpensesScreen() {
   };
 
   const handleDeleteExpense = (expense: ApiOfficeExpense) => {
-    const isUnpaid = (expense.paymentStatus === 'PENDING' || !expense.paymentStatus) && (expense.paidAmount ?? 0) === 0;
-    if (!isUnpaid) {
-      Alert.alert(
-        'Cannot Delete',
-        'Only unpaid expenses (with pending status and zero paid amount) can be deleted.',
-      );
-      return;
-    }
-
     Alert.alert(
       "Delete Expense",
       `Are you sure you want to delete this office expense (${expense.category})?`,
@@ -353,16 +344,14 @@ export default function OfficeExpensesScreen() {
             </TouchableOpacity>
           )}
 
-          {item.paymentStatus === "PENDING" && (item.paidAmount ?? 0) === 0 && (
-            <TouchableOpacity
-              style={styles.deleteBtn}
-              onPress={() => handleDeleteExpense(item)}
-              accessibilityRole="button"
-              accessibilityLabel="Delete expense"
-            >
-              <Ionicons name="trash-outline" size={16} color="#C53929" />
-            </TouchableOpacity>
-          )}
+          <TouchableOpacity
+            style={styles.deleteBtn}
+            onPress={() => handleDeleteExpense(item)}
+            accessibilityRole="button"
+            accessibilityLabel="Delete expense"
+          >
+            <Ionicons name="trash-outline" size={16} color="#C53929" />
+          </TouchableOpacity>
         </View>
       </TouchableOpacity>
     );

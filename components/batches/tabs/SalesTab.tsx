@@ -23,8 +23,6 @@ function SaleHistoryCard({
     sale.averageWeightKg ??
     (sale.birdCount && sale.totalWeightKg ? sale.totalWeightKg / sale.birdCount : undefined);
 
-  const isUnpaid = (sale.paymentStatus === 'PENDING' || !sale.paymentStatus) && (sale.paymentReceivedAmount ?? 0) === 0;
-
   return (
     <View style={styles.expenseHistoryCard}>
       <View style={styles.expenseHistoryHeader}>
@@ -38,7 +36,7 @@ function SaleHistoryCard({
         </View>
         <View style={saleCardStyles.amountRow}>
           <Text style={styles.expenseHistoryAmount}>{formatMoney(mainAmount)}</Text>
-          {onDelete && isUnpaid ? (
+          {onDelete ? (
             <TouchableOpacity
               style={saleCardStyles.deleteBtn}
               onPress={onDelete}

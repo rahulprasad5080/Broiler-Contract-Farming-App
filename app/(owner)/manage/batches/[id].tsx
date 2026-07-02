@@ -517,15 +517,6 @@ export default function BatchDetailsScreen() {
   );
 
   const handleDeleteExpense = (expense: ApiBatchExpense) => {
-    const isUnpaid = (expense.paymentStatus === 'PENDING' || !expense.paymentStatus) && (expense.paidAmount ?? 0) === 0;
-    if (!isUnpaid) {
-      Alert.alert(
-        'Cannot Delete',
-        'Only unpaid expenses (with pending status and zero paid amount) can be deleted.',
-      );
-      return;
-    }
-
     Alert.alert(
       'Delete Expense',
       `Are you sure you want to delete this expense?\n\n"${expense.description || expense.category}" — ${expense.ledger} ledger`,
@@ -553,15 +544,6 @@ export default function BatchDetailsScreen() {
   };
 
   const handleDeleteSale = (sale: ApiSale) => {
-    const isUnpaid = (sale.paymentStatus === 'PENDING' || !sale.paymentStatus) && (sale.paymentReceivedAmount ?? 0) === 0;
-    if (!isUnpaid) {
-      Alert.alert(
-        'Cannot Delete Sale',
-        'Only unpaid sales (with pending status and zero payment received) can be deleted.',
-      );
-      return;
-    }
-
     Alert.alert(
       'Delete Sale',
       `Are you sure you want to delete this sale?\n\n${sale.traderName || 'Sale'} — deleting will recalculate batch summary, P&L, and settlement.`,

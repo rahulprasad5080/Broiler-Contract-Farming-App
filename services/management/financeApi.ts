@@ -131,6 +131,17 @@ export async function createFinancePayment(
   });
 }
 
+export async function deleteFinancePayment(
+  token: string,
+  paymentId: string,
+) {
+  return apiRequest<void>(`/finance/payments/${paymentId}`, {
+    method: "DELETE",
+    token,
+  });
+}
+
+
 // ─── New Purchase Transaction APIs ─────────────────────────────────────────────
 
 export async function listPurchaseTransactions(
