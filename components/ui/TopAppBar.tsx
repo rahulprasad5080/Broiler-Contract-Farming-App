@@ -6,12 +6,14 @@ import { StatusBar } from 'expo-status-bar';
 import { useRouter } from 'expo-router';
 import React from 'react';
 import {
+  BackHandler,
   StyleSheet,
   Text,
   TouchableOpacity,
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useIsFocused } from '@react-navigation/native';
 
 import { useSidebar } from '@/context/SidebarContext';
 
@@ -66,6 +68,24 @@ export function TopAppBar({
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const sidebar = useSidebar();
+  const isFocused = useIsFocused();
+
+  React.useEffect(() => {
+    if (leadingMode !== 'back' || !isFocused) return;
+
+    const subscription = BackHandler.addEventListener('hardwareBackPress', () => {
+      if (onBack) {
+        onBack();
+        return true;
+      } else if (router.canGoBack()) {
+        router.back();
+        return true;
+      }
+      return false;
+    });
+
+    return () => subscription.remove();
+  }, [leadingMode, onBack, isFocused, router]);
 
   const menuButton = (
     <TouchableOpacity
