@@ -427,11 +427,13 @@ export default function StockAdjustmentScreen() {
               name="reason"
               render={({ field: { value, onChange } }) => (
                 <TextInput
-                  style={[styles.input, errors.reason && { borderColor: Colors.error }]}
+                  style={[styles.input, styles.textArea, errors.reason && { borderColor: Colors.error }]}
                   value={value}
                   onChangeText={onChange}
                   placeholder="e.g. Damaged bag found, Physical count difference"
                   placeholderTextColor="#9CA3AF"
+                  multiline
+                  scrollEnabled={false}
                 />
               )}
             />
