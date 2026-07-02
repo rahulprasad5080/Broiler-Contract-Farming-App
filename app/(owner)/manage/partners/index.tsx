@@ -207,7 +207,7 @@ export default function PartnerManagementScreen() {
                 {partner.address ? <Text style={styles.partnerMeta}>{partner.address}</Text> : null}
               </View>
               <TouchableOpacity onPress={() => handleOpenEdit(partner)} style={styles.editBtn}>
-                <Ionicons name="pencil" size={20} color={Colors.textSecondary} />
+                <Ionicons name="create-outline" size={18} color={Colors.primary} />
               </TouchableOpacity>
             </View>
         )}
@@ -387,7 +387,14 @@ const styles = StyleSheet.create({
     lineHeight: 17,
   },
   editBtn: {
-    padding: 8,
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#B7E0C2',
+    backgroundColor: '#E7F5ED',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   lockedState: {
     flex: 1,
