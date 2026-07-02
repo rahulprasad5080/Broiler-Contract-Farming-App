@@ -198,8 +198,7 @@ export default function FinanceEntriesScreen() {
                 accessibilityRole="button"
                 accessibilityLabel={`Edit investment entry by ${item.investedByName || 'Owner'}`}
               >
-                <Ionicons name="create-outline" size={13} color="#0B5C36" />
-                <Text style={styles.headerEditButtonText}>Edit</Text>
+                <Ionicons name="create-outline" size={16} color="#0B5C36" />
               </TouchableOpacity>
 
               <TouchableOpacity
@@ -222,8 +221,7 @@ export default function FinanceEntriesScreen() {
                 accessibilityRole="button"
                 accessibilityLabel={`Delete investment entry by ${item.investedByName || 'Owner'}`}
               >
-                <Ionicons name="trash-outline" size={13} color="#C53929" />
-                <Text style={styles.headerDeleteButtonText}>Delete</Text>
+                <Ionicons name="trash-outline" size={16} color="#C53929" />
               </TouchableOpacity>
             </View>
 
@@ -559,36 +557,24 @@ const styles = StyleSheet.create({
     fontWeight: "700",
   },
   headerEditButton: {
-    flexDirection: "row",
+    width: 28,
+    height: 28,
+    borderRadius: 7,
     alignItems: "center",
-    gap: 3,
-    paddingVertical: 3,
-    paddingHorizontal: 8,
-    borderRadius: 6,
+    justifyContent: "center",
     backgroundColor: "#E8F5E9",
     borderWidth: 1,
     borderColor: "#C8E6C9",
   },
-  headerEditButtonText: {
-    color: "#0B5C36",
-    fontSize: 10,
-    fontWeight: "900",
-  },
   headerDeleteButton: {
-    flexDirection: "row",
+    width: 28,
+    height: 28,
+    borderRadius: 7,
     alignItems: "center",
-    gap: 3,
-    paddingVertical: 3,
-    paddingHorizontal: 8,
-    borderRadius: 6,
+    justifyContent: "center",
     backgroundColor: "#FCE8E6",
     borderWidth: 1,
     borderColor: "#FAD2CF",
-  },
-  headerDeleteButtonText: {
-    color: "#C53929",
-    fontSize: 10,
-    fontWeight: "900",
   },
   actionButtonsRow: {
     flexDirection: "row",

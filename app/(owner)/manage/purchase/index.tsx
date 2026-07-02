@@ -4,6 +4,7 @@ import { useRouter } from "expo-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
+  Alert,
   FlatList,
   StyleSheet,
   Text,
@@ -19,12 +20,14 @@ import { SearchableSelectField, type SearchableSelectOption } from "@/components
 import { TopAppBar } from "@/components/ui/TopAppBar";
 import { Colors } from "@/constants/Colors";
 import { useAuth } from "@/context/AuthContext";
-import { showRequestErrorToast } from "@/services/apiFeedback";
+import { showRequestErrorToast, showSuccessToast } from "@/services/apiFeedback";
 import {
+  deleteFinancePurchase,
   listAllVendors,
   listPurchaseTransactions,
   listWarehouses,
   type ApiPurchaseTransaction,
+  type ApiPurchaseTransactionItem,
   type ApiVendor,
   type ApiWarehouse,
 } from "@/services/managementApi";
@@ -52,10 +55,12 @@ function TransactionDetailModal({
   visible,
   item,
   onClose,
+  onDeleteItem,
 }: {
   visible: boolean;
   item: ApiPurchaseTransaction | null;
   onClose: () => void;
+  onDeleteItem: (lineItem: ApiPurchaseTransactionItem) => void;
 }) {
   if (!item) return null;
   return (
@@ -97,9 +102,19 @@ function TransactionDetailModal({
                   <Text style={modal.itemName} numberOfLines={1}>
                     {lineItem.itemName}
                   </Text>
-                  <Text style={modal.itemAmount}>
-                    {formatAmount(lineItem.totalAmount)}
-                  </Text>
+                  <View style={modal.itemCardActions}>
+                    <Text style={modal.itemAmount}>
+                      {formatAmount(lineItem.totalAmount)}
+                    </Text>
+                    <TouchableOpacity
+                      style={modal.itemDeleteBtn}
+                      onPress={() => onDeleteItem(lineItem)}
+                      accessibilityRole="button"
+                      accessibilityLabel={`Delete purchase item ${lineItem.itemName}`}
+                    >
+                      <Ionicons name="trash-outline" size={14} color="#C53929" />
+                    </TouchableOpacity>
+                  </View>
                 </View>
                 <Text style={modal.itemMeta}>
                   {[
@@ -252,6 +267,34 @@ export default function PurchaseListScreen() {
   const loadNextPage = () => {
     if (loading || loadingMore || page >= totalPages) return;
     void loadTransactions(page + 1, true);
+  };
+
+  const handleDeletePurchaseItem = (lineItem: ApiPurchaseTransactionItem) => {
+    Alert.alert(
+      "Delete Purchase Item",
+      `Are you sure you want to delete "${lineItem.itemName}"?\n\nNote: Items linked to stock history, payments, or batch costs cannot be deleted.`,
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Delete",
+          style: "destructive",
+          onPress: async () => {
+            if (!accessToken) return;
+            try {
+              await deleteFinancePurchase(accessToken, lineItem.id);
+              showSuccessToast("Purchase item deleted successfully.", "Deleted");
+              setSelectedTx(null);
+              void loadTransactions(1, false);
+            } catch (error) {
+              showRequestErrorToast(error, {
+                title: "Delete failed",
+                fallbackMessage: "Failed to delete purchase item.",
+              });
+            }
+          },
+        },
+      ],
+    );
   };
 
   const renderItem = ({ item }: { item: ApiPurchaseTransaction }) => (
@@ -434,6 +477,7 @@ export default function PurchaseListScreen() {
         visible={selectedTx !== null}
         item={selectedTx}
         onClose={() => setSelectedTx(null)}
+        onDeleteItem={handleDeletePurchaseItem}
       />
     </View>
   );
@@ -609,7 +653,18 @@ const modal = StyleSheet.create({
     alignItems: "center",
   },
   itemName: { color: "#111827", fontSize: 13, fontWeight: "800", flex: 1, marginRight: 8 },
+  itemCardActions: { flexDirection: "row", alignItems: "center", gap: 6 },
   itemAmount: { color: Colors.primary, fontSize: 13, fontWeight: "800" },
+  itemDeleteBtn: {
+    width: 26,
+    height: 26,
+    borderRadius: 6,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#FCE8E6",
+    borderWidth: 1,
+    borderColor: "#FAD2CF",
+  },
   itemMeta: { color: "#6B7280", fontSize: 11 },
   itemRemarks: { color: "#9CA3AF", fontSize: 11, fontStyle: "italic" },
   closeFab: {

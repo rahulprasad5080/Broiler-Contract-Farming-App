@@ -140,6 +140,17 @@ export async function finalizeSale(
   });
 }
 
+export async function deleteSale(
+  token: string,
+  batchId: string,
+  saleId: string,
+) {
+  return apiRequest<void>(`/batches/${batchId}/sales/${saleId}`, {
+    method: "DELETE",
+    token,
+  });
+}
+
 export async function fetchBatchSettlement(token: string, batchId: string) {
   return apiRequest<ApiBatchSettlement>(`/batches/${batchId}/settlement`, {
     method: "GET",

@@ -202,3 +202,22 @@ export async function updateOfficeExpense(
   });
 }
 
+export async function deleteOfficeExpense(
+  token: string,
+  expenseId: string,
+) {
+  return apiRequest<void>(`/finance/office-expenses/${expenseId}`, {
+    method: "DELETE",
+    token,
+  });
+}
+
+export async function deleteFinancePurchase(
+  token: string,
+  purchaseId: string,
+) {
+  return apiRequest<void>(`/finance/purchases/${purchaseId}`, {
+    method: "DELETE",
+    token,
+  });
+}

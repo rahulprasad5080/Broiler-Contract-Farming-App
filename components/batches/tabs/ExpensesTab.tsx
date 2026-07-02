@@ -4,10 +4,11 @@ import { Linking, Text, TouchableOpacity, View } from 'react-native';
 import { InfoPill } from '@/components/ui/InfoPill';
 import { formatDate, formatMoney, formatNumber, labelize } from '@/utils/format';
 import { styles } from './styles';
+import { StyleSheet } from 'react-native';
 
 const THEME_GREEN = '#0B5C36';
 
-function ExpenseHistoryCard({ expense, onPress }: { expense: ApiBatchExpense; onPress?: () => void }) {
+function ExpenseHistoryCard({ expense, onPress, onDelete }: { expense: ApiBatchExpense; onPress?: () => void; onDelete?: () => void }) {
   const hasBill = Boolean(expense.billPhotoUrl);
   const quantityText =
     expense.quantity === undefined || expense.quantity === null
@@ -27,7 +28,19 @@ function ExpenseHistoryCard({ expense, onPress }: { expense: ApiBatchExpense; on
             {[labelize(expense.category), formatDate(expense.expenseDate)].filter(Boolean).join(' | ')}
           </Text>
         </View>
-        <Text style={styles.expenseHistoryAmount}>{formatMoney(expense.totalAmount)}</Text>
+        <View style={expenseCardStyles.amountRow}>
+          <Text style={styles.expenseHistoryAmount}>{formatMoney(expense.totalAmount)}</Text>
+          {onDelete ? (
+            <TouchableOpacity
+              style={expenseCardStyles.deleteBtn}
+              onPress={(e) => { e.stopPropagation(); onDelete(); }}
+              accessibilityRole="button"
+              accessibilityLabel={`Delete expense ${expense.description || expense.category}`}
+            >
+              <Ionicons name="trash-outline" size={14} color="#C53929" />
+            </TouchableOpacity>
+          ) : null}
+        </View>
       </View>
 
       <View style={styles.expenseInfoGrid}>
@@ -88,6 +101,7 @@ interface ExpensesTabProps {
   todayExpenseTotal: number;
   onAddExpense?: () => void;
   onEditExpense?: (expense: ApiBatchExpense) => void;
+  onDeleteExpense?: (expense: ApiBatchExpense) => void;
 }
 
 export function ExpensesTab({
@@ -99,6 +113,7 @@ export function ExpensesTab({
   todayExpenseTotal,
   onAddExpense,
   onEditExpense,
+  onDeleteExpense,
 }: ExpensesTabProps) {
   return (
     <View style={styles.section}>
@@ -162,7 +177,12 @@ export function ExpensesTab({
         </View>
       ) : (
         activeExpenses.map((expense) => (
-          <ExpenseHistoryCard key={expense.id} expense={expense} onPress={onEditExpense ? () => onEditExpense(expense) : undefined} />
+          <ExpenseHistoryCard
+            key={expense.id}
+            expense={expense}
+            onPress={onEditExpense ? () => onEditExpense(expense) : undefined}
+            onDelete={onDeleteExpense ? () => onDeleteExpense(expense) : undefined}
+          />
         ))
       )}
 
@@ -170,3 +190,21 @@ export function ExpensesTab({
     </View>
   );
 }
+
+const expenseCardStyles = StyleSheet.create({
+  amountRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  deleteBtn: {
+    width: 26,
+    height: 26,
+    borderRadius: 6,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#FCE8E6',
+    borderWidth: 1,
+    borderColor: '#FAD2CF',
+  },
+});

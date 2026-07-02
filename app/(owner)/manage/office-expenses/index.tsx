@@ -4,6 +4,7 @@ import { useRouter } from "expo-router";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
+  Alert,
   FlatList,
   Modal,
   ScrollView,
@@ -20,13 +21,15 @@ import { TopAppBar } from "@/components/ui/TopAppBar";
 import { Colors } from "@/constants/Colors";
 import { useAuth } from "@/context/AuthContext";
 import { useMasterDataTypeOptions } from "@/hooks/useMasterDataTypeOptions";
-import { showRequestErrorToast } from "@/services/apiFeedback";
+import { showRequestErrorToast, showSuccessToast } from "@/services/apiFeedback";
 import {
+  deleteOfficeExpense,
   listOfficeExpenses,
   listAllVendors,
   type ApiOfficeExpense,
   type ApiVendor,
 } from "@/services/managementApi";
+
 
 const THEME_GREEN = "#0B5C36";
 const PAGE_LIMIT = 15;
@@ -197,6 +200,33 @@ export default function OfficeExpensesScreen() {
     void loadExpenses(page + 1, true);
   };
 
+  const handleDeleteExpense = (expenseId: string, category: string) => {
+    Alert.alert(
+      "Delete Expense",
+      `Are you sure you want to delete this office expense (${category})?`,
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Delete",
+          style: "destructive",
+          onPress: async () => {
+            if (!accessToken) return;
+            try {
+              await deleteOfficeExpense(accessToken, expenseId);
+              showSuccessToast("Office expense deleted successfully.", "Deleted");
+              void loadExpenses(1, false);
+            } catch (error) {
+              showRequestErrorToast(error, {
+                title: "Delete failed",
+                fallbackMessage: "Failed to delete office expense.",
+              });
+            }
+          },
+        },
+      ],
+    );
+  };
+
   const getStatusStyle = (status: string) => {
     switch (status) {
       case "PAID":
@@ -313,6 +343,15 @@ export default function OfficeExpensesScreen() {
               <Ionicons name="card-outline" size={16} color="#7C3AED" />
             </TouchableOpacity>
           )}
+
+          <TouchableOpacity
+            style={styles.deleteBtn}
+            onPress={() => handleDeleteExpense(item.id, item.category)}
+            accessibilityRole="button"
+            accessibilityLabel="Delete expense"
+          >
+            <Ionicons name="trash-outline" size={16} color="#C53929" />
+          </TouchableOpacity>
         </View>
       </TouchableOpacity>
     );
@@ -714,6 +753,16 @@ const styles = StyleSheet.create({
     backgroundColor: "#F5F3FF",
     borderWidth: 1,
     borderColor: "#DDD6FE",
+  },
+  deleteBtn: {
+    width: 28,
+    height: 28,
+    borderRadius: 6,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#FCE8E6",
+    borderWidth: 1,
+    borderColor: "#FAD2CF",
   },
   footerLoader: {
     paddingVertical: 16,

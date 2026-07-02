@@ -46,6 +46,17 @@ export async function updateBatchExpense(
   });
 }
 
+export async function deleteBatchExpense(
+  token: string,
+  batchId: string,
+  expenseId: string,
+) {
+  return apiRequest<void>(`/batches/${batchId}/expenses/${expenseId}`, {
+    method: "DELETE",
+    token,
+  });
+}
+
 export async function updateBatchExpenseApproval(
   token: string,
   batchId: string,

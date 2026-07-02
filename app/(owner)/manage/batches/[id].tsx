@@ -13,6 +13,8 @@ import { useAuth } from '@/context/AuthContext';
 import { showRequestErrorToast, showSuccessToast } from '@/services/apiFeedback';
 import {
   createBatchComment,
+  deleteBatchExpense,
+  deleteSale,
   fetchBatch,
   fetchBatchPnl,
   fetchBatchSettlement,
@@ -45,6 +47,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Modal,
+  Alert,
   ScrollView,
   StyleSheet,
   Text,
@@ -513,6 +516,60 @@ export default function BatchDetailsScreen() {
     [accessToken, batch?.code, exporting, id],
   );
 
+  const handleDeleteExpense = (expense: ApiBatchExpense) => {
+    Alert.alert(
+      'Delete Expense',
+      `Are you sure you want to delete this expense?\n\n"${expense.description || expense.category}" — ${expense.ledger} ledger`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            if (!accessToken || !id) return;
+            try {
+              await deleteBatchExpense(accessToken, id, expense.id);
+              showSuccessToast('Expense deleted successfully.', 'Deleted');
+              void loadBatchDetails();
+            } catch (error) {
+              showRequestErrorToast(error, {
+                title: 'Delete failed',
+                fallbackMessage: 'Failed to delete expense.',
+              });
+            }
+          },
+        },
+      ],
+    );
+  };
+
+  const handleDeleteSale = (sale: ApiSale) => {
+    Alert.alert(
+      'Delete Sale',
+      `Are you sure you want to delete this sale?\n\n${sale.traderName || 'Sale'} — deleting will recalculate batch summary, P&L, and settlement.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            if (!accessToken || !id) return;
+            try {
+              await deleteSale(accessToken, id, sale.id);
+              showSuccessToast('Sale deleted successfully.', 'Deleted');
+              void loadBatchDetails();
+            } catch (error) {
+              showRequestErrorToast(error, {
+                title: 'Delete failed',
+                fallbackMessage: 'Failed to delete sale.',
+              });
+            }
+          },
+        },
+      ],
+    );
+  };
+
   return (
     <View style={styles.container}>
       <TopAppBar
@@ -687,6 +744,7 @@ export default function BatchDetailsScreen() {
                       )
                     : undefined
                 }
+                onDeleteExpense={canUseExpenses ? handleDeleteExpense : undefined}
               />
             )}
 
@@ -726,6 +784,7 @@ export default function BatchDetailsScreen() {
                       )
                     : undefined
                 }
+                onDeleteSale={canUseSales ? handleDeleteSale : undefined}
               />
             )}
 

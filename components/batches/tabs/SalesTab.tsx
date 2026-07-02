@@ -2,7 +2,7 @@ import { useAuth } from '@/context/AuthContext';
 import type { ApiSale } from '@/services/managementApi';
 import { Feather, Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import { Text, TouchableOpacity, View } from 'react-native';
+import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { InfoPill } from '@/components/ui/InfoPill';
 import { formatDate, formatMoney, formatNumber, labelize } from '@/utils/format';
 import { styles } from './styles';
@@ -12,9 +12,11 @@ const THEME_GREEN = '#0B5C36';
 function SaleHistoryCard({
   sale,
   onFinalizeSale,
+  onDelete,
 }: {
   sale: ApiSale;
   onFinalizeSale?: (sale: ApiSale) => void;
+  onDelete?: () => void;
 }) {
   const mainAmount = sale.netAmount ?? sale.grossAmount;
   const avgWeight =
@@ -32,7 +34,19 @@ function SaleHistoryCard({
             {[formatDate(sale.saleDate), sale.vehicleNumber].filter(Boolean).join(' | ')}
           </Text>
         </View>
-        <Text style={styles.expenseHistoryAmount}>{formatMoney(mainAmount)}</Text>
+        <View style={saleCardStyles.amountRow}>
+          <Text style={styles.expenseHistoryAmount}>{formatMoney(mainAmount)}</Text>
+          {onDelete ? (
+            <TouchableOpacity
+              style={saleCardStyles.deleteBtn}
+              onPress={onDelete}
+              accessibilityRole="button"
+              accessibilityLabel={`Delete sale for ${sale.traderName || 'Batch Sale'}`}
+            >
+              <Ionicons name="trash-outline" size={14} color="#C53929" />
+            </TouchableOpacity>
+          ) : null}
+        </View>
       </View>
 
       <View style={styles.expenseInfoGrid}>
@@ -105,6 +119,7 @@ interface SalesTabProps {
   totalSoldWeight: number;
   onAddSale?: () => void;
   onFinalizeSale?: (sale: ApiSale) => void;
+  onDeleteSale?: (sale: ApiSale) => void;
 }
 
 export function SalesTab({
@@ -115,6 +130,7 @@ export function SalesTab({
   totalSoldWeight,
   onAddSale,
   onFinalizeSale,
+  onDeleteSale,
 }: SalesTabProps) {
   const router = useRouter();
   const { hasPermission } = useAuth();
@@ -166,7 +182,12 @@ export function SalesTab({
         </View>
       ) : (
         sales.map((sale) => (
-          <SaleHistoryCard key={sale.id} sale={sale} onFinalizeSale={onFinalizeSale} />
+          <SaleHistoryCard
+            key={sale.id}
+            sale={sale}
+            onFinalizeSale={onFinalizeSale}
+            onDelete={onDeleteSale ? () => onDeleteSale(sale) : undefined}
+          />
         ))
       )}
 
@@ -174,3 +195,21 @@ export function SalesTab({
     </View>
   );
 }
+
+const saleCardStyles = StyleSheet.create({
+  amountRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  deleteBtn: {
+    width: 26,
+    height: 26,
+    borderRadius: 6,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#FCE8E6',
+    borderWidth: 1,
+    borderColor: '#FAD2CF',
+  },
+});
