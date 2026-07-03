@@ -4,6 +4,7 @@ import { useRouter } from "expo-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
+  Alert,
   FlatList,
   Modal,
   RefreshControl,
@@ -19,8 +20,9 @@ import { SearchableSelectField, type SearchableSelectOption } from "@/components
 import { TopAppBar } from "@/components/ui/TopAppBar";
 import { Colors } from "@/constants/Colors";
 import { useAuth } from "@/context/AuthContext";
-import { showRequestErrorToast } from "@/services/apiFeedback";
+import { showRequestErrorToast, showSuccessToast } from "@/services/apiFeedback";
 import {
+  deleteStockMovement,
   listAllBatches,
   listAllVendors,
   listCatalogItems,
@@ -202,6 +204,33 @@ export default function LedgerTab({ isStandalone = false }: LedgerTabProps) {
     }
   }, [accessToken, batchId, catalogItemId, vendorId]);
 
+  const handleDeleteRow = useCallback((item: ApiInventoryLedgerEntry) => {
+    Alert.alert(
+      "Delete Movement",
+      "Are you sure you want to delete this stock movement?\n\nThis will revert the stock levels and cannot be undone.",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Delete",
+          style: "destructive",
+          onPress: async () => {
+            if (!accessToken) return;
+            try {
+              await deleteStockMovement(accessToken, item.id);
+              showSuccessToast("Stock movement deleted successfully.", "Deleted");
+              void loadLedger();
+            } catch (error) {
+              showRequestErrorToast(error, {
+                title: "Delete failed",
+                fallbackMessage: "Failed to delete stock movement.",
+              });
+            }
+          },
+        },
+      ]
+    );
+  }, [accessToken, loadLedger]);
+
   useEffect(() => {
     if (isFocused) {
       void loadOptions();
@@ -256,6 +285,15 @@ export default function LedgerTab({ isStandalone = false }: LedgerTabProps) {
               </Text>
             </View>
             <Ionicons name="eye-outline" size={16} color={Colors.textSecondary} />
+            <TouchableOpacity
+              onPress={() => handleDeleteRow(item)}
+              style={{ padding: 4 }}
+              activeOpacity={0.7}
+              accessibilityRole="button"
+              accessibilityLabel="Delete stock movement"
+            >
+              <Ionicons name="trash-outline" size={16} color={Colors.error} />
+            </TouchableOpacity>
           </View>
         </View>
       </TouchableOpacity>
@@ -504,12 +542,6 @@ function LedgerDetailModal({ visible, item, onClose }: LedgerDetailModalProps) {
                 </>
               ) : null}
 
-              {item.purchaseId ? (
-                <>
-                  <View style={modalStyles.divider} />
-                  <DetailRow label="Purchase" value={item.purchaseId} />
-                </>
-              ) : null}
 
               {item.unitCost != null ? (
                 <>
@@ -691,6 +723,25 @@ const modalStyles = StyleSheet.create({
     color: "#4B5563",
     lineHeight: 18,
     marginTop: 6,
+  },
+  deleteButton: {
+    minHeight: 44,
+    borderRadius: 10,
+    backgroundColor: Colors.error,
+    alignItems: "center",
+    justifyContent: "center",
+    flexDirection: "row",
+    gap: 8,
+    paddingHorizontal: 14,
+    marginTop: 8,
+  },
+  deleteButtonText: {
+    color: "#FFF",
+    fontSize: 14,
+    fontWeight: "900",
+  },
+  disabledButton: {
+    opacity: 0.7,
   },
 });
 

@@ -102,3 +102,11 @@ export async function createStockSale(token: string, payload: StockSaleRequest) 
     body: payload,
   });
 }
+
+export async function deleteStockMovement(token: string, movementId: string) {
+  return apiRequest<void>(`/inventory/movements/${movementId}`, {
+    method: "DELETE",
+    token,
+  });
+}
+
