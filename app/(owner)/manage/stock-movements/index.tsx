@@ -5,6 +5,8 @@ import {
   ActivityIndicator,
   Alert,
   FlatList,
+  Modal,
+  ScrollView,
   StyleSheet,
   Text,
   TouchableOpacity,
@@ -126,6 +128,7 @@ export function StockMovementsList() {
   const [loadingMore, setLoadingMore] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [selectedMovement, setSelectedMovement] = useState<ApiStockMovement | null>(null);
   const requestedPageRef = useRef(1);
 
   const handleDelete = async (movementId: string) => {
@@ -235,6 +238,15 @@ export function StockMovementsList() {
           <View style={styles.headerRight}>
             <Text style={styles.dateText}>{formatDate(item.movementDate)}</Text>
             <TouchableOpacity
+              style={styles.viewButton}
+              onPress={() => setSelectedMovement(item)}
+              activeOpacity={0.7}
+              accessibilityRole="button"
+              accessibilityLabel={`View details of stock movement ${item.catalogItemName || ''}`}
+            >
+              <Ionicons name="eye-outline" size={14} color={config.color} />
+            </TouchableOpacity>
+            <TouchableOpacity
               style={styles.deleteButton}
               onPress={() => confirmDelete(item.id)}
               activeOpacity={0.7}
@@ -282,8 +294,9 @@ export function StockMovementsList() {
   };
 
   return (
-    <FlatList
-      data={loading ? [] : movements}
+    <>
+      <FlatList
+        data={loading ? [] : movements}
       keyExtractor={(item) => item.id}
       renderItem={({ item }) => renderMovementCard(item)}
       contentContainerStyle={[
@@ -345,6 +358,142 @@ export function StockMovementsList() {
         )
       }
     />
+    <MovementDetailModal
+      visible={!!selectedMovement}
+      item={selectedMovement}
+      onClose={() => setSelectedMovement(null)}
+    />
+    </>
+  );
+}
+
+interface MovementDetailModalProps {
+  visible: boolean;
+  item: ApiStockMovement | null;
+  onClose: () => void;
+}
+
+function MovementDetailModal({ visible, item, onClose }: MovementDetailModalProps) {
+  if (!item) return null;
+
+  const config = MOVEMENT_CONFIGS[item.movementType] || {
+    label: labelize(item.movementType),
+    icon: "cube-outline" as const,
+    color: Colors.textSecondary,
+    bg: "#F3F4F6",
+  };
+
+  const fromLoc = item.fromLocationName;
+  const toLoc = item.toLocationName;
+  let locationText = "";
+  if (fromLoc && toLoc) {
+    locationText = `${fromLoc} ➔ ${toLoc}`;
+  } else if (toLoc) {
+    locationText = `To: ${toLoc}`;
+  } else if (fromLoc) {
+    locationText = `From: ${fromLoc}`;
+  }
+
+  return (
+    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
+      <TouchableOpacity style={modalStyles.overlay} activeOpacity={1} onPress={onClose}>
+        <TouchableOpacity
+          style={modalStyles.sheet}
+          activeOpacity={1}
+          onPress={() => { }}
+        >
+          {/* Header */}
+          <View style={modalStyles.sheetHeader}>
+            <View style={modalStyles.sheetHandle} />
+            <View style={modalStyles.sheetTitleRow}>
+              <Text style={modalStyles.sheetTitle}>Movement Details</Text>
+              <TouchableOpacity style={modalStyles.closeBtn} onPress={onClose}>
+                <Ionicons name="close" size={18} color={Colors.textSecondary} />
+              </TouchableOpacity>
+            </View>
+          </View>
+
+          <ScrollView contentContainerStyle={modalStyles.sheetBody} showsVerticalScrollIndicator={false}>
+            {/* Item & Quantity Hero */}
+            <View style={modalStyles.heroSection}>
+              <View style={[modalStyles.heroIcon, { backgroundColor: config.bg }]}>
+                <Ionicons name={config.icon} size={22} color={config.color} />
+              </View>
+              <Text style={modalStyles.heroItemName}>{item.catalogItemName || "Unknown Item"}</Text>
+              <Text style={[modalStyles.heroQuantity, { color: config.color }]}>
+                {formatQuantity(item.quantity, item.unit)}
+              </Text>
+              <View style={[modalStyles.heroBadge, { backgroundColor: config.bg }]}>
+                <Text style={[modalStyles.heroBadgeText, { color: config.color }]}>{config.label}</Text>
+              </View>
+            </View>
+
+            {/* Details Card */}
+            <View style={modalStyles.detailsCard}>
+              <DetailRow label="Date" value={formatDate(item.movementDate)} />
+              <View style={modalStyles.divider} />
+              <DetailRow label="Movement Type" value={labelize(item.movementType)} />
+              {locationText ? (
+                <>
+                  <View style={modalStyles.divider} />
+                  <DetailRow label="Flow" value={locationText} />
+                </>
+              ) : null}
+
+              {item.fromLocationName ? (
+                <>
+                  <View style={modalStyles.divider} />
+                  <DetailRow label="From Location" value={item.fromLocationName} />
+                </>
+              ) : null}
+
+              {item.toLocationName ? (
+                <>
+                  <View style={modalStyles.divider} />
+                  <DetailRow label="To Location" value={item.toLocationName} />
+                </>
+              ) : null}
+
+              {item.unitCost != null ? (
+                <>
+                  <View style={modalStyles.divider} />
+                  <DetailRow label="Unit Cost" value={`Rs ${item.unitCost}/${item.unit || "unit"}`} />
+                </>
+              ) : null}
+
+              {item.totalAmount != null ? (
+                <>
+                  <View style={modalStyles.divider} />
+                  <DetailRow label="Total Amount" value={`Rs ${item.totalAmount.toLocaleString("en-IN")}`} />
+                </>
+              ) : null}
+
+
+
+
+            </View>
+
+            {item.reason || item.notes ? (
+              <View style={modalStyles.notesBox}>
+                <Text style={modalStyles.notesLabel}>Notes / Reason</Text>
+                <Text style={modalStyles.notesText}>{item.reason || item.notes}</Text>
+              </View>
+            ) : null}
+          </ScrollView>
+        </TouchableOpacity>
+      </TouchableOpacity>
+    </Modal>
+  );
+}
+
+function DetailRow({ label, value }: { label: string; value: string }) {
+  return (
+    <View style={modalStyles.detailRow}>
+      <Text style={modalStyles.detailLabel}>{label}</Text>
+      <Text style={modalStyles.detailValue} numberOfLines={2}>
+        {value}
+      </Text>
+    </View>
   );
 }
 
@@ -422,6 +571,16 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
+  viewButton: {
+    width: 24,
+    height: 24,
+    borderRadius: 6,
+    backgroundColor: "#E7F5ED",
+    borderWidth: 1,
+    borderColor: "#BFE6CD",
+    alignItems: "center",
+    justifyContent: "center",
+  },
   sectionHeader: {
     flexDirection: "row",
     alignItems: "center",
@@ -471,6 +630,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "#E5E7EB",
     padding: 14,
+    marginBottom: 12,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.05,
@@ -549,5 +709,151 @@ const styles = StyleSheet.create({
     color: Colors.textSecondary,
     fontStyle: "italic",
     lineHeight: 15,
+  },
+});
+
+const modalStyles = StyleSheet.create({
+  overlay: {
+    flex: 1,
+    justifyContent: "flex-end",
+    backgroundColor: "rgba(0,0,0,0.45)",
+  },
+  sheet: {
+    backgroundColor: "#FFF",
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    maxHeight: "85%",
+    paddingBottom: 24,
+  },
+  sheetHeader: {
+    paddingTop: 8,
+    paddingHorizontal: 16,
+    paddingBottom: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: "#F0F0F0",
+  },
+  sheetHandle: {
+    width: 36,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: "#D1D5DB",
+    alignSelf: "center",
+    marginBottom: 12,
+  },
+  sheetTitleRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  sheetTitle: {
+    fontSize: 16,
+    fontWeight: "900",
+    color: Colors.text,
+  },
+  closeBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#F3F4F6",
+  },
+  sheetBody: {
+    paddingHorizontal: 16,
+    paddingTop: 16,
+    paddingBottom: 12,
+    gap: 16,
+  },
+  heroSection: {
+    alignItems: "center",
+    paddingVertical: 16,
+    backgroundColor: "#F8FAFC",
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "#E7ECF2",
+  },
+  heroIcon: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 10,
+  },
+  heroItemName: {
+    fontSize: 16,
+    fontWeight: "900",
+    color: Colors.text,
+    textAlign: "center",
+  },
+  heroQuantity: {
+    fontSize: 22,
+    fontWeight: "900",
+    marginTop: 6,
+  },
+  heroBadge: {
+    paddingHorizontal: 12,
+    paddingVertical: 4,
+    borderRadius: 6,
+    marginTop: 8,
+  },
+  heroBadgeText: {
+    fontSize: 10,
+    fontWeight: "900",
+  },
+  detailsCard: {
+    backgroundColor: "#FFF",
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "#E7ECF2",
+    overflow: "hidden",
+  },
+  detailRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    minHeight: 40,
+  },
+  detailLabel: {
+    fontSize: 11,
+    fontWeight: "800",
+    color: Colors.textSecondary,
+    textTransform: "uppercase",
+    flex: 1,
+  },
+  detailValue: {
+    fontSize: 12,
+    fontWeight: "800",
+    color: Colors.text,
+    textAlign: "right",
+    flex: 1.5,
+  },
+  divider: {
+    height: 1,
+    backgroundColor: "#F3F4F6",
+    marginHorizontal: 14,
+  },
+  notesBox: {
+    backgroundColor: "#F8FAFC",
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "#E7ECF2",
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+  },
+  notesLabel: {
+    fontSize: 11,
+    fontWeight: "800",
+    color: Colors.textSecondary,
+    textTransform: "uppercase",
+  },
+  notesText: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: "#4B5563",
+    lineHeight: 18,
+    marginTop: 6,
   },
 });
