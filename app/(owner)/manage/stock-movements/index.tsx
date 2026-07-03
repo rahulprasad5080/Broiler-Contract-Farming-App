@@ -1,10 +1,10 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
-  ScrollView,
+  FlatList,
   StyleSheet,
   Text,
   TouchableOpacity,
@@ -119,9 +119,14 @@ const MOVEMENT_CONFIGS: Record<
 export function StockMovementsList() {
   const { accessToken } = useAuth();
   const [movements, setMovements] = useState<ApiStockMovement[]>([]);
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const requestedPageRef = useRef(1);
 
   const handleDelete = async (movementId: string) => {
     if (!accessToken) return;
@@ -129,7 +134,7 @@ export function StockMovementsList() {
       setLoading(true);
       await deleteStockMovement(accessToken, movementId);
       showSuccessToast("Stock movement deleted successfully.", "Deleted");
-      void fetchMovements();
+      void fetchMovements(1, false, false);
     } catch (err) {
       showRequestErrorToast(err, {
         title: "Delete failed",
@@ -154,32 +159,46 @@ export function StockMovementsList() {
     );
   };
 
-  const fetchMovements = useCallback(async (isManualRefresh = false) => {
+  const fetchMovements = useCallback(async (targetPage = 1, append = false, isManualRefresh = false) => {
     if (!accessToken) return;
     if (isManualRefresh) {
       setRefreshing(true);
+    } else if (append) {
+      setLoadingMore(true);
     } else {
       setLoading(true);
     }
+    requestedPageRef.current = targetPage;
     setError(null);
 
     try {
       const response = await listStockMovements(accessToken, {
-        limit: 10,
-        page: 1,
+        limit: 15,
+        page: targetPage,
       });
-      setMovements(response.data ?? []);
+      setMovements((current) => (append ? [...current, ...(response.data ?? [])] : response.data ?? []));
+      setPage(response.meta?.page ?? targetPage);
+      setTotal(response.meta?.total ?? 0);
+      setTotalPages(response.meta?.totalPages ?? 1);
     } catch (err) {
       console.error("Error fetching stock movements:", err);
-      setError("Failed to load recent stock movements.");
+      requestedPageRef.current = append ? Math.max(targetPage - 1, 1) : 1;
+      setError("Failed to load stock movements.");
     } finally {
       setLoading(false);
+      setLoadingMore(false);
       setRefreshing(false);
     }
   }, [accessToken]);
 
+  const loadNextPage = () => {
+    const nextPage = page + 1;
+    if (loading || loadingMore || nextPage > totalPages || requestedPageRef.current >= nextPage) return;
+    void fetchMovements(nextPage, true);
+  };
+
   useEffect(() => {
-    void fetchMovements();
+    void fetchMovements(1, false);
   }, [fetchMovements]);
 
   if (!accessToken) return null;
@@ -263,54 +282,69 @@ export function StockMovementsList() {
   };
 
   return (
-    <View style={styles.container}>
-      <View style={styles.sectionHeader}>
-        <View style={styles.titleWrapper}>
-          <Ionicons name="swap-horizontal" size={18} color={Colors.primary} style={{ marginRight: 6 }} />
-          <Text style={styles.sectionTitle}>Recent Stock Movements</Text>
+    <FlatList
+      data={loading ? [] : movements}
+      keyExtractor={(item) => item.id}
+      renderItem={({ item }) => renderMovementCard(item)}
+      contentContainerStyle={[
+        styles.listContent,
+        !loading && movements.length === 0 && styles.listEmpty,
+      ]}
+      showsVerticalScrollIndicator={false}
+      keyboardShouldPersistTaps="handled"
+      onEndReached={loadNextPage}
+      onEndReachedThreshold={0.25}
+      refreshing={refreshing}
+      onRefresh={() => void fetchMovements(1, false, true)}
+      ListHeaderComponent={
+        <View style={styles.sectionHeader}>
+          <View style={styles.titleWrapper}>
+            <Ionicons name="swap-horizontal" size={18} color={Colors.primary} style={{ marginRight: 6 }} />
+            <Text style={styles.sectionTitle}>Recent Stock Movements</Text>
+            {!loading && total > 0 ? (
+              <Text style={styles.resultCount}>
+                ({movements.length}/{total})
+              </Text>
+            ) : null}
+          </View>
         </View>
-        <TouchableOpacity
-          style={styles.refreshButton}
-          onPress={() => void fetchMovements(true)}
-          disabled={loading || refreshing}
-          activeOpacity={0.7}
-        >
-          {refreshing ? (
-            <ActivityIndicator size="small" color={Colors.primary} />
-          ) : (
-            <Ionicons name="refresh" size={18} color={Colors.primary} />
-          )}
-        </TouchableOpacity>
-      </View>
-
-      {loading ? (
-        <View style={styles.loaderContainer}>
-          <ActivityIndicator size="large" color={Colors.primary} />
-          <Text style={styles.loaderText}>Loading stock movements...</Text>
-        </View>
-      ) : error ? (
-        <ScreenState
-          title="Error Loading Movements"
-          message={error}
-          icon="alert-circle-outline"
-          tone="error"
-          actionLabel="Retry"
-          onAction={() => void fetchMovements()}
-          compact
-        />
-      ) : movements.length === 0 ? (
-        <ScreenState
-          title="No Stock Movements"
-          message="Recent inventory movement logs will appear here."
-          icon="cube-outline"
-          compact
-        />
-      ) : (
-        <View style={styles.list}>
-          {movements.map(renderMovementCard)}
-        </View>
-      )}
-    </View>
+      }
+      ListEmptyComponent={
+        loading ? (
+          <View style={styles.loaderContainer}>
+            <ActivityIndicator size="large" color={Colors.primary} />
+            <Text style={styles.loaderText}>Loading stock movements...</Text>
+          </View>
+        ) : error ? (
+          <ScreenState
+            title="Error Loading Movements"
+            message={error}
+            icon="alert-circle-outline"
+            tone="error"
+            actionLabel="Retry"
+            onAction={() => void fetchMovements(1, false)}
+            compact
+          />
+        ) : (
+          <ScreenState
+            title="No Stock Movements"
+            message="Recent inventory movement logs will appear here."
+            icon="cube-outline"
+            compact
+          />
+        )
+      }
+      ListFooterComponent={
+        loadingMore ? (
+          <View style={styles.footerLoader}>
+            <ActivityIndicator color={Colors.primary} />
+            <Text style={styles.footerText}>Loading more stock movements...</Text>
+          </View>
+        ) : (
+          <View style={styles.footerSpacer} />
+        )
+      }
+    />
   );
 }
 
@@ -329,9 +363,9 @@ export default function StockMovementsScreen() {
           }
         }}
       />
-      <ScrollView contentContainerStyle={styles.scrollContainer} showsVerticalScrollIndicator={false}>
+      <View style={styles.page}>
         <StockMovementsList />
-      </ScrollView>
+      </View>
     </View>
   );
 }
@@ -339,6 +373,35 @@ export default function StockMovementsScreen() {
 const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: "#0B5C36" },
   scrollContainer: { flexGrow: 1, backgroundColor: "#F4F6F8" },
+  page: { flex: 1, backgroundColor: "#F4F6F8" },
+  listContent: {
+    paddingHorizontal: 16,
+    paddingTop: 16,
+    paddingBottom: 40,
+  },
+  listEmpty: {
+    flexGrow: 1,
+    paddingHorizontal: 16,
+  },
+  resultCount: {
+    fontSize: 12,
+    fontWeight: "700",
+    color: Colors.textSecondary,
+    marginLeft: 6,
+  },
+  footerLoader: {
+    paddingVertical: 16,
+    alignItems: "center",
+    gap: 8,
+  },
+  footerText: {
+    fontSize: 12,
+    color: Colors.textSecondary,
+    fontWeight: "700",
+  },
+  footerSpacer: {
+    height: 28,
+  },
   container: {
     marginTop: 16,
     paddingHorizontal: 16,

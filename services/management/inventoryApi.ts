@@ -56,7 +56,7 @@ export async function listStockMovements(
   token: string,
   params: ListStockMovementsParams = {},
 ) {
-  return apiRequest<{ data: ApiStockMovement[] }>("/inventory/movements", {
+  return apiRequest<ListResponse<ApiStockMovement>>("/inventory/movements", {
     method: "GET",
     token,
     query: params as Record<string, string | number | boolean | null | undefined>,
