@@ -58,6 +58,7 @@ const OWNER_MANAGE_ROUTE_PERMISSIONS: Record<string, PermissionRequirement> = {
   dropdowns: "manage:users",
   billing: "view:financial-dashboard",
   api: "manage:users",
+  "stock-movements": "view:financial-dashboard",
 };
 
 const TASK_INDEX_PERMISSIONS: AppPermission[] = [

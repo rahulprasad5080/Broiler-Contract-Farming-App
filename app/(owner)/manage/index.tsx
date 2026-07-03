@@ -145,6 +145,15 @@ const ENTRY_ITEMS: EntryItem[] = [
     route: "/(owner)/manage/payments/create?type=receipt",
     requiredPermission: "view:financial-dashboard",
   },
+  {
+    title: "Stock Movements",
+    desc: "View all stock movements",
+    icon: "cube-outline",
+    iconType: "Ionicons",
+    color: "#16A34A",
+    route: "/(owner)/manage/stock-movements",
+    requiredPermission: "view:financial-dashboard",
+  },
 ];
 
 export default function EntriesScreen() {

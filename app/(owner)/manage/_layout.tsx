@@ -11,6 +11,7 @@ export default function ManageLayout() {
       <Stack.Screen name="inventory" />
       <Stack.Screen name="allocate" />
       <Stack.Screen name="purchase" />
+      <Stack.Screen name="stock-movements" />
       <Stack.Screen name="ledger" />
       <Stack.Screen name="entries" />
       <Stack.Screen name="payments" />
