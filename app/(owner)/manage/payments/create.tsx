@@ -31,6 +31,7 @@ import {
   createFinancePayment,
   listAllTraders,
   listAllVendors,
+  updateFinancePayment,
   type ApiTrader,
   type ApiVendor,
 } from "@/services/managementApi";
@@ -77,14 +78,32 @@ function labelize(value: string) {
 
 export default function CreatePaymentScreen() {
   const router = useRouter();
-  const { type, referenceType, referenceId, amount, vendorId: paramVendorId, partyName } = useLocalSearchParams<{
+  const {
+    paymentId,
+    type,
+    referenceType,
+    referenceId,
+    amount,
+    vendorId: paramVendorId,
+    traderId: paramTraderId,
+    partyName,
+    paymentMode: paramPaymentMode,
+    paymentDate,
+    notes,
+  } = useLocalSearchParams<{
+    paymentId?: string;
     type?: "payment" | "receipt";
     referenceType?: string;
     referenceId?: string;
     amount?: string;
     vendorId?: string;
+    traderId?: string;
     partyName?: string;
+    paymentMode?: string;
+    paymentDate?: string;
+    notes?: string;
   }>();
+  const isEditMode = Boolean(paymentId);
   const partyType = type === "receipt" ? "trader" : "vendor";
   const { accessToken } = useAuth();
   const [vendors, setVendors] = useState<ApiVendor[]>([]);
@@ -104,12 +123,26 @@ export default function CreatePaymentScreen() {
     formState: { errors },
   } = useForm<PaymentFormData>({
     resolver: zodResolver(paymentSchema),
-    defaultValues: useMemo(() => ({
-      ...DEFAULTS,
-      vendorId: paramVendorId || "",
-      amount: amount || "",
-      partyName: partyName || "",
-    }), [paramVendorId, amount, partyName]),
+    defaultValues: useMemo(() => {
+      if (paymentId) {
+        return {
+          vendorId: paramVendorId || "",
+          traderId: paramTraderId || "",
+          partyName: partyName || "",
+          paymentMode: (paramPaymentMode === "ACCOUNT" ? "ACCOUNT" : "CASH") as "CASH" | "ACCOUNT",
+          amount: amount || "",
+          paymentDate: paymentDate ? paymentDate.split("T")[0] : getLocalDateValue(),
+          notes: notes || "",
+        };
+      }
+      return {
+        ...DEFAULTS,
+        vendorId: paramVendorId || "",
+        traderId: "",
+        amount: amount || "",
+        partyName: partyName || "",
+      };
+    }, [paymentId, paramVendorId, paramTraderId, partyName, paramPaymentMode, amount, paymentDate, notes]),
   });
 
 
@@ -155,12 +188,18 @@ export default function CreatePaymentScreen() {
           setValue("partyName", found.name);
         }
       }
+      if (paramTraderId) {
+        const found = traderRes.data.find(t => t.id === paramTraderId);
+        if (found) {
+          setValue("partyName", found.name);
+        }
+      }
     } catch (error) {
       showRequestErrorToast(error, { title: "Unable to load payment options" });
     } finally {
       setLoading(false);
     }
-  }, [accessToken, paramVendorId, setValue]);
+  }, [accessToken, paramVendorId, paramTraderId, setValue]);
 
   useFocusEffect(
     useCallback(() => {
@@ -199,7 +238,7 @@ export default function CreatePaymentScreen() {
     setSavedMessage(null);
 
     try {
-      await createFinancePayment(accessToken, {
+      const payload = {
         vendorId: data.vendorId?.trim() || undefined,
         traderId: data.traderId?.trim() || undefined,
         partyName: data.partyName?.trim() || undefined,
@@ -209,10 +248,18 @@ export default function CreatePaymentScreen() {
         referenceType: referenceType || undefined,
         referenceId: referenceId || undefined,
         notes: data.notes?.trim() || undefined,
-      });
+      };
 
-      showSuccessToast(type === "receipt" ? "Receipt created successfully." : "Payment created successfully.");
-      setSavedMessage(type === "receipt" ? "Receipt created successfully." : "Payment created successfully.");
+      if (paymentId) {
+        await updateFinancePayment(accessToken, paymentId, payload);
+        showSuccessToast(type === "receipt" ? "Receipt updated successfully." : "Payment updated successfully.");
+        setSavedMessage(type === "receipt" ? "Receipt updated successfully." : "Payment updated successfully.");
+      } else {
+        await createFinancePayment(accessToken, payload);
+        showSuccessToast(type === "receipt" ? "Receipt created successfully." : "Payment created successfully.");
+        setSavedMessage(type === "receipt" ? "Receipt created successfully." : "Payment created successfully.");
+      }
+
       reset(DEFAULTS);
       router.replace({ pathname: type === "receipt" ? "/(owner)/manage/receipts" : "/(owner)/manage/payments" });
     } catch (error) {
@@ -225,7 +272,7 @@ export default function CreatePaymentScreen() {
   return (
     <View style={styles.safeArea}>
       <TopAppBar
-        title={type === "receipt" ? "Create Receipt" : "Create Payment"}
+        title={isEditMode ? (type === "receipt" ? "Edit Receipt" : "Edit Payment") : (type === "receipt" ? "Create Receipt" : "Create Payment")}
         leadingMode="back"
         onBack={() => router.back()}
       />
@@ -358,7 +405,9 @@ export default function CreatePaymentScreen() {
               ) : (
                 <>
                   <Ionicons name="save-outline" size={18} color="#FFF" />
-                  <Text style={styles.submitButtonText}>Save Payment</Text>
+                  <Text style={styles.submitButtonText}>
+                    {isEditMode ? (type === "receipt" ? "Update Receipt" : "Update Payment") : (type === "receipt" ? "Save Receipt" : "Save Payment")}
+                  </Text>
                 </>
               )}
             </TouchableOpacity>

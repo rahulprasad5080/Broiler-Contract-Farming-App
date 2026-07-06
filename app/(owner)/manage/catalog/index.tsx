@@ -4,6 +4,7 @@ import { useRouter } from "expo-router";
 import React, { useCallback, useState } from "react";
 import {
   ActivityIndicator,
+  Alert,
   FlatList,
   Platform,
   StyleSheet,
@@ -17,8 +18,9 @@ import { ScreenState } from "@/components/ui/ScreenState";
 import { TopAppBar } from "@/components/ui/TopAppBar";
 import { Colors } from "@/constants/Colors";
 import { useAuth } from "@/context/AuthContext";
-import { showRequestErrorToast } from "@/services/apiFeedback";
+import { showRequestErrorToast, showSuccessToast } from "@/services/apiFeedback";
 import {
+  deleteCatalogItem,
   listCatalogItems,
   type ApiCatalogItem,
 } from "@/services/managementApi";
@@ -38,7 +40,8 @@ function formatDate(value?: string | null) {
 
 export default function CatalogListScreen() {
   const router = useRouter();
-  const { accessToken } = useAuth();
+  const { accessToken, user } = useAuth();
+  const isAllowedToDelete = user?.role === 'OWNER' || user?.role === 'ACCOUNTS' || user?.role === 'SUPERVISOR';
   const [items, setItems] = useState<ApiCatalogItem[]>([]);
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
@@ -106,6 +109,33 @@ export default function CatalogListScreen() {
     void fetchItems(page + 1, { append: true });
   };
 
+  const handleDeleteItem = (item: ApiCatalogItem) => {
+    Alert.alert(
+      "Delete Catalog Item",
+      `Are you sure you want to delete "${item.name}"?\n\nNote: Items already used in transactions or stock cannot be deleted.`,
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Delete",
+          style: "destructive",
+          onPress: async () => {
+            if (!accessToken) return;
+            try {
+              await deleteCatalogItem(accessToken, item.id);
+              showSuccessToast("Catalog item deleted successfully.", "Deleted");
+              void fetchItems(1);
+            } catch (error) {
+              showRequestErrorToast(error, {
+                title: "Delete failed",
+                fallbackMessage: "Failed to delete catalog item.",
+              });
+            }
+          },
+        },
+      ],
+    );
+  };
+
   const renderItem = ({ item }: { item: ApiCatalogItem }) => {
     return (
       <View style={[styles.card, item.isActive === false && styles.cardInactive]}>
@@ -146,6 +176,16 @@ export default function CatalogListScreen() {
             >
               <Ionicons name="create-outline" size={18} color={Colors.primary} />
             </TouchableOpacity>
+            {isAllowedToDelete && (
+              <TouchableOpacity
+                style={styles.deleteButton}
+                onPress={() => handleDeleteItem(item)}
+                accessibilityRole="button"
+                accessibilityLabel={`Delete ${item.name}`}
+              >
+                <Ionicons name="trash-outline" size={18} color={Colors.error} />
+              </TouchableOpacity>
+            )}
           </View>
         </View>
       </View>
@@ -387,6 +427,16 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "#B7E0C2",
     backgroundColor: "#E7F5ED",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  deleteButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: "#FAD2CF",
+    backgroundColor: "#FCE8E6",
     alignItems: "center",
     justifyContent: "center",
   },

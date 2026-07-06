@@ -141,6 +141,19 @@ export async function deleteFinancePayment(
   });
 }
 
+export async function updateFinancePayment(
+  token: string,
+  paymentId: string,
+  payload: any,
+) {
+  return apiRequest<ApiFinancePayment>(`/finance/payments/${paymentId}`, {
+    method: "PUT",
+    token,
+    body: payload,
+  });
+}
+
+
 
 // ─── New Purchase Transaction APIs ─────────────────────────────────────────────
 

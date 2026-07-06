@@ -21,11 +21,13 @@ import { TopAppBar } from "@/components/ui/TopAppBar";
 import { Colors } from "@/constants/Colors";
 import { useAuth } from "@/context/AuthContext";
 import { showRequestErrorToast, showSuccessToast } from "@/services/apiFeedback";
+import { DatePickerField } from "@/components/ui/DatePickerField";
 import {
   deleteFinancePurchase,
   listAllVendors,
   listPurchaseTransactions,
   listWarehouses,
+  updateFinancePurchase,
   type ApiPurchaseTransaction,
   type ApiPurchaseTransactionItem,
   type ApiVendor,
@@ -56,11 +58,13 @@ function TransactionDetailModal({
   item,
   onClose,
   onDeleteItem,
+  onEditItem,
 }: {
   visible: boolean;
   item: ApiPurchaseTransaction | null;
   onClose: () => void;
   onDeleteItem: (lineItem: ApiPurchaseTransactionItem) => void;
+  onEditItem: (lineItem: ApiPurchaseTransactionItem) => void;
 }) {
   if (!item) return null;
   return (
@@ -106,6 +110,14 @@ function TransactionDetailModal({
                     <Text style={modal.itemAmount}>
                       {formatAmount(lineItem.totalAmount)}
                     </Text>
+                    <TouchableOpacity
+                      style={modal.itemEditBtn}
+                      onPress={() => onEditItem(lineItem)}
+                      accessibilityRole="button"
+                      accessibilityLabel={`Edit purchase item ${lineItem.itemName}`}
+                    >
+                      <Ionicons name="create-outline" size={14} color={Colors.primary} />
+                    </TouchableOpacity>
                     <TouchableOpacity
                       style={modal.itemDeleteBtn}
                       onPress={() => onDeleteItem(lineItem)}
@@ -166,6 +178,8 @@ export default function PurchaseListScreen() {
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [selectedTx, setSelectedTx] = useState<ApiPurchaseTransaction | null>(null);
+  const [editItemModalVisible, setEditItemModalVisible] = useState(false);
+  const [editingItem, setEditingItem] = useState<ApiPurchaseTransactionItem | null>(null);
 
   const vendorOptions = useMemo<SearchableSelectOption[]>(
     () => [
@@ -267,6 +281,25 @@ export default function PurchaseListScreen() {
   const loadNextPage = () => {
     if (loading || loadingMore || page >= totalPages) return;
     void loadTransactions(page + 1, true);
+  };
+
+  const handleEditPurchaseItem = async (
+    lineItem: ApiPurchaseTransactionItem,
+    payload: any
+  ) => {
+    if (!accessToken) return;
+    try {
+      await updateFinancePurchase(accessToken, lineItem.id, payload);
+      showSuccessToast("Purchase item updated successfully.", "Updated");
+      setSelectedTx(null);
+      void loadTransactions(1, false);
+    } catch (error) {
+      showRequestErrorToast(error, {
+        title: "Update failed",
+        fallbackMessage: "Failed to update purchase item.",
+      });
+      throw error;
+    }
   };
 
   const handleDeletePurchaseItem = (lineItem: ApiPurchaseTransactionItem) => {
@@ -478,6 +511,25 @@ export default function PurchaseListScreen() {
         item={selectedTx}
         onClose={() => setSelectedTx(null)}
         onDeleteItem={handleDeletePurchaseItem}
+        onEditItem={(lineItem) => {
+          setSelectedTx(null);
+          setEditingItem(lineItem);
+          setEditItemModalVisible(true);
+        }}
+      />
+
+      <EditPurchaseModal
+        visible={editItemModalVisible}
+        item={editingItem}
+        onClose={() => {
+          setEditItemModalVisible(false);
+          setEditingItem(null);
+        }}
+        onSave={async (payload) => {
+          if (editingItem) {
+            await handleEditPurchaseItem(editingItem, payload);
+          }
+        }}
       />
     </View>
   );
@@ -665,6 +717,16 @@ const modal = StyleSheet.create({
     borderWidth: 1,
     borderColor: "#FAD2CF",
   },
+  itemEditBtn: {
+    width: 26,
+    height: 26,
+    borderRadius: 6,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#E7F5ED",
+    borderWidth: 1,
+    borderColor: "#CDEBDD",
+  },
   itemMeta: { color: "#6B7280", fontSize: 11 },
   itemRemarks: { color: "#9CA3AF", fontSize: 11, fontStyle: "italic" },
   closeFab: {
@@ -676,4 +738,298 @@ const modal = StyleSheet.create({
     marginTop: 4,
   },
   closeFabText: { color: "#FFF", fontSize: 15, fontWeight: "900" },
+});
+
+// ─── Edit Purchase Modal ──────────────────────────────────────────────────────
+
+function EditPurchaseModal({
+  visible,
+  item,
+  onClose,
+  onSave,
+}: {
+  visible: boolean;
+  item: ApiPurchaseTransactionItem | null;
+  onClose: () => void;
+  onSave: (payload: {
+    quantity: number;
+    unit?: string;
+    unitCost: number;
+    totalAmount: number;
+    purchaseDate: string;
+    invoiceNumber?: string;
+    remarks?: string;
+  }) => Promise<void>;
+}) {
+  const [quantity, setQuantity] = useState("");
+  const [unit, setUnit] = useState("");
+  const [unitCost, setUnitCost] = useState("");
+  const [purchaseDate, setPurchaseDate] = useState("");
+  const [invoiceNumber, setInvoiceNumber] = useState("");
+  const [remarks, setRemarks] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    if (item) {
+      setQuantity(item.quantity != null ? String(item.quantity) : "");
+      setUnit(item.unit ?? "");
+      setUnitCost(item.unitCost != null ? String(item.unitCost) : "");
+      setPurchaseDate(item.purchaseDate ? item.purchaseDate.split("T")[0] : "");
+      setInvoiceNumber(item.invoiceNumber ?? "");
+      setRemarks(item.remarks ?? "");
+    }
+  }, [item]);
+
+  const qtyNum = Number(quantity.replace(/,/g, ""));
+  const costNum = Number(unitCost.replace(/,/g, ""));
+  const calculatedTotal = Number.isNaN(qtyNum * costNum) ? 0 : qtyNum * costNum;
+
+  const handleSave = async () => {
+    if (!quantity || Number.isNaN(qtyNum) || qtyNum <= 0) {
+      Alert.alert("Validation Error", "Please enter a valid quantity greater than 0.");
+      return;
+    }
+    if (!unitCost || Number.isNaN(costNum) || costNum < 0) {
+      Alert.alert("Validation Error", "Please enter a valid unit cost.");
+      return;
+    }
+    if (!purchaseDate) {
+      Alert.alert("Validation Error", "Please select a purchase date.");
+      return;
+    }
+
+    setSaving(true);
+    try {
+      await onSave({
+        quantity: qtyNum,
+        unit: unit.trim() || undefined,
+        unitCost: costNum,
+        totalAmount: calculatedTotal,
+        purchaseDate,
+        invoiceNumber: invoiceNumber.trim() || undefined,
+        remarks: remarks.trim() || undefined,
+      });
+      onClose();
+    } catch (error) {
+      // Error handled by parent
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  if (!item) return null;
+
+  return (
+    <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
+      <View style={editModalStyles.overlay}>
+        <View style={editModalStyles.sheet}>
+          <View style={editModalStyles.header}>
+            <Text style={editModalStyles.title}>Edit Purchase Item</Text>
+            <TouchableOpacity onPress={onClose} style={editModalStyles.closeBtn}>
+              <Ionicons name="close" size={22} color="#374151" />
+            </TouchableOpacity>
+          </View>
+
+          <ScrollView style={editModalStyles.scrollBody} keyboardShouldPersistTaps="handled">
+            <View style={editModalStyles.form}>
+              <Text style={editModalStyles.itemNameLabel}>Item: {item.itemName}</Text>
+
+              <View style={editModalStyles.inputGroup}>
+                <Text style={editModalStyles.label}>Quantity *</Text>
+                <TextInput
+                  style={editModalStyles.input}
+                  value={quantity}
+                  onChangeText={setQuantity}
+                  placeholder="0"
+                  keyboardType="numeric"
+                />
+              </View>
+
+              <View style={editModalStyles.inputGroup}>
+                <Text style={editModalStyles.label}>Unit</Text>
+                <TextInput
+                  style={editModalStyles.input}
+                  value={unit}
+                  onChangeText={setUnit}
+                  placeholder="KG, Bags, etc."
+                />
+              </View>
+
+              <View style={editModalStyles.inputGroup}>
+                <Text style={editModalStyles.label}>Unit Cost *</Text>
+                <TextInput
+                  style={editModalStyles.input}
+                  value={unitCost}
+                  onChangeText={setUnitCost}
+                  placeholder="0"
+                  keyboardType="numeric"
+                />
+              </View>
+
+              <View style={editModalStyles.totalBox}>
+                <Text style={editModalStyles.totalLabel}>Calculated Total</Text>
+                <Text style={editModalStyles.totalValue}>
+                  ₹ {calculatedTotal.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+                </Text>
+              </View>
+
+              <DatePickerField
+                label="Purchase Date *"
+                value={purchaseDate}
+                onChange={setPurchaseDate}
+                disableFuture
+              />
+
+              <View style={editModalStyles.inputGroup}>
+                <Text style={editModalStyles.label}>Invoice Number</Text>
+                <TextInput
+                  style={editModalStyles.input}
+                  value={invoiceNumber}
+                  onChangeText={setInvoiceNumber}
+                  placeholder="INV-XXXX"
+                />
+              </View>
+
+              <View style={editModalStyles.inputGroup}>
+                <Text style={editModalStyles.label}>Remarks</Text>
+                <TextInput
+                  style={[editModalStyles.input, editModalStyles.textArea]}
+                  value={remarks}
+                  onChangeText={setRemarks}
+                  placeholder="Optional remarks"
+                  multiline
+                />
+              </View>
+            </View>
+          </ScrollView>
+
+          <View style={editModalStyles.footer}>
+            <TouchableOpacity
+              style={[editModalStyles.saveBtn, saving && editModalStyles.btnDisabled]}
+              onPress={handleSave}
+              disabled={saving}
+              activeOpacity={0.82}
+            >
+              {saving ? (
+                <ActivityIndicator color="#FFF" />
+              ) : (
+                <Text style={editModalStyles.saveBtnText}>Save Changes</Text>
+              )}
+            </TouchableOpacity>
+          </View>
+        </View>
+      </View>
+    </Modal>
+  );
+}
+
+const editModalStyles = StyleSheet.create({
+  overlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.45)",
+    justifyContent: "flex-end",
+  },
+  sheet: {
+    backgroundColor: "#FFF",
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    padding: 20,
+    maxHeight: "90%",
+    gap: 12,
+  },
+  header: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 8,
+  },
+  title: {
+    color: "#111827",
+    fontSize: 18,
+    fontWeight: "900",
+  },
+  closeBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: "#F3F4F6",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  scrollBody: {
+    maxHeight: 500,
+  },
+  form: {
+    gap: 14,
+    paddingBottom: 20,
+  },
+  itemNameLabel: {
+    fontSize: 15,
+    fontWeight: "700",
+    color: Colors.primary,
+    marginBottom: 4,
+  },
+  inputGroup: {
+    gap: 6,
+  },
+  label: {
+    color: "#374151",
+    fontSize: 13,
+    fontWeight: "800",
+  },
+  input: {
+    minHeight: 46,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: "#D9E2EC",
+    backgroundColor: "#FFF",
+    paddingHorizontal: 12,
+    color: "#1F2937",
+    fontSize: 14,
+    fontWeight: "700",
+  },
+  textArea: {
+    minHeight: 70,
+    paddingTop: 10,
+    textAlignVertical: "top",
+  },
+  totalBox: {
+    backgroundColor: "#F0FBF5",
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: "#CDEBDD",
+    padding: 12,
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginTop: 4,
+  },
+  totalLabel: {
+    color: "#475569",
+    fontSize: 13,
+    fontWeight: "700",
+  },
+  totalValue: {
+    color: Colors.primary,
+    fontSize: 16,
+    fontWeight: "900",
+  },
+  footer: {
+    paddingTop: 8,
+  },
+  saveBtn: {
+    minHeight: 48,
+    borderRadius: 12,
+    backgroundColor: Colors.primary,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  saveBtnText: {
+    color: "#FFF",
+    fontSize: 15,
+    fontWeight: "900",
+  },
+  btnDisabled: {
+    opacity: 0.7,
+  },
 });

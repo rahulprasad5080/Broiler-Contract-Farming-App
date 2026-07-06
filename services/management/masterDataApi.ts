@@ -251,13 +251,7 @@ export async function createCatalogItem(token: string, payload: CreateCatalogIte
     body: payload,
   });
 }
-
-/**
- * PUT /api/v1/master-data/catalog-items/{itemId}
- * Update an existing catalog item (name, rate, stock, active flag, etc.).
- * Roles: OWNER, ACCOUNTS, SUPERVISOR
- */
-export async function updateCatalogItem(
+export async function updateCatalogItem(
   token: string,
   itemId: string,
   payload: UpdateCatalogItemRequest,
@@ -268,3 +262,19 @@ export async function updateCatalogItem(
     body: payload,
   });
 }
+
+/**
+ * DELETE /api/v1/master-data/catalog-items/{itemId}
+ * Delete an unused catalog item.
+ * Roles: OWNER, ACCOUNTS, SUPERVISOR
+ */
+export async function deleteCatalogItem(
+  token: string,
+  itemId: string,
+) {
+  return apiRequest<void>(`/master-data/catalog-items/${itemId}`, {
+    method: "DELETE",
+    token,
+  });
+}
+

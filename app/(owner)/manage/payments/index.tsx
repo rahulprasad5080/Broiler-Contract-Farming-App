@@ -277,6 +277,32 @@ export default function PaymentsScreen() {
           <Ionicons name="eye-outline" size={16} color={THEME_GREEN} />
         </TouchableOpacity>
         <TouchableOpacity
+          style={styles.editRowBtn}
+          onPress={() =>
+            router.push({
+              pathname: "/(owner)/manage/payments/create",
+              params: {
+                paymentId: item.id,
+                type: item.traderId ? "receipt" : "payment",
+                vendorId: item.vendorId ?? "",
+                traderId: item.traderId ?? "",
+                partyName: partyName,
+                paymentMode: item.paymentMode,
+                amount: String(item.amount),
+                paymentDate: item.paymentDate,
+                referenceType: item.referenceType ?? "",
+                referenceId: item.referenceId ?? "",
+                notes: item.notes ?? "",
+              },
+            })
+          }
+          activeOpacity={0.78}
+          accessibilityRole="button"
+          accessibilityLabel="Edit payment"
+        >
+          <Ionicons name="create-outline" size={16} color={THEME_GREEN} />
+        </TouchableOpacity>
+        <TouchableOpacity
           style={styles.deleteRowBtn}
           onPress={() => handleDeletePayment(item)}
           activeOpacity={0.78}
@@ -565,6 +591,16 @@ const styles = StyleSheet.create({
     backgroundColor: "#F0FDF4",
     borderWidth: 1,
     borderColor: "#CFE8D6",
+  },
+  editRowBtn: {
+    width: 30,
+    height: 30,
+    borderRadius: 7,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#E8F5E9",
+    borderWidth: 1,
+    borderColor: "#B7E0C2",
   },
   deleteRowBtn: {
     width: 30,
