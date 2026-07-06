@@ -658,6 +658,10 @@ export type CreateSaleRequest = {
   clientReferenceId?: string;
 };
 
+export type UpdateSaleRequest = Partial<
+  Omit<CreateSaleRequest, "clientReferenceId">
+>;
+
 export type FinalizeSaleRequest = {
   ratePerKg?: number;
   grossAmount?: number;

@@ -570,6 +570,10 @@ export default function BatchDetailsScreen() {
     );
   };
 
+  const handleEditSale = (sale: ApiSale) => {
+    router.navigate(`/(owner)/manage/sales/create?batchId=${encodeURIComponent(id)}&saleId=${encodeURIComponent(sale.id)}` as Href);
+  };
+
   return (
     <View style={styles.container}>
       <TopAppBar
@@ -785,6 +789,7 @@ export default function BatchDetailsScreen() {
                     : undefined
                 }
                 onDeleteSale={canUseSales ? handleDeleteSale : undefined}
+                onEditSale={canUseSales ? handleEditSale : undefined}
               />
             )}
 

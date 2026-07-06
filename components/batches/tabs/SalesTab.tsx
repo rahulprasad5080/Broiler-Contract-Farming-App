@@ -12,12 +12,20 @@ const THEME_GREEN = '#0B5C36';
 function SaleHistoryCard({
   sale,
   onFinalizeSale,
+  onEdit,
   onDelete,
 }: {
   sale: ApiSale;
   onFinalizeSale?: (sale: ApiSale) => void;
+  onEdit?: () => void;
   onDelete?: () => void;
 }) {
+  const { user } = useAuth();
+  const isOwnerOrAccounts = user?.role === 'OWNER' || user?.role === 'ACCOUNTS';
+  const isCreatorOfDraft = sale.status === 'DRAFT' && sale.createdById === user?.id;
+  const canEdit = isOwnerOrAccounts || isCreatorOfDraft;
+  const canDelete = isOwnerOrAccounts || isCreatorOfDraft;
+
   const mainAmount = sale.netAmount ?? sale.grossAmount;
   const avgWeight =
     sale.averageWeightKg ??
@@ -36,7 +44,17 @@ function SaleHistoryCard({
         </View>
         <View style={saleCardStyles.amountRow}>
           <Text style={styles.expenseHistoryAmount}>{formatMoney(mainAmount)}</Text>
-          {onDelete ? (
+          {onEdit && canEdit ? (
+            <TouchableOpacity
+              style={saleCardStyles.editBtn}
+              onPress={onEdit}
+              accessibilityRole="button"
+              accessibilityLabel={`Edit sale for ${sale.traderName || 'Batch Sale'}`}
+            >
+              <Feather name="edit-2" size={13} color="#0B5C36" />
+            </TouchableOpacity>
+          ) : null}
+          {onDelete && canDelete ? (
             <TouchableOpacity
               style={saleCardStyles.deleteBtn}
               onPress={onDelete}
@@ -120,6 +138,7 @@ interface SalesTabProps {
   onAddSale?: () => void;
   onFinalizeSale?: (sale: ApiSale) => void;
   onDeleteSale?: (sale: ApiSale) => void;
+  onEditSale?: (sale: ApiSale) => void;
 }
 
 export function SalesTab({
@@ -131,6 +150,7 @@ export function SalesTab({
   onAddSale,
   onFinalizeSale,
   onDeleteSale,
+  onEditSale,
 }: SalesTabProps) {
   const router = useRouter();
   const { hasPermission } = useAuth();
@@ -186,6 +206,7 @@ export function SalesTab({
             key={sale.id}
             sale={sale}
             onFinalizeSale={onFinalizeSale}
+            onEdit={onEditSale ? () => onEditSale(sale) : undefined}
             onDelete={onDeleteSale ? () => onDeleteSale(sale) : undefined}
           />
         ))
@@ -211,5 +232,15 @@ const saleCardStyles = StyleSheet.create({
     backgroundColor: '#FCE8E6',
     borderWidth: 1,
     borderColor: '#FAD2CF',
+  },
+  editBtn: {
+    width: 26,
+    height: 26,
+    borderRadius: 6,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#E7F5ED',
+    borderWidth: 1,
+    borderColor: '#D0ECD9',
   },
 });

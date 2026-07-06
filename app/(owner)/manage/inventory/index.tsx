@@ -4,7 +4,9 @@ import { useRouter } from "expo-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   FlatList,
+  Modal,
   RefreshControl,
+  ScrollView,
   StyleSheet,
   Text,
   TouchableOpacity,
@@ -33,6 +35,12 @@ export default function InventoryStockScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [selectedStockGroup, setSelectedStockGroup] = useState<{
+    item: string;
+    lots: ApiStockBalance[];
+    totalBalance: number;
+    unit: string;
+  } | null>(null);
 
   const warehouseOptions = useMemo(
     () =>
@@ -124,20 +132,27 @@ export default function InventoryStockScreen() {
   }) => {
     const isLow = item.totalBalance < 10;
     return (
-      <View style={[styles.card, isLow && { borderColor: "#FCA5A5", backgroundColor: "#FFF8F8" }]}>
+      <TouchableOpacity
+        activeOpacity={0.7}
+        onPress={() => setSelectedStockGroup(item)}
+        style={[styles.card, isLow && { borderColor: "#FCA5A5", backgroundColor: "#FFF8F8" }]}
+      >
         <View style={styles.cardHeader}>
           <Text style={styles.itemName}>{item.item}</Text>
-          <View
-            style={[
-              styles.stockBadge,
-              isLow
-                ? { backgroundColor: "#FEE2E2", borderColor: "#FCA5A5" }
-                : { backgroundColor: "#ECFDF5", borderColor: "#A7F3D0" },
-            ]}
-          >
-            <Text style={[styles.stockBadgeText, { color: isLow ? "#EF4444" : "#059669" }]}>
-              {isLow ? "Low Stock" : "In Stock"}
-            </Text>
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+            <View
+              style={[
+                styles.stockBadge,
+                isLow
+                  ? { backgroundColor: "#FEE2E2", borderColor: "#FCA5A5" }
+                  : { backgroundColor: "#ECFDF5", borderColor: "#A7F3D0" },
+              ]}
+            >
+              <Text style={[styles.stockBadgeText, { color: isLow ? "#EF4444" : "#059669" }]}>
+                {isLow ? "Low Stock" : "In Stock"}
+              </Text>
+            </View>
+            <Ionicons name="eye-outline" size={18} color="#0B5C36" />
           </View>
         </View>
 
@@ -147,28 +162,7 @@ export default function InventoryStockScreen() {
             {item.totalBalance.toLocaleString("en-IN")} {item.unit}
           </Text>
         </View>
-
-        {item.lots.length > 1 ? (
-          <View style={styles.lotsSection}>
-            <Text style={styles.lotsTitle}>Purchase Lots ({item.lots.length})</Text>
-            {item.lots.map((lot, idx) => (
-              <View key={`${lot.purchaseId}-${idx}`} style={styles.lotRow}>
-                <Text style={styles.lotId} numberOfLines={1}>
-                  Lot: {lot.purchaseId.slice(0, 12)}...
-                </Text>
-                <Text style={styles.lotBalance}>
-                  {lot.balance} {lot.unit}
-                  {lot.unitCost ? ` · Rs ${lot.unitCost}/${lot.unit}` : ""}
-                </Text>
-              </View>
-            ))}
-          </View>
-        ) : item.lots.length === 1 && item.lots[0].unitCost ? (
-          <Text style={styles.unitCostText}>
-            Unit Cost: Rs {item.lots[0].unitCost}/{item.unit}
-          </Text>
-        ) : null}
-      </View>
+      </TouchableOpacity>
     );
   };
 
@@ -295,6 +289,111 @@ export default function InventoryStockScreen() {
           ListFooterComponent={<View style={{ height: 28 }} />}
         />
       </View>
+
+      {/* Stock Details Modal */}
+      <Modal
+        visible={!!selectedStockGroup}
+        transparent={true}
+        animationType="slide"
+        onRequestClose={() => setSelectedStockGroup(null)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContainer}>
+            {/* Header */}
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Stock Details</Text>
+              <TouchableOpacity
+                onPress={() => setSelectedStockGroup(null)}
+                style={styles.closeBtn}
+              >
+                <Ionicons name="close" size={24} color="#374151" />
+              </TouchableOpacity>
+            </View>
+
+            {selectedStockGroup ? (
+              <ScrollView 
+                contentContainerStyle={styles.modalScrollContent}
+                showsVerticalScrollIndicator={false}
+              >
+                {/* Product Info */}
+                <View style={styles.detailHeaderSection}>
+                  <Text style={styles.detailItemName}>{selectedStockGroup.item}</Text>
+                  
+                  <View style={{ flexDirection: "row", alignItems: "center", gap: 10, marginVertical: 8 }}>
+                    <View
+                      style={[
+                        styles.stockBadge,
+                        selectedStockGroup.totalBalance < 10
+                          ? { backgroundColor: "#FEE2E2", borderColor: "#FCA5A5" }
+                          : { backgroundColor: "#ECFDF5", borderColor: "#A7F3D0" },
+                      ]}
+                    >
+                      <Text style={[styles.stockBadgeText, { color: selectedStockGroup.totalBalance < 10 ? "#EF4444" : "#059669" }]}>
+                        {selectedStockGroup.totalBalance < 10 ? "Low Stock" : "In Stock"}
+                      </Text>
+                    </View>
+                    <Text style={styles.warehouseDetailText}>
+                      in {selectedWarehouse?.name ?? "warehouse"}
+                    </Text>
+                  </View>
+
+                  <View style={styles.detailTotalValCard}>
+                    <Text style={styles.detailTotalValLabel}>Total Stock Balance</Text>
+                    <Text style={styles.detailTotalValValue}>
+                      {selectedStockGroup.totalBalance.toLocaleString("en-IN")} {selectedStockGroup.unit}
+                    </Text>
+                  </View>
+                </View>
+
+                {/* Lots Section */}
+                <Text style={styles.modalSectionTitle}>Purchase Lots Breakdown</Text>
+                <View style={styles.divider} />
+
+                {selectedStockGroup.lots.map((lot, idx) => {
+                  const lotValuation = lot.balance * (lot.unitCost ?? 0);
+                  return (
+                    <View key={`${lot.purchaseId}-${idx}`} style={styles.detailLotCard}>
+                      <View style={styles.detailLotRow}>
+                        <View>
+                          <Text style={styles.detailSubLabel}>Lot Balance</Text>
+                          <Text style={styles.detailSubValue}>
+                            {lot.balance} {lot.unit}
+                          </Text>
+                        </View>
+                        <View style={{ alignItems: "flex-end" }}>
+                          <Text style={styles.detailSubLabel}>Unit Cost</Text>
+                          <Text style={styles.detailSubValue}>
+                            {lot.unitCost ? `₹ ${lot.unitCost.toLocaleString("en-IN")} / ${lot.unit}` : "N/A"}
+                          </Text>
+                        </View>
+                      </View>
+
+                      {lot.unitCost ? (
+                        <View style={[styles.detailLotRow, { borderTopWidth: 1, borderTopColor: "#F3F4F6", marginTop: 8, paddingTop: 8 }]}>
+                          <Text style={[styles.detailSubLabel, { fontWeight: "700" }]}>Estimated Value</Text>
+                          <Text style={[styles.detailSubValue, { color: "#0B5C36", fontWeight: "800" }]}>
+                            ₹ {lotValuation.toLocaleString("en-IN")}
+                          </Text>
+                        </View>
+                      ) : null}
+                    </View>
+                  );
+                })}
+
+                {/* Stock Valuation Summary */}
+                {selectedStockGroup.lots.some(lot => lot.unitCost) ? (
+                  <View style={styles.valuationSummaryCard}>
+                    <Text style={styles.valuationSummaryLabel}>Total Stock Valuation</Text>
+                    <Text style={styles.valuationSummaryValue}>
+                      ₹ {selectedStockGroup.lots.reduce((acc, lot) => acc + (lot.balance * (lot.unitCost ?? 0)), 0).toLocaleString("en-IN")}
+                    </Text>
+                  </View>
+                ) : null}
+              </ScrollView>
+            ) : null}
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -380,4 +479,137 @@ const styles = StyleSheet.create({
   lotId: { color: "#9CA3AF", fontSize: 11, fontWeight: "600", flex: 1 },
   lotBalance: { color: "#374151", fontSize: 12, fontWeight: "700" },
   unitCostText: { color: Colors.textSecondary, fontSize: 11, fontWeight: "600" },
+
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0, 0, 0, 0.5)",
+    justifyContent: "flex-end",
+  },
+  modalContainer: {
+    backgroundColor: "#FFF",
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    maxHeight: "85%",
+    paddingBottom: 20,
+  },
+  modalHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: "#F3F4F6",
+  },
+  modalTitle: {
+    fontSize: 16,
+    fontWeight: "900",
+    color: "#111827",
+  },
+  closeBtn: {
+    padding: 4,
+  },
+  modalScrollContent: {
+    padding: 20,
+  },
+  detailHeaderSection: {
+    marginBottom: 20,
+  },
+  detailItemName: {
+    fontSize: 20,
+    fontWeight: "900",
+    color: "#111827",
+  },
+  warehouseDetailText: {
+    fontSize: 13,
+    color: "#6B7280",
+    fontWeight: "600",
+  },
+  detailTotalValCard: {
+    backgroundColor: "#E8F5E9",
+    borderWidth: 1,
+    borderColor: "#C8E6C9",
+    borderRadius: 12,
+    padding: 16,
+    marginTop: 10,
+  },
+  detailTotalValLabel: {
+    fontSize: 12,
+    color: "#2E7D32",
+    fontWeight: "700",
+    textTransform: "uppercase",
+  },
+  detailTotalValValue: {
+    fontSize: 22,
+    color: "#1B5E20",
+    fontWeight: "900",
+    marginTop: 4,
+  },
+  modalSectionTitle: {
+    fontSize: 14,
+    fontWeight: "800",
+    color: "#374151",
+    marginTop: 10,
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
+  },
+  detailLotCard: {
+    backgroundColor: "#FFF",
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
+    borderRadius: 12,
+    padding: 12,
+    marginBottom: 10,
+  },
+  detailLotHeader: {
+    marginBottom: 8,
+  },
+  detailLotId: {
+    fontSize: 12,
+    fontWeight: "700",
+    color: "#6B7280",
+  },
+  detailLotRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginVertical: 2,
+  },
+  detailSubLabel: {
+    fontSize: 11,
+    color: "#9CA3AF",
+    fontWeight: "600",
+  },
+  detailSubValue: {
+    fontSize: 13,
+    fontWeight: "700",
+    color: "#374151",
+    marginTop: 2,
+  },
+  valuationSummaryCard: {
+    backgroundColor: "#FFF",
+    borderWidth: 1.5,
+    borderColor: "#0B5C36",
+    borderRadius: 12,
+    padding: 16,
+    marginTop: 10,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  valuationSummaryLabel: {
+    fontSize: 14,
+    fontWeight: "800",
+    color: "#111827",
+  },
+  valuationSummaryValue: {
+    fontSize: 18,
+    fontWeight: "900",
+    color: "#0B5C36",
+  },
+  divider: {
+    height: 1,
+    backgroundColor: "#E5E7EB",
+    marginVertical: 12,
+  },
 });

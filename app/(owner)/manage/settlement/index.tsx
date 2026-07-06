@@ -1,4 +1,4 @@
-﻿import { Ionicons } from '@expo/vector-icons';
+import { Ionicons } from '@expo/vector-icons';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useFocusEffect } from '@react-navigation/native';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
@@ -60,7 +60,7 @@ const SETTLEMENT_DEFAULTS = {
 
 function formatINR(value?: number | null) {
   if (value === null || value === undefined) return '₹ 0';
-  return `₹ ${Number(value).toLocaleString('en-IN')}`;
+  return `₹ ${Math.round(Number(value)).toLocaleString('en-IN')}`;
 }
 
 function labelizeStatus(value?: string | null) {

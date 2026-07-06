@@ -58,6 +58,12 @@ test("API enum reference values match the frontend contract", () => {
   ]);
   assert.deepEqual([...API_INVENTORY_MOVEMENT_TYPE_VALUES], [
     "PURCHASE",
+    "OPENING_STOCK",
+    "BATCH_ALLOCATION",
+    "BATCH_RETURN",
+    "BATCH_TRANSFER",
+    "STOCK_ADJUSTMENT",
+    "STOCK_SALE",
     "ALLOCATION",
     "ADJUSTMENT",
     "RETURN",

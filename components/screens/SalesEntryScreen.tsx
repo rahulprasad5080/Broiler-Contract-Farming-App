@@ -4,7 +4,11 @@ import {
   API_TRANSACTION_PAYMENT_STATUS_VALUES,
   ApiBatch,
   ApiTrader,
+  ApiSale,
   createSale,
+  updateSale,
+  deleteSale,
+  listSales,
   listAllBatches,
   listAllTraders,
   type ApiSaleStatus,
@@ -21,6 +25,7 @@ import React, {
 } from "react";
 import {
   ActivityIndicator,
+  Alert,
   Platform,
   StyleSheet,
   Text,
@@ -80,7 +85,9 @@ const salesEntrySchema = z.object({
   loadingMortalityCount: z.string().optional().refine((value) => !value || parseNumberInput(value) !== undefined, {
     message: "Loading mortality must be a number",
   }),
-  ratePerKg: numericField("Rate"),
+  ratePerKg: z.string().optional().refine((value) => !value || parseNumberInput(value) !== undefined, {
+    message: "Rate must be a number",
+  }),
   rateType: z.enum(["LIVE", "DRESSED"]),
   transportCharge: z.string().optional().refine((value) => !value || parseNumberInput(value) !== undefined, {
     message: "Transport charge must be a number",
@@ -122,6 +129,7 @@ const SALES_ENTRY_DEFAULTS: SalesEntryFormData = {
 };
 
 const STATUS_MESSAGE_TIMEOUT_MS = 4000;
+const THEME_GREEN = "#0B5C36";
 
 interface SalesEntryScreenProps {
   title?: string;
@@ -132,13 +140,18 @@ interface SalesEntryScreenProps {
 
 export function SalesEntryScreen({ title = "Sales Entry", subtitle, onBack, onSaved }: SalesEntryScreenProps) {
   const { accessToken, user } = useAuth();
-  const { batchId: routeBatchId } = useLocalSearchParams<{ batchId?: string }>();
+  const { batchId: routeBatchId, saleId } = useLocalSearchParams<{ batchId?: string; saleId?: string }>();
   const initialBatchId = typeof routeBatchId === "string" ? routeBatchId : "";
   const [batches, setBatches] = useState<ApiBatch[]>([]);
   const [traders, setTraders] = useState<ApiTrader[]>([]);
   const [submitting, setSubmitting] = useState(false);
   const [savedMessage, setSavedMessage] = useState<string | null>(null);
   const [showRestoredMessage, setShowRestoredMessage] = useState(false);
+
+  const [editingSaleId, setEditingSaleId] = useState<string | null>(null);
+  const [batchSales, setBatchSales] = useState<ApiSale[]>([]);
+  const [loadingSales, setLoadingSales] = useState(false);
+  const [loadingSaleDetails, setLoadingSaleDetails] = useState(false);
 
   const {
     control,
@@ -164,6 +177,7 @@ export function SalesEntryScreen({ title = "Sales Entry", subtitle, onBack, onSa
       ...SALES_ENTRY_DEFAULTS,
       batchId: initialBatchId,
     },
+    { enabled: !editingSaleId }
   );
   const initialBatchAppliedRef = React.useRef(false);
 
@@ -179,6 +193,7 @@ export function SalesEntryScreen({ title = "Sales Entry", subtitle, onBack, onSa
   const paymentStatus = watch("paymentStatus");
   const saleStatus = watch("status");
   const canUseLiveRate = user?.role === "OWNER";
+  const isFinancial = user?.role === "OWNER" || user?.role === "ACCOUNTS";
 
   const activeBatches = useMemo(
     () =>
@@ -259,7 +274,7 @@ export function SalesEntryScreen({ title = "Sales Entry", subtitle, onBack, onSa
 
   const totalAmount = useMemo(() => {
     const totalWeight = parseNumberInput(totalWeightKg) || 0;
-    const rate = parseNumberInput(ratePerKg) || 0;
+    const rate = parseNumberInput(ratePerKg || "") || 0;
     return totalWeight * rate;
   }, [totalWeightKg, ratePerKg]);
 
@@ -269,6 +284,86 @@ export function SalesEntryScreen({ title = "Sales Entry", subtitle, onBack, onSa
     const deduction = parseNumberInput(otherDeduction ?? "") || 0;
     return Math.max(totalAmount - transport - commission - deduction, 0);
   }, [commissionCharge, otherDeduction, totalAmount, transportCharge]);
+
+  const loadBatchSales = useCallback(async (bId: string) => {
+    if (!accessToken || !bId) return;
+    setLoadingSales(true);
+    try {
+      const salesRes = await listSales(accessToken, bId);
+      setBatchSales(salesRes.data);
+    } catch (e) {
+      console.error("Failed to load batch sales", e);
+    } finally {
+      setLoadingSales(false);
+    }
+  }, [accessToken]);
+
+  const loadAndPopulateSale = useCallback(async (bId: string, sId: string) => {
+    if (!accessToken || !bId || !sId) return;
+    setLoadingSaleDetails(true);
+    try {
+      const salesRes = await listSales(accessToken, bId);
+      const matched = salesRes.data.find(s => s.id === sId);
+      if (matched) {
+        const isFinancialRole = user?.role === 'OWNER' || user?.role === 'ACCOUNTS';
+        const isCreatorOfDraft = matched.status === 'DRAFT' && matched.createdById === user?.id;
+        
+        if (!isFinancialRole && !isCreatorOfDraft) {
+          showRequestErrorToast(new Error("You do not have permission to edit this sale"), { title: "Permission Denied" });
+          setEditingSaleId(null);
+          return;
+        }
+
+        reset({
+          batchId: matched.batchId,
+          traderId: matched.traderId,
+          saleDate: matched.saleDate ? matched.saleDate.split('T')[0] : todayValue(),
+          vehicleNumber: matched.vehicleNumber ?? "",
+          birdCount: String(matched.birdCount ?? ""),
+          totalWeightKg: String(matched.totalWeightKg ?? ""),
+          averageWeightKg: String(matched.averageWeightKg ?? ""),
+          loadingMortalityCount: String(matched.loadingMortalityCount ?? ""),
+          ratePerKg: String(matched.ratePerKg ?? ""),
+          rateType: "LIVE",
+          transportCharge: String(matched.transportCharge ?? ""),
+          commissionCharge: String(matched.commissionCharge ?? ""),
+          otherDeduction: String(matched.otherDeduction ?? ""),
+          paymentReceivedAmount: String(matched.paymentReceivedAmount ?? ""),
+          paymentStatus: matched.paymentStatus ?? "PENDING",
+          status: matched.status ?? "CONFIRMED",
+          notes: matched.notes ?? "",
+        });
+      } else {
+        showRequestErrorToast(new Error("Sale not found"), { title: "Load failed" });
+      }
+    } catch (error) {
+      showRequestErrorToast(error, { title: "Failed to load sale details" });
+    } finally {
+      setLoadingSaleDetails(false);
+    }
+  }, [accessToken, reset, user]);
+
+  useEffect(() => {
+    if (saleId) {
+      setEditingSaleId(saleId);
+    } else {
+      setEditingSaleId(null);
+    }
+  }, [saleId]);
+
+  useEffect(() => {
+    if (selectedBatchId) {
+      void loadBatchSales(selectedBatchId);
+    } else {
+      setBatchSales([]);
+    }
+  }, [selectedBatchId, loadBatchSales]);
+
+  useEffect(() => {
+    if (editingSaleId && selectedBatchId) {
+      void loadAndPopulateSale(selectedBatchId, editingSaleId);
+    }
+  }, [editingSaleId, selectedBatchId, loadAndPopulateSale]);
 
   const loadData = useCallback(async () => {
     if (!accessToken) return;
@@ -299,13 +394,54 @@ export function SalesEntryScreen({ title = "Sales Entry", subtitle, onBack, onSa
     }, [loadData])
   );
 
+  const handleDeleteSaleLocal = (sale: ApiSale) => {
+    Alert.alert(
+      "Delete Sale",
+      "Are you sure you want to delete this sale?\n\nDeleting will recalculate batch summary, P&L, and settlement.",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Delete",
+          style: "destructive",
+          onPress: async () => {
+            if (!accessToken) return;
+            try {
+              if (!(await isNetworkConnected())) {
+                showRequestErrorToast(new Error("Internet connection is required to delete sales."), { title: "Offline" });
+                return;
+              }
+              await deleteSale(accessToken, sale.batchId, sale.id);
+              showSuccessToast("Sale deleted successfully.");
+              void loadBatchSales(sale.batchId);
+            } catch (e) {
+              showRequestErrorToast(e, { title: "Deletion failed" });
+            }
+          },
+        },
+      ]
+    );
+  };
+
   const onSubmit = async (data: SalesEntryFormData) => {
     if (!accessToken || submitting) return;
+    
+    if (editingSaleId && !(await isNetworkConnected())) {
+      showRequestErrorToast(new Error("Internet connection is required to edit sales."), { title: "Offline" });
+      return;
+    }
+
+    if (isFinancial) {
+      if (!data.ratePerKg || !data.ratePerKg.trim()) {
+        setError("ratePerKg", { type: "required", message: "Rate is required" });
+        return;
+      }
+    }
+
     setSavedMessage(null);
     setSubmitting(true);
     try {
       const qty = parseNumberInput(data.birdCount) || 0;
-      if (liveBirdCount !== null && qty > liveBirdCount) {
+      if (liveBirdCount !== null && qty > liveBirdCount && !editingSaleId) {
         const message =
           liveBirdCount <= 0
             ? "No live birds available in this batch."
@@ -317,54 +453,74 @@ export function SalesEntryScreen({ title = "Sales Entry", subtitle, onBack, onSa
 
       const totalWeight = parseNumberInput(data.totalWeightKg) || 0;
       const weight = qty > 0 ? totalWeight / qty : 0;
-      const rate = parseNumberInput(data.ratePerKg) || 0;
-      const total = totalWeight * rate;
-      const transport = parseNumberInput(data.transportCharge ?? "") || 0;
-      const commission = parseNumberInput(data.commissionCharge ?? "") || 0;
-      const deduction = parseNumberInput(data.otherDeduction ?? "") || 0;
-      const net = Math.max(total - transport - commission - deduction, 0);
-      const payload = {
+      
+      const payload: any = {
         traderId: data.traderId,
         saleDate: data.saleDate,
-        vehicleNumber: data.vehicleNumber?.trim() || undefined,
+        vehicleNumber: data.vehicleNumber?.trim() || null,
         birdCount: qty,
         totalWeightKg: totalWeight,
         averageWeightKg: weight,
-        loadingMortalityCount: parseNumberInput(data.loadingMortalityCount ?? ""),
-        ratePerKg: rate,
-        grossAmount: total,
-        transportCharge: transport,
-        commissionCharge: commission,
-        otherDeduction: deduction,
-        netAmount: net,
-        paymentReceivedAmount: parseNumberInput(data.paymentReceivedAmount ?? ""),
-        paymentStatus: data.paymentStatus,
+        loadingMortalityCount: parseNumberInput(data.loadingMortalityCount ?? "") ?? null,
         status: data.status,
-        notes: data.notes?.trim() || undefined,
-        clientReferenceId: `sale-${Date.now()}`,
+        notes: data.notes?.trim() || null,
       };
 
-      if (!(await isNetworkConnected())) {
-        await enqueueOfflineSubmission({
-          type: "sales-entry",
-          payload: { batchId: data.batchId, body: payload },
-        });
-        await clearPersistedData();
-        showSuccessToast("Saved offline. It will sync automatically.");
-        setSavedMessage("Saved offline. It will sync when internet returns.");
-        reset({ ...SALES_ENTRY_DEFAULTS, batchId: data.batchId });
-        onSaved?.();
-        return;
+      if (isFinancial) {
+        const rate = parseNumberInput(data.ratePerKg ?? "") || 0;
+        const total = totalWeight * rate;
+        const transport = parseNumberInput(data.transportCharge ?? "") || 0;
+        const commission = parseNumberInput(data.commissionCharge ?? "") || 0;
+        const deduction = parseNumberInput(data.otherDeduction ?? "") || 0;
+        const net = Math.max(total - transport - commission - deduction, 0);
+
+        payload.ratePerKg = rate;
+        payload.grossAmount = total;
+        payload.transportCharge = transport;
+        payload.commissionCharge = commission;
+        payload.otherDeduction = deduction;
+        payload.netAmount = net;
+        payload.paymentReceivedAmount = parseNumberInput(data.paymentReceivedAmount ?? "") ?? null;
+        payload.paymentStatus = data.paymentStatus;
       }
 
-      await createSale(accessToken, data.batchId, payload);
-      showSuccessToast("Sales entry saved successfully.");
-      setSavedMessage("Sales entry saved successfully.");
-      await clearPersistedData();
-      reset({ ...SALES_ENTRY_DEFAULTS, batchId: data.batchId });
-      onSaved?.();
+      if (editingSaleId) {
+        await updateSale(accessToken, data.batchId, editingSaleId, payload);
+        showSuccessToast("Sales entry updated successfully.");
+        setSavedMessage("Sales entry updated successfully.");
+        await clearPersistedData();
+        if (saleId) {
+          onSaved?.();
+        } else {
+          setEditingSaleId(null);
+          reset({ ...SALES_ENTRY_DEFAULTS, batchId: data.batchId });
+          void loadBatchSales(data.batchId);
+        }
+      } else {
+        payload.clientReferenceId = `sale-${Date.now()}`;
+
+        if (!(await isNetworkConnected())) {
+          await enqueueOfflineSubmission({
+            type: "sales-entry",
+            payload: { batchId: data.batchId, body: payload },
+          });
+          await clearPersistedData();
+          showSuccessToast("Saved offline. It will sync automatically.");
+          setSavedMessage("Saved offline. It will sync when internet returns.");
+          reset({ ...SALES_ENTRY_DEFAULTS, batchId: data.batchId });
+          onSaved?.();
+          return;
+        }
+
+        await createSale(accessToken, data.batchId, payload);
+        showSuccessToast("Sales entry saved successfully.");
+        setSavedMessage("Sales entry saved successfully.");
+        await clearPersistedData();
+        reset({ ...SALES_ENTRY_DEFAULTS, batchId: data.batchId });
+        onSaved?.();
+      }
     } catch (error) {
-      showRequestErrorToast(error, { title: "Save failed" });
+      showRequestErrorToast(error, { title: editingSaleId ? "Update failed" : "Save failed" });
     } finally {
       setSubmitting(false);
     }
@@ -373,18 +529,27 @@ export function SalesEntryScreen({ title = "Sales Entry", subtitle, onBack, onSa
   return (
     <View style={styles.safeArea}>
       <TopAppBar
-        title={title}
-        subtitle={subtitle}
-        onBack={onBack}
+        title={editingSaleId ? "Edit Sale" : title}
+        subtitle={editingSaleId ? "Update sale details" : subtitle}
+        onBack={editingSaleId && !saleId ? () => {
+          setEditingSaleId(null);
+          reset({ ...SALES_ENTRY_DEFAULTS, batchId: selectedBatchId });
+        } : onBack}
       />
-      <KeyboardAwareScrollView
-        style={styles.contentContainer}
-        contentContainerStyle={styles.scrollContainer}
-        keyboardShouldPersistTaps="handled"
-        showsVerticalScrollIndicator={false}
-        enableOnAndroid={true}
-        extraScrollHeight={Platform.OS === 'ios' ? 20 : 100}
-      >
+      {loadingSaleDetails ? (
+        <View style={styles.loadingBox}>
+          <ActivityIndicator color={THEME_GREEN} size="large" />
+          <Text style={styles.loadingText}>Loading sale details...</Text>
+        </View>
+      ) : (
+        <KeyboardAwareScrollView
+          style={styles.contentContainer}
+          contentContainerStyle={styles.scrollContainer}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+          enableOnAndroid={true}
+          extraScrollHeight={Platform.OS === 'ios' ? 20 : 100}
+        >
           <View style={styles.form}>
             {showRestoredMessage ? (
               <ScreenState
@@ -436,6 +601,7 @@ export function SalesEntryScreen({ title = "Sales Entry", subtitle, onBack, onSa
                 emptyMessage="No sales-ready batches found"
                 error={errors.batchId?.message}
                 required
+                disabled={Boolean(editingSaleId)}
               />
               {selectedBatch ? (
                 <View style={styles.liveBirdBox}>
@@ -568,149 +734,153 @@ export function SalesEntryScreen({ title = "Sales Entry", subtitle, onBack, onSa
                 <View style={styles.sectionDivider} />
               </View>
 
-              {canUseLiveRate ? (
-                <View style={styles.inputGroup}>
-                  <Text style={styles.label}>Rate Type</Text>
-                  <View style={styles.toggleContainer}>
-                    <TouchableOpacity
-                      style={[styles.toggleBtn, rateType === "LIVE" && styles.toggleBtnActive]}
-                      onPress={() => setValue("rateType", "LIVE")}
-                    >
-                      <Text style={[styles.toggleBtnText, rateType === "LIVE" && styles.toggleBtnTextActive]}>
-                        Live Rate
-                      </Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                      style={[styles.toggleBtn, rateType === "DRESSED" && styles.toggleBtnActive]}
-                      onPress={() => setValue("rateType", "DRESSED")}
-                    >
-                      <Text style={[styles.toggleBtnText, rateType === "DRESSED" && styles.toggleBtnTextActive]}>
-                        Dressed Rate
-                      </Text>
-                    </TouchableOpacity>
+              {isFinancial ? (
+                <>
+                  {canUseLiveRate ? (
+                    <View style={styles.inputGroup}>
+                      <Text style={styles.label}>Rate Type</Text>
+                      <View style={styles.toggleContainer}>
+                        <TouchableOpacity
+                          style={[styles.toggleBtn, rateType === "LIVE" && styles.toggleBtnActive]}
+                          onPress={() => setValue("rateType", "LIVE")}
+                        >
+                          <Text style={[styles.toggleBtnText, rateType === "LIVE" && styles.toggleBtnTextActive]}>
+                            Live Rate
+                          </Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                          style={[styles.toggleBtn, rateType === "DRESSED" && styles.toggleBtnActive]}
+                          onPress={() => setValue("rateType", "DRESSED")}
+                        >
+                          <Text style={[styles.toggleBtnText, rateType === "DRESSED" && styles.toggleBtnTextActive]}>
+                            Dressed Rate
+                          </Text>
+                        </TouchableOpacity>
+                      </View>
+                    </View>
+                  ) : null}
+
+                  {/* Rate */}
+                  <View style={styles.inputGroup}>
+                    <Text style={styles.label}>
+                      {canUseLiveRate && rateType === "LIVE" ? "Live Rate" : "Dressed Rate"} (₹ / kg) <Text style={styles.required}>*</Text>
+                    </Text>
+                    <Controller
+                      control={control}
+                      name="ratePerKg"
+                      render={({ field: { value, onChange } }) => (
+                        <TextInput
+                          style={styles.input}
+                          value={value}
+                          onChangeText={onChange}
+                          keyboardType="numeric"
+                          placeholder="112"
+                          placeholderTextColor="#9CA3AF"
+                        />
+                      )}
+                    />
+                    {errors.ratePerKg && <Text style={styles.errorText}>{errors.ratePerKg.message}</Text>}
                   </View>
-                </View>
+
+                  {/* Transport Charge */}
+                  <View style={styles.inputGroup}>
+                    <Text style={styles.label}>Transport Charge</Text>
+                    <Controller
+                      control={control}
+                      name="transportCharge"
+                      render={({ field: { value, onChange } }) => (
+                        <TextInput
+                          style={styles.input}
+                          value={value}
+                          onChangeText={onChange}
+                          keyboardType="numeric"
+                          placeholder="0"
+                          placeholderTextColor="#9CA3AF"
+                        />
+                      )}
+                    />
+                    {errors.transportCharge && <Text style={styles.errorText}>{errors.transportCharge.message}</Text>}
+                  </View>
+
+                  {/* Commission Charge */}
+                  <View style={styles.inputGroup}>
+                    <Text style={styles.label}>Commission Charge</Text>
+                    <Controller
+                      control={control}
+                      name="commissionCharge"
+                      render={({ field: { value, onChange } }) => (
+                        <TextInput
+                          style={styles.input}
+                          value={value}
+                          onChangeText={onChange}
+                          keyboardType="numeric"
+                          placeholder="0"
+                          placeholderTextColor="#9CA3AF"
+                        />
+                      )}
+                    />
+                    {errors.commissionCharge && <Text style={styles.errorText}>{errors.commissionCharge.message}</Text>}
+                  </View>
+
+                  {/* Other Deduction */}
+                  <View style={styles.inputGroup}>
+                    <Text style={styles.label}>Other Deduction</Text>
+                    <Controller
+                      control={control}
+                      name="otherDeduction"
+                      render={({ field: { value, onChange } }) => (
+                        <TextInput
+                          style={styles.input}
+                          value={value}
+                          onChangeText={onChange}
+                          keyboardType="numeric"
+                          placeholder="0"
+                          placeholderTextColor="#9CA3AF"
+                        />
+                      )}
+                    />
+                    {errors.otherDeduction && <Text style={styles.errorText}>{errors.otherDeduction.message}</Text>}
+                  </View>
+
+                  {/* Payment Received */}
+                  <View style={styles.inputGroup}>
+                    <Text style={styles.label}>Payment Received</Text>
+                    <Controller
+                      control={control}
+                      name="paymentReceivedAmount"
+                      render={({ field: { value, onChange } }) => (
+                        <TextInput
+                          style={styles.input}
+                          value={value}
+                          onChangeText={onChange}
+                          keyboardType="numeric"
+                          placeholder="0"
+                          placeholderTextColor="#9CA3AF"
+                        />
+                      )}
+                    />
+                    {errors.paymentReceivedAmount && <Text style={styles.errorText}>{errors.paymentReceivedAmount.message}</Text>}
+                  </View>
+
+                  {/* Payment Status */}
+                  <SearchableSelectField
+                    label="Payment Status"
+                    value={paymentStatus}
+                    options={[
+                      { label: "Pending", value: "PENDING" },
+                      { label: "Partial", value: "PARTIAL" },
+                      { label: "Paid", value: "PAID" },
+                      { label: "Cancelled", value: "CANCELLED" },
+                    ]}
+                    onSelect={(value) => setValue("paymentStatus", value as ApiTransactionPaymentStatus, { shouldDirty: true, shouldValidate: true })}
+                    placeholder="Select Payment Status"
+                    searchPlaceholder="Search payment status"
+                    emptyMessage="No matching status"
+                    error={errors.paymentStatus?.message}
+                    required
+                  />
+                </>
               ) : null}
-
-              {/* Rate */}
-              <View style={styles.inputGroup}>
-                <Text style={styles.label}>
-                  {canUseLiveRate && rateType === "LIVE" ? "Live Rate" : "Dressed Rate"} (₹ / kg) <Text style={styles.required}>*</Text>
-                </Text>
-                <Controller
-                  control={control}
-                  name="ratePerKg"
-                  render={({ field: { value, onChange } }) => (
-                    <TextInput
-                      style={styles.input}
-                      value={value}
-                      onChangeText={onChange}
-                      keyboardType="numeric"
-                      placeholder="112"
-                      placeholderTextColor="#9CA3AF"
-                    />
-                  )}
-                />
-                {errors.ratePerKg && <Text style={styles.errorText}>{errors.ratePerKg.message}</Text>}
-              </View>
-
-              {/* Transport Charge */}
-              <View style={styles.inputGroup}>
-                <Text style={styles.label}>Transport Charge</Text>
-                <Controller
-                  control={control}
-                  name="transportCharge"
-                  render={({ field: { value, onChange } }) => (
-                    <TextInput
-                      style={styles.input}
-                      value={value}
-                      onChangeText={onChange}
-                      keyboardType="numeric"
-                      placeholder="0"
-                      placeholderTextColor="#9CA3AF"
-                    />
-                  )}
-                />
-                {errors.transportCharge && <Text style={styles.errorText}>{errors.transportCharge.message}</Text>}
-              </View>
-
-              {/* Commission Charge */}
-              <View style={styles.inputGroup}>
-                <Text style={styles.label}>Commission Charge</Text>
-                <Controller
-                  control={control}
-                  name="commissionCharge"
-                  render={({ field: { value, onChange } }) => (
-                    <TextInput
-                      style={styles.input}
-                      value={value}
-                      onChangeText={onChange}
-                      keyboardType="numeric"
-                      placeholder="0"
-                      placeholderTextColor="#9CA3AF"
-                    />
-                  )}
-                />
-                {errors.commissionCharge && <Text style={styles.errorText}>{errors.commissionCharge.message}</Text>}
-              </View>
-
-              {/* Other Deduction */}
-              <View style={styles.inputGroup}>
-                <Text style={styles.label}>Other Deduction</Text>
-                <Controller
-                  control={control}
-                  name="otherDeduction"
-                  render={({ field: { value, onChange } }) => (
-                    <TextInput
-                      style={styles.input}
-                      value={value}
-                      onChangeText={onChange}
-                      keyboardType="numeric"
-                      placeholder="0"
-                      placeholderTextColor="#9CA3AF"
-                    />
-                  )}
-                />
-                {errors.otherDeduction && <Text style={styles.errorText}>{errors.otherDeduction.message}</Text>}
-              </View>
-
-              {/* Payment Received */}
-              <View style={styles.inputGroup}>
-                <Text style={styles.label}>Payment Received</Text>
-                <Controller
-                  control={control}
-                  name="paymentReceivedAmount"
-                  render={({ field: { value, onChange } }) => (
-                    <TextInput
-                      style={styles.input}
-                      value={value}
-                      onChangeText={onChange}
-                      keyboardType="numeric"
-                      placeholder="0"
-                      placeholderTextColor="#9CA3AF"
-                    />
-                  )}
-                />
-                {errors.paymentReceivedAmount && <Text style={styles.errorText}>{errors.paymentReceivedAmount.message}</Text>}
-              </View>
-
-              {/* Payment Status */}
-              <SearchableSelectField
-                label="Payment Status"
-                value={paymentStatus}
-                options={[
-                  { label: "Pending", value: "PENDING" },
-                  { label: "Partial", value: "PARTIAL" },
-                  { label: "Paid", value: "PAID" },
-                  { label: "Cancelled", value: "CANCELLED" },
-                ]}
-                onSelect={(value) => setValue("paymentStatus", value as ApiTransactionPaymentStatus, { shouldDirty: true, shouldValidate: true })}
-                placeholder="Select Payment Status"
-                searchPlaceholder="Search payment status"
-                emptyMessage="No matching status"
-                error={errors.paymentStatus?.message}
-                required
-              />
 
               {/* Sale Status */}
               <SearchableSelectField
@@ -750,19 +920,21 @@ export function SalesEntryScreen({ title = "Sales Entry", subtitle, onBack, onSa
               </View>
 
               {/* Gross & Net Amount Combined Summary Card */}
-              <View style={styles.summaryCard}>
-                <View style={styles.summaryRow}>
-                  <View style={styles.summaryColumn}>
-                    <Text style={styles.summaryLabel}>Gross Amount</Text>
-                    <Text style={styles.summaryGrossValue}>₹ {totalAmount.toLocaleString('en-IN')}</Text>
-                  </View>
-                  <View style={styles.summaryDividerVertical} />
-                  <View style={styles.summaryColumn}>
-                    <Text style={styles.summaryLabel}>Net Amount</Text>
-                    <Text style={styles.summaryNetValue}>₹ {netAmount.toLocaleString('en-IN')}</Text>
+              {isFinancial ? (
+                <View style={styles.summaryCard}>
+                  <View style={styles.summaryRow}>
+                    <View style={styles.summaryColumn}>
+                      <Text style={styles.summaryLabel}>Gross Amount</Text>
+                      <Text style={styles.summaryGrossValue}>₹ {totalAmount.toLocaleString('en-IN')}</Text>
+                    </View>
+                    <View style={styles.summaryDividerVertical} />
+                    <View style={styles.summaryColumn}>
+                      <Text style={styles.summaryLabel}>Net Amount</Text>
+                      <Text style={styles.summaryNetValue}>₹ {netAmount.toLocaleString('en-IN')}</Text>
+                    </View>
                   </View>
                 </View>
-              </View>
+              ) : null}
 
               <TouchableOpacity
                 style={[styles.submitBtn, submitting && styles.btnDisabled]}
@@ -774,13 +946,104 @@ export function SalesEntryScreen({ title = "Sales Entry", subtitle, onBack, onSa
                 ) : (
                   <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "center" }}>
                     <Ionicons name="save-outline" size={18} color="#FFF" style={{ marginRight: 8 }} />
-                    <Text style={styles.submitBtnText}>Save Sales Entry</Text>
+                    <Text style={styles.submitBtnText}>
+                      {editingSaleId ? "Update Sale" : "Save Sales Entry"}
+                    </Text>
                   </View>
                 )}
               </TouchableOpacity>
+
+              {editingSaleId ? (
+                <TouchableOpacity
+                  style={[styles.submitBtn, { backgroundColor: "#6B7280", marginTop: 10 }]}
+                  onPress={() => {
+                    if (saleId) {
+                      onBack?.();
+                    } else {
+                      setEditingSaleId(null);
+                      reset({ ...SALES_ENTRY_DEFAULTS, batchId: selectedBatchId });
+                    }
+                  }}
+                  disabled={submitting}
+                >
+                  <Text style={styles.submitBtnText}>Cancel Edit</Text>
+                </TouchableOpacity>
+              ) : null}
             </View>
+
+            {/* Recent Sales History */}
+            {!editingSaleId && selectedBatchId ? (
+              <View style={styles.card}>
+                <View style={styles.sectionHeader}>
+                  <Text style={styles.sectionTitle}>Recent Sales (This Batch)</Text>
+                  <View style={styles.sectionDivider} />
+                </View>
+
+                {loadingSales ? (
+                  <ActivityIndicator color={THEME_GREEN} style={{ marginVertical: 20 }} />
+                ) : batchSales.length === 0 ? (
+                  <Text style={styles.emptyText}>No sales recorded yet for this batch.</Text>
+                ) : (
+                  batchSales.map((sale) => {
+                    const matchedTrader = traders.find((t) => t.id === sale.traderId);
+                    const traderName = sale.traderName || matchedTrader?.name || "Trader";
+                    const formattedDate = sale.saleDate ? new Date(sale.saleDate).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' }) : "";
+                    
+                    const isCreator = sale.createdById === user?.id;
+                    const canEditSale = isFinancial || (sale.status === 'DRAFT' && isCreator);
+                    const canDeleteSale = isFinancial || (sale.status === 'DRAFT' && isCreator);
+
+                    return (
+                      <View key={sale.id} style={styles.historyItem}>
+                        <View style={styles.historyRow}>
+                          <View style={{ flex: 1 }}>
+                            <Text style={styles.historyTitle}>{traderName}</Text>
+                            <Text style={styles.historyMeta}>
+                              {[formattedDate, sale.vehicleNumber, labelize(sale.status)].filter(Boolean).join(" | ")}
+                            </Text>
+                            <Text style={styles.historySub}>
+                              {sale.birdCount} birds • {sale.totalWeightKg} kg
+                            </Text>
+                          </View>
+                          
+                          {/* Financial values if financial role */}
+                          {isFinancial ? (
+                            <Text style={styles.historyAmount}>
+                              ₹{(sale.netAmount ?? sale.grossAmount ?? 0).toLocaleString('en-IN')}
+                            </Text>
+                          ) : null}
+
+                          {/* Actions */}
+                          <View style={styles.historyActions}>
+                            {canEditSale ? (
+                              <TouchableOpacity
+                                style={styles.actionBtn}
+                                onPress={() => {
+                                  setEditingSaleId(sale.id);
+                                }}
+                              >
+                                <Ionicons name="pencil-outline" size={16} color={THEME_GREEN} />
+                              </TouchableOpacity>
+                            ) : null}
+                            {canDeleteSale ? (
+                              <TouchableOpacity
+                                style={[styles.actionBtn, { backgroundColor: "#FCE8E6", borderColor: "#FAD2CF" }]}
+                                onPress={() => handleDeleteSaleLocal(sale)}
+                              >
+                                <Ionicons name="trash-outline" size={16} color="#EF4444" />
+                              </TouchableOpacity>
+                            ) : null}
+                          </View>
+                        </View>
+                      </View>
+                    );
+                  })
+                )}
+              </View>
+            ) : null}
           </View>
-      </KeyboardAwareScrollView>
+        </KeyboardAwareScrollView>
+      )}
     </View>
   );
 }
@@ -1145,5 +1408,68 @@ const styles = StyleSheet.create({
     height: 32,
     backgroundColor: "rgba(255, 255, 255, 0.25)",
     marginHorizontal: 8,
+  },
+  loadingBox: {
+    padding: 30,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  loadingText: {
+    marginTop: 10,
+    fontSize: 14,
+    color: "#4B5563",
+    fontWeight: "600",
+  },
+  historyItem: {
+    borderBottomWidth: 1,
+    borderBottomColor: "#F3F4F6",
+    paddingVertical: 12,
+  },
+  historyRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  historyTitle: {
+    fontSize: 15,
+    fontWeight: "700",
+    color: "#111827",
+  },
+  historyMeta: {
+    fontSize: 12,
+    color: "#6B7280",
+    marginTop: 2,
+  },
+  historySub: {
+    fontSize: 13,
+    color: "#374151",
+    fontWeight: "600",
+    marginTop: 4,
+  },
+  historyAmount: {
+    fontSize: 15,
+    fontWeight: "800",
+    color: "#0B5C36",
+    marginRight: 10,
+  },
+  historyActions: {
+    flexDirection: "row",
+    gap: 8,
+  },
+  actionBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: 8,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#E7F5ED",
+    borderWidth: 1,
+    borderColor: "#D0ECD9",
+  },
+  emptyText: {
+    fontSize: 14,
+    color: "#6B7280",
+    textAlign: "center",
+    marginVertical: 12,
   },
 });

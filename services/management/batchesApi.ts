@@ -16,6 +16,7 @@ import type {
   CreateSaleRequest,
   CreateTreatmentRequest,
   FinalizeSaleRequest,
+  UpdateSaleRequest,
   ListParams,
   ListResponse,
   UpdateBatchRequest,
@@ -135,6 +136,19 @@ export async function finalizeSale(
 ) {
   return apiRequest<ApiSale>(`/batches/${batchId}/sales/${saleId}/finalize`, {
     method: "PATCH",
+    token,
+    body: payload,
+  });
+}
+
+export async function updateSale(
+  token: string,
+  batchId: string,
+  saleId: string,
+  payload: UpdateSaleRequest,
+) {
+  return apiRequest<ApiSale>(`/batches/${batchId}/sales/${saleId}`, {
+    method: "PUT",
     token,
     body: payload,
   });
