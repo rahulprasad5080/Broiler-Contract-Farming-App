@@ -66,7 +66,7 @@ function formatNumber(value?: number | null, suffix = '') {
 
 function formatMoney(value?: number | null) {
   if (value === undefined || value === null) return '-';
-  return `Rs ${Number(value).toLocaleString('en-IN')}`;
+  return `Rs ${Math.round(Number(value)).toLocaleString('en-IN')}`;
 }
 
 function ExpenseCard({ item, titlePrefix }: { item: ApiBatchExpense; titlePrefix: string }) {

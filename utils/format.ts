@@ -28,7 +28,8 @@ export function formatNumber(value?: number | null, suffix = ''): string {
  * Returns "Rs. 0" for null/undefined.
  */
 export function formatMoney(value?: number | null): string {
-  return `Rs. ${formatNumber(value)}`;
+  if (value === undefined || value === null) return 'Rs. 0';
+  return `Rs. ${formatNumber(Math.round(Number(value)))}`;
 }
 
 /**

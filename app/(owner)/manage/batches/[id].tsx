@@ -84,7 +84,7 @@ function formatNumber(value?: number | null, suffix = '') {
 }
 
 function formatCurrency(value?: number | null) {
-  return `Rs ${Number(value ?? 0).toLocaleString('en-IN')}`;
+  return `Rs ${Math.round(Number(value ?? 0)).toLocaleString('en-IN')}`;
 }
 
 function formatValue(value?: string | number | null) {
