@@ -1,4 +1,3 @@
-import { CostsTab } from '@/components/batches/tabs/CostsTab';
 import { DailyEntriesTab } from '@/components/batches/tabs/DailyEntriesTab';
 import { ExpensesTab } from '@/components/batches/tabs/ExpensesTab';
 import { OverviewTab } from '@/components/batches/tabs/OverviewTab';
@@ -20,7 +19,6 @@ import {
   listBatchComments,
   listBatchExpenses,
   listDailyLogs,
-  listLegacyBatchCosts,
   listSales,
   updateBatchStatus,
   type ApiBatch,
@@ -56,13 +54,12 @@ import {
   CommentCard
 } from './components/HistoryCards';
 
-type TabKey = 'overview' | 'daily' | 'expenses' | 'costs' | 'sales' | 'pnl' | 'settlement' | 'comments';
+type TabKey = 'overview' | 'daily' | 'expenses' | 'sales' | 'pnl' | 'settlement' | 'comments';
 
 const TABS: { key: TabKey; label: string }[] = [
   { key: 'overview', label: 'Overview' },
   { key: 'daily', label: 'Daily Entries' },
   { key: 'expenses', label: 'Expenses' },
-  { key: 'costs', label: 'Costs' },
   { key: 'sales', label: 'Sales' },
   { key: 'pnl', label: 'P&L' },
   { key: 'settlement', label: 'Settlement' },
@@ -257,7 +254,6 @@ export default function BatchDetailsScreen() {
   const [dailyLogs, setDailyLogs] = useState<ApiDailyLog[]>([]);
   const [companyExpenses, setCompanyExpenses] = useState<ApiBatchExpense[]>([]);
   const [farmerExpenses, setFarmerExpenses] = useState<ApiBatchExpense[]>([]);
-  const [batchCosts, setBatchCosts] = useState<ApiBatchExpense[]>([]);
   const [batchPnl, setBatchPnl] = useState<ApiBatchPnl | null>(null);
   const [settlement, setSettlement] = useState<ApiBatchSettlement | null>(null);
   const [sales, setSales] = useState<ApiSale[]>([]);
@@ -290,7 +286,6 @@ export default function BatchDetailsScreen() {
       TABS.filter((tab) => {
         if (tab.key === 'daily') return canUseDailyLogs;
         if (tab.key === 'expenses') return canUseExpenses;
-        if (tab.key === 'costs') return canUseCosts;
         if (tab.key === 'sales') return canUseSales;
         if (tab.key === 'pnl') return canUseCosts;
         if (tab.key === 'settlement') return canUseSettlement;
@@ -319,7 +314,6 @@ export default function BatchDetailsScreen() {
         dailyLogsRes,
         companyExpensesRes,
         farmerExpensesRes,
-        costsRes,
         pnlRes,
         settlementRes,
         salesRes,
@@ -329,7 +323,6 @@ export default function BatchDetailsScreen() {
         canUseDailyLogs ? listDailyLogs(accessToken, id) : Promise.resolve({ data: [] }),
         canUseExpenses ? listBatchExpenses(accessToken, id, { ledger: 'COMPANY' }) : Promise.resolve({ data: [] }),
         canUseExpenses ? listBatchExpenses(accessToken, id, { ledger: 'FARMER' }) : Promise.resolve({ data: [] }),
-        canUseCosts ? listLegacyBatchCosts(accessToken, id) : Promise.resolve({ data: [] }),
         canUseCosts ? fetchBatchPnl(accessToken, id) : Promise.resolve(null),
         canUseSettlement ? fetchBatchSettlement(accessToken, id).catch(() => null) : Promise.resolve(null),
         canUseSales ? listSales(accessToken, id) : Promise.resolve({ data: [] }),
@@ -340,7 +333,6 @@ export default function BatchDetailsScreen() {
       setDailyLogs(dailyLogsRes.data);
       setCompanyExpenses(companyExpensesRes.data);
       setFarmerExpenses(farmerExpensesRes.data);
-      setBatchCosts(costsRes.data);
       setBatchPnl(pnlRes);
       setSettlement(settlementRes);
       setSales(salesRes.data);
@@ -728,19 +720,7 @@ export default function BatchDetailsScreen() {
               />
             )}
 
-            {activeTab === 'costs' && (
-              <CostsTab
-                costs={batchCosts}
-                onAddCost={
-                  canUseExpenses
-                    ? () =>
-                      router.navigate(
-                        `/(owner)/manage/batches/cost-create?batchId=${encodeURIComponent(id)}&ledger=COMPANY&lockBatch=1` as Href,
-                      )
-                    : undefined
-                }
-              />
-            )}
+
 
             {activeTab === 'sales' && (
               <SalesTab
