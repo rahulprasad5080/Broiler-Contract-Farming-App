@@ -40,7 +40,7 @@ import { saveAndShareReport } from '@/services/reportExport';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import { useLocalSearchParams, useRouter, type Href } from 'expo-router';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Modal,
@@ -263,6 +263,7 @@ export default function BatchDetailsScreen() {
   const [sales, setSales] = useState<ApiSale[]>([]);
   const [comments, setComments] = useState<ApiComment[]>([]);
   const [loading, setLoading] = useState(true);
+  const hasLoadedRef = useRef(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [exporting, setExporting] = useState<'pdf' | 'excel' | null>(null);
 
@@ -308,7 +309,9 @@ export default function BatchDetailsScreen() {
 
   const loadBatchDetails = useCallback(async () => {
     if (!accessToken || !id) return;
-    setLoading(true);
+    if (!hasLoadedRef.current) {
+      setLoading(true);
+    }
     try {
       setErrorMessage(null);
       const [
@@ -342,6 +345,7 @@ export default function BatchDetailsScreen() {
       setSettlement(settlementRes);
       setSales(salesRes.data);
       setComments(commentsRes.data);
+      hasLoadedRef.current = true;
     } catch (error) {
       setErrorMessage(
         showRequestErrorToast(error, {
@@ -371,7 +375,6 @@ export default function BatchDetailsScreen() {
 
   useFocusEffect(
     useCallback(() => {
-      setActiveTab('overview');
       void loadBatchDetails();
     }, [loadBatchDetails]),
   );
@@ -559,7 +562,7 @@ export default function BatchDetailsScreen() {
   };
 
   const handleEditSale = (sale: ApiSale) => {
-    router.navigate(`/(owner)/manage/sales/create?batchId=${encodeURIComponent(id)}&saleId=${encodeURIComponent(sale.id)}` as Href);
+    router.navigate(`/(owner)/manage/sales/create?batchId=${encodeURIComponent(id)}&saleId=${encodeURIComponent(sale.id)}&returnTo=${encodeURIComponent(`/(owner)/manage/batches/${id}`)}` as Href);
   };
 
   return (
@@ -707,8 +710,7 @@ export default function BatchDetailsScreen() {
                   canUseExpenses
                     ? () =>
                       router.navigate(
-                        `/(owner)/manage/expenses/create?batchId=${encodeURIComponent(id)}&ledger=${activeExpenseTab === 'farmer' ? 'FARMER' : 'COMPANY'
-                        }` as Href,
+                        `/(owner)/manage/expenses/create?batchId=${encodeURIComponent(id)}&ledger=${activeExpenseTab === 'farmer' ? 'FARMER' : 'COMPANY'}&returnTo=${encodeURIComponent(`/(owner)/manage/batches/${id}`)}` as Href,
                       )
                     : undefined
                 }
@@ -749,7 +751,7 @@ export default function BatchDetailsScreen() {
                 totalSoldWeight={totalSoldWeight}
                 onAddSale={
                   canUseSales
-                    ? () => router.navigate(`/(owner)/manage/sales/create?batchId=${encodeURIComponent(id)}` as Href)
+                    ? () => router.navigate(`/(owner)/manage/sales/create?batchId=${encodeURIComponent(id)}&returnTo=${encodeURIComponent(`/(owner)/manage/batches/${id}`)}` as Href)
                     : undefined
                 }
                 onFinalizeSale={

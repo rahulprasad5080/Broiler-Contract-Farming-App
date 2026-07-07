@@ -83,9 +83,10 @@ type ExpenseEntryScreenProps = {
   title?: string;
   subtitle?: string;
   onBack?: () => void;
+  onSaved?: () => void;
 };
 
-export function ExpenseEntryScreen({ title = "Expense Entry", subtitle, onBack }: ExpenseEntryScreenProps) {
+export function ExpenseEntryScreen({ title = "Expense Entry", subtitle, onBack, onSaved }: ExpenseEntryScreenProps) {
   const router = useRouter();
   const { batchId: routeBatchId } = useLocalSearchParams<{ batchId?: string }>();
   const { accessToken, hasPermission, user } = useAuth();
@@ -277,7 +278,11 @@ export function ExpenseEntryScreen({ title = "Expense Entry", subtitle, onBack }
         showSuccessToast("Saved offline. It will sync automatically.");
         setSavedMessage("Saved offline. It will sync when internet returns.");
         reset({ ...data, description: "", quantity: "", rate: "", totalAmount: "", invoiceNumber: "", notes: "" });
-        router.replace(getDashboardRoute(user?.role ?? "FARMER"));
+        if (onSaved) {
+          onSaved();
+        } else {
+          router.replace(getDashboardRoute(user?.role ?? "FARMER"));
+        }
         return;
       }
 
@@ -286,7 +291,11 @@ export function ExpenseEntryScreen({ title = "Expense Entry", subtitle, onBack }
       setSavedMessage("Expense saved successfully.");
       await clearPersistedData();
       reset({ ...data, description: "", quantity: "", rate: "", totalAmount: "", invoiceNumber: "", notes: "" });
-      router.replace(getDashboardRoute(user?.role ?? "FARMER"));
+      if (onSaved) {
+        onSaved();
+      } else {
+        router.replace(getDashboardRoute(user?.role ?? "FARMER"));
+      }
     } catch (error) {
       showRequestErrorToast(error, { title: "Save failed" });
     } finally {
