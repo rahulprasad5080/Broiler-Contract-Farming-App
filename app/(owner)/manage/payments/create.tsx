@@ -90,6 +90,7 @@ export default function CreatePaymentScreen() {
     paymentMode: paramPaymentMode,
     paymentDate,
     notes,
+    origin,
   } = useLocalSearchParams<{
     paymentId?: string;
     type?: "payment" | "receipt";
@@ -102,6 +103,7 @@ export default function CreatePaymentScreen() {
     paymentMode?: string;
     paymentDate?: string;
     notes?: string;
+    origin?: string;
   }>();
   const isEditMode = Boolean(paymentId);
   const partyType = type === "receipt" ? "trader" : "vendor";
@@ -261,7 +263,11 @@ export default function CreatePaymentScreen() {
       }
 
       reset(DEFAULTS);
-      router.replace({ pathname: type === "receipt" ? "/(owner)/manage/receipts" : "/(owner)/manage/payments" });
+      if (origin === "office-expenses") {
+        router.replace({ pathname: "/(owner)/manage/office-expenses" });
+      } else {
+        router.replace({ pathname: type === "receipt" ? "/(owner)/manage/receipts" : "/(owner)/manage/payments" });
+      }
     } catch (error) {
       showRequestErrorToast(error, { title: "Payment save failed" });
     } finally {
@@ -288,7 +294,18 @@ export default function CreatePaymentScreen() {
             <ScreenState title="Loading payment form" message="Fetching dropdown options..." loading compact style={styles.stateSpacing} />
           ) : null}
           {savedMessage ? (
-            <ScreenState title={savedMessage} message={type === "receipt" ? "Returning to receipt list." : "Returning to payment list."} compact style={styles.stateSpacing} />
+            <ScreenState
+              title={savedMessage}
+              message={
+                origin === "office-expenses"
+                  ? "Returning to office expenses list."
+                  : type === "receipt"
+                  ? "Returning to receipt list."
+                  : "Returning to payment list."
+              }
+              compact
+              style={styles.stateSpacing}
+            />
           ) : null}
 
           <View style={styles.formCard}>

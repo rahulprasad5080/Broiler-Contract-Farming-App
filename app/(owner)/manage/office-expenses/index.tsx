@@ -1,7 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect } from "@react-navigation/native";
 import { useRouter } from "expo-router";
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -24,8 +24,8 @@ import { useMasterDataTypeOptions } from "@/hooks/useMasterDataTypeOptions";
 import { showRequestErrorToast, showSuccessToast } from "@/services/apiFeedback";
 import {
   deleteOfficeExpense,
-  listOfficeExpenses,
   listAllVendors,
+  listOfficeExpenses,
   type ApiOfficeExpense,
   type ApiVendor,
 } from "@/services/managementApi";
@@ -334,6 +334,7 @@ export default function OfficeExpensesScreen() {
                     amount: remaining.toString(),
                     vendorId: item.vendorId ?? "",
                     partyName: item.vendorName ?? item.category,
+                    origin: "office-expenses",
                   },
                 })
               }
@@ -535,6 +536,7 @@ export default function OfficeExpensesScreen() {
               amount: tempRemaining.toString(),
               vendorId: temp.vendorId ?? "",
               partyName: temp.vendorName ?? temp.category,
+              origin: "office-expenses",
             },
           });
         }}
