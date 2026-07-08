@@ -41,8 +41,8 @@ import { useLocalSearchParams, useRouter, type Href } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
-  Modal,
   Alert,
+  Modal,
   ScrollView,
   StyleSheet,
   Text,
@@ -192,13 +192,9 @@ function BatchFullDetails({ batch }: { batch: ApiBatch }) {
       <Text style={styles.detailGroupTitle}>Batch Information</Text>
       <View style={styles.detailGrid}>
         <DetailItem label="Farm Name" value={batch.farmName} />
-        <DetailItem label="Code" value={batch.code} />
-        <DetailItem label="Status" value={labelize(batch.status)} />
+        <DetailItem label="Created At" value={formatDate(batch.createdAt)} />
         <DetailItem label="Placement Date" value={formatDate(batch.placementDate)} />
         <DetailItem label="Target Close Date" value={formatDate(batch.targetCloseDate)} />
-        <DetailItem label="Actual Close Date" value={formatDate(batch.actualCloseDate)} />
-        <DetailItem label="Locked At" value={formatDate(batch.lockedAt)} />
-        <DetailItem label="Created At" value={formatDate(batch.createdAt)} />
       </View>
 
       <Text style={styles.detailGroupTitle}>Chick Purchase</Text>
@@ -209,10 +205,8 @@ function BatchFullDetails({ batch }: { batch: ApiBatch }) {
         <DetailItem label="Chargeable Chicks" value={formatNumber(batch.chargeableChicks)} />
         <DetailItem label="Placement Mortality" value={formatNumber(batch.placementMortality)} />
         <DetailItem label="Chick Cost Total" value={formatCurrency(batch.chickCostTotal)} />
-        <DetailItem label="Chick Rate/Bird" value={formatCurrency(batch.chickRatePerBird)} />
         <DetailItem label="Rate Per Chick" value={formatCurrency(batch.ratePerChick)} />
         <DetailItem label="Transport Charge" value={formatCurrency(batch.chickTransportCharge)} />
-        <DetailItem label="Source Hatchery" value={batch.sourceHatchery} />
         <DetailItem label="Vendor Name" value={batch.vendorName} />
       </View>
 
