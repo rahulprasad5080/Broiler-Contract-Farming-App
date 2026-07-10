@@ -1,6 +1,7 @@
 import type { ApiDailyLog } from '@/services/managementApi';
 import { formatNumber } from '@/utils/format';
 import { Feather, Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import { useState } from 'react';
 import { Text, TouchableOpacity, View } from 'react-native';
 import { styles } from './styles';
 
@@ -41,6 +42,8 @@ interface DailyEntriesTabProps {
 }
 
 export function DailyEntriesTab({ dailyLogs, openDailyEntry }: DailyEntriesTabProps) {
+  const [expandedLogId, setExpandedLogId] = useState<string | null>(null);
+
   return (
     <View style={styles.section}>
       <View style={styles.sectionHeader}>
@@ -66,6 +69,8 @@ export function DailyEntriesTab({ dailyLogs, openDailyEntry }: DailyEntriesTabPr
           const { day, month, weekday } = getDateParts(log.logDate);
           const hasMortality = (log.mortalityCount ?? 0) > 0;
           const hasCull = (log.cullCount ?? 0) > 0;
+          const treatments = log.treatments ?? [];
+          const isExpanded = expandedLogId === log.id;
 
           return (
             <TouchableOpacity
@@ -85,21 +90,33 @@ export function DailyEntriesTab({ dailyLogs, openDailyEntry }: DailyEntriesTabPr
               {/* Right Column: Main Content */}
               <View style={styles.cardContent}>
                 {/* Header Row */}
-                <View style={styles.cardHeader}>
-                  <View style={styles.headerTitleContainer}>
-                    <Text style={styles.batchCodeTitle}>Opening: {formatNumber(log.openingBirdCount)} birds</Text>
-                  </View>
+                  <View style={styles.cardHeader}>
+                    <View style={styles.headerTitleContainer}>
+                      <Text style={styles.batchCodeTitle}>Opening: {formatNumber(log.openingBirdCount)} birds</Text>
+                    </View>
 
-                  <TouchableOpacity
-                    style={styles.editButtonIcon}
-                    activeOpacity={0.75}
-                    onPress={() => openDailyEntry?.(log.id)}
-                    disabled={!openDailyEntry}
-                  >
-                    <Ionicons name="create-outline" size={14} color={THEME_GREEN} />
-                    <Text style={styles.editButtonText}>Edit</Text>
-                  </TouchableOpacity>
-                </View>
+                    <View style={styles.cardActionGroup}>
+                      <TouchableOpacity
+                        style={styles.iconActionButton}
+                        activeOpacity={0.75}
+                        onPress={() => setExpandedLogId(isExpanded ? null : log.id)}
+                        accessibilityRole="button"
+                        accessibilityLabel="View daily entry details"
+                      >
+                        <Feather name={isExpanded ? 'eye-off' : 'eye'} size={14} color={THEME_GREEN} />
+                      </TouchableOpacity>
+
+                      <TouchableOpacity
+                        style={styles.editButtonIcon}
+                        activeOpacity={0.75}
+                        onPress={() => openDailyEntry?.(log.id)}
+                        disabled={!openDailyEntry}
+                      >
+                        <Ionicons name="create-outline" size={14} color={THEME_GREEN} />
+                        <Text style={styles.editButtonText}>Edit</Text>
+                      </TouchableOpacity>
+                    </View>
+                  </View>
 
                 <View style={styles.dividerLine} />
 
@@ -181,6 +198,64 @@ export function DailyEntriesTab({ dailyLogs, openDailyEntry }: DailyEntriesTabPr
                     <Text style={styles.notesText} numberOfLines={1}>
                       {log.notes}
                     </Text>
+                  </View>
+                ) : null}
+
+                {treatments.length > 0 ? (
+                  <View style={styles.treatmentChipWrap}>
+                    {treatments.slice(0, 3).map((treatment) => (
+                      <View key={treatment.id} style={styles.treatmentChip}>
+                        <Ionicons name="medical-outline" size={10} color="#0B5C36" />
+                        <Text style={styles.treatmentChipText} numberOfLines={1}>
+                          {treatment.kind}: {treatment.treatmentName}
+                        </Text>
+                      </View>
+                    ))}
+                    {treatments.length > 3 ? (
+                      <View style={styles.treatmentChip}>
+                        <Text style={styles.treatmentChipText}>+{treatments.length - 3}</Text>
+                      </View>
+                    ) : null}
+                  </View>
+                ) : null}
+
+                {isExpanded ? (
+                  <View style={styles.detailBox}>
+                    <View style={styles.detailRow}>
+                      <Text style={styles.detailLabel}>Date</Text>
+                      <Text style={styles.detailValue}>{log.logDate.slice(0, 10)}</Text>
+                    </View>
+                    <View style={styles.detailRow}>
+                      <Text style={styles.detailLabel}>Feed / Water</Text>
+                      <Text style={styles.detailValue}>
+                        {formatNumber(log.feedConsumedKg, ' kg')} / {formatNumber(log.waterConsumedLtr, ' L')}
+                      </Text>
+                    </View>
+                    <View style={styles.detailRow}>
+                      <Text style={styles.detailLabel}>Weight</Text>
+                      <Text style={styles.detailValue}>{formatNumber(log.avgWeightGrams, ' g')}</Text>
+                    </View>
+                    {log.notes ? (
+                      <View style={styles.detailNotes}>
+                        <Text style={styles.detailLabel}>Notes</Text>
+                        <Text style={styles.detailValue}>{log.notes}</Text>
+                      </View>
+                    ) : null}
+                    {treatments.length > 0 ? (
+                      <View style={styles.detailTreatments}>
+                        <Text style={styles.detailLabel}>Treatments</Text>
+                        {treatments.map((treatment) => (
+                          <View key={treatment.id} style={styles.detailTreatmentItem}>
+                            <Text style={styles.detailTreatmentName}>
+                              {treatment.kind}: {treatment.treatmentName}
+                            </Text>
+                            <Text style={styles.detailTreatmentMeta}>
+                              {treatment.dosage || 'No dosage'}{treatment.birdCount ? ` • ${formatNumber(treatment.birdCount)} birds` : ''}
+                            </Text>
+                          </View>
+                        ))}
+                      </View>
+                    ) : null}
                   </View>
                 ) : null}
 

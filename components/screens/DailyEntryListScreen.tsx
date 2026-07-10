@@ -16,7 +16,7 @@ import { ScreenState } from "@/components/ui/ScreenState";
 import { TopAppBar } from "@/components/ui/TopAppBar";
 import { useAuth } from "@/context/AuthContext";
 import { showRequestErrorToast } from "@/services/apiFeedback";
-import { formatDate, formatNumber } from "@/utils/format";
+import { formatNumber } from "@/utils/format";
 import {
   ApiBatch,
   ApiDailyLog,
@@ -90,6 +90,7 @@ export function DailyEntryListScreen({
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [expandedLogId, setExpandedLogId] = useState<string | null>(null);
 
   const openForm = useCallback(
     (params?: { batchId?: string; dailyLogId?: string }) => {
@@ -230,6 +231,7 @@ export function DailyEntryListScreen({
               const { day, month, weekday } = getDateParts(item.log.logDate);
               const hasMortality = (item.log.mortalityCount ?? 0) > 0;
               const hasCull = (item.log.cullCount ?? 0) > 0;
+              const treatments = item.log.treatments ?? [];
 
               return (
                 <View style={styles.card}>
@@ -253,17 +255,29 @@ export function DailyEntryListScreen({
                       ) : null}
                     </View>
 
-                    <TouchableOpacity
-                      style={styles.editButton}
-                      onPress={() =>
-                        openForm({ batchId: item.batch.id, dailyLogId: item.log.id })
-                      }
-                      activeOpacity={0.8}
-                      accessibilityRole="button"
-                      accessibilityLabel="Update daily entry"
-                    >
-                      <Ionicons name="create-outline" size={18} color={THEME_GREEN} />
-                    </TouchableOpacity>
+                    <View style={styles.cardActionGroup}>
+                      <TouchableOpacity
+                        style={styles.iconButton}
+                        onPress={() => setExpandedLogId(expandedLogId === item.log.id ? null : item.log.id)}
+                        activeOpacity={0.8}
+                        accessibilityRole="button"
+                        accessibilityLabel="View daily entry details"
+                      >
+                        <Feather name={expandedLogId === item.log.id ? "eye-off" : "eye"} size={16} color={THEME_GREEN} />
+                      </TouchableOpacity>
+
+                      <TouchableOpacity
+                        style={styles.editButton}
+                        onPress={() =>
+                          openForm({ batchId: item.batch.id, dailyLogId: item.log.id })
+                        }
+                        activeOpacity={0.8}
+                        accessibilityRole="button"
+                        accessibilityLabel="Update daily entry"
+                      >
+                        <Ionicons name="create-outline" size={18} color={THEME_GREEN} />
+                      </TouchableOpacity>
+                    </View>
                   </View>
 
                   <View style={styles.divider} />
@@ -342,8 +356,73 @@ export function DailyEntryListScreen({
                       </Text>
                     </View>
                   ) : null}
+
+                  {treatments.length > 0 ? (
+                    <View style={styles.treatmentChipWrap}>
+                      {treatments.slice(0, 3).map((treatment) => (
+                        <View key={treatment.id} style={styles.treatmentChip}>
+                          <Ionicons name="medical-outline" size={10} color="#0B5C36" />
+                          <Text style={styles.treatmentChipText} numberOfLines={1}>
+                            {treatment.kind}: {treatment.treatmentName}
+                          </Text>
+                        </View>
+                      ))}
+                      {treatments.length > 3 ? (
+                        <View style={styles.treatmentChip}>
+                          <Text style={styles.treatmentChipText}>+{treatments.length - 3}</Text>
+                        </View>
+                      ) : null}
+                      </View>
+                    ) : null}
+                  </View>
+
+                  {expandedLogId === item.log.id ? (
+                    <View style={styles.detailBox}>
+                      <View style={styles.detailRow}>
+                        <Text style={styles.detailLabel}>Date</Text>
+                        <Text style={styles.detailValue}>{item.log.logDate.slice(0, 10)}</Text>
+                      </View>
+                      <View style={styles.detailRow}>
+                        <Text style={styles.detailLabel}>Bird Count</Text>
+                        <Text style={styles.detailValue}>
+                          Open {formatNumber(item.log.openingBirdCount)} / Mort {formatNumber(item.log.mortalityCount)} / Cull {formatNumber(item.log.cullCount)}
+                        </Text>
+                      </View>
+                      <View style={styles.detailRow}>
+                        <Text style={styles.detailLabel}>Feed / Water</Text>
+                        <Text style={styles.detailValue}>
+                          {formatNumber(item.log.feedConsumedKg, " kg")} / {formatNumber(item.log.waterConsumedLtr, " L")}
+                        </Text>
+                      </View>
+                      <View style={styles.detailRow}>
+                        <Text style={styles.detailLabel}>Weight</Text>
+                        <Text style={styles.detailValue}>{formatNumber(item.log.avgWeightGrams, " g")}</Text>
+                      </View>
+                      {item.log.notes ? (
+                        <View style={styles.detailNotes}>
+                          <Text style={styles.detailLabel}>Notes</Text>
+                          <Text style={styles.detailValue}>{item.log.notes}</Text>
+                        </View>
+                      ) : null}
+                      {treatments.length > 0 ? (
+                        <View style={styles.detailTreatments}>
+                          <Text style={styles.detailLabel}>Treatments</Text>
+                          {treatments.map((treatment) => (
+                            <View key={treatment.id} style={styles.detailTreatmentItem}>
+                              <Text style={styles.detailTreatmentName}>
+                                {treatment.kind}: {treatment.treatmentName}
+                              </Text>
+                              <Text style={styles.detailTreatmentMeta}>
+                                {treatment.dosage || "No dosage"}
+                                {treatment.birdCount ? ` • ${formatNumber(treatment.birdCount)} birds` : ""}
+                              </Text>
+                            </View>
+                          ))}
+                        </View>
+                      ) : null}
+                    </View>
+                  ) : null}
                 </View>
-              </View>
             );
           }}
         />
@@ -464,6 +543,21 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "#E2E8F0",
   },
+  cardActionGroup: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  iconButton: {
+    width: 35,
+    height: 35,
+    borderRadius: 16,
+    backgroundColor: "#F1F5F9",
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1,
+    borderColor: "#E2E8F0",
+  },
   divider: {
     height: 1,
     backgroundColor: "#F1F5F9",
@@ -520,5 +614,78 @@ const styles = StyleSheet.create({
     color: "#475569",
     fontSize: 10,
     fontWeight: "500",
+  },
+  treatmentChipWrap: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 6,
+    marginTop: 6,
+  },
+  treatmentChip: {
+    maxWidth: "100%",
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    backgroundColor: "#ECFDF5",
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: "#A7F3D0",
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+  },
+  treatmentChipText: {
+    maxWidth: 180,
+    color: "#0B5C36",
+    fontSize: 10,
+    fontWeight: "800",
+  },
+  detailBox: {
+    marginTop: 8,
+    paddingTop: 10,
+    borderTopWidth: 1,
+    borderTopColor: "#E2E8F0",
+    gap: 8,
+  },
+  detailRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    gap: 10,
+  },
+  detailLabel: {
+    fontSize: 10,
+    fontWeight: "800",
+    color: "#64748B",
+    textTransform: "uppercase",
+  },
+  detailValue: {
+    flex: 1,
+    textAlign: "right",
+    fontSize: 11,
+    fontWeight: "700",
+    color: "#111827",
+  },
+  detailNotes: {
+    gap: 4,
+  },
+  detailTreatments: {
+    gap: 6,
+  },
+  detailTreatmentItem: {
+    backgroundColor: "#F8FAFC",
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: "#E2E8F0",
+    padding: 8,
+    gap: 2,
+  },
+  detailTreatmentName: {
+    fontSize: 11,
+    fontWeight: "800",
+    color: "#111827",
+  },
+  detailTreatmentMeta: {
+    fontSize: 10,
+    fontWeight: "600",
+    color: "#64748B",
   },
 });

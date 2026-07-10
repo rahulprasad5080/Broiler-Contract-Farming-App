@@ -264,6 +264,7 @@ export type ApiDailyLog = {
   correctedById?: string | null;
   createdAt: string;
   updatedAt: string;
+  treatments?: ApiTreatment[];
 };
 
 export type ApiSale = {
@@ -631,6 +632,7 @@ export type CreateDailyLogRequest = {
   avgWeightGrams?: number;
   notes?: string;
   clientReferenceId?: string;
+  treatments?: CreateDailyLogTreatmentRequest[];
 };
 
 export type UpdateDailyLogRequest = Partial<
@@ -847,6 +849,13 @@ export type CreateTreatmentRequest = {
   birdCount?: number;
   notes?: string;
   clientReferenceId?: string;
+};
+
+export type CreateDailyLogTreatmentRequest = Omit<
+  CreateTreatmentRequest,
+  "dailyLogId" | "treatmentDate"
+> & {
+  treatmentDate?: string;
 };
 
 export type CreateCommentRequest = {

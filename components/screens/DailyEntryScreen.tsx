@@ -5,6 +5,7 @@ import { SearchableSelectField } from "@/components/ui/SearchableSelectField";
 import { TopAppBar } from "@/components/ui/TopAppBar";
 import { useAuth } from "@/context/AuthContext";
 import { useFormPersistence } from "@/hooks/useFormPersistence";
+import { useMasterDataTypeOptions } from "@/hooks/useMasterDataTypeOptions";
 import {
   showRequestErrorToast,
   showSuccessToast,
@@ -12,10 +13,12 @@ import {
 import { getLocalDateValue } from "@/services/dateUtils";
 import {
   ApiBatch,
+  ApiCatalogItem,
   ApiDailyLog,
   CreateDailyLogRequest,
   UpdateDailyLogRequest,
   createDailyLog,
+  listCatalogItems,
   listAllBatches,
   listDailyLogs,
   updateDailyLog,
@@ -30,7 +33,7 @@ import React, {
   useMemo,
   useState,
 } from "react";
-import { Controller, useForm } from "react-hook-form";
+import { Controller, useFieldArray, useForm } from "react-hook-form";
 import {
   ActivityIndicator,
   Platform,
@@ -71,6 +74,15 @@ const optionalNumericField = (label: string) =>
       message: `${label} must be a number`,
     });
 
+const treatmentSchema = z.object({
+  kind: z.string().min(1, "Type is required"),
+  catalogItemId: z.string().optional(),
+  treatmentName: z.string().trim().min(1, "Treatment name is required"),
+  dosage: z.string().optional(),
+  birdCount: optionalNumericField("Bird count"),
+  notes: z.string().optional(),
+});
+
 const dailyEntrySchema = z.object({
   batchId: z.string().min(1, "Please select a batch"),
   logDate: z.string().min(1, "Date is required"),
@@ -81,6 +93,7 @@ const dailyEntrySchema = z.object({
   waterConsumedLtr: optionalNumericField("Water consumed"),
   avgWeightGrams: optionalNumericField("Average weight"),
   notes: z.string().trim(),
+  treatments: z.array(treatmentSchema),
 });
 
 type DailyEntryFormData = z.infer<typeof dailyEntrySchema>;
@@ -95,6 +108,7 @@ const DAILY_ENTRY_DEFAULTS = {
   waterConsumedLtr: "",
   avgWeightGrams: "",
   notes: "",
+  treatments: [],
 };
 
 const RESTORED_MESSAGE_TIMEOUT_MS = 4000;
@@ -120,6 +134,18 @@ function toFormValues(log: ApiDailyLog): DailyEntryFormData {
     waterConsumedLtr: toStringValue(log.waterConsumedLtr),
     avgWeightGrams: toStringValue(log.avgWeightGrams),
     notes: log.notes ?? "",
+    treatments: [],
+  };
+}
+
+function createBlankTreatment(kind = "VACCINATION"): DailyEntryFormData["treatments"][number] {
+  return {
+    kind,
+    catalogItemId: "",
+    treatmentName: "",
+    dosage: "",
+    birdCount: "",
+    notes: "",
   };
 }
 
@@ -127,6 +153,16 @@ function buildDailyLogPayload(
   data: DailyEntryFormData,
   clientReferenceId: string,
 ): CreateDailyLogRequest {
+  const treatments = data.treatments.map((treatment, index) => ({
+    kind: treatment.kind,
+    catalogItemId: treatment.catalogItemId?.trim() || undefined,
+    treatmentName: treatment.treatmentName.trim(),
+    dosage: treatment.dosage?.trim() || undefined,
+    birdCount: toOptionalNumber(treatment.birdCount ?? ""),
+    notes: treatment.notes?.trim() || undefined,
+    clientReferenceId: `${clientReferenceId}-treatment-${index + 1}`,
+  }));
+
   return {
     logDate: data.logDate,
     openingBirdCount: toOptionalNumber(data.openingBirdCount ?? ""),
@@ -137,6 +173,7 @@ function buildDailyLogPayload(
     avgWeightGrams: toOptionalNumber(data.avgWeightGrams ?? ""),
     notes: data.notes.trim() || undefined,
     clientReferenceId,
+    treatments: treatments.length > 0 ? treatments : undefined,
   };
 }
 
@@ -162,6 +199,9 @@ export function DailyEntryScreen({
   }>();
   const { accessToken } = useAuth();
   const [batches, setBatches] = useState<ApiBatch[]>([]);
+  const [catalogItems, setCatalogItems] = useState<ApiCatalogItem[]>([]);
+  const [savedTreatments, setSavedTreatments] = useState<ApiDailyLog["treatments"]>([]);
+  const [expandedTreatmentIndex, setExpandedTreatmentIndex] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
   const [loadingLog, setLoadingLog] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -182,6 +222,10 @@ export function DailyEntryScreen({
       ...DAILY_ENTRY_DEFAULTS,
       batchId: typeof routeBatchId === "string" ? routeBatchId : "",
     },
+  });
+  const { fields: treatmentFields, append: appendTreatment, remove: removeTreatment } = useFieldArray({
+    control,
+    name: "treatments",
   });
   const { clearPersistedData, isRestored } = useFormPersistence(
     `form_draft_daily_entry_${typeof routeBatchId === "string" ? routeBatchId : "new"}`,
@@ -227,6 +271,44 @@ export function DailyEntryScreen({
       })),
     [activeBatches],
   );
+  const catalogOptions = useMemo(
+    () =>
+      catalogItems.map((item) => ({
+        label: item.name,
+        value: item.id,
+        description: `${item.type} - ${item.unit}`,
+        keywords: `${item.type} ${item.unit} ${item.sku ?? ""}`,
+      })),
+    [catalogItems],
+  );
+  const {
+    selectOptions: treatmentKindOptions,
+    loading: loadingTreatmentKinds,
+    errorMessage: treatmentKindError,
+  } = useMasterDataTypeOptions("TREATMENT_KIND");
+  const resolvedTreatmentKindOptions = useMemo(
+    () =>
+      treatmentKindOptions.length > 0
+        ? treatmentKindOptions
+        : [
+            { label: "Vaccination", value: "VACCINATION" },
+            { label: "Medication", value: "MEDICATION" },
+            { label: "Other", value: "OTHER" },
+          ],
+    [treatmentKindOptions],
+  );
+  const defaultTreatmentKind = resolvedTreatmentKindOptions[0]?.value ?? "VACCINATION";
+
+  useEffect(() => {
+    if (treatmentFields.length === 0) {
+      setExpandedTreatmentIndex(null);
+      return;
+    }
+
+    setExpandedTreatmentIndex((current) =>
+      current === null || current >= treatmentFields.length ? treatmentFields.length - 1 : current,
+    );
+  }, [treatmentFields.length]);
 
   useEffect(() => {
     if (!isRestored) {
@@ -262,6 +344,7 @@ export function DailyEntryScreen({
 
       if (log) {
         reset(toFormValues(log));
+        setSavedTreatments(log.treatments ?? []);
       } else {
         showRequestErrorToast(new Error("Daily log not found."), {
           title: "Unable to load entry",
@@ -284,9 +367,13 @@ export function DailyEntryScreen({
     if (!accessToken) return;
     setLoading(true);
     try {
-      const response = await listAllBatches(accessToken);
-      setBatches(response.data);
-      const firstActiveId = response.data.find((b) => b.status === "ACTIVE")?.id;
+      const [batchesResponse, catalogResponse] = await Promise.all([
+        listAllBatches(accessToken),
+        listCatalogItems(accessToken, { limit: 100 }),
+      ]);
+      setBatches(batchesResponse.data);
+      setCatalogItems(catalogResponse.data.filter((item) => item.isActive !== false));
+      const firstActiveId = batchesResponse.data.find((b) => b.status === "ACTIVE")?.id;
       if (lockedBatchId) {
         setValue("batchId", lockedBatchId);
       } else if (firstActiveId && !selectedBatchId) {
@@ -346,7 +433,7 @@ export function DailyEntryScreen({
         router.replace(submitRedirectPath as never);
       } else {
         const existingLogs = await listDailyLogs(accessToken, data.batchId);
-        const duplicateLog = existingLogs.data.find((log) => log.logDate === data.logDate);
+        const duplicateLog = existingLogs.data.find((log) => log.logDate.slice(0, 10) === data.logDate);
         if (duplicateLog) {
           const message = "A daily entry already exists for this batch and date.";
           setError("logDate", { type: "validate", message });
@@ -365,6 +452,32 @@ export function DailyEntryScreen({
     } finally {
       setSubmitting(false);
     }
+  };
+
+  const handleAddTreatment = () => {
+    const nextIndex = treatmentFields.length;
+    appendTreatment(createBlankTreatment(defaultTreatmentKind));
+    setExpandedTreatmentIndex(nextIndex);
+  };
+
+  const handleRemoveTreatment = (index: number) => {
+    removeTreatment(index);
+    setExpandedTreatmentIndex((current) => {
+      if (current === null) return null;
+      if (current === index) return Math.max(0, index - 1);
+      if (current > index) return current - 1;
+      return current;
+    });
+  };
+
+  const getTreatmentSummary = (index: number) => {
+    const treatment = watch(`treatments.${index}`);
+    if (!treatment) return "Untitled treatment";
+
+    const pieces = [treatment.kind, treatment.treatmentName].filter(Boolean);
+    if (pieces.length === 0) return "Untitled treatment";
+
+    return pieces.join(" - ");
   };
 
   return (
@@ -571,6 +684,223 @@ export function DailyEntryScreen({
             {errors.notes && <Text style={styles.errorText}>{errors.notes.message}</Text>}
           </View>
 
+          {isEditMode && savedTreatments && savedTreatments.length > 0 ? (
+            <View style={styles.savedTreatmentBox}>
+              <View style={styles.treatmentSectionHeader}>
+                <View style={styles.treatmentTitleRow}>
+                  <Ionicons name="medkit-outline" size={18} color="#0B5C36" />
+                  <Text style={styles.treatmentSectionTitle}>Saved Treatments</Text>
+                </View>
+              </View>
+              {savedTreatments.map((treatment) => (
+                <View key={treatment.id} style={styles.savedTreatmentItem}>
+                  <View style={styles.savedTreatmentTop}>
+                    <Text style={styles.savedTreatmentKind}>{treatment.kind}</Text>
+                    {treatment.birdCount ? (
+                      <Text style={styles.savedTreatmentBirds}>
+                        {Number(treatment.birdCount).toLocaleString("en-IN")} birds
+                      </Text>
+                    ) : null}
+                  </View>
+                  <Text style={styles.savedTreatmentName}>{treatment.treatmentName}</Text>
+                  {treatment.dosage ? (
+                    <Text style={styles.savedTreatmentMeta}>{treatment.dosage}</Text>
+                  ) : null}
+                  {treatment.notes ? (
+                    <Text style={styles.savedTreatmentMeta}>{treatment.notes}</Text>
+                  ) : null}
+                </View>
+              ))}
+            </View>
+          ) : null}
+
+          <View style={styles.treatmentSection}>
+            <View style={styles.treatmentSectionHeader}>
+              <View style={styles.treatmentTitleRow}>
+                <Ionicons name="medical-outline" size={18} color="#0B5C36" />
+                <Text style={styles.treatmentSectionTitle}>
+                  {isEditMode ? "Append Treatments" : "Vaccination / Medication"}
+                </Text>
+              </View>
+              <TouchableOpacity
+                style={styles.addTreatmentBtn}
+                onPress={handleAddTreatment}
+                activeOpacity={0.8}
+              >
+                <Ionicons name="add" size={16} color="#0B5C36" />
+                <Text style={styles.addTreatmentText}>Add</Text>
+              </TouchableOpacity>
+            </View>
+
+            {treatmentFields.length === 0 ? (
+              <Text style={styles.treatmentHint}>
+                Add vaccination, medication, or other treatment given with this daily entry.
+              </Text>
+            ) : null}
+
+            {treatmentFields.map((field, index) => {
+              const treatmentErrors = errors.treatments?.[index];
+              const isExpanded = expandedTreatmentIndex === index;
+              return (
+                <View key={field.id} style={styles.treatmentCard}>
+                  <TouchableOpacity
+                    style={styles.treatmentCardHeader}
+                    onPress={() => setExpandedTreatmentIndex(isExpanded ? null : index)}
+                    activeOpacity={0.85}
+                    hitSlop={8}
+                  >
+                    <View style={styles.treatmentCardHeaderLeft}>
+                      <Text style={styles.treatmentCardTitle}>Treatment {index + 1}</Text>
+                      {!isExpanded ? (
+                        <Text style={styles.treatmentCardSummary} numberOfLines={1}>
+                          {getTreatmentSummary(index)}
+                        </Text>
+                      ) : null}
+                    </View>
+                    <View style={styles.treatmentCardHeaderActions}>
+                      <Ionicons
+                        name={isExpanded ? "chevron-up" : "chevron-down"}
+                        size={16}
+                        color="#0B5C36"
+                      />
+                      <TouchableOpacity
+                        style={styles.removeTreatmentBtn}
+                        onPress={() => handleRemoveTreatment(index)}
+                        activeOpacity={0.8}
+                        hitSlop={8}
+                      >
+                        <Ionicons name="trash-outline" size={16} color="#DC2626" />
+                      </TouchableOpacity>
+                    </View>
+                  </TouchableOpacity>
+
+                  {isExpanded ? (
+                    <>
+                      <Controller
+                        control={control}
+                        name={`treatments.${index}.kind`}
+                        render={({ field: { value, onChange } }) => (
+                          <SearchableSelectField
+                            label="Type"
+                            value={value}
+                            options={resolvedTreatmentKindOptions}
+                            onSelect={onChange}
+                            placeholder={loadingTreatmentKinds ? "Loading treatment types..." : "Select type"}
+                            searchPlaceholder="Search treatment type"
+                            emptyMessage="No treatment types found"
+                            error={treatmentErrors?.kind?.message || treatmentKindError || undefined}
+                            disabled={loadingTreatmentKinds}
+                            required
+                          />
+                        )}
+                      />
+
+                      <Controller
+                        control={control}
+                        name={`treatments.${index}.catalogItemId`}
+                        render={({ field: { value, onChange } }) => (
+                          <SearchableSelectField
+                            label="Catalog Item"
+                            value={value}
+                            options={catalogOptions}
+                            onSelect={(nextValue) => onChange(nextValue === value ? "" : nextValue)}
+                            placeholder="Select catalog item"
+                            searchPlaceholder="Search catalog item"
+                            emptyMessage="No active catalog items found"
+                            error={treatmentErrors?.catalogItemId?.message}
+                          />
+                        )}
+                      />
+
+                      <Controller
+                        control={control}
+                        name={`treatments.${index}.treatmentName`}
+                        render={({ field: { value, onChange } }) => (
+                          <View style={styles.inputGroup}>
+                            <Text style={styles.label}>Treatment Name</Text>
+                            <TextInput
+                              style={styles.input}
+                              value={value}
+                              onChangeText={onChange}
+                              placeholder="Lasota, Enrofloxacin, Vitamin B-Complex"
+                              placeholderTextColor="#9CA3AF"
+                            />
+                            {treatmentErrors?.treatmentName ? (
+                              <Text style={styles.errorText}>{treatmentErrors.treatmentName.message}</Text>
+                            ) : null}
+                          </View>
+                        )}
+                      />
+
+                      <Controller
+                        control={control}
+                        name={`treatments.${index}.dosage`}
+                        render={({ field: { value, onChange } }) => (
+                          <View style={styles.inputGroup}>
+                            <Text style={styles.label}>Dosage</Text>
+                            <TextInput
+                              style={styles.input}
+                              value={value}
+                              onChangeText={onChange}
+                              placeholder="1 drop/bird or 10ml/100L water"
+                              placeholderTextColor="#9CA3AF"
+                            />
+                            {treatmentErrors?.dosage ? (
+                              <Text style={styles.errorText}>{treatmentErrors.dosage.message}</Text>
+                            ) : null}
+                          </View>
+                        )}
+                      />
+
+                      <Controller
+                        control={control}
+                        name={`treatments.${index}.birdCount`}
+                        render={({ field: { value, onChange } }) => (
+                          <View style={styles.inputGroup}>
+                            <Text style={styles.label}>Bird Count</Text>
+                            <TextInput
+                              style={styles.input}
+                              value={value}
+                              onChangeText={onChange}
+                              keyboardType="numeric"
+                              placeholder="Birds treated"
+                              placeholderTextColor="#9CA3AF"
+                            />
+                            {treatmentErrors?.birdCount ? (
+                              <Text style={styles.errorText}>{treatmentErrors.birdCount.message}</Text>
+                            ) : null}
+                          </View>
+                        )}
+                      />
+
+                      <Controller
+                        control={control}
+                        name={`treatments.${index}.notes`}
+                        render={({ field: { value, onChange } }) => (
+                          <View style={styles.inputGroup}>
+                            <Text style={styles.label}>Treatment Notes</Text>
+                            <TextInput
+                              style={[styles.input, styles.treatmentNotesInput]}
+                              value={value}
+                              onChangeText={onChange}
+                              placeholder="Course details or observation"
+                              placeholderTextColor="#9CA3AF"
+                              multiline
+                              scrollEnabled={false}
+                            />
+                            {treatmentErrors?.notes ? (
+                              <Text style={styles.errorText}>{treatmentErrors.notes.message}</Text>
+                            ) : null}
+                          </View>
+                        )}
+                      />
+                    </>
+                  ) : null}
+                </View>
+              );
+            })}
+          </View>
+
           <TouchableOpacity
             style={[styles.submitBtn, submitting && styles.btnDisabled]}
             onPress={handleSubmit(onSubmit)}
@@ -637,6 +967,152 @@ const styles = StyleSheet.create({
     height: 100,
     paddingTop: 16,
     textAlignVertical: "top",
+  },
+  treatmentSection: {
+    marginTop: 4,
+    marginBottom: 20,
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
+    borderRadius: 12,
+    padding: 14,
+    backgroundColor: "#F9FAFB",
+  },
+  treatmentSectionHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    gap: 10,
+    marginBottom: 12,
+  },
+  treatmentTitleRow: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  treatmentSectionTitle: {
+    fontSize: 15,
+    fontWeight: "800",
+    color: "#111827",
+  },
+  addTreatmentBtn: {
+    minHeight: 34,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 4,
+    paddingHorizontal: 12,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: "#B7E0C2",
+    backgroundColor: "#E7F5ED",
+  },
+  addTreatmentText: {
+    fontSize: 13,
+    fontWeight: "800",
+    color: "#0B5C36",
+  },
+  treatmentHint: {
+    fontSize: 13,
+    lineHeight: 18,
+    color: "#64748B",
+    fontWeight: "600",
+  },
+  treatmentCard: {
+    backgroundColor: "#FFF",
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
+    borderRadius: 12,
+    padding: 12,
+    marginTop: 12,
+  },
+  treatmentCardHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 12,
+    gap: 10,
+  },
+  treatmentCardHeaderLeft: {
+    flex: 1,
+    minWidth: 0,
+  },
+  treatmentCardHeaderActions: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  treatmentCardTitle: {
+    fontSize: 14,
+    fontWeight: "800",
+    color: "#1F2937",
+  },
+  treatmentCardSummary: {
+    marginTop: 2,
+    fontSize: 12,
+    fontWeight: "600",
+    color: "#64748B",
+  },
+  removeTreatmentBtn: {
+    width: 34,
+    height: 34,
+    borderRadius: 10,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#FEF2F2",
+    borderWidth: 1,
+    borderColor: "#FECACA",
+  },
+  treatmentNotesInput: {
+    minHeight: 84,
+    height: 84,
+    paddingTop: 14,
+    textAlignVertical: "top",
+  },
+  savedTreatmentBox: {
+    marginBottom: 20,
+    borderWidth: 1,
+    borderColor: "#CBE6D5",
+    borderRadius: 12,
+    padding: 14,
+    backgroundColor: "#F0FDF4",
+  },
+  savedTreatmentItem: {
+    backgroundColor: "#FFF",
+    borderWidth: 1,
+    borderColor: "#DCFCE7",
+    borderRadius: 10,
+    padding: 12,
+    marginTop: 8,
+  },
+  savedTreatmentTop: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    gap: 8,
+  },
+  savedTreatmentKind: {
+    fontSize: 11,
+    fontWeight: "900",
+    color: "#0B5C36",
+    textTransform: "uppercase",
+  },
+  savedTreatmentBirds: {
+    fontSize: 11,
+    fontWeight: "800",
+    color: "#64748B",
+  },
+  savedTreatmentName: {
+    fontSize: 14,
+    fontWeight: "800",
+    color: "#111827",
+    marginTop: 4,
+  },
+  savedTreatmentMeta: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: "#64748B",
+    marginTop: 3,
   },
   inputLocked: {
     backgroundColor: "#F9FAFB",
