@@ -179,6 +179,12 @@ function DetailItem({ label, value }: { label: string; value?: string | number |
 function BatchFullDetails({ batch }: { batch: ApiBatch }) {
   const summary = batch.summary;
 
+  const soldBirds = summary?.soldBirds ?? summary?.soldBirdCount;
+  const computedAvgWeight =
+    summary && summary.totalWeightSoldKg != null && soldBirds != null && summary.totalWeightSoldKg > 0 && soldBirds > 0
+      ? summary.totalWeightSoldKg / soldBirds
+      : null;
+
   return (
     <View style={styles.fullDetailsCard}>
       <View style={styles.fullDetailsHeader}>
@@ -219,10 +225,10 @@ function BatchFullDetails({ batch }: { batch: ApiBatch }) {
         <DetailItem label="Cull Count" value={formatNumber(summary?.cullCount)} />
         <DetailItem label="Loading Mortality" value={formatNumber(summary?.loadingMortalityCount)} />
         <DetailItem label="Mortality %" value={formatNumber(summary?.mortalityPercent, '%')} />
-        <DetailItem label="Sold Birds" value={formatNumber(summary?.soldBirds ?? summary?.soldBirdCount)} />
+        <DetailItem label="Sold Birds" value={formatNumber(soldBirds)} />
         <DetailItem label="Feed Consumed" value={formatNumber(summary?.totalFeedConsumedKg, ' kg')} />
         <DetailItem label="Weight Sold" value={formatNumber(summary?.totalWeightSoldKg, ' kg')} />
-        <DetailItem label="Average Weight" value={formatNumber(summary?.averageWeightGrams, ' g')} />
+        <DetailItem label="Average Weight" value={formatNumber(computedAvgWeight, ' kg')} />
         <DetailItem label="FCR" value={formatNumber(summary?.fcr)} />
       </View>
 
@@ -371,7 +377,9 @@ export default function BatchDetailsScreen() {
   const liveBirds = summary?.liveBirds ?? 0;
   const mortality = summary?.mortalityPercent ? formatNumber(summary.mortalityPercent, '%') : '0%';
   const fcr = summary?.fcr ? formatNumber(summary.fcr) : '0';
-  const avgWeight = summary?.averageWeightGrams ? formatNumber(summary.averageWeightGrams / 1000, ' kg') : '0 kg';
+  const totalSoldBirds = sumSalesBirds(sales);
+  const totalSoldWeight = sumSalesWeight(sales);
+  const avgWeight = totalSoldBirds > 0 ? formatNumber(totalSoldWeight / totalSoldBirds, ' kg') : '0 kg';
   const feedConsumed = summary?.totalFeedConsumedKg ? formatNumber(summary.totalFeedConsumedKg, ' kg') : '0 kg';
   const ageDays = summary?.currentAgeDays ?? 0;
   const activeExpenses = activeExpenseTab === 'company' ? companyExpenses : farmerExpenses;
@@ -387,8 +395,6 @@ export default function BatchDetailsScreen() {
   const todaySalesAmount = sumSalesAmount(
     sales.filter((sale) => sale.saleDate === getLocalDateValue()),
   );
-  const totalSoldBirds = sumSalesBirds(sales);
-  const totalSoldWeight = sumSalesWeight(sales);
 
   const openDailyEntry = useCallback(
     (dailyLogId?: string) => {
