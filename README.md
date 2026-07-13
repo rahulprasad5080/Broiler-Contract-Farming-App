@@ -44,4 +44,4 @@ npm run docs:extract
 
 The generated `docs/extracted-api.txt` is ignored by git.
 
-https://broiler-dusky.vercel.app/docs/
+https://broiler-fawn.vercel.app/docs/

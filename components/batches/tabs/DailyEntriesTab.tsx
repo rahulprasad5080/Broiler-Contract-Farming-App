@@ -2,7 +2,7 @@ import type { ApiDailyLog } from '@/services/managementApi';
 import { formatNumber } from '@/utils/format';
 import { Feather, Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useState } from 'react';
-import { Text, TouchableOpacity, View } from 'react-native';
+import { Text, TouchableOpacity, View, Modal, ScrollView } from 'react-native';
 import { styles } from './styles';
 
 const THEME_GREEN = '#0B5C36';
@@ -42,7 +42,12 @@ interface DailyEntriesTabProps {
 }
 
 export function DailyEntriesTab({ dailyLogs, openDailyEntry }: DailyEntriesTabProps) {
-  const [expandedLogId, setExpandedLogId] = useState<string | null>(null);
+  const [selectedLogForModal, setSelectedLogForModal] = useState<ApiDailyLog | null>(null);
+
+  const modalDateParts = selectedLogForModal ? getDateParts(selectedLogForModal.logDate) : null;
+  const modalTreatments = selectedLogForModal?.treatments ?? [];
+  const modalHasMortality = selectedLogForModal ? (selectedLogForModal.mortalityCount ?? 0) > 0 : false;
+  const modalHasCull = selectedLogForModal ? (selectedLogForModal.cullCount ?? 0) > 0 : false;
 
   return (
     <View style={styles.section}>
@@ -70,190 +75,73 @@ export function DailyEntriesTab({ dailyLogs, openDailyEntry }: DailyEntriesTabPr
           const hasMortality = (log.mortalityCount ?? 0) > 0;
           const hasCull = (log.cullCount ?? 0) > 0;
           const treatments = log.treatments ?? [];
-          const isExpanded = expandedLogId === log.id;
 
           return (
             <TouchableOpacity
               key={log.id}
               style={styles.dailyLogCardPremium}
-              activeOpacity={0.75}
-              onPress={() => openDailyEntry?.(log.id)}
-              disabled={!openDailyEntry}
+              activeOpacity={0.8}
+              onPress={() => setSelectedLogForModal(log)}
             >
-              {/* Left Column: Date Badge */}
+              {/* Left Column: Tear-off Calendar Date Badge */}
               <View style={styles.dateBadge}>
-                <Text style={styles.dateBadgeMonth}>{month}</Text>
-                <Text style={styles.dateBadgeDay}>{day}</Text>
-                <Text style={styles.dateBadgeWeekday}>{weekday}</Text>
+                <View style={styles.dateBadgeBody}>
+                  <Text style={styles.dateBadgeMonth} numberOfLines={1}>{month}</Text>
+                  <Text style={styles.dateBadgeDay} numberOfLines={1}>{day}</Text>
+                  <Text style={styles.dateBadgeWeekday} numberOfLines={1}>{weekday}</Text>
+                </View>
               </View>
 
               {/* Right Column: Main Content */}
               <View style={styles.cardContent}>
                 {/* Header Row */}
-                  <View style={styles.cardHeader}>
-                    <View style={styles.headerTitleContainer}>
-                      <Text style={styles.batchCodeTitle}>Opening: {formatNumber(log.openingBirdCount)} birds</Text>
-                    </View>
-
-                    <View style={styles.cardActionGroup}>
-                      <TouchableOpacity
-                        style={styles.iconActionButton}
-                        activeOpacity={0.75}
-                        onPress={() => setExpandedLogId(isExpanded ? null : log.id)}
-                        accessibilityRole="button"
-                        accessibilityLabel="View daily entry details"
-                      >
-                        <Feather name={isExpanded ? 'eye-off' : 'eye'} size={14} color={THEME_GREEN} />
-                      </TouchableOpacity>
-
-                      <TouchableOpacity
-                        style={styles.editButtonIcon}
-                        activeOpacity={0.75}
-                        onPress={() => openDailyEntry?.(log.id)}
-                        disabled={!openDailyEntry}
-                      >
-                        <Ionicons name="create-outline" size={14} color={THEME_GREEN} />
-                        <Text style={styles.editButtonText}>Edit</Text>
-                      </TouchableOpacity>
-                    </View>
+                <View style={styles.cardHeader}>
+                  <View style={styles.headerTitleContainer}>
+                    <Text style={styles.batchCodeTitle}>Opening: {formatNumber(log.openingBirdCount)} birds</Text>
                   </View>
 
-                <View style={styles.dividerLine} />
+                  <View style={styles.cardActionGroup}>
+                    <TouchableOpacity
+                      style={styles.iconActionButton}
+                      activeOpacity={0.75}
+                      onPress={(e) => {
+                        e.stopPropagation();
+                        setSelectedLogForModal(log);
+                      }}
+                      accessibilityRole="button"
+                      accessibilityLabel="View daily entry details"
+                    >
+                      <Feather name="eye" size={13} color={THEME_GREEN} />
+                    </TouchableOpacity>
 
-                {/* Metrics 3x2 Grid */}
-                <View style={styles.metricsContainer}>
-                  {/* Row 1: Flock Status */}
-                  <View style={styles.metricsRow}>
-                    <View style={styles.metricItem}>
-                      <MaterialCommunityIcons name="bird" size={12} color="#0B5C36" style={styles.metricIcon} />
-                      <Text style={styles.metricText} numberOfLines={1}>
-                        <Text style={styles.metricLabelCompact}>Op: </Text>
-                        {formatNumber(log.openingBirdCount)}
-                      </Text>
-                    </View>
-
-                    <View style={styles.metricItem}>
-                      <MaterialCommunityIcons
-                        name="heart-broken"
-                        size={12}
-                        color={hasMortality ? "#D32F2F" : "#757575"}
-                        style={styles.metricIcon}
-                      />
-                      <Text style={styles.metricText} numberOfLines={1}>
-                        <Text style={styles.metricLabelCompact}>Mort: </Text>
-                        <Text style={hasMortality ? styles.warningTextRed : null}>
-                          {formatNumber(log.mortalityCount)}
-                        </Text>
-                      </Text>
-                    </View>
-
-                    <View style={styles.metricItem}>
-                      <MaterialCommunityIcons
-                        name="close-circle-outline"
-                        size={12}
-                        color={hasCull ? "#E65100" : "#757575"}
-                        style={styles.metricIcon}
-                      />
-                      <Text style={styles.metricText} numberOfLines={1}>
-                        <Text style={styles.metricLabelCompact}>Cull: </Text>
-                        <Text style={hasCull ? styles.warningTextOrange : null}>
-                          {formatNumber(log.cullCount)}
-                        </Text>
-                      </Text>
-                    </View>
-                  </View>
-
-                  {/* Row 2: Inputs */}
-                  <View style={styles.metricsRow}>
-                    <View style={styles.metricItem}>
-                      <MaterialCommunityIcons name="corn" size={12} color="#1A73E8" style={styles.metricIcon} />
-                      <Text style={styles.metricText} numberOfLines={1}>
-                        <Text style={styles.metricLabelCompact}>Feed: </Text>
-                        {formatNumber(log.feedConsumedKg, " kg")}
-                      </Text>
-                    </View>
-
-                    <View style={styles.metricItem}>
-                      <Ionicons name="water" size={12} color="#00796B" style={styles.metricIcon} />
-                      <Text style={styles.metricText} numberOfLines={1}>
-                        <Text style={styles.metricLabelCompact}>Water: </Text>
-                        {formatNumber(log.waterConsumedLtr, " L")}
-                      </Text>
-                    </View>
-
-                    <View style={styles.metricItem}>
-                      <MaterialCommunityIcons name="scale" size={12} color="#4A148C" style={styles.metricIcon} />
-                      <Text style={styles.metricText} numberOfLines={1}>
-                        <Text style={styles.metricLabelCompact}>Wt: </Text>
-                        {formatNumber(log.avgWeightGrams, " g")}
-                      </Text>
-                    </View>
+                    <TouchableOpacity
+                      style={styles.editButtonIcon}
+                      activeOpacity={0.75}
+                      onPress={(e) => {
+                        e.stopPropagation();
+                        openDailyEntry?.(log.id);
+                      }}
+                      disabled={!openDailyEntry}
+                    >
+                      <Ionicons name="create-outline" size={12} color={THEME_GREEN} />
+                      <Text style={styles.editButtonText}>Edit</Text>
+                    </TouchableOpacity>
                   </View>
                 </View>
 
-                {/* Notes Container */}
-                {log.notes ? (
-                  <View style={styles.notesContainer}>
-                    <Ionicons name="chatbubble-ellipses-outline" size={10} color="#64748B" />
-                    <Text style={styles.notesText} numberOfLines={1}>
-                      {log.notes}
-                    </Text>
-                  </View>
-                ) : null}
-
-                {treatments.length > 0 ? (
-                  <View style={styles.treatmentChipWrap}>
-                    {treatments.slice(0, 3).map((treatment) => (
-                      <View key={treatment.id} style={styles.treatmentChip}>
-                        <Ionicons name="medical-outline" size={10} color="#0B5C36" />
-                        <Text style={styles.treatmentChipText} numberOfLines={1}>
-                          {treatment.kind}: {treatment.treatmentName}
-                        </Text>
-                      </View>
-                    ))}
-                    {treatments.length > 3 ? (
-                      <View style={styles.treatmentChip}>
-                        <Text style={styles.treatmentChipText}>+{treatments.length - 3}</Text>
+                {/* Status Alert Row for Mortality & Cull */}
+                {(hasMortality || hasCull) ? (
+                  <View style={styles.alertRow}>
+                    {hasMortality ? (
+                      <View style={[styles.alertPill, styles.alertPillRed]}>
+                        <MaterialCommunityIcons name="heart-broken" size={12} color="#DC2626" />
+                        <Text style={styles.alertTextRed}>{formatNumber(log.mortalityCount)} Dead</Text>
                       </View>
                     ) : null}
-                  </View>
-                ) : null}
-
-                {isExpanded ? (
-                  <View style={styles.detailBox}>
-                    <View style={styles.detailRow}>
-                      <Text style={styles.detailLabel}>Date</Text>
-                      <Text style={styles.detailValue}>{log.logDate.slice(0, 10)}</Text>
-                    </View>
-                    <View style={styles.detailRow}>
-                      <Text style={styles.detailLabel}>Feed / Water</Text>
-                      <Text style={styles.detailValue}>
-                        {formatNumber(log.feedConsumedKg, ' kg')} / {formatNumber(log.waterConsumedLtr, ' L')}
-                      </Text>
-                    </View>
-                    <View style={styles.detailRow}>
-                      <Text style={styles.detailLabel}>Weight</Text>
-                      <Text style={styles.detailValue}>{formatNumber(log.avgWeightGrams, ' g')}</Text>
-                    </View>
-                    {log.notes ? (
-                      <View style={styles.detailNotes}>
-                        <Text style={styles.detailLabel}>Notes</Text>
-                        <Text style={styles.detailValue}>{log.notes}</Text>
-                      </View>
-                    ) : null}
-                    {treatments.length > 0 ? (
-                      <View style={styles.detailTreatments}>
-                        <Text style={styles.detailLabel}>Treatments</Text>
-                        {treatments.map((treatment) => (
-                          <View key={treatment.id} style={styles.detailTreatmentItem}>
-                            <Text style={styles.detailTreatmentName}>
-                              {treatment.kind}: {treatment.treatmentName}
-                            </Text>
-                            <Text style={styles.detailTreatmentMeta}>
-                              {treatment.dosage || 'No dosage'}{treatment.birdCount ? ` • ${formatNumber(treatment.birdCount)} birds` : ''}
-                            </Text>
-                          </View>
-                        ))}
+                    {hasCull ? (
+                      <View style={[styles.alertPill, styles.alertPillOrange]}>
+                        <MaterialCommunityIcons name="close-circle-outline" size={12} color="#D97706" />
+                        <Text style={styles.alertTextOrange}>{formatNumber(log.cullCount)} Culled</Text>
                       </View>
                     ) : null}
                   </View>
@@ -265,6 +153,108 @@ export function DailyEntriesTab({ dailyLogs, openDailyEntry }: DailyEntriesTabPr
           );
         })
       )}
+
+      {/* Premium Bottom Sheet Details Modal */}
+      <Modal
+        visible={selectedLogForModal !== null}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => setSelectedLogForModal(null)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContainer}>
+            {/* Header */}
+            <View style={styles.modalHeader}>
+              <View style={styles.modalHeaderLeft}>
+                <Text style={styles.modalTitle}>Daily Entry Details</Text>
+                {selectedLogForModal && (
+                  <Text style={styles.modalSubtitle}>
+                    Logged on {modalDateParts?.day} {modalDateParts?.month} {modalDateParts?.year} ({modalDateParts?.weekday})
+                  </Text>
+                )}
+              </View>
+              <TouchableOpacity
+                style={styles.modalCloseBtn}
+                activeOpacity={0.7}
+                onPress={() => setSelectedLogForModal(null)}
+              >
+                <Ionicons name="close" size={18} color="#475569" />
+              </TouchableOpacity>
+            </View>
+
+            {/* Scrollable details content */}
+            <ScrollView
+              showsVerticalScrollIndicator={false}
+              contentContainerStyle={styles.modalScrollContent}
+            >
+              {selectedLogForModal && (
+                <View style={styles.simpleDetailsContainer}>
+                  <View style={styles.simpleDetailRow}>
+                    <Text style={styles.simpleDetailLabel}>Opening Birds</Text>
+                    <Text style={styles.simpleDetailValue}>{formatNumber(selectedLogForModal.openingBirdCount)} Birds</Text>
+                  </View>
+                  
+                  <View style={styles.simpleDetailRow}>
+                    <Text style={styles.simpleDetailLabel}>Mortality</Text>
+                    <Text style={[styles.simpleDetailValue, { color: modalHasMortality ? '#DC2626' : '#1E293B' }]}>
+                      {formatNumber(selectedLogForModal.mortalityCount)} Dead
+                    </Text>
+                  </View>
+
+                  <View style={styles.simpleDetailRow}>
+                    <Text style={styles.simpleDetailLabel}>Culls</Text>
+                    <Text style={[styles.simpleDetailValue, { color: modalHasCull ? '#D97706' : '#1E293B' }]}>
+                      {formatNumber(selectedLogForModal.cullCount)} Culled
+                    </Text>
+                  </View>
+
+                  <View style={styles.simpleDetailRow}>
+                    <Text style={styles.simpleDetailLabel}>Feed Consumed</Text>
+                    <Text style={styles.simpleDetailValue}>{formatNumber(selectedLogForModal.feedConsumedKg, " kg")}</Text>
+                  </View>
+
+                  <View style={styles.simpleDetailRow}>
+                    <Text style={styles.simpleDetailLabel}>Water Consumed</Text>
+                    <Text style={styles.simpleDetailValue}>{formatNumber(selectedLogForModal.waterConsumedLtr, " L")}</Text>
+                  </View>
+
+                  <View style={styles.simpleDetailRow}>
+                    <Text style={styles.simpleDetailLabel}>Average Weight</Text>
+                    <Text style={styles.simpleDetailValue}>{formatNumber(selectedLogForModal.avgWeightGrams, " g")}</Text>
+                  </View>
+
+                  {selectedLogForModal.notes ? (
+                    <View style={[styles.simpleDetailRow, { flexDirection: 'column', alignItems: 'flex-start', borderBottomWidth: 0 }]}>
+                      <Text style={styles.simpleDetailLabel}>Remarks & Observations</Text>
+                      <Text style={styles.simpleDetailNotesText}>"{selectedLogForModal.notes}"</Text>
+                    </View>
+                  ) : null}
+
+                  {modalTreatments.length > 0 ? (
+                    <View style={{ marginTop: 14 }}>
+                      <Text style={[styles.simpleDetailLabel, { marginBottom: 8 }]}>Treatments Administered</Text>
+                      {modalTreatments.map((treatment) => (
+                        <View key={treatment.id} style={styles.simpleTreatmentRow}>
+                          <Text style={styles.simpleTreatmentText}>
+                            • {treatment.kind}: <Text style={{ fontWeight: '800', color: '#1E293B' }}>{treatment.treatmentName}</Text>
+                            {treatment.dosage ? ` (Dosage: ${treatment.dosage})` : ''}
+                            {treatment.birdCount ? ` - ${formatNumber(treatment.birdCount)} Birds` : ''}
+                          </Text>
+                          {treatment.notes ? (
+                            <Text style={styles.simpleTreatmentNotes}>Notes: {treatment.notes}</Text>
+                          ) : null}
+                        </View>
+                      ))}
+                    </View>
+                  ) : null}
+                </View>
+              )}
+            </ScrollView>
+
+            {/* Modal actions footer removed */}
+          </View>
+        </View>
+      </Modal>
 
       <View style={{ height: 40 }} />
     </View>
